@@ -1,5 +1,9 @@
 # libsignal-service-rs
 
+[![Build Status](https://travis-ci.com/Michael-F-Bryan/libsignal-service-rs.svg?branch=master)](https://travis-ci.com/Michael-F-Bryan/libsignal-service-rs)
+
+([API Docs](https://michael-f-bryan.github.io/libsignal-service-rs))
+
 A Rust version of the [libsignal-service-java][lsj] library for communicating
 with Signal servers.
 
