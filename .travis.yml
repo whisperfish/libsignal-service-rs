@@ -1,0 +1,43 @@
+language: rust
+sudo: false
+cache: cargo
+
+script: 
+  - cargo build --all --verbose
+  - cargo test --all --verbose
+  - cargo doc --all --verbose
+
+before_deploy:
+  - cargo doc --all --verbose
+  - echo '<meta http-equiv="refresh" content="0; url=libsignal_service/index.html" /> ' > target/doc/index.html
+  - cp -r target/doc public
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - name: "Code Style"
+
+  include:
+    - rust: stable
+    - rust: 1.34.0
+    - rust: nightly
+
+    - rust: nightly
+      name: "Code Style"
+      before_script:
+        - rustup component add rustfmt
+        - rustup component add clippy
+      script:
+        - cargo fmt --all -- --check
+        - cargo clippy -- -D clippy::all
+
+deploy:
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN 
+  keep_history: true
+  local_dir: public
+  on:
+    branch: master
+    # nightly gives us better docs (intra-doc links)
+    condition: "$TRAVIS_RUST_VERSION == nightly"

@@ -1,0 +1,10 @@
+[package]
+name = "libsignal-service"
+version = "0.1.0"
+authors = ["Michael Bryan <michaelfbryan@gmail.com>", "Shady Khalifa <shekohex@gmail.com>"]
+edition = "2018"
+license = "GPLv3"
+readme = "../README.md"
+
+[dependencies]
+libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
