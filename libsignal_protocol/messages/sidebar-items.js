@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["CiphertextMessage","An encrypted message (\"ciphertext\")."]]});
