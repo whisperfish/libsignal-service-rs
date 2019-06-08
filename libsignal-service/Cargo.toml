@@ -7,7 +7,7 @@ license = "GPLv3"
 readme = "../README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
+libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs", rev = "39077a7" }
 failure = "0.1.5"
 
 [dev-dependencies]
