@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/travis/.cargo/git/checkouts/libsignal-protocol-rs-bd2698d95a103c0d/ec1fdd4/libsignal-protocol/src/context.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>context.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/travis/.cargo/git/checkouts/libsignal-protocol-rs-bd2698d95a103c0d/39077a7/libsignal-protocol/src/context.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>context.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -387,19 +387,53 @@
 <span id="387">387</span>
 <span id="388">388</span>
 <span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
-
-<span class="kw">use</span> <span class="ident">lock_api</span>::<span class="ident">RawMutex</span> <span class="kw">as</span> <span class="kw">_</span>;
-<span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RawMutex</span>;
-<span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">ffi</span>::<span class="ident">c_void</span>,
-    <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Formatter</span>},
-    <span class="ident">pin</span>::<span class="ident">Pin</span>,
-    <span class="ident">ptr</span>,
-    <span class="ident">rc</span>::<span class="ident">Rc</span>,
-    <span class="ident">time</span>::<span class="ident">SystemTime</span>,
-};
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;crypto-native&quot;</span>)]</span>
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">crypto</span>::<span class="ident">DefaultCrypto</span>;
@@ -419,6 +453,18 @@
         <span class="ident">signed_pre_key_store</span>::{<span class="self">self</span> <span class="kw">as</span> <span class="ident">spks</span>, <span class="ident">SignedPreKeyStore</span>},
     },
     <span class="ident">Address</span>, <span class="ident">Buffer</span>, <span class="ident">StoreContext</span>,
+};
+<span class="kw">use</span> <span class="ident">lock_api</span>::<span class="ident">RawMutex</span> <span class="kw">as</span> <span class="kw">_</span>;
+<span class="kw">use</span> <span class="ident">log</span>::<span class="ident">Level</span>;
+<span class="kw">use</span> <span class="ident">parking_lot</span>::<span class="ident">RawMutex</span>;
+<span class="kw">use</span> <span class="ident">std</span>::{
+    <span class="ident">convert</span>::<span class="ident">TryFrom</span>,
+    <span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>, <span class="ident">Formatter</span>},
+    <span class="ident">os</span>::<span class="ident">raw</span>::{<span class="ident">c_char</span>, <span class="ident">c_int</span>, <span class="ident">c_void</span>},
+    <span class="ident">pin</span>::<span class="ident">Pin</span>,
+    <span class="ident">ptr</span>,
+    <span class="ident">rc</span>::<span class="ident">Rc</span>,
+    <span class="ident">time</span>::<span class="ident">SystemTime</span>,
 };
 
 <span class="comment">// for rustdoc link resolution</span>
@@ -693,7 +739,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">ContextInner</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Crypto</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">C</span>: <span class="ident">Crypto</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
         <span class="ident">crypto</span>: <span class="ident">C</span>,
     ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ContextInner</span>, <span class="ident">InternalError</span><span class="op">&gt;</span> {
         <span class="kw">unsafe</span> {
@@ -701,6 +747,7 @@
             <span class="kw">let</span> <span class="ident">crypto</span> <span class="op">=</span> <span class="ident">CryptoProvider</span>::<span class="ident">new</span>(<span class="ident">crypto</span>);
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">Pin</span>::<span class="ident">new</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">State</span> {
                 <span class="ident">mux</span>: <span class="ident">RawMutex</span>::<span class="ident">INIT</span>,
+                <span class="ident">log_func</span>: <span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">default_log_func</span>),
             }));
 
             <span class="kw">let</span> <span class="ident">user_data</span> <span class="op">=</span>
@@ -718,6 +765,11 @@
                 <span class="prelude-val">Some</span>(<span class="ident">unlock_function</span>),
             )
             .<span class="ident">into_result</span>()<span class="question-mark">?</span>;
+            <span class="ident">sys</span>::<span class="ident">signal_context_set_log_function</span>(
+                <span class="ident">global_context</span>,
+                <span class="prelude-val">Some</span>(<span class="ident">log_trampoline</span>),
+            )
+            .<span class="ident">into_result</span>()<span class="question-mark">?</span>;
 
             <span class="prelude-val">Ok</span>(<span class="ident">ContextInner</span> {
                 <span class="ident">raw</span>: <span class="ident">global_context</span>,
@@ -727,7 +779,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">raw</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">sys</span>::<span class="ident">signal_context</span> { <span class="self">self</span>.<span class="ident">raw</span> }
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">raw</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">sys</span>::<span class="ident">signal_context</span> { <span class="self">self</span>.<span class="ident">raw</span> }
 }
 
 <span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">ContextInner</span> {
@@ -741,6 +793,43 @@
 <span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">ContextInner</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
         <span class="ident">f</span>.<span class="ident">debug_tuple</span>(<span class="string">&quot;ContextInner&quot;</span>).<span class="ident">finish</span>()
+    }
+}
+
+<span class="kw">fn</span> <span class="ident">default_log_func</span>(<span class="ident">level</span>: <span class="ident">Level</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) {
+    <span class="ident">log</span>::<span class="macro">log</span><span class="macro">!</span>(<span class="ident">level</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">message</span>);
+
+    <span class="kw">if</span> <span class="ident">level</span> <span class="op">==</span> <span class="ident">Level</span>::<span class="ident">Error</span> <span class="op">&amp;&amp;</span> <span class="ident">std</span>::<span class="ident">env</span>::<span class="ident">var</span>(<span class="string">&quot;RUST_BACKTRACE&quot;</span>).<span class="ident">is_ok</span>() {
+        <span class="ident">log</span>::<span class="macro">error</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">failure</span>::<span class="ident">Backtrace</span>::<span class="ident">new</span>());
+    }
+}
+
+<span class="kw">unsafe</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">log_trampoline</span>(
+    <span class="ident">level</span>: <span class="ident">c_int</span>,
+    <span class="ident">msg</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">c_char</span>,
+    <span class="ident">len</span>: <span class="ident">usize</span>,
+    <span class="ident">user_data</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">c_void</span>,
+) {
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">msg</span>.<span class="ident">is_null</span>());
+    <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">user_data</span>.<span class="ident">is_null</span>());
+
+    <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span>(<span class="ident">user_data</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">State</span>);
+    <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">std</span>::<span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">msg</span> <span class="kw">as</span> <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">len</span>);
+    <span class="kw">let</span> <span class="ident">level</span> <span class="op">=</span> <span class="ident">translate_log_level</span>(<span class="ident">level</span>);
+
+    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Ok</span>(<span class="ident">message</span>) <span class="op">=</span> <span class="ident">std</span>::<span class="ident">str</span>::<span class="ident">from_utf8</span>(<span class="ident">buffer</span>) {
+        (<span class="ident">state</span>.<span class="ident">log_func</span>)(<span class="ident">level</span>, <span class="ident">message</span>);
+    }
+}
+
+<span class="kw">fn</span> <span class="ident">translate_log_level</span>(<span class="ident">raw</span>: <span class="ident">c_int</span>) <span class="op">-&gt;</span> <span class="ident">Level</span> {
+    <span class="kw">match</span> <span class="ident">u32</span>::<span class="ident">try_from</span>(<span class="ident">raw</span>) {
+        <span class="prelude-val">Ok</span>(<span class="ident">sys</span>::<span class="ident">SG_LOG_ERROR</span>) <span class="op">=&gt;</span> <span class="ident">Level</span>::<span class="ident">Error</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">sys</span>::<span class="ident">SG_LOG_WARNING</span>) <span class="op">=&gt;</span> <span class="ident">Level</span>::<span class="ident">Warn</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">sys</span>::<span class="ident">SG_LOG_INFO</span>) <span class="op">=&gt;</span> <span class="ident">Level</span>::<span class="ident">Info</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">sys</span>::<span class="ident">SG_LOG_DEBUG</span>) <span class="op">=&gt;</span> <span class="ident">Level</span>::<span class="ident">Debug</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">sys</span>::<span class="ident">SG_LOG_NOTICE</span>) <span class="op">=&gt;</span> <span class="ident">Level</span>::<span class="ident">Trace</span>,
+        <span class="kw">_</span> <span class="op">=&gt;</span> <span class="ident">Level</span>::<span class="ident">Info</span>,
     }
 }
 
@@ -764,6 +853,7 @@
 <span class="doccomment">/// appropriate synchronisation mechanisms (i.e. `RefCell` or atomics).</span>
 <span class="kw">struct</span> <span class="ident">State</span> {
     <span class="ident">mux</span>: <span class="ident">RawMutex</span>,
+    <span class="ident">log_func</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Fn</span>(<span class="ident">Level</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)<span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>

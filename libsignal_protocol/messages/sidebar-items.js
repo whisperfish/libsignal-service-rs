@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["CiphertextMessage","An encrypted message (\"ciphertext\")."]]});
+initSidebarItems({"enum":[["CiphertextType","The type of ciphertext message."]],"struct":[["CiphertextMessage","The base class for a ciphertext message."],["PreKeySignalMessage","A message containing everything necessary to establish a session."],["SignalMessage","A message with an arbitrary payload."]]});

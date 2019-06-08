@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/travis/.cargo/git/checkouts/libsignal-protocol-rs-bd2698d95a103c0d/ec1fdd4/libsignal-protocol/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `/home/travis/.cargo/git/checkouts/libsignal-protocol-rs-bd2698d95a103c0d/39077a7/libsignal-protocol/src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css"><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
 <span id="4">  4</span>
@@ -122,6 +122,15 @@
 <span id="122">122</span>
 <span id="123">123</span>
 <span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="doccomment">//! A Rust interface to the [libsignal-protocol-c] library.</span>
 <span class="doccomment">//!</span>
@@ -150,9 +159,9 @@
 <span class="doccomment">//! 1. [`PreKeyBundle`]. A client that wishes to send a message to a recipient</span>
 <span class="doccomment">//!    can establish a session by retrieving a [`PreKeyBundle`] for that</span>
 <span class="doccomment">//!    recipient from the server.</span>
-<span class="doccomment">//! 2. PreKeySignalMessages.  A client can receive a PreKeySignalMessage from a</span>
-<span class="doccomment">//!    recipient and use it to establish a session.</span>
-<span class="doccomment">//! 3. KeyExchangeMessages.  Two clients can exchange KeyExchange messages to</span>
+<span class="doccomment">//! 2. [`PreKeySignalMessage`]s.  A client can receive a [`PreKeySignalMessage`]</span>
+<span class="doccomment">//!    from a recipient and use it to establish a session.</span>
+<span class="doccomment">//! 3. KeyExchangeMessages. Two clients can exchange KeyExchange messages to</span>
 <span class="doccomment">//!    establish a session.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! ## State</span>
@@ -183,7 +192,8 @@
     <span class="ident">rust_2018_idioms</span>,
     <span class="ident">clippy</span>::<span class="ident">cargo_common_metadata</span>,
     <span class="ident">clippy</span>::<span class="ident">fallible_impl_from</span>,
-    <span class="ident">clippy</span>::<span class="ident">missing_const_for_fn</span>
+    <span class="ident">clippy</span>::<span class="ident">missing_const_for_fn</span>,
+    <span class="ident">intra_doc_link_resolution_failure</span>
 )]</span>
 
 <span class="comment">// we use the *-sys crate everywhere so give it a shorter name</span>
@@ -205,6 +215,8 @@
     <span class="ident">pre_key_bundle</span>::{<span class="ident">PreKeyBundle</span>, <span class="ident">PreKeyBundleBuilder</span>},
     <span class="ident">session_builder</span>::<span class="ident">SessionBuilder</span>,
     <span class="ident">session_cipher</span>::<span class="ident">SessionCipher</span>,
+    <span class="ident">session_record</span>::<span class="ident">SessionRecord</span>,
+    <span class="ident">session_state</span>::<span class="ident">SessionState</span>,
     <span class="ident">store_context</span>::<span class="ident">StoreContext</span>,
 };
 
@@ -223,11 +235,17 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod</span> <span class="ident">raw_ptr</span>;
 <span class="kw">mod</span> <span class="ident">session_builder</span>;
 <span class="kw">mod</span> <span class="ident">session_cipher</span>;
+<span class="kw">mod</span> <span class="ident">session_record</span>;
+<span class="kw">mod</span> <span class="ident">session_state</span>;
 <span class="kw">mod</span> <span class="ident">store_context</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">stores</span>;
 
 <span class="kw">use</span> <span class="ident">failure</span>::<span class="ident">Error</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Write</span>;
+
+<span class="comment">// bring into scope for rustdoc</span>
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused_imports</span>)]</span>
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">messages</span>::<span class="ident">PreKeySignalMessage</span>;
 
 <span class="doccomment">/// A helper trait for something which can be serialized to protobufs.</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">Serializable</span> {
