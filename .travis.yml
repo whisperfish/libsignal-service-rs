@@ -19,7 +19,7 @@ matrix:
 
   include:
     - rust: stable
-    - rust: 1.34.0
+    - rust: 1.40.0
     - rust: nightly
 
     - rust: nightly
