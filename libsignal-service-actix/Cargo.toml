@@ -1,0 +1,19 @@
+[package]
+name = "libsignal-service-actix"
+version = "0.1.0"
+authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+libsignal-service = { path = "../libsignal-service" }
+libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
+
+awc = { version = "2.0.0-alpha.2", features=["rustls"] }
+actix-rt = "1.1"
+rustls = "0.17"
+
+failure = "0.1.5"
+thiserror = "1.0"
+async-trait = "0.1.35"

@@ -1,2 +1,5 @@
 [workspace]
-members = ["libsignal-service"]
+members = [
+    "libsignal-service",
+    "libsignal-service-actix",
+]

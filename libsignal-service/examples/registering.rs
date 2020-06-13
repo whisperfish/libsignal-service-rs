@@ -18,24 +18,36 @@
 //! ```
 
 use failure::Error;
-use libsignal_service::{AccountManager, TrustStore};
+use libsignal_service::{
+    configuration::*, push_service::PanicingPushService, AccountManager,
+    TrustStore,
+};
 use std::io;
 use structopt::StructOpt;
 
-fn main() -> Result<(), Error> {
+#[tokio::main]
+async fn main() -> Result<(), Error> {
     let args = Args::from_args();
 
-    let trust_store = args.load_trust_store()?;
+    // Only used with MessageSender and MessageReceiver
+    let _trust_store = args.load_trust_store()?;
     let password = args.get_password()?;
 
-    let mut account_manager = AccountManager::builder()
-        .server(args.url)
-        .credentials(args.username, password)
-        .trust_store(trust_store)
-        .user_agent(args.user_agent)
-        .build();
+    let config = ServiceConfiguration::default();
+    let credentials = StaticCredentialsProvider {
+        uuid: String::new(),
+        e164: args.username,
+        password,
+    };
 
-    account_manager.request_sms_verification_code()?;
+    let service = PanicingPushService::new(
+        config,
+        credentials,
+        libsignal_service::USER_AGENT,
+    );
+
+    let mut account_manager = AccountManager::new(service);
+    account_manager.request_sms_verification_code().await?;
 
     Ok(())
 }
