@@ -3,6 +3,8 @@ pub mod configuration;
 pub mod push_service;
 pub mod receiver;
 
+mod proto;
+
 pub use crate::account_manager::AccountManager;
 
 pub const USER_AGENT: &'static str =
