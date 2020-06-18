@@ -16,4 +16,4 @@ rustls = "0.17"
 
 failure = "0.1.5"
 thiserror = "1.0"
-async-trait = "0.1.35"
+async-trait = "0.1.30"
