@@ -13,3 +13,10 @@ pub const USER_AGENT: &'static str =
     concat!(env!("CARGO_PKG_NAME"), "-rs-", env!("CARGO_PKG_VERSION"));
 
 pub struct TrustStore;
+
+pub mod prelude {
+    pub use crate::{
+        configuration::{Credentials, ServiceConfiguration},
+        receiver::MessageReceiver,
+    };
+}

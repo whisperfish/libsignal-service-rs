@@ -4,7 +4,7 @@ pub struct Envelope {
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct EnvelopeEntity {
+pub struct EnvelopeEntity {
     pub r#type: i32,
     pub relay: String,
     pub timestamp: i64,

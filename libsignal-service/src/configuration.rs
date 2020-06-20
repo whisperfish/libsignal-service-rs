@@ -6,7 +6,21 @@ pub struct ServiceConfiguration {
 }
 
 pub struct Credentials {
-    pub uuid: String,
+    pub uuid: Option<String>,
     pub e164: String,
-    pub password: String,
+    pub password: Option<String>,
+}
+
+impl Credentials {
+    /// Kind-of equivalent with `PushServiceSocket::getAuthorizationHeader`
+    ///
+    /// None when `self.password == None`
+    pub fn authorization(&self) -> Option<(&str, &str)> {
+        let identifier: &str = if let Some(uuid) = self.uuid.as_ref() {
+            uuid
+        } else {
+            &self.e164
+        };
+        Some((identifier, self.password.as_ref()?))
+    }
 }

@@ -35,9 +35,9 @@ async fn main() -> Result<(), Error> {
 
     let config = ServiceConfiguration::default();
     let credentials = Credentials {
-        uuid: String::new(),
+        uuid: None,
         e164: args.username,
-        password,
+        password: Some(password),
     };
 
     let service = PanicingPushService::new(

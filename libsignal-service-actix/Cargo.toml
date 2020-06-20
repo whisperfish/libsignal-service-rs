@@ -13,6 +13,9 @@ libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-proto
 awc = { version = "2.0.0-alpha.2", features=["rustls"] }
 actix-rt = "1.1"
 rustls = "0.17"
+url = "2.1"
+serde = "1.0"
+log = "0.4.8"
 
 failure = "0.1.5"
 thiserror = "1.0"
