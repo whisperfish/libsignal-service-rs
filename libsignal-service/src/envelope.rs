@@ -1,4 +1,4 @@
-use crate::utils::serde_base64;
+use crate::utils::{serde_base64, serde_optional_base64};
 
 pub struct Envelope {
     inner: crate::proto::Envelope,
@@ -13,10 +13,10 @@ pub struct EnvelopeEntity {
     pub source: String,
     pub source_uuid: String,
     pub source_device: i32,
-    #[serde(with = "serde_base64")]
-    pub message: Vec<u8>,
-    #[serde(with = "serde_base64")]
-    pub content: Vec<u8>,
+    #[serde(with = "serde_optional_base64")]
+    pub message: Option<Vec<u8>>,
+    #[serde(with = "serde_optional_base64")]
+    pub content: Option<Vec<u8>>,
     pub server_timestamp: i64,
     pub guid: String,
 }
