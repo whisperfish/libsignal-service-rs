@@ -102,7 +102,8 @@ pub trait PushService {
     async fn get_messages(
         &mut self,
     ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
-        Ok(self.get(MESSAGE_PATH).await?)
+        let entity_list: EnvelopeEntityList = self.get(MESSAGE_PATH).await?;
+        Ok(entity_list.messages)
     }
 }
 

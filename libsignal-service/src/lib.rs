@@ -7,6 +7,8 @@ pub mod receiver;
 
 mod proto;
 
+mod utils;
+
 pub use crate::account_manager::AccountManager;
 
 pub const USER_AGENT: &'static str =
