@@ -35,12 +35,32 @@ impl PushService for AwcPushService {
 
         ServiceError::from_status(response.status())?;
 
-        response
-            .json()
-            .await
-            .map_err(|e| ServiceError::JsonDecodeError {
-                reason: e.to_string(),
+        // In order to debug the output, we collect the whole response.
+        // The actix-web api is meant to used as a streaming deserializer,
+        // so we have this little awkward switch.
+        //
+        // This is also the reason we depend directly on serde_json, however
+        // actix already imports that anyway.
+        if log::log_enabled!(log::Level::Debug) {
+            let text = response.body().await.map_err(|e| {
+                ServiceError::JsonDecodeError {
+                    reason: e.to_string(),
+                }
+            })?;
+            log::debug!("GET response: {:?}", String::from_utf8_lossy(&text));
+            serde_json::from_slice(&text).map_err(|e| {
+                ServiceError::JsonDecodeError {
+                    reason: e.to_string(),
+                }
             })
+        } else {
+            response
+                .json()
+                .await
+                .map_err(|e| ServiceError::JsonDecodeError {
+                    reason: e.to_string(),
+                })
+        }
     }
 }
 
