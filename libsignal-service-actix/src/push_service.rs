@@ -10,9 +10,9 @@ impl PushService for AwcPushService {
 }
 
 impl AwcPushService {
-    pub fn new<T: CredentialsProvider>(
+    pub fn new(
         _cfg: ServiceConfiguration,
-        _credentials: T,
+        _credentials: Credentials,
         user_agent: &str,
     ) -> Self {
         Self {

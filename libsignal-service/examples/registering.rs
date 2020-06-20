@@ -34,7 +34,7 @@ async fn main() -> Result<(), Error> {
     let password = args.get_password()?;
 
     let config = ServiceConfiguration::default();
-    let credentials = StaticCredentialsProvider {
+    let credentials = Credentials {
         uuid: String::new(),
         e164: args.username,
         password,

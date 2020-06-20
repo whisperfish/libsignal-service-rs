@@ -1,4 +1,4 @@
-use crate::configuration::{CredentialsProvider, ServiceConfiguration};
+use crate::configuration::{Credentials, ServiceConfiguration};
 
 pub const CREATE_ACCOUNT_SMS_PATH: &str = "/v1/accounts/sms/code/%s?client=%s";
 pub const CREATE_ACCOUNT_VOICE_PATH: &str = "/v1/accounts/voice/code/%s";
@@ -66,9 +66,9 @@ pub struct PanicingPushService;
 impl PanicingPushService {
     /// A PushService implementation typically takes a ServiceConfiguration,
     /// credentials and a user agent.
-    pub fn new<T: CredentialsProvider>(
+    pub fn new(
         _cfg: ServiceConfiguration,
-        _credentials: T,
+        _credentials: Credentials,
         _user_agent: &str,
     ) -> Self {
         Self
