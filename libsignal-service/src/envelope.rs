@@ -1,7 +1,59 @@
-use crate::utils::{serde_base64, serde_optional_base64};
+use crate::{
+    utils::{serde_base64, serde_optional_base64},
+    ServiceAddress,
+};
 
 pub struct Envelope {
     inner: crate::proto::Envelope,
+}
+
+impl From<EnvelopeEntity> for Envelope {
+    fn from(entity: EnvelopeEntity) -> Envelope {
+        // XXX: Java also checks whether .source and .source_uuid are
+        // not null.
+        if entity.source.is_some() && entity.source_device > 0 {
+            let address = ServiceAddress {
+                uuid: entity.source_uuid.clone(),
+                e164: entity.source.clone().unwrap(),
+                relay: None,
+            };
+            Envelope::new_with_source(entity, address)
+        } else {
+            Envelope::new_from_entity(entity)
+        }
+    }
+}
+
+impl Envelope {
+    fn new_from_entity(entity: EnvelopeEntity) -> Self {
+        Envelope {
+            inner: crate::proto::Envelope {
+                r#type: Some(entity.r#type),
+                timestamp: Some(entity.timestamp),
+                server_timestamp: Some(entity.server_timestamp),
+                server_guid: entity.source_uuid,
+                legacy_message: entity.message,
+                content: entity.content,
+                ..Default::default()
+            },
+        }
+    }
+
+    fn new_with_source(entity: EnvelopeEntity, source: ServiceAddress) -> Self {
+        Envelope {
+            inner: crate::proto::Envelope {
+                r#type: Some(entity.r#type),
+                source_device: Some(entity.source_device),
+                timestamp: Some(entity.timestamp),
+                server_timestamp: Some(entity.server_timestamp),
+                source_e164: Some(source.e164),
+                source_uuid: source.uuid,
+                legacy_message: entity.message,
+                content: entity.content,
+                ..Default::default()
+            },
+        }
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -9,15 +61,15 @@ pub struct Envelope {
 pub struct EnvelopeEntity {
     pub r#type: i32,
     pub relay: String,
-    pub timestamp: i64,
-    pub source: String,
-    pub source_uuid: String,
-    pub source_device: i32,
+    pub timestamp: u64,
+    pub source: Option<String>,
+    pub source_uuid: Option<String>,
+    pub source_device: u32,
     #[serde(with = "serde_optional_base64")]
     pub message: Option<Vec<u8>>,
     #[serde(with = "serde_optional_base64")]
     pub content: Option<Vec<u8>>,
-    pub server_timestamp: i64,
+    pub server_timestamp: u64,
     pub guid: String,
 }
 

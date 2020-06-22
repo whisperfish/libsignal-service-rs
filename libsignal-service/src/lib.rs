@@ -16,6 +16,13 @@ pub const USER_AGENT: &'static str =
 
 pub struct TrustStore;
 
+pub struct ServiceAddress {
+    pub uuid: Option<String>,
+    // In principe, this is also Option<String> if you follow the Java code.
+    pub e164: String,
+    pub relay: Option<String>,
+}
+
 pub mod prelude {
     pub use crate::{
         configuration::{Credentials, ServiceConfiguration},
