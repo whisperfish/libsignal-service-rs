@@ -1,11 +1,8 @@
 use crate::{configuration::*, envelope::Envelope, push_service::*};
 
-use libsignal_protocol::StoreContext;
-
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
 pub struct MessageReceiver<Service> {
     service: Service,
-    context: StoreContext,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -15,9 +12,7 @@ pub enum MessageReceiverError {
 }
 
 impl<Service: PushService> MessageReceiver<Service> {
-    pub fn new(service: Service, context: StoreContext) -> Self {
-        MessageReceiver { service, context }
-    }
+    pub fn new(service: Service) -> Self { MessageReceiver { service } }
 
     /// One-off method to receive all pending messages.
     ///
@@ -28,8 +23,9 @@ impl<Service: PushService> MessageReceiver<Service> {
     pub async fn retrieve_messages(
         &mut self,
     ) -> Result<Vec<Envelope>, MessageReceiverError> {
-        let _entities = self.service.get_messages().await?;
-        Ok(vec![])
+        let entities = self.service.get_messages().await?;
+        let entities = entities.into_iter().map(Envelope::from).collect();
+        Ok(entities)
     }
 
     pub async fn create_message_pipe(&self) -> () { unimplemented!() }
