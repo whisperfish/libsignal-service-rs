@@ -1,4 +1,4 @@
-use crate::{configuration::*, envelope::Envelope, push_service::*};
+use crate::{envelope::Envelope, push_service::*};
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
 pub struct MessageReceiver<Service> {
