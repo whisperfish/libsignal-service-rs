@@ -5,6 +5,8 @@ use libsignal_service::{configuration::*, push_service::*};
 use serde::Deserialize;
 use url::Url;
 
+use crate::websocket::AwcWebSocket;
+
 pub struct AwcPushService {
     cfg: ServiceConfiguration,
     base_url: Url,
@@ -13,6 +15,8 @@ pub struct AwcPushService {
 
 #[async_trait::async_trait(?Send)]
 impl PushService for AwcPushService {
+    type WebSocket = AwcWebSocket;
+
     async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
@@ -61,6 +65,10 @@ impl PushService for AwcPushService {
                     reason: e.to_string(),
                 })
         }
+    }
+
+    async fn ws(&mut self) -> Result<Self::WebSocket, ServiceError> {
+        Ok(AwcWebSocket::with_client(&mut self.client, &self.base_url).await?)
     }
 }
 

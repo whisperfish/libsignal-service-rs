@@ -1,4 +1,4 @@
-use crate::{envelope::Envelope, push_service::*};
+use crate::{envelope::Envelope, messagepipe::MessagePipe, push_service::*};
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
 pub struct MessageReceiver<Service> {
@@ -28,5 +28,9 @@ impl<Service: PushService> MessageReceiver<Service> {
         Ok(entities)
     }
 
-    pub async fn create_message_pipe(&self) -> () { unimplemented!() }
+    pub async fn create_message_pipe(
+        &mut self,
+    ) -> Result<MessagePipe<Service::WebSocket>, MessageReceiverError> {
+        Ok(MessagePipe::from_socket(self.service.ws().await?))
+    }
 }

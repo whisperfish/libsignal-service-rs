@@ -88,6 +88,8 @@ impl ServiceError {
 
 #[async_trait::async_trait(?Send)]
 pub trait PushService {
+    type WebSocket;
+
     async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
@@ -105,6 +107,8 @@ pub trait PushService {
         let entity_list: EnvelopeEntityList = self.get(MESSAGE_PATH).await?;
         Ok(entity_list.messages)
     }
+
+    async fn ws(&mut self) -> Result<Self::WebSocket, ServiceError>;
 }
 
 /// PushService that panics on every request, mainly for example code.
@@ -124,10 +128,16 @@ impl PanicingPushService {
 
 #[async_trait::async_trait(?Send)]
 impl PushService for PanicingPushService {
+    type WebSocket = ();
+
     async fn get<T>(&mut self, _path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
+        unimplemented!()
+    }
+
+    async fn ws(&mut self) -> Result<Self::WebSocket, ServiceError> {
         unimplemented!()
     }
 }
