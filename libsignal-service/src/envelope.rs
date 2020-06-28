@@ -3,9 +3,7 @@ use crate::{
     ServiceAddress,
 };
 
-pub struct Envelope {
-    inner: crate::proto::Envelope,
-}
+pub use crate::proto::Envelope;
 
 impl From<EnvelopeEntity> for Envelope {
     fn from(entity: EnvelopeEntity) -> Envelope {
@@ -27,31 +25,27 @@ impl From<EnvelopeEntity> for Envelope {
 impl Envelope {
     fn new_from_entity(entity: EnvelopeEntity) -> Self {
         Envelope {
-            inner: crate::proto::Envelope {
-                r#type: Some(entity.r#type),
-                timestamp: Some(entity.timestamp),
-                server_timestamp: Some(entity.server_timestamp),
-                server_guid: entity.source_uuid,
-                legacy_message: entity.message,
-                content: entity.content,
-                ..Default::default()
-            },
+            r#type: Some(entity.r#type),
+            timestamp: Some(entity.timestamp),
+            server_timestamp: Some(entity.server_timestamp),
+            server_guid: entity.source_uuid,
+            legacy_message: entity.message,
+            content: entity.content,
+            ..Default::default()
         }
     }
 
     fn new_with_source(entity: EnvelopeEntity, source: ServiceAddress) -> Self {
         Envelope {
-            inner: crate::proto::Envelope {
-                r#type: Some(entity.r#type),
-                source_device: Some(entity.source_device),
-                timestamp: Some(entity.timestamp),
-                server_timestamp: Some(entity.server_timestamp),
-                source_e164: Some(source.e164),
-                source_uuid: source.uuid,
-                legacy_message: entity.message,
-                content: entity.content,
-                ..Default::default()
-            },
+            r#type: Some(entity.r#type),
+            source_device: Some(entity.source_device),
+            timestamp: Some(entity.timestamp),
+            server_timestamp: Some(entity.server_timestamp),
+            source_e164: Some(source.e164),
+            source_uuid: source.uuid,
+            legacy_message: entity.message,
+            content: entity.content,
+            ..Default::default()
         }
     }
 }
