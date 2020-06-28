@@ -1,7 +1,4 @@
-use crate::{
-    utils::{serde_base64, serde_optional_base64},
-    ServiceAddress,
-};
+use crate::{utils::serde_optional_base64, ServiceAddress};
 
 pub use crate::proto::Envelope;
 
