@@ -2,6 +2,12 @@ language: rust
 sudo: false
 cache: cargo
 
+addons:
+  apt:
+    update: true
+    packages:
+      - protobuf-compiler
+
 script: 
   - cargo build --all --verbose
   - cargo test --all --verbose
