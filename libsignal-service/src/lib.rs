@@ -1,5 +1,6 @@
 mod account_manager;
 pub mod configuration;
+pub mod models;
 pub mod push_service;
 pub mod receiver;
 
