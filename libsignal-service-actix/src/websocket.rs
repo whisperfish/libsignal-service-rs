@@ -1,13 +1,16 @@
-use actix::prelude::*;
-use awc::{error::WsProtocolError, ws};
+use actix::Arbiter;
+
+use awc::{error::WsProtocolError, ws, ws::Frame};
+use bytes::Bytes;
 use futures::{channel::mpsc::*, prelude::*};
 use url::Url;
 
-use libsignal_service::push_service::ServiceError;
+use libsignal_service::{
+    configuration::Credentials, messagepipe::*, push_service::ServiceError,
+};
 
 pub struct AwcWebSocket {
-    actor: Addr<AwcWebSocketActor>,
-    messagestream: Receiver<()>,
+    socket_sink: Box<dyn Sink<ws::Message, Error = WsProtocolError> + Unpin>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -22,51 +25,119 @@ impl From<AwcWebSocketError> for ServiceError {
     }
 }
 
+impl From<WsProtocolError> for AwcWebSocketError {
+    fn from(e: WsProtocolError) -> AwcWebSocketError {
+        todo!("error conversion {:?}", e)
+        // return Some(Err(ServiceError::WsError {
+        //     reason: e.to_string(),
+        // }));
+    }
+}
+
+/// Process the WebSocket, until it times out.
+async fn process<S: Stream>(
+    mut socket_stream: S,
+    mut incoming_sink: Sender<Bytes>,
+) -> Result<(), AwcWebSocketError>
+where
+    S: Unpin,
+    S: Stream<Item = Result<Frame, WsProtocolError>>,
+{
+    while let Some(frame) = socket_stream.next().await {
+        let frame = match frame? {
+            Frame::Binary(s) => s,
+
+            Frame::Continuation(_c) => todo!(),
+            Frame::Ping(msg) => {
+                log::warn!("Received Ping({:?})", msg);
+                // XXX: send pong and make the above log::debug
+                continue;
+            },
+            Frame::Pong(msg) => {
+                log::trace!("Received Pong({:?})", msg);
+
+                continue;
+            },
+            Frame::Text(frame) => {
+                log::warn!("Frame::Text {:?}", frame);
+
+                // this is a protocol violation, maybe break; is better?
+                continue;
+            },
+
+            Frame::Close(c) => {
+                log::warn!("Websocket closing: {:?}", c);
+
+                break;
+            },
+        };
+
+        // Match SendError
+        if let Err(e) = incoming_sink.send(frame).await {
+            log::info!("Websocket sink has closed: {:?}.", e);
+            break;
+        }
+    }
+    Ok(())
+}
+
 impl AwcWebSocket {
     pub(crate) async fn with_client(
         client: &mut awc::Client,
         base_url: impl std::borrow::Borrow<Url>,
-    ) -> Result<Self, AwcWebSocketError> {
-        let url = base_url.borrow().join("/v1/websocket").expect("valid url");
-        let (_response, framed) = client.ws(url.as_str()).connect().await?;
+        credentials: Option<&Credentials>,
+    ) -> Result<(Self, <Self as WebSocketService>::Stream), AwcWebSocketError>
+    {
+        let mut url =
+            base_url.borrow().join("/v1/websocket/").expect("valid url");
+        url.set_scheme("wss").expect("valid https base url");
 
-        log::debug!("WebSocket connected: {:?}", _response);
+        if let Some(credentials) = credentials {
+            url.query_pairs_mut()
+                .append_pair("login", credentials.login())
+                .append_pair(
+                    "password",
+                    credentials.password.as_ref().expect("a password"),
+                );
+        }
 
-        let (sink, stream) = framed.split();
+        log::trace!("Will start websocket at {:?}", url);
+        let (response, framed) = client.ws(url.as_str()).connect().await?;
 
-        let (messagesink, messagestream) = channel(1);
-        let actor = AwcWebSocketActor::create(move |ctx| {
-            ctx.add_stream(stream);
+        log::debug!("WebSocket connected: {:?}", response);
 
-            AwcWebSocketActor {
-                sink: Box::new(sink),
-                messagesink,
-            }
-        });
+        let (incoming_sink, incoming_stream) = channel(1);
 
-        Ok(Self {
-            actor,
-            messagestream,
-        })
+        let (socket_sink, socket_stream) = framed.split();
+        let processing_task = process(socket_stream, incoming_sink);
+
+        // When the processing_task stops, the consuming stream and sink also
+        // terminate.
+        Arbiter::spawn(processing_task.map(|v| match v {
+            Ok(()) => (),
+            Err(e) => {
+                log::warn!("Processing task terminated with error: {:?}", e)
+            },
+        }));
+
+        Ok((
+            Self {
+                socket_sink: Box::new(socket_sink),
+            },
+            incoming_stream,
+        ))
     }
 }
 
-struct AwcWebSocketActor {
-    // XXX: in principle, this type is completely known...
-    sink: Box<dyn Sink<ws::Message, Error = WsProtocolError>>,
-    messagesink: Sender<()>,
-}
+#[async_trait::async_trait(?Send)]
+impl WebSocketService for AwcWebSocket {
+    type Stream = Receiver<Bytes>;
 
-impl Actor for AwcWebSocketActor {
-    type Context = Context<Self>;
-}
-
-impl StreamHandler<Result<ws::Frame, WsProtocolError>> for AwcWebSocketActor {
-    fn handle(
-        &mut self,
-        _: Result<ws::Frame, WsProtocolError>,
-        _ctx: &mut Self::Context,
-    ) {
-        log::trace!("Message on the WS");
+    async fn send_message(&mut self, msg: Bytes) -> Result<(), ServiceError> {
+        self.socket_sink
+            .send(ws::Message::Binary(msg))
+            .await
+            .map_err(AwcWebSocketError::from)?;
+        Ok(())
     }
 }

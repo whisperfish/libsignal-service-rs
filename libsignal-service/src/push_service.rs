@@ -1,6 +1,7 @@
 use crate::{
     configuration::{Credentials, ServiceConfiguration},
     envelope::*,
+    messagepipe::WebSocketService,
 };
 
 use http::StatusCode;
@@ -64,6 +65,17 @@ pub enum ServiceError {
     Unauthorized,
     #[error("Unexpected response: HTTP {http_code}")]
     UnhandledResponseCode { http_code: u16 },
+
+    #[error("Websocket error: {reason}")]
+    WsError { reason: String },
+    #[error("Websocket closing: {reason}")]
+    WsClosing { reason: String },
+
+    #[error("Undecodable frame")]
+    DecodeError(#[from] prost::DecodeError),
+
+    #[error("Invalid frame: {reason}")]
+    InvalidFrameError { reason: String },
 }
 
 impl ServiceError {
@@ -88,7 +100,7 @@ impl ServiceError {
 
 #[async_trait::async_trait(?Send)]
 pub trait PushService {
-    type WebSocket;
+    type WebSocket: WebSocketService;
 
     async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
     where
@@ -108,7 +120,15 @@ pub trait PushService {
         Ok(entity_list.messages)
     }
 
-    async fn ws(&mut self) -> Result<Self::WebSocket, ServiceError>;
+    async fn ws(
+        &mut self,
+    ) -> Result<
+        (
+            Self::WebSocket,
+            <Self::WebSocket as WebSocketService>::Stream,
+        ),
+        ServiceError,
+    >;
 }
 
 /// PushService that panics on every request, mainly for example code.
@@ -128,7 +148,7 @@ impl PanicingPushService {
 
 #[async_trait::async_trait(?Send)]
 impl PushService for PanicingPushService {
-    type WebSocket = ();
+    type WebSocket = crate::messagepipe::PanicingWebSocketService;
 
     async fn get<T>(&mut self, _path: &str) -> Result<T, ServiceError>
     where
@@ -137,7 +157,15 @@ impl PushService for PanicingPushService {
         unimplemented!()
     }
 
-    async fn ws(&mut self) -> Result<Self::WebSocket, ServiceError> {
+    async fn ws(
+        &mut self,
+    ) -> Result<
+        (
+            Self::WebSocket,
+            <Self::WebSocket as WebSocketService>::Stream,
+        ),
+        ServiceError,
+    > {
         unimplemented!()
     }
 }

@@ -27,6 +27,8 @@ pub struct ServiceAddress {
 pub mod prelude {
     pub use crate::{
         configuration::{Credentials, ServiceConfiguration},
+        envelope::Envelope,
+        push_service::ServiceError,
         receiver::MessageReceiver,
     };
 }

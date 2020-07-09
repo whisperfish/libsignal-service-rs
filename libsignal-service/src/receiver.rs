@@ -31,6 +31,7 @@ impl<Service: PushService> MessageReceiver<Service> {
     pub async fn create_message_pipe(
         &mut self,
     ) -> Result<MessagePipe<Service::WebSocket>, MessageReceiverError> {
-        Ok(MessagePipe::from_socket(self.service.ws().await?))
+        let (ws, stream) = self.service.ws().await?;
+        Ok(MessagePipe::from_socket(ws, stream))
     }
 }

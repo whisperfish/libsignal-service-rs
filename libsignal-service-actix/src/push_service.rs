@@ -1,16 +1,20 @@
 use std::{sync::Arc, time::Duration};
 
 use awc::Connector;
-use libsignal_service::{configuration::*, push_service::*};
+use libsignal_service::{
+    configuration::*, messagepipe::WebSocketService, push_service::*,
+};
 use serde::Deserialize;
 use url::Url;
 
 use crate::websocket::AwcWebSocket;
 
+#[derive(Clone)]
 pub struct AwcPushService {
     cfg: ServiceConfiguration,
     base_url: Url,
     client: awc::Client,
+    credentials: Credentials,
 }
 
 #[async_trait::async_trait(?Send)]
@@ -67,8 +71,21 @@ impl PushService for AwcPushService {
         }
     }
 
-    async fn ws(&mut self) -> Result<Self::WebSocket, ServiceError> {
-        Ok(AwcWebSocket::with_client(&mut self.client, &self.base_url).await?)
+    async fn ws(
+        &mut self,
+    ) -> Result<
+        (
+            Self::WebSocket,
+            <Self::WebSocket as WebSocketService>::Stream,
+        ),
+        ServiceError,
+    > {
+        Ok(AwcWebSocket::with_client(
+            &mut self.client,
+            &self.base_url,
+            Some(&self.credentials),
+        )
+        .await?)
     }
 }
 
@@ -112,6 +129,7 @@ impl AwcPushService {
             cfg,
             base_url,
             client,
+            credentials,
         }
     }
 }
