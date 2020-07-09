@@ -16,11 +16,15 @@ impl Credentials {
     ///
     /// None when `self.password == None`
     pub fn authorization(&self) -> Option<(&str, &str)> {
-        let identifier: &str = if let Some(uuid) = self.uuid.as_ref() {
+        let identifier = self.login();
+        Some((identifier, self.password.as_ref()?))
+    }
+
+    pub fn login(&self) -> &str {
+        if let Some(uuid) = self.uuid.as_ref() {
             uuid
         } else {
             &self.e164
-        };
-        Some((identifier, self.password.as_ref()?))
+        }
     }
 }
