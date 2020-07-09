@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub mod serde_base64 {
     use serde::{Deserialize, Deserializer, Serializer};
 

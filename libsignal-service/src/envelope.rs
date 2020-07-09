@@ -1,3 +1,5 @@
+#![allow(dead_code)] // XXX: remove when all constants on bottom are used.
+
 use crate::{utils::serde_optional_base64, ServiceAddress};
 
 pub use crate::proto::Envelope;
