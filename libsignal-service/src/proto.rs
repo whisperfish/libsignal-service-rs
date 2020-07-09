@@ -38,3 +38,25 @@ impl WebSocketRequestMessage {
         false
     }
 }
+
+impl WebSocketResponseMessage {
+    /// Equivalent of
+    /// `SignalServiceMessagePipe::isSignalServiceEnvelope(WebSocketMessage)`.
+    pub fn from_request(msg: &WebSocketRequestMessage) -> Self {
+        if msg.is_signal_service_envelope() {
+            WebSocketResponseMessage {
+                id: msg.id,
+                status: Some(200),
+                message: Some("OK".to_string()),
+                ..Default::default()
+            }
+        } else {
+            WebSocketResponseMessage {
+                id: msg.id,
+                status: Some(400),
+                message: Some("Unknown".to_string()),
+                ..Default::default()
+            }
+        }
+    }
+}
