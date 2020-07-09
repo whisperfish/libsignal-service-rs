@@ -5,6 +5,7 @@ pub struct ServiceConfiguration {
     pub contact_discovery_url: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct Credentials {
     pub uuid: Option<String>,
     pub e164: String,
