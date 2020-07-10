@@ -122,6 +122,7 @@ pub trait PushService {
 
     async fn ws(
         &mut self,
+        credentials: Credentials,
     ) -> Result<
         (
             Self::WebSocket,
@@ -159,6 +160,7 @@ impl PushService for PanicingPushService {
 
     async fn ws(
         &mut self,
+        _credentials: Credentials,
     ) -> Result<
         (
             Self::WebSocket,

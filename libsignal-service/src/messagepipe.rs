@@ -7,6 +7,7 @@ use pin_project::pin_project;
 use prost::Message;
 
 pub use crate::{
+    configuration::Credentials,
     proto::{
         web_socket_message, WebSocketMessage, WebSocketRequestMessage,
         WebSocketResponseMessage,
@@ -26,11 +27,20 @@ pub struct MessagePipe<WS: WebSocketService> {
     ws: WS,
     #[pin]
     stream: WS::Stream,
+    credentials: Credentials,
 }
 
 impl<WS: WebSocketService> MessagePipe<WS> {
-    pub fn from_socket(ws: WS, stream: WS::Stream) -> Self {
-        MessagePipe { ws, stream }
+    pub fn from_socket(
+        ws: WS,
+        stream: WS::Stream,
+        credentials: Credentials,
+    ) -> Self {
+        MessagePipe {
+            ws,
+            stream,
+            credentials,
+        }
     }
 
     async fn send_response(

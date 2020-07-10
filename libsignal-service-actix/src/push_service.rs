@@ -14,7 +14,6 @@ pub struct AwcPushService {
     cfg: ServiceConfiguration,
     base_url: Url,
     client: awc::Client,
-    credentials: Credentials,
 }
 
 #[async_trait::async_trait(?Send)]
@@ -73,6 +72,7 @@ impl PushService for AwcPushService {
 
     async fn ws(
         &mut self,
+        credentials: Credentials,
     ) -> Result<
         (
             Self::WebSocket,
@@ -83,7 +83,7 @@ impl PushService for AwcPushService {
         Ok(AwcWebSocket::with_client(
             &mut self.client,
             &self.base_url,
-            Some(&self.credentials),
+            Some(&credentials),
         )
         .await?)
     }
@@ -129,7 +129,6 @@ impl AwcPushService {
             cfg,
             base_url,
             client,
-            credentials,
         }
     }
 }
