@@ -34,10 +34,19 @@ async fn main() -> Result<(), Error> {
     let password = args.get_password()?;
 
     let config = ServiceConfiguration::default();
+
+    let mut signaling_key = [0u8; 52];
+    base64::decode_config_slice(
+        args.signaling_key,
+        base64::STANDARD,
+        &mut signaling_key,
+    )
+    .unwrap();
     let credentials = Credentials {
         uuid: None,
         e164: args.username,
         password: Some(password),
+        signaling_key,
     };
 
     let service = PanicingPushService::new(
@@ -80,6 +89,11 @@ pub struct Args {
         raw(default_value = "libsignal_service::USER_AGENT")
     )]
     pub user_agent: String,
+    #[structopt(
+        long = "signaling-key",
+        help = "The key used to encrypt and authenticate messages in transit, base64 encoded."
+    )]
+    pub signaling_key: String,
 }
 
 impl Args {

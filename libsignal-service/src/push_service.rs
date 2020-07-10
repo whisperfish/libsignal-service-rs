@@ -76,6 +76,9 @@ pub enum ServiceError {
 
     #[error("Invalid frame: {reason}")]
     InvalidFrameError { reason: String },
+
+    #[error("MAC error")]
+    MacError,
 }
 
 impl ServiceError {

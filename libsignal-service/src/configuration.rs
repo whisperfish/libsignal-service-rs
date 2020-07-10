@@ -1,3 +1,5 @@
+use crate::envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE};
+
 #[derive(Clone, Default)]
 pub struct ServiceConfiguration {
     pub service_urls: Vec<String>,
@@ -10,6 +12,8 @@ pub struct Credentials {
     pub uuid: Option<String>,
     pub e164: String,
     pub password: Option<String>,
+
+    pub signaling_key: [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE],
 }
 
 impl Credentials {

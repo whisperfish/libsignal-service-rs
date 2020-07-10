@@ -9,8 +9,8 @@ use prost::Message;
 pub use crate::{
     configuration::Credentials,
     proto::{
-        web_socket_message, WebSocketMessage, WebSocketRequestMessage,
-        WebSocketResponseMessage,
+        web_socket_message, Envelope, WebSocketMessage,
+        WebSocketRequestMessage, WebSocketResponseMessage,
     },
     push_service::ServiceError,
 };
@@ -60,7 +60,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
     /// Worker task that
     async fn run(
         mut self,
-        mut sink: Sender<Result<crate::envelope::Envelope, ServiceError>>,
+        mut sink: Sender<Result<Envelope, ServiceError>>,
     ) -> Result<(), mpsc::SendError> {
         while let Some(frame) = self.stream.next().await {
             // WebsocketConnection::onMessage(ByteString)
@@ -86,6 +86,25 @@ impl<WS: WebSocketService> MessagePipe<WS> {
                     // Java: MessagePipe::read
                     let response =
                         WebSocketResponseMessage::from_request(&request);
+
+                    if request.is_signal_service_envelope() {
+                        let body = if let Some(body) = request.body.as_ref() {
+                            body
+                        } else {
+                            sink.send(Err(ServiceError::InvalidFrameError {
+                                reason: "Request without body.".into(),
+                            }))
+                            .await?;
+                            continue;
+                        };
+                        let envelope = Envelope::decrypt(
+                            body,
+                            &self.credentials.signaling_key,
+                            request.is_signal_key_encrypted(),
+                        );
+                        sink.send(envelope.map_err(Into::into)).await?;
+                    }
+
                     if let Err(e) = self.send_response(response).await {
                         sink.send(Err(e)).await?;
                     }
@@ -105,10 +124,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
     }
 
     /// Returns the stream of `Envelope`s
-    pub fn stream(
-        self,
-    ) -> impl Stream<Item = Result<crate::envelope::Envelope, ServiceError>>
-    {
+    pub fn stream(self) -> impl Stream<Item = Result<Envelope, ServiceError>> {
         let (sink, stream) = mpsc::channel(1);
 
         let stream = stream.map(Some);
