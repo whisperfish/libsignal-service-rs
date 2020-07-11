@@ -28,7 +28,7 @@ pub struct Message {
     pub source: String,
     pub message: String,
     pub attachments: Vec<Attachment<u8>>,
-    pub group: Group,
+    pub group: Option<Group>,
     pub timestamp: i64,
     pub flags: i32,
 }
