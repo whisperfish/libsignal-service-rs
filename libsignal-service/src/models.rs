@@ -1,4 +1,3 @@
-
 /// Attachment represents an attachment received from a peer
 ///
 /// Source: `textsecure/textsecure.go`
@@ -29,6 +28,6 @@ pub struct Message {
     pub message: String,
     pub attachments: Vec<Attachment<u8>>,
     pub group: Option<Group>,
-    pub timestamp: i64,
-    pub flags: i32,
+    pub timestamp: u64,
+    pub flags: u32,
 }
