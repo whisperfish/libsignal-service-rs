@@ -124,6 +124,8 @@ impl<WS: WebSocketService> MessagePipe<WS> {
     }
 
     /// Returns the stream of `Envelope`s
+    ///
+    /// Envelopes yielded are acknowledged.
     pub fn stream(self) -> impl Stream<Item = Result<Envelope, ServiceError>> {
         let (sink, stream) = mpsc::channel(1);
 
