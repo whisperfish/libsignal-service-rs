@@ -86,7 +86,7 @@ pub struct Args {
     #[structopt(
         long = "user-agent",
         help = "The user agent to use when contacting servers",
-        raw(default_value = "libsignal_service::USER_AGENT")
+        default_value = "libsignal_service::USER_AGENT"
     )]
     pub user_agent: String,
     #[structopt(

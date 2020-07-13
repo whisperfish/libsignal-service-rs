@@ -27,7 +27,7 @@ aes = "0.4.0"
 block-modes = "0.5.0"
 
 [dev-dependencies]
-structopt = "0.2.17"
+structopt = "0.3.0"
 tokio = { version = "0.2", features=["macros"] }
 
 [build-dependencies]
