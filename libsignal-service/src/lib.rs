@@ -1,5 +1,7 @@
 mod account_manager;
+pub mod cipher;
 pub mod configuration;
+pub mod content;
 pub mod envelope;
 pub mod messagepipe;
 pub mod models;
@@ -31,8 +33,11 @@ pub struct ServiceAddress {
 }
 
 pub mod prelude {
+    pub use super::ServiceAddress;
     pub use crate::{
+        cipher::ServiceCipher,
         configuration::{Credentials, ServiceConfiguration},
+        content::Content,
         envelope::Envelope,
         push_service::ServiceError,
         receiver::MessageReceiver,
