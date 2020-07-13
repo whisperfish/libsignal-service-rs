@@ -1,4 +1,11 @@
-use crate::configuration::{CredentialsProvider, ServiceConfiguration};
+use crate::{
+    configuration::{Credentials, ServiceConfiguration},
+    envelope::*,
+    messagepipe::WebSocketService,
+};
+
+use http::StatusCode;
+use serde::Deserialize;
 
 pub const CREATE_ACCOUNT_SMS_PATH: &str = "/v1/accounts/sms/code/%s?client=%s";
 pub const CREATE_ACCOUNT_VOICE_PATH: &str = "/v1/accounts/voice/code/%s";
@@ -23,7 +30,7 @@ pub const DIRECTORY_TOKENS_PATH: &str = "/v1/directory/tokens";
 pub const DIRECTORY_VERIFY_PATH: &str = "/v1/directory/%s";
 pub const DIRECTORY_AUTH_PATH: &str = "/v1/directory/auth";
 pub const DIRECTORY_FEEDBACK_PATH: &str = "/v1/directory/feedback-v3/%s";
-pub const MESSAGE_PATH: &str = "/v1/messages/%s";
+pub const MESSAGE_PATH: &str = "/v1/messages/"; // optionally with destination appended
 pub const SENDER_ACK_MESSAGE_PATH: &str = "/v1/messages/%s/%d";
 pub const UUID_ACK_MESSAGE_PATH: &str = "/v1/messages/uuid/%s";
 pub const ATTACHMENT_PATH: &str = "/v2/attachments/form/upload";
@@ -46,11 +53,61 @@ pub enum SmsVerificationCodeResponse {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ServiceError {}
+pub enum ServiceError {
+    #[error("Error sending request: {reason}")]
+    SendError { reason: String },
+    #[error("Error decoding JSON response: {reason}")]
+    JsonDecodeError { reason: String },
+
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded,
+    #[error("Authorization failed")]
+    Unauthorized,
+    #[error("Unexpected response: HTTP {http_code}")]
+    UnhandledResponseCode { http_code: u16 },
+
+    #[error("Websocket error: {reason}")]
+    WsError { reason: String },
+    #[error("Websocket closing: {reason}")]
+    WsClosing { reason: String },
+
+    #[error("Undecodable frame")]
+    DecodeError(#[from] prost::DecodeError),
+
+    #[error("Invalid frame: {reason}")]
+    InvalidFrameError { reason: String },
+
+    #[error("MAC error")]
+    MacError,
+}
+
+impl ServiceError {
+    pub fn from_status(code: http::StatusCode) -> Result<(), Self> {
+        match code {
+            StatusCode::OK => Ok(()),
+            StatusCode::NO_CONTENT => Ok(()),
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                Err(ServiceError::Unauthorized)
+            },
+            StatusCode::PAYLOAD_TOO_LARGE => {
+                // This is 413 and means rate limit exceeded for Signal.
+                Err(ServiceError::RateLimitExceeded)
+            },
+            // XXX: fill in rest from PushServiceSocket
+            _ => Err(ServiceError::UnhandledResponseCode {
+                http_code: code.as_u16(),
+            }),
+        }
+    }
+}
 
 #[async_trait::async_trait(?Send)]
 pub trait PushService {
-    async fn get(&mut self, path: &str) -> Result<(), ServiceError>;
+    type WebSocket: WebSocketService;
+
+    async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>;
 
     async fn request_sms_verification_code(
         &mut self,
@@ -58,6 +115,24 @@ pub trait PushService {
         self.get(CREATE_ACCOUNT_SMS_PATH).await?;
         Ok(SmsVerificationCodeResponse::SmsSent)
     }
+
+    async fn get_messages(
+        &mut self,
+    ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
+        let entity_list: EnvelopeEntityList = self.get(MESSAGE_PATH).await?;
+        Ok(entity_list.messages)
+    }
+
+    async fn ws(
+        &mut self,
+        credentials: Credentials,
+    ) -> Result<
+        (
+            Self::WebSocket,
+            <Self::WebSocket as WebSocketService>::Stream,
+        ),
+        ServiceError,
+    >;
 }
 
 /// PushService that panics on every request, mainly for example code.
@@ -66,9 +141,9 @@ pub struct PanicingPushService;
 impl PanicingPushService {
     /// A PushService implementation typically takes a ServiceConfiguration,
     /// credentials and a user agent.
-    pub fn new<T: CredentialsProvider>(
+    pub fn new(
         _cfg: ServiceConfiguration,
-        _credentials: T,
+        _credentials: Credentials,
         _user_agent: &str,
     ) -> Self {
         Self
@@ -77,7 +152,25 @@ impl PanicingPushService {
 
 #[async_trait::async_trait(?Send)]
 impl PushService for PanicingPushService {
-    async fn get(&mut self, path: &str) -> Result<(), ServiceError> {
+    type WebSocket = crate::messagepipe::PanicingWebSocketService;
+
+    async fn get<T>(&mut self, _path: &str) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>,
+    {
+        unimplemented!()
+    }
+
+    async fn ws(
+        &mut self,
+        _credentials: Credentials,
+    ) -> Result<
+        (
+            Self::WebSocket,
+            <Self::WebSocket as WebSocketService>::Stream,
+        ),
+        ServiceError,
+    > {
         unimplemented!()
     }
 }

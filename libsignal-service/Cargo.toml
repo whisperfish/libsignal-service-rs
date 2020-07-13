@@ -11,13 +11,23 @@ libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-proto
 failure = "0.1.5"
 async-trait = "0.1.30"
 url = "2.1.1"
+base64 = "0.12"
+bytes = "0.5"
+futures = "0.3"
+pin-project = "0.4"
 thiserror = "1.0"
 serde = {version = "1.0", features=["derive"]}
-serde_json = "1.0"
 prost = "0.6"
+http = "0.2.1"
+log = "0.4.8"
+
+sha2 = "0.9.0"
+hmac = "0.8.0"
+aes = "0.4.0"
+block-modes = "0.5.0"
 
 [dev-dependencies]
-structopt = "0.2.17"
+structopt = "0.3.0"
 tokio = { version = "0.2", features=["macros"] }
 
 [build-dependencies]
