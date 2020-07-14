@@ -103,6 +103,26 @@ impl Envelope {
             ..Default::default()
         }
     }
+
+    pub fn is_unidentified_sender(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::UnidentifiedSender
+    }
+
+    pub fn is_prekey_signal_message(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::PrekeyBundle
+    }
+
+    pub fn is_signal_message(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::Ciphertext
+    }
+
+    pub fn source_address(&self) -> Option<ServiceAddress> {
+        self.source_e164.clone().map(|e164| ServiceAddress {
+            e164,
+            uuid: self.source_uuid.clone(),
+            relay: self.relay.clone(),
+        })
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

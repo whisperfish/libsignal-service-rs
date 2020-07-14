@@ -46,6 +46,7 @@ impl ServiceCipher {
         }
     }
 
+    /// Equivalent of decrypt(Envelope, ciphertext)
     fn decrypt(
         &mut self,
         envelope: &Envelope,
@@ -61,6 +62,30 @@ impl ServiceCipher {
                         .into(),
             });
         };
+
+        use crate::proto::envelope::Type;
+        let address = match envelope.r#type() {
+            Type::PrekeyBundle | Type::Ciphertext => {
+                // is prekey signal message || is signal message
+                self.get_preferred_protocol_address(
+                    envelope.source_address().expect("Envelope with source"),
+                    envelope.source_device(),
+                )?
+            },
+            Type::UnidentifiedSender => {
+                // is unidentified sender
+                unimplemented!("UnidentifiedSender requires SealedSessionCipher, please report a bug against libsignal-service-rs.");
+            },
+            _ => {
+                // else
+                return Err(ServiceError::InvalidFrameError {
+                    reason: "Envelope has unknown type.".into(),
+                });
+            },
+        };
+
+        let cipher = self.store.load_session(&address)?;
+
         unimplemented!()
     }
 
