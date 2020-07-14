@@ -32,6 +32,16 @@ pub struct ServiceAddress {
     pub relay: Option<String>,
 }
 
+impl ServiceAddress {
+    /// Returns uuid if present, e164 otherwise.
+    pub fn get_identifier(&self) -> &str {
+        if let Some(uuid) = self.uuid.as_deref() {
+            return uuid;
+        }
+        &self.e164
+    }
+}
+
 pub mod prelude {
     pub use super::ServiceAddress;
     pub use crate::{

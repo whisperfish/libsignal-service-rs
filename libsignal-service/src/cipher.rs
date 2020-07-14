@@ -5,7 +5,7 @@ use crate::{
     ServiceAddress,
 };
 
-use libsignal_protocol::StoreContext;
+use libsignal_protocol::{Address as ProtocolAddress, StoreContext};
 use prost::Message;
 
 /// Decrypts incoming messages and encrypts outgoing messages.
@@ -62,6 +62,34 @@ impl ServiceCipher {
             });
         };
         unimplemented!()
+    }
+
+    /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
+    fn get_preferred_protocol_address(
+        &self,
+        address: ServiceAddress,
+        device: u32,
+    ) -> Result<ProtocolAddress, ServiceError> {
+        let uuid = address
+            .uuid
+            .as_deref()
+            .map(|uuid| ProtocolAddress::new(uuid, device as i32));
+        let e164 = ProtocolAddress::new(&address.e164, device as i32);
+
+        if let Some(uuid) = uuid {
+            if self.store.contains_session(&uuid)? {
+                return Ok(uuid);
+            }
+        }
+
+        if self.store.contains_session(&e164)? {
+            return Ok(e164);
+        }
+
+        return Ok(ProtocolAddress::new(
+            address.get_identifier(),
+            device as i32,
+        ));
     }
 }
 
