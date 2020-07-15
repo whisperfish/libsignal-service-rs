@@ -143,7 +143,7 @@ impl ServiceCipher {
 
         let version = self.store.load_session(&address)?.state().version();
 
-        strip_padding(version, &mut plaintext.data);
+        strip_padding(version, &mut plaintext.data)?;
         Ok(plaintext)
     }
 
