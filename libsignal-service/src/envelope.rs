@@ -31,9 +31,12 @@ impl Envelope {
         signaling_key: &[u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE],
         is_signaling_key_encrypted: bool,
     ) -> Result<Self, ServiceError> {
+        log::trace!("Envelope::decrypt called");
         if !is_signaling_key_encrypted {
+            log::trace!("Envelope::decrypt: not encrypted");
             Ok(Envelope::decode(input)?)
         } else {
+            log::trace!("Envelope::decrypt: decrypting");
             if input.len() < VERSION_LENGTH
                 || input[VERSION_OFFSET] != SUPPORTED_VERSION
             {
@@ -73,6 +76,8 @@ impl Envelope {
                 .expect("initalization of CBC/AES/PKCS7");
             let input = &input[CIPHERTEXT_OFFSET..(input.len() - MAC_SIZE)];
             let input = cipher.decrypt_vec(input).expect("decryption");
+
+            log::trace!("Envelope::decrypt: decrypted, decoding");
 
             Ok(Envelope::decode(&input as &[u8])?)
         }

@@ -35,7 +35,7 @@ impl WebSocketRequestMessage {
             }
         }
 
-        false
+        true
     }
 }
 
