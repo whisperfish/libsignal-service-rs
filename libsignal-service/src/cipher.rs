@@ -41,15 +41,18 @@ impl ServiceCipher {
         &mut self,
         envelope: Envelope,
     ) -> Result<Option<Content>, ServiceError> {
-        let plaintext = self.decrypt(&envelope)?;
         if envelope.legacy_message.is_some() {
+            let plaintext = self.decrypt(&envelope)?;
             let message =
                 crate::proto::DataMessage::decode(plaintext.data.as_slice())?;
             Ok(Some(Content::from_body(message, plaintext.metadata)))
-        } else {
+        } else if envelope.content.is_some() {
+            let plaintext = self.decrypt(&envelope)?;
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
             Ok(Content::from_proto(message, plaintext.metadata))
+        } else {
+            Ok(None)
         }
     }
 
