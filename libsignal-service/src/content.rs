@@ -5,6 +5,7 @@ pub use crate::{
     push_service::ServiceError,
 };
 
+#[derive(Clone, Debug)]
 pub struct Metadata {
     pub sender: crate::ServiceAddress,
     pub sender_device: u32,
@@ -12,6 +13,7 @@ pub struct Metadata {
     pub needs_receipt: bool,
 }
 
+#[derive(Clone, Debug)]
 pub struct Content {
     pub metadata: Metadata,
     pub body: ContentBody,
@@ -49,6 +51,7 @@ impl Content {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum ContentBody {
     DataMessage(DataMessage),
     SynchronizeMessage(SyncMessage),

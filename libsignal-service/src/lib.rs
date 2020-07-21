@@ -26,6 +26,7 @@ pub const GROUP_LEAVE_FLAG: u32 = 2;
 
 pub struct TrustStore;
 
+#[derive(Clone, Debug)]
 pub struct ServiceAddress {
     pub uuid: Option<String>,
     // In principe, this is also Option<String> if you follow the Java code.

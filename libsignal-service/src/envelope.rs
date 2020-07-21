@@ -31,7 +31,6 @@ impl Envelope {
         signaling_key: &[u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE],
         is_signaling_key_encrypted: bool,
     ) -> Result<Self, ServiceError> {
-        log::trace!("Envelope::decrypt called");
         if !is_signaling_key_encrypted {
             log::trace!("Envelope::decrypt: not encrypted");
             Ok(Envelope::decode(input)?)
