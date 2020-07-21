@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 mod account_manager;
 pub mod cipher;
 pub mod configuration;

@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 pub mod push_service;
 pub mod websocket;
 

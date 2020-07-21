@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{
     configuration::{Credentials, ServiceConfiguration},
     envelope::*,
@@ -46,6 +48,8 @@ pub const ATTACHMENT_UPLOAD_PATH: &str = "attachments/";
 
 pub const STICKER_MANIFEST_PATH: &str = "stickers/%s/manifest.proto";
 pub const STICKER_PATH: &str = "stickers/%s/full/%d";
+
+pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 
 pub enum SmsVerificationCodeResponse {
     CaptchaRequired,
