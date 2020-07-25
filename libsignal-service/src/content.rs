@@ -1,6 +1,7 @@
 pub use crate::{
     proto::{
-        CallMessage, DataMessage, ReceiptMessage, SyncMessage, TypingMessage,
+        group_context::Type as GroupType, AttachmentPointer, CallMessage,
+        DataMessage, ReceiptMessage, SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };
