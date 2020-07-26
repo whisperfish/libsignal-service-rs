@@ -116,6 +116,10 @@ impl Envelope {
         self.r#type() == crate::proto::envelope::Type::PrekeyBundle
     }
 
+    pub fn is_receipt(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::Receipt
+    }
+
     pub fn is_signal_message(&self) -> bool {
         self.r#type() == crate::proto::envelope::Type::Ciphertext
     }
