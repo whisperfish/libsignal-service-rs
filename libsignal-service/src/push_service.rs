@@ -4,6 +4,7 @@ use crate::{
     configuration::{Credentials, ServiceConfiguration},
     envelope::*,
     messagepipe::WebSocketService,
+    proto::AttachmentPointer,
 };
 
 use http::StatusCode;
@@ -117,16 +118,31 @@ impl ServiceError {
 #[async_trait::async_trait(?Send)]
 pub trait PushService {
     type WebSocket: WebSocketService;
+    type ByteStream: futures::io::AsyncRead + Unpin;
 
     async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
+
+    /// Downloads larger files in streaming fashion, e.g. attachments.
+    async fn get_from_cdn(
+        &mut self,
+        path: &str,
+    ) -> Result<Self::ByteStream, ServiceError>;
 
     async fn request_sms_verification_code(
         &mut self,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         self.get(CREATE_ACCOUNT_SMS_PATH).await?;
         Ok(SmsVerificationCodeResponse::SmsSent)
+    }
+
+    async fn get_attachment(
+        &mut self,
+        ptr: &AttachmentPointer,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        let path = format!("{}{}", ATTACHMENT_UPLOAD_PATH, ptr.id());
+        self.get_from_cdn(&path).await
     }
 
     async fn get_messages(
@@ -165,12 +181,20 @@ impl PanicingPushService {
 
 #[async_trait::async_trait(?Send)]
 impl PushService for PanicingPushService {
+    type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = crate::messagepipe::PanicingWebSocketService;
 
     async fn get<T>(&mut self, _path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
+        unimplemented!()
+    }
+
+    async fn get_from_cdn(
+        &mut self,
+        _path: &str,
+    ) -> Result<Self::ByteStream, ServiceError> {
         unimplemented!()
     }
 

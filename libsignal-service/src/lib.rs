@@ -53,7 +53,7 @@ pub mod prelude {
         configuration::{Credentials, ServiceConfiguration},
         content::Content,
         envelope::Envelope,
-        push_service::ServiceError,
+        push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
     };
 }
