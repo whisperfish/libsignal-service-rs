@@ -1,0 +1,147 @@
+use aes::Aes256;
+use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
+use hmac::{Hmac, Mac, NewMac};
+use sha2::Sha256;
+
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+pub enum AttachmentCipherError {
+    #[error("MAC verification error")]
+    MacError,
+    #[error("Padding verification error")]
+    PaddingError,
+}
+
+/// Encrypts an attachment in place, given the key material.
+///
+/// The Vec will be reused when it has enough space to house the MAC,
+/// otherwise reallocation might happen.
+pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
+    let aes_half = &key[..32];
+    let mac_half = &key[32..];
+
+    let plaintext_len = plaintext.len();
+    plaintext.reserve(plaintext.len() + 16 + 16);
+
+    // Prepend IV
+    plaintext.extend(&[0u8; 16]);
+    plaintext.copy_within(..plaintext_len, 16);
+    plaintext[0..16].copy_from_slice(&iv);
+
+    // Pad with zeroes for padding
+    plaintext.extend(&[0u8; 16]);
+
+    let cipher = Cbc::<Aes256, Pkcs7>::new_var(aes_half, &iv)
+        .expect("fixed length key material");
+
+    let buffer = plaintext;
+    let ciphertext_slice = cipher
+        .encrypt(&mut buffer[16..], plaintext_len)
+        .expect("encrypted ciphertext");
+    let ciphertext_len = ciphertext_slice.len();
+    // Correct length for padding
+    buffer.truncate(16 + ciphertext_len);
+
+    // Compute and append MAC
+    let mut mac = Hmac::<Sha256>::new_varkey(mac_half)
+        .expect("fixed length key material");
+    mac.update(&buffer);
+    buffer.extend(mac.finalize().into_bytes());
+}
+
+/// Decrypts an attachment in place, given the key material.
+///
+/// On error, ciphertext is not changed.
+pub fn decrypt_in_place(
+    key: [u8; 64],
+    ciphertext: &mut Vec<u8>,
+) -> Result<(), AttachmentCipherError> {
+    let aes_half = &key[..32];
+    let mac_half = &key[32..];
+
+    let ciphertext_len = ciphertext.len();
+
+    let (buffer, their_mac) = ciphertext.split_at_mut(ciphertext_len - 32);
+
+    // Compute and append MAC
+    let mut mac = Hmac::<Sha256>::new_varkey(mac_half)
+        .expect("fixed length key material");
+    mac.update(&buffer);
+    mac.verify(their_mac)
+        .map_err(|_| AttachmentCipherError::MacError)?;
+
+    let (iv, buffer) = buffer.split_at_mut(16);
+
+    let cipher = Cbc::<Aes256, Pkcs7>::new_var(aes_half, &iv)
+        .expect("fixed length key material");
+
+    let plaintext_slice = cipher
+        .decrypt(buffer)
+        .map_err(|_| AttachmentCipherError::PaddingError)?;
+
+    let plaintext_len = plaintext_slice.len();
+
+    // Get rid of IV and MAC
+    ciphertext.copy_within(16..(plaintext_len + 16), 0);
+    ciphertext.truncate(plaintext_len);
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use failure::Error;
+    use rand::prelude::*;
+
+    #[test]
+    fn attachment_encrypt_decrypt() -> Result<(), Error> {
+        let mut key = [0u8; 64];
+        let mut iv = [0u8; 16];
+        rand::thread_rng().fill_bytes(&mut key);
+        rand::thread_rng().fill_bytes(&mut iv);
+
+        let plaintext = b"Peter Parker";
+        let mut buf = Vec::from(plaintext as &[u8]);
+        encrypt_in_place(iv, key, &mut buf);
+        assert_ne!(&buf, &plaintext);
+        decrypt_in_place(key, &mut buf)?;
+        assert_eq!(&buf, &plaintext);
+        Ok(())
+    }
+
+    #[test]
+    fn attachment_encrypt_decrypt_empty() -> Result<(), Error> {
+        let mut key = [0u8; 64];
+        let mut iv = [0u8; 16];
+        rand::thread_rng().fill_bytes(&mut key);
+        rand::thread_rng().fill_bytes(&mut iv);
+        let plaintext = b"";
+        let mut buf = Vec::from(plaintext as &[u8]);
+        encrypt_in_place(iv, key, &mut buf);
+        assert_ne!(&buf, &plaintext);
+        decrypt_in_place(key, &mut buf)?;
+        assert_eq!(&buf, &plaintext);
+        Ok(())
+    }
+
+    #[test]
+    fn attachment_encrypt_decrypt_bad_key() -> Result<(), Error> {
+        let mut key = [0u8; 64];
+        let mut iv = [0u8; 16];
+        rand::thread_rng().fill_bytes(&mut key);
+        rand::thread_rng().fill_bytes(&mut iv);
+        let plaintext = b"Peter Parker";
+        let mut buf = Vec::from(plaintext as &[u8]);
+        encrypt_in_place(iv, key, &mut buf);
+
+        // Generate bad key
+        rand::thread_rng().fill_bytes(&mut key);
+        assert_eq!(
+            decrypt_in_place(key, &mut buf).unwrap_err(),
+            AttachmentCipherError::MacError
+        );
+        assert_ne!(&buf, &plaintext);
+        Ok(())
+    }
+}
