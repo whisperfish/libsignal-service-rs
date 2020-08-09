@@ -137,12 +137,19 @@ pub trait PushService {
         Ok(SmsVerificationCodeResponse::SmsSent)
     }
 
+    async fn get_attachment_by_id(
+        &mut self,
+        id: u64,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        let path = format!("{}{}", ATTACHMENT_UPLOAD_PATH, id);
+        self.get_from_cdn(&path).await
+    }
+
     async fn get_attachment(
         &mut self,
         ptr: &AttachmentPointer,
     ) -> Result<Self::ByteStream, ServiceError> {
-        let path = format!("{}{}", ATTACHMENT_UPLOAD_PATH, ptr.id());
-        self.get_from_cdn(&path).await
+        self.get_attachment_by_id(ptr.id()).await
     }
 
     async fn get_messages(
