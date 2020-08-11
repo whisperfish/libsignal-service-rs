@@ -1,4 +1,4 @@
-use crate::push_service::{PushService, SmsVerificationCodeResponse};
+use crate::push_service::{PushService, SmsVerificationCodeResponse, VoiceVerificationCodeResponse};
 
 use failure::Error;
 
@@ -13,5 +13,11 @@ impl<Service: PushService> AccountManager<Service> {
         &mut self,
     ) -> Result<SmsVerificationCodeResponse, Error> {
         Ok(self.service.request_sms_verification_code().await?)
+    }
+
+    pub async fn request_voice_verification_code(
+        &mut self,
+    ) -> Result<VoiceVerificationCodeResponse, Error> {
+        Ok(self.service.request_voice_verification_code().await?)
     }
 }
