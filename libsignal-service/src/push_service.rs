@@ -57,6 +57,11 @@ pub enum SmsVerificationCodeResponse {
     SmsSent,
 }
 
+pub enum VoiceVerificationCodeResponse {
+    CaptchaRequired,
+    CallIssued,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Error sending request: {reason}")]
@@ -135,6 +140,13 @@ pub trait PushService {
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         self.get(CREATE_ACCOUNT_SMS_PATH).await?;
         Ok(SmsVerificationCodeResponse::SmsSent)
+    }
+
+    async fn request_voice_verification_code(
+        &mut self,
+    ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
+        self.get(CREATE_ACCOUNT_VOICE_PATH).await?;
+        Ok(VoiceVerificationCodeResponse::CallIssued)
     }
 
     async fn get_attachment_by_id(
