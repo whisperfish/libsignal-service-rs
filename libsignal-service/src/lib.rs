@@ -10,6 +10,7 @@ pub mod messagepipe;
 pub mod models;
 pub mod push_service;
 pub mod receiver;
+pub mod registration;
 
 mod proto;
 
