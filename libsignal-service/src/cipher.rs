@@ -1,5 +1,5 @@
 use crate::{
-    content::{Content, ContentBody, Metadata},
+    content::{Content, Metadata},
     envelope::Envelope,
     push_service::ServiceError,
     ServiceAddress,
