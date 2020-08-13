@@ -4,11 +4,11 @@ use crate::{
     configuration::{Credentials, ServiceConfiguration},
     envelope::*,
     messagepipe::WebSocketService,
-    proto::AttachmentPointer,
+    proto::AttachmentPointer, registration::{DeviceId, ConfirmCodeMessage},
 };
 
 use http::StatusCode;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 
 pub const CREATE_ACCOUNT_SMS_PATH: &str = "/v1/accounts/sms/code/%s?client=%s";
 pub const CREATE_ACCOUNT_VOICE_PATH: &str = "/v1/accounts/voice/code/%s";
@@ -129,6 +129,11 @@ pub trait PushService {
     where
         for<'de> T: Deserialize<'de>;
 
+    async fn put<D, S>(&mut self, path: &str, value: S) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: Serialize;
+
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
         &mut self,
@@ -147,6 +152,13 @@ pub trait PushService {
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
         self.get(CREATE_ACCOUNT_VOICE_PATH).await?;
         Ok(VoiceVerificationCodeResponse::CallIssued)
+    }
+
+    async fn confirm_registration(
+        &mut self,
+        confirm_code_message: &ConfirmCodeMessage,
+    ) -> Result<DeviceId, ServiceError> {
+        self.put(DEVICE_PATH, confirm_code_message).await
     }
 
     async fn get_attachment_by_id(
@@ -206,6 +218,14 @@ impl PushService for PanicingPushService {
     async fn get<T>(&mut self, _path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
+    {
+        unimplemented!()
+    }
+
+    async fn put<D, S>(&mut self, _path: &str, _value: S) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: Serialize,
     {
         unimplemented!()
     }
