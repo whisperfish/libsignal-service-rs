@@ -190,6 +190,9 @@ impl PushService for AwcPushService {
 }
 
 /// Creates a `awc::Client` with usable default settings:
+/// Creates a default `awc::Client`.
+///
+/// Creates a `awc::Client` with usable default settings:
 /// * certificate authority from the `ServiceConfiguration`
 /// * 10s timeout on TCP connection
 /// * 65s timeout on HTTP request
