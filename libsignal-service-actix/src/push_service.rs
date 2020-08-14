@@ -1,10 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use awc::Connector;
+use awc::{Client, Connector};
 use libsignal_service::{
     configuration::*, messagepipe::WebSocketService, push_service::*,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::websocket::AwcWebSocket;
@@ -72,7 +72,11 @@ impl PushService for AwcPushService {
         }
     }
 
-    async fn put<D, S>(&mut self, path: &str, value: S) -> Result<D, ServiceError>
+    async fn put<D, S>(
+        &mut self,
+        path: &str,
+        value: S,
+    ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
         S: Serialize,
@@ -84,11 +88,13 @@ impl PushService for AwcPushService {
         let url = self.base_url.join(path).expect("valid url");
 
         log::debug!("AwcPushService::put({:?})", url);
-        let mut response =
-            self.client.put(url.as_str()).send_json(&value).await.map_err(|e| {
-                ServiceError::SendError {
-                    reason: e.to_string(),
-                }
+        let mut response = self
+            .client
+            .put(url.as_str())
+            .send_json(&value)
+            .await
+            .map_err(|e| ServiceError::SendError {
+                reason: e.to_string(),
             })?;
 
         log::debug!("AwcPushService::put response: {:?}", response);
@@ -164,7 +170,8 @@ impl PushService for AwcPushService {
 
     async fn ws(
         &mut self,
-        credentials: Credentials,
+        path: &str,
+        credentials: Option<Credentials>,
     ) -> Result<
         (
             Self::WebSocket,
@@ -175,10 +182,47 @@ impl PushService for AwcPushService {
         Ok(AwcWebSocket::with_client(
             &mut self.client,
             &self.base_url,
-            Some(&credentials),
+            path,
+            credentials.as_ref(),
         )
         .await?)
     }
+}
+
+/// Creates a `awc::Client` with usable default settings:
+/// * certificate authority from the `ServiceConfiguration`
+/// * 10s timeout on TCP connection
+/// * 65s timeout on HTTP request
+/// * provided user-agent
+pub fn get_client(
+    cfg: &ServiceConfiguration,
+    credentials: Option<Credentials>,
+    user_agent: &str,
+) -> Client {
+    let mut ssl_config = rustls::ClientConfig::new();
+    ssl_config.alpn_protocols = vec![b"http/1.1".to_vec()];
+    ssl_config
+        .root_store
+        .add_pem_file(&mut std::io::Cursor::new(
+            cfg.certificate_authority.clone(),
+        ))
+        .unwrap();
+    let connector = Connector::new()
+                .rustls(Arc::new(ssl_config))
+                .timeout(Duration::from_secs(10)) // https://github.com/actix/actix-web/issues/1047
+                .finish();
+    let mut client = awc::ClientBuilder::new()
+        .connector(connector)
+        .header("X-Signal-Agent", user_agent)
+        .timeout(Duration::from_secs(65)); // as in Signal-Android
+
+    if let Some(credentials) = credentials {
+        if let Some((ident, pass)) = credentials.authorization() {
+            client = client.basic_auth(ident, Some(pass));
+        }
+    };
+
+    client.finish()
 }
 
 impl AwcPushService {
@@ -187,35 +231,13 @@ impl AwcPushService {
     /// Panics on invalid service url.
     pub fn new(
         cfg: ServiceConfiguration,
-        credentials: Credentials,
+        credentials: Option<Credentials>,
         user_agent: &str,
-        root_ca: &str,
     ) -> Self {
         let base_url =
             Url::parse(&cfg.service_urls[0]).expect("valid service url");
 
-        // SSL setup
-        let mut ssl_config = rustls::ClientConfig::new();
-        ssl_config.alpn_protocols = vec![b"http/1.1".to_vec()];
-        ssl_config
-            .root_store
-            .add_pem_file(&mut std::io::Cursor::new(root_ca))
-            .unwrap();
-        let connector = Connector::new()
-                    .rustls(Arc::new(ssl_config))
-                    .timeout(Duration::from_secs(10)) // https://github.com/actix/actix-web/issues/1047
-                    .finish();
-        let client = awc::ClientBuilder::new()
-            .connector(connector)
-            .header("X-Signal-Agent", user_agent)
-            .timeout(Duration::from_secs(65)); // as in Signal-Android
-
-        let client = if let Some((ident, pass)) = credentials.authorization() {
-            client.basic_auth(ident, Some(pass))
-        } else {
-            client
-        };
-        let client = client.finish();
+        let client = get_client(&cfg, credentials, user_agent);
 
         Self {
             cfg,
