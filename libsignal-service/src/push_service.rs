@@ -185,8 +185,8 @@ pub trait PushService {
         confirm_code_message: &ConfirmCodeMessage,
     ) -> Result<DeviceId, ServiceError> {
         self.put(
-            dbg!(&format!("{}{}", DEVICE_PATH, confirm_code)),
-            dbg!(confirm_code_message),
+            &format!("{}{}", DEVICE_PATH, confirm_code),
+            confirm_code_message,
         )
         .await
     }
