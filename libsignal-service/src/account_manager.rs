@@ -1,6 +1,6 @@
-use crate::{
-    push_service::{PushService, SmsVerificationCodeResponse, VoiceVerificationCodeResponse},
-    registration::{ConfirmCodeMessage, DeviceId},
+use crate::push_service::{
+    ConfirmCodeMessage, DeviceId, PushService, SmsVerificationCodeResponse,
+    VoiceVerificationCodeResponse,
 };
 
 use failure::Error;
@@ -26,13 +26,14 @@ impl<Service: PushService> AccountManager<Service> {
         Ok(self.service.request_voice_verification_code().await?)
     }
 
-    pub async fn confirm_registration(
+    pub async fn confirm_device(
         &mut self,
+        confirmation_code: u32,
         confirm_code_message: &ConfirmCodeMessage,
     ) -> Result<DeviceId, Error> {
         Ok(self
             .service
-            .confirm_registration(confirm_code_message)
+            .confirm_device(confirmation_code, confirm_code_message)
             .await?)
     }
 }

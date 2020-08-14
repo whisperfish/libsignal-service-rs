@@ -3,3 +3,6 @@ members = [
     "libsignal-service",
     "libsignal-service-actix",
 ]
+
+[patch.crates-io]
+libsignal-protocol = { git = "https://github.com/gferon/libsignal-protocol-rs", branch = "device-registration" }

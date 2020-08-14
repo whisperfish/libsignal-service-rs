@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 libsignal-service = { path = "../libsignal-service" }
-libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
+libsignal-protocol = { path = "../../libsignal-protocol-rs/libsignal-protocol" }
 
 awc = { version = "2.0.0-alpha.2", features=["rustls"] }
 actix = "0.10.0-alpha.3"
@@ -24,3 +24,11 @@ log = "0.4.8"
 failure = "0.1.5"
 thiserror = "1.0"
 async-trait = "0.1.30"
+
+[dev-dependencies]
+env_logger = "0.7"
+structopt = "0.3"
+base64 = "0.12"
+qrcode = "0.12"
+opener = "0.4"
+image = { version = "0.23", default-features = false, features = ["png"] }
