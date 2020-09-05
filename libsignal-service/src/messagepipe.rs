@@ -193,7 +193,9 @@ impl<WS: WebSocketService> MessagePipe<WS> {
                     "Response code for keep-alive is not 200: {:?}",
                     response
                 );
-                Ok(())
+                Err(ServiceError::UnhandledResponseCode {
+                    http_code: response.status() as u16,
+                })
             }
         })
     }
