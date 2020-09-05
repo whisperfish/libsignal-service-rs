@@ -197,16 +197,14 @@ fn strip_padding(
         return Ok(());
     }
 
-    let mut start_of_padding = 0;
-    for (i, b) in contents.iter().enumerate().rev() {
-        if *b == 0x80 {
-            start_of_padding = i;
-            break;
-        } else if *b != 0x00 {
+    let first_non_null = contents.iter().rposition(|b| *b != 0x00);
+    if let Some(start) = first_non_null {
+        if contents[start] != 0x80 {
             log::warn!("Badly padded message. Proceeding");
             return Ok(());
+        } else {
+            contents.truncate(start);
         }
     }
-    contents.truncate(start_of_padding);
     Ok(())
 }
