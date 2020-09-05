@@ -157,7 +157,9 @@ mod tests {
         ];
 
         decrypt_in_place(key_material, &mut ciphertext)?;
-        assert_eq!(ciphertext, b"test for libsignal-service-rust");
+        // This 32 is given by the AttachmentPointer
+        ciphertext.truncate(32);
+        assert_eq!(ciphertext, b"test for libsignal-service-rust\n");
         Ok(())
     }
 }
