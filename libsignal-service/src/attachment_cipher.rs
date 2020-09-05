@@ -144,4 +144,20 @@ mod tests {
         assert_ne!(&buf, &plaintext);
         Ok(())
     }
+
+    #[test]
+    fn know_answer_test_attachment() -> Result<(), Error> {
+        let mut ciphertext = include!("kat.bin.rs");
+        let key_material = [
+            52, 102, 97, 87, 153, 192, 64, 116, 93, 96, 57, 110, 6, 197, 208,
+            85, 49, 249, 154, 137, 116, 124, 112, 107, 8, 158, 48, 4, 8, 66,
+            173, 5, 28, 16, 199, 226, 234, 38, 69, 167, 163, 34, 107, 164, 15,
+            118, 101, 146, 34, 213, 85, 164, 110, 83, 129, 245, 62, 44, 158,
+            78, 205, 62, 153, 108,
+        ];
+
+        decrypt_in_place(key_material, &mut ciphertext)?;
+        assert_eq!(ciphertext, b"test for libsignal-service-rust");
+        Ok(())
+    }
 }
