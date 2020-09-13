@@ -32,8 +32,10 @@ impl Envelope {
         is_signaling_key_encrypted: bool,
     ) -> Result<Self, ServiceError> {
         if !is_signaling_key_encrypted {
+            log::trace!("Envelope::decrypt: not encrypted");
             Ok(Envelope::decode(input)?)
         } else {
+            log::trace!("Envelope::decrypt: decrypting");
             if input.len() < VERSION_LENGTH
                 || input[VERSION_OFFSET] != SUPPORTED_VERSION
             {
@@ -74,6 +76,8 @@ impl Envelope {
             let input = &input[CIPHERTEXT_OFFSET..(input.len() - MAC_SIZE)];
             let input = cipher.decrypt_vec(input).expect("decryption");
 
+            log::trace!("Envelope::decrypt: decrypted, decoding");
+
             Ok(Envelope::decode(&input as &[u8])?)
         }
     }
@@ -102,6 +106,30 @@ impl Envelope {
             content: entity.content,
             ..Default::default()
         }
+    }
+
+    pub fn is_unidentified_sender(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::UnidentifiedSender
+    }
+
+    pub fn is_prekey_signal_message(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::PrekeyBundle
+    }
+
+    pub fn is_receipt(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::Receipt
+    }
+
+    pub fn is_signal_message(&self) -> bool {
+        self.r#type() == crate::proto::envelope::Type::Ciphertext
+    }
+
+    pub fn source_address(&self) -> Option<ServiceAddress> {
+        self.source_e164.clone().map(|e164| ServiceAddress {
+            e164,
+            uuid: self.source_uuid.clone(),
+            relay: self.relay.clone(),
+        })
     }
 }
 

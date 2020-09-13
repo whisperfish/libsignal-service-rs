@@ -6,7 +6,9 @@ use futures::{channel::mpsc::*, prelude::*};
 use url::Url;
 
 use libsignal_service::{
-    configuration::Credentials, messagepipe::*, push_service::ServiceError,
+    configuration::Credentials,
+    messagepipe::*,
+    push_service::{self, ServiceError},
 };
 
 pub struct AwcWebSocket {
@@ -36,46 +38,72 @@ impl From<WsProtocolError> for AwcWebSocketError {
 
 /// Process the WebSocket, until it times out.
 async fn process<S: Stream>(
-    mut socket_stream: S,
-    mut incoming_sink: Sender<Bytes>,
+    socket_stream: S,
+    mut incoming_sink: Sender<WebSocketStreamItem>,
 ) -> Result<(), AwcWebSocketError>
 where
     S: Unpin,
     S: Stream<Item = Result<Frame, WsProtocolError>>,
 {
-    while let Some(frame) = socket_stream.next().await {
-        let frame = match frame? {
-            Frame::Binary(s) => s,
+    let mut socket_stream = socket_stream.fuse();
 
-            Frame::Continuation(_c) => todo!(),
-            Frame::Ping(msg) => {
-                log::warn!("Received Ping({:?})", msg);
-                // XXX: send pong and make the above log::debug
-                continue;
+    let mut ka_interval = actix::clock::interval_at(
+        actix::clock::Instant::now(),
+        // + push_service::KEEPALIVE_TIMEOUT_SECONDS.into(),
+        push_service::KEEPALIVE_TIMEOUT_SECONDS.into(),
+    )
+    .fuse();
+
+    loop {
+        futures::select! {
+            _ = ka_interval.next() => {
+                log::trace!("Triggering keep-alive");
+                if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
+                    log::info!("Websocket sink has closed: {:?}.", e);
+                    break;
+                };
             },
-            Frame::Pong(msg) => {
-                log::trace!("Received Pong({:?})", msg);
+            frame = socket_stream.next() => {
+                let frame = if let Some(frame) = frame {
+                    frame
+                } else {
+                    break;
+                };
 
-                continue;
+                let frame = match frame? {
+                    Frame::Binary(s) => s,
+
+                    Frame::Continuation(_c) => todo!(),
+                    Frame::Ping(msg) => {
+                        log::warn!("Received Ping({:?})", msg);
+
+                        continue;
+                    },
+                    Frame::Pong(msg) => {
+                        log::trace!("Received Pong({:?})", msg);
+
+                        continue;
+                    },
+                    Frame::Text(frame) => {
+                        log::warn!("Frame::Text {:?}", frame);
+
+                        // this is a protocol violation, maybe break; is better?
+                        continue;
+                    },
+
+                    Frame::Close(c) => {
+                        log::warn!("Websocket closing: {:?}", c);
+
+                        break;
+                    },
+                };
+
+                // Match SendError
+                if let Err(e) = incoming_sink.send(WebSocketStreamItem::Message(frame)).await {
+                    log::info!("Websocket sink has closed: {:?}.", e);
+                    break;
+                }
             },
-            Frame::Text(frame) => {
-                log::warn!("Frame::Text {:?}", frame);
-
-                // this is a protocol violation, maybe break; is better?
-                continue;
-            },
-
-            Frame::Close(c) => {
-                log::warn!("Websocket closing: {:?}", c);
-
-                break;
-            },
-        };
-
-        // Match SendError
-        if let Err(e) = incoming_sink.send(frame).await {
-            log::info!("Websocket sink has closed: {:?}.", e);
-            break;
         }
     }
     Ok(())
@@ -106,7 +134,7 @@ impl AwcWebSocket {
 
         log::debug!("WebSocket connected: {:?}", response);
 
-        let (incoming_sink, incoming_stream) = channel(1);
+        let (incoming_sink, incoming_stream) = channel(5);
 
         let (socket_sink, socket_stream) = framed.split();
         let processing_task = process(socket_stream, incoming_sink);
@@ -131,7 +159,7 @@ impl AwcWebSocket {
 
 #[async_trait::async_trait(?Send)]
 impl WebSocketService for AwcWebSocket {
-    type Stream = Receiver<Bytes>;
+    type Stream = Receiver<WebSocketStreamItem>;
 
     async fn send_message(&mut self, msg: Bytes) -> Result<(), ServiceError> {
         self.socket_sink

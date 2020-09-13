@@ -18,6 +18,8 @@ pub struct AwcPushService {
 
 #[async_trait::async_trait(?Send)]
 impl PushService for AwcPushService {
+    // This is in principle known at compile time, but long to write out.
+    type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = AwcWebSocket;
 
     async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
@@ -68,6 +70,45 @@ impl PushService for AwcPushService {
                     reason: e.to_string(),
                 })
         }
+    }
+
+    async fn get_from_cdn(
+        &mut self,
+        path: &str,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        use futures::stream::TryStreamExt;
+
+        let url = Url::parse(&self.cfg.cdn_urls[0])
+            .expect("valid cdn base url")
+            .join(path)
+            .expect("valid CDN path");
+
+        log::debug!("AwcPushService::get_stream({:?})", url);
+        let response =
+            self.client.get(url.as_str()).send().await.map_err(|e| {
+                ServiceError::SendError {
+                    reason: e.to_string(),
+                }
+            })?;
+
+        log::debug!("AwcPushService::get_stream response: {:?}", response);
+
+        ServiceError::from_status(response.status())?;
+
+        Ok(Box::new(
+            response
+                .map_err(|e| {
+                    use awc::error::PayloadError;
+                    match e {
+                        PayloadError::Io(e) => e,
+                        other => std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            other,
+                        ),
+                    }
+                })
+                .into_async_read(),
+        ))
     }
 
     async fn ws(

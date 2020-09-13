@@ -1,7 +1,10 @@
+use std::time::Duration;
+
 use crate::{
     configuration::{Credentials, ServiceConfiguration},
     envelope::*,
     messagepipe::WebSocketService,
+    proto::AttachmentPointer,
 };
 
 use http::StatusCode;
@@ -47,6 +50,8 @@ pub const ATTACHMENT_UPLOAD_PATH: &str = "attachments/";
 pub const STICKER_MANIFEST_PATH: &str = "stickers/%s/manifest.proto";
 pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 
+pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
+
 pub enum SmsVerificationCodeResponse {
     CaptchaRequired,
     SmsSent,
@@ -79,6 +84,15 @@ pub enum ServiceError {
 
     #[error("MAC error")]
     MacError,
+
+    #[error("Protocol error: {0}")]
+    SignalProtocolError(libsignal_protocol::InternalError),
+}
+
+impl From<libsignal_protocol::InternalError> for ServiceError {
+    fn from(pe: libsignal_protocol::InternalError) -> Self {
+        ServiceError::SignalProtocolError(pe)
+    }
 }
 
 impl ServiceError {
@@ -104,16 +118,38 @@ impl ServiceError {
 #[async_trait::async_trait(?Send)]
 pub trait PushService {
     type WebSocket: WebSocketService;
+    type ByteStream: futures::io::AsyncRead + Unpin;
 
     async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
+
+    /// Downloads larger files in streaming fashion, e.g. attachments.
+    async fn get_from_cdn(
+        &mut self,
+        path: &str,
+    ) -> Result<Self::ByteStream, ServiceError>;
 
     async fn request_sms_verification_code(
         &mut self,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         self.get(CREATE_ACCOUNT_SMS_PATH).await?;
         Ok(SmsVerificationCodeResponse::SmsSent)
+    }
+
+    async fn get_attachment_by_id(
+        &mut self,
+        id: u64,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        let path = format!("{}{}", ATTACHMENT_UPLOAD_PATH, id);
+        self.get_from_cdn(&path).await
+    }
+
+    async fn get_attachment(
+        &mut self,
+        ptr: &AttachmentPointer,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        self.get_attachment_by_id(ptr.id()).await
     }
 
     async fn get_messages(
@@ -152,12 +188,20 @@ impl PanicingPushService {
 
 #[async_trait::async_trait(?Send)]
 impl PushService for PanicingPushService {
+    type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = crate::messagepipe::PanicingWebSocketService;
 
     async fn get<T>(&mut self, _path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
+        unimplemented!()
+    }
+
+    async fn get_from_cdn(
+        &mut self,
+        _path: &str,
+    ) -> Result<Self::ByteStream, ServiceError> {
         unimplemented!()
     }
 
