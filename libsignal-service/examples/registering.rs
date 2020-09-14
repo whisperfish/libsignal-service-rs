@@ -33,7 +33,7 @@ async fn main() -> Result<(), Error> {
     let _trust_store = args.load_trust_store()?;
     let password = args.get_password()?;
 
-    let config = ServiceConfiguration::default();
+    let config: ServiceConfiguration = SignalServers::Production.into();
 
     let mut signaling_key = [0u8; 52];
     base64::decode_config_slice(

@@ -5,8 +5,10 @@ use futures::{
     prelude::*,
     stream::FuturesUnordered,
 };
+use hmac::{Hmac, Mac, NewMac};
 use pin_project::pin_project;
 use prost::Message;
+use sha2::Sha256;
 use url::Url;
 
 use libsignal_protocol::{
@@ -70,7 +72,7 @@ impl ProvisioningCipher {
         debug_assert_eq!(mac.len(), 32);
 
         let agreement =
-            master_ephemeral.calculate_agreement(self.key_pair.private())?;
+            master_ephemeral.calculate_agreement(&self.key_pair.private())?;
         let hkdf = libsignal_protocol::create_hkdf(&self.ctx, 3)?;
 
         let shared_secrets = hkdf.derive_secrets(
@@ -83,10 +85,8 @@ impl ProvisioningCipher {
         let parts1 = &shared_secrets[0..32];
         let parts2 = &shared_secrets[32..];
 
-        use hmac::{Hmac, Mac, NewMac};
-        use sha2::Sha256;
         let mut verifier = Hmac::<Sha256>::new_varkey(&parts2)
-            .expect("Hmac can take any size key");
+            .expect("HMAC can take any size key");
         verifier.update(&iv_and_cipher_text);
         let our_mac = verifier.finalize().into_bytes();
         debug_assert_eq!(our_mac.len(), mac.len());

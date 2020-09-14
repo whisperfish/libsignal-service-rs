@@ -24,11 +24,12 @@ log = "0.4.8"
 failure = "0.1.5"
 thiserror = "1.0"
 async-trait = "0.1.30"
+base64 = "0.12"
 
 [dev-dependencies]
 env_logger = "0.7"
 structopt = "0.3"
-base64 = "0.12"
+image = { version = "0.23", default-features = false, features = ["png"] }
 qrcode = "0.12"
 opener = "0.4"
-image = { version = "0.23", default-features = false, features = ["png"] }
+rand = "0.7"

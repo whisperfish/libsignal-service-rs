@@ -1,52 +1,19 @@
 use failure::Error;
-use futures::{StreamExt, *};
-use serde::Serialize;
-use std::{path::PathBuf, str::FromStr};
+use futures::{channel::mpsc::channel, future, StreamExt};
+use image::Luma;
+use log::LevelFilter;
+use qrcode::QrCode;
+use rand::RngCore;
+use std::path::PathBuf;
 use structopt::StructOpt;
 
-use libsignal_protocol::{
-    crypto::DefaultCrypto,
-    keys::{PrivateKey, PublicKey},
-    Context, Serializable,
+use libsignal_protocol::{crypto::DefaultCrypto, Context, Serializable};
+use libsignal_service_actix::provisioning::{
+    provision_secondary_device, SecondaryDeviceProvisioning,
 };
-use libsignal_service::{
-    configuration::*,
-    prelude::PushService,
-    provisioning::{ProvisioningError, ProvisioningPipe, ProvisioningStep},
-    push_service::{ConfirmCodeMessage, DeviceId, PROVISIONING_WEBSOCKET_PATH},
-    USER_AGENT,
-};
-use libsignal_service_actix::prelude::AwcPushService;
-#[derive(Debug, Clone)]
-struct Base64Data(Vec<u8>);
-
-impl FromStr for Base64Data {
-    type Err = base64::DecodeError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Base64Data(base64::decode(s)?))
-    }
-}
-
-impl Base64Data {
-    fn to_string(&self) -> String {
-        base64::encode(&self.0)
-    }
-}
 
 #[derive(Debug, StructOpt)]
 struct Args {
-    #[structopt(
-        short = "p",
-        long = "password",
-        help = "The password to use, 16 bytes base64 encoded"
-    )]
-    pub password: Base64Data,
-    #[structopt(
-        long = "signaling-key",
-        help = "The key used to encrypt and authenticate messages in transit, 52 bytes base64 encoded"
-    )]
-    pub signaling_key: Base64Data,
     #[structopt(
         long = "device-name",
         help = "Name of the device to register in the primary client"
@@ -59,148 +26,94 @@ struct Args {
     pub output: PathBuf,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct NewDeviceRegistration {
-    device_id: DeviceId,
-    uuid: String,
-    #[serde(skip)]
-    public_key: PublicKey,
-    #[serde(skip)]
-    private_key: PrivateKey,
-}
-
 #[actix_rt::main]
 async fn main() -> Result<(), Error> {
-    env_logger::init();
+    env_logger::builder()
+        .format_timestamp(None)
+        .filter_level(LevelFilter::Info)
+        .init();
     let args = Args::from_args();
 
-    let registration = provision_secondary_device(&args).await?;
+    if !args.output.exists() {
+        return Err(failure::err_msg(format!(
+            "directory {} does not exist.",
+            args.output.display()
+        )));
+    }
 
-    std::fs::write(
-        args.output.join("public.pem"),
-        registration.public_key.serialize()?.as_slice(),
-    )?;
+    // generate a random 16 bytes password
+    let mut rng = rand::rngs::OsRng::default();
+    let mut password = [0u8; 16];
+    rng.fill_bytes(&mut password);
+    log::info!("generated password: {}", base64::encode(&password));
 
-    std::fs::write(
-        args.output.join("private.pem"),
-        registration.private_key.serialize()?.as_slice(),
-    )?;
+    // generate a 52 bytes signaling key
+    let mut signaling_key = [0u8; 52];
+    rng.fill_bytes(&mut signaling_key);
+    log::info!(
+        "generated signaling key: {}",
+        base64::encode(&signaling_key.to_vec())
+    );
 
-    std::fs::write(
-        args.output.join("device.json"),
-        serde_json::to_vec(&registration)?,
-    )?;
+    let signal_context = Context::new(DefaultCrypto::default()).unwrap();
+
+    let (tx, mut rx) = channel(1);
+
+    let output = args.output;
+
+    let (fut1, fut2) = future::join(
+        provision_secondary_device(
+            &signal_context,
+            signaling_key,
+            password,
+            &args.device_name,
+            tx,
+        ),
+        async move {
+            while let Some(provisioning_step) = rx.next().await {
+                match provisioning_step {
+                    SecondaryDeviceProvisioning::Url(url) => {
+                        log::info!(
+                            "generating qrcode from provisioning link: {}",
+                            &url
+                        );
+                        let code = QrCode::new(url.as_str())
+                            .expect("failed to generate qrcode");
+                        let image = code.render::<Luma<u8>>().build();
+                        let path = std::env::temp_dir().join("device-link.png");
+                        image.save(&path)?;
+                        opener::open(path)?;
+                    }
+                    SecondaryDeviceProvisioning::NewDeviceRegistration {
+                        device_id: _,
+                        uuid,
+                        private_key,
+                        public_key,
+                    } => {
+                        log::info!("successfully registered device {}", &uuid);
+                        std::fs::write(
+                            output.join("public.pem"),
+                            public_key.serialize().unwrap().as_slice(),
+                        )
+                        .expect("failed to write public key");
+
+                        std::fs::write(
+                            output.join("private.pem"),
+                            private_key.serialize().unwrap().as_slice(),
+                        )
+                        .expect("failed to write private key");
+
+                        std::fs::write(output.join("device.uuid"), uuid)?;
+                    }
+                }
+            }
+            Result::Ok::<(), Error>(())
+        },
+    )
+    .await;
+
+    let _ = fut1?;
+    let _ = fut2?;
 
     Ok(())
-}
-
-async fn provision_secondary_device(
-    args: &Args,
-) -> Result<NewDeviceRegistration, Error> {
-    let ctx = Context::new(DefaultCrypto::default()).unwrap();
-
-    let service_configuration = ServiceConfiguration::production();
-
-    // TODO: we need a better way to get the WS without the pushservice here
-    let mut push_service =
-        AwcPushService::new(service_configuration.clone(), None, USER_AGENT);
-
-    let (ws, stream) =
-        push_service.ws(PROVISIONING_WEBSOCKET_PATH, None).await?;
-
-    let registration_id =
-        libsignal_protocol::generate_registration_id(&ctx, 0)?;
-    let mut signaling_key = [0; 52];
-    signaling_key.copy_from_slice(&args.signaling_key.0);
-
-    let provisioning_pipe = ProvisioningPipe::from_socket(ws, stream, &ctx)?;
-    let provision_stream = provisioning_pipe.stream();
-    pin_mut!(provision_stream);
-    while let Some(step) = provision_stream.next().await {
-        match step {
-            Ok(ProvisioningStep::Url(url)) => {
-                log::info!(
-                    "generating qrcode from provisioning link: {}",
-                    &url
-                );
-                use image::Luma;
-                let code = qrcode::QrCode::new(url.as_str())
-                    .expect("failed to generate qrcode");
-                let image = code.render::<Luma<u8>>().build();
-                let path = std::env::temp_dir().join("device-link.png");
-                image.save(&path).expect("failed to save qrcode");
-                opener::open(path).expect("failed to open qrcode");
-            }
-            Ok(ProvisioningStep::Message(message)) => {
-                let credentials = Credentials {
-                    e164: message.number.ok_or(
-                        ProvisioningError::InvalidData {
-                            reason: "missing number".into(),
-                        },
-                    )?,
-                    uuid: None,
-                    password: Some(args.password.to_string()),
-                    signaling_key,
-                };
-
-                let uuid =
-                    message.uuid.ok_or(ProvisioningError::InvalidData {
-                        reason: "missing client UUID".into(),
-                    })?;
-
-                let public_key = PublicKey::decode_point(
-                    &ctx,
-                    &message.identity_key_public.ok_or(
-                        ProvisioningError::InvalidData {
-                            reason: "missing public key".into(),
-                        },
-                    )?,
-                )?;
-                let private_key = PrivateKey::decode_point(
-                    &ctx,
-                    &message.identity_key_private.ok_or(
-                        ProvisioningError::InvalidData {
-                            reason: "missing public key".into(),
-                        },
-                    )?,
-                )?;
-
-                let mut push_service = AwcPushService::new(
-                    service_configuration.clone(),
-                    Some(credentials),
-                    USER_AGENT,
-                );
-
-                let device_id = push_service
-                    .confirm_device(
-                        message
-                            .provisioning_code
-                            .ok_or(ProvisioningError::InvalidData {
-                                reason: "no provisioning confirmation code"
-                                    .into(),
-                            })?
-                            .parse()
-                            .unwrap(),
-                        &ConfirmCodeMessage {
-                            signaling_key: signaling_key.to_vec(),
-                            supports_sms: true,
-                            fetches_messages: true,
-                            registration_id,
-                            name: args.device_name.clone(),
-                        },
-                    )
-                    .await?;
-
-                return Ok(NewDeviceRegistration {
-                    device_id,
-                    uuid,
-                    public_key,
-                    private_key,
-                });
-            }
-            Err(e) => return Err(e.into()),
-        }
-    }
-    Err(failure::err_msg("failed to link/provision new device"))
 }
