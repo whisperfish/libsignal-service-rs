@@ -154,7 +154,10 @@ impl<WS: WebSocketService> MessagePipe<WS> {
                             Err(e) => log::warn!("Could not send keep alive"),
                         }
                     },
-                    None => {break;},
+                    None => {
+                        log::debug!("WebSocket stream ended.");
+                        break;
+                    },
                 },
                 _ = background_work.next() => {
                     // no op
@@ -277,8 +280,8 @@ impl<WS: WebSocketService> MessagePipe<WS> {
         let (sink, stream) = mpsc::channel(1);
 
         let stream = stream.map(Some);
-        let runner = self.run(sink).map(|_| {
-            log::info!("Sink was closed.");
+        let runner = self.run(sink).map(|e| {
+            log::info!("Sink was closed. Reason: {:?}", e);
             None
         });
 

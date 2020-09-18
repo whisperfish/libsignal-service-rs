@@ -67,6 +67,7 @@ where
                 let frame = if let Some(frame) = frame {
                     frame
                 } else {
+                    log::info!("process: Socket stream ended");
                     break;
                 };
 
