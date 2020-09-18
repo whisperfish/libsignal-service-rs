@@ -15,7 +15,9 @@ pub enum MessageReceiverError {
 }
 
 impl<Service: PushService> MessageReceiver<Service> {
-    pub fn new(service: Service) -> Self { MessageReceiver { service } }
+    pub fn new(service: Service) -> Self {
+        MessageReceiver { service }
+    }
 
     /// One-off method to receive all pending messages.
     ///

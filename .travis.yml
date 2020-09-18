@@ -28,7 +28,7 @@ matrix:
     - rust: 1.42.0
     - rust: nightly
 
-    - rust: nightly
+    - rust: stable
       name: "Code Style"
       before_script:
         - rustup component add rustfmt

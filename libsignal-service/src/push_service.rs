@@ -102,11 +102,11 @@ impl ServiceError {
             StatusCode::NO_CONTENT => Ok(()),
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
-            },
+            }
             StatusCode::PAYLOAD_TOO_LARGE => {
                 // This is 413 and means rate limit exceeded for Signal.
                 Err(ServiceError::RateLimitExceeded)
-            },
+            }
             // XXX: fill in rest from PushServiceSocket
             _ => Err(ServiceError::UnhandledResponseCode {
                 http_code: code.as_u16(),

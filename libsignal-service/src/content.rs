@@ -64,7 +64,9 @@ pub enum ContentBody {
 macro_rules! impl_from_for_content_body {
     ($enum:ident ($t:ty)) => {
         impl From<$t> for ContentBody {
-            fn from(inner: $t) -> ContentBody { ContentBody::$enum(inner) }
+            fn from(inner: $t) -> ContentBody {
+                ContentBody::$enum(inner)
+            }
         }
     };
 }
