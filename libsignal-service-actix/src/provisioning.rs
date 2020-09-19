@@ -126,5 +126,6 @@ pub async fn provision_secondary_device(
             Err(e) => return Err(e.into()),
         }
     }
-    Err(failure::err_msg("failed to link/provision new device"))
+
+    Ok(())
 }
