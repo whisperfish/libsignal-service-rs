@@ -113,11 +113,11 @@ impl AwcWebSocket {
     pub(crate) async fn with_client(
         client: &mut awc::Client,
         base_url: impl std::borrow::Borrow<Url>,
+        path: &str,
         credentials: Option<&Credentials>,
     ) -> Result<(Self, <Self as WebSocketService>::Stream), AwcWebSocketError>
     {
-        let mut url =
-            base_url.borrow().join("/v1/websocket/").expect("valid url");
+        let mut url = base_url.borrow().join(path).expect("valid url");
         url.set_scheme("wss").expect("valid https base url");
 
         if let Some(credentials) = credentials {
@@ -145,7 +145,7 @@ impl AwcWebSocket {
             Ok(()) => (),
             Err(e) => {
                 log::warn!("Processing task terminated with error: {:?}", e)
-            },
+            }
         }));
 
         Ok((

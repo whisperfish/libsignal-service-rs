@@ -8,11 +8,10 @@ pub mod content;
 pub mod envelope;
 pub mod messagepipe;
 pub mod models;
+mod proto;
+pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
-
-mod proto;
-
 mod utils;
 
 pub use crate::account_manager::AccountManager;

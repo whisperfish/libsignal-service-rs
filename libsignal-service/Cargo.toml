@@ -10,7 +10,7 @@ readme = "../README.md"
 libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
 failure = "0.1.5"
 async-trait = "0.1.30"
-url = "2.1.1"
+url = { version = "2.1.1", features = ["serde"] }
 base64 = "0.12"
 bytes = "0.5"
 futures = "0.3"

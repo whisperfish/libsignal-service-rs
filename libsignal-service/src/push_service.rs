@@ -5,10 +5,11 @@ use crate::{
     envelope::*,
     messagepipe::WebSocketService,
     proto::AttachmentPointer,
+    utils::serde_base64,
 };
 
 use http::StatusCode;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub const CREATE_ACCOUNT_SMS_PATH: &str = "/v1/accounts/sms/code/%s?client=%s";
 pub const CREATE_ACCOUNT_VOICE_PATH: &str = "/v1/accounts/voice/code/%s";
@@ -27,7 +28,8 @@ pub const SIGNED_PREKEY_PATH: &str = "/v2/keys/signed";
 
 pub const PROVISIONING_CODE_PATH: &str = "/v1/devices/provisioning/code";
 pub const PROVISIONING_MESSAGE_PATH: &str = "/v1/provisioning/%s";
-pub const DEVICE_PATH: &str = "/v1/devices/%s";
+pub const DEVICE_PATH: &str = "/v1/devices/";
+pub const PROVISIONING_WEBSOCKET_PATH: &str = "/v1/websocket/provisioning/";
 
 pub const DIRECTORY_TOKENS_PATH: &str = "/v1/directory/tokens";
 pub const DIRECTORY_VERIFY_PATH: &str = "/v1/directory/%s";
@@ -39,6 +41,8 @@ pub const UUID_ACK_MESSAGE_PATH: &str = "/v1/messages/uuid/%s";
 pub const ATTACHMENT_PATH: &str = "/v2/attachments/form/upload";
 
 pub const PROFILE_PATH: &str = "/v1/profile/%s";
+
+pub const WEBSOCKET_PATH: &str = "/v1/websocket";
 
 pub const SENDER_CERTIFICATE_LEGACY_PATH: &str = "/v1/certificate/delivery";
 pub const SENDER_CERTIFICATE_PATH: &str =
@@ -55,6 +59,28 @@ pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub enum SmsVerificationCodeResponse {
     CaptchaRequired,
     SmsSent,
+}
+
+pub enum VoiceVerificationCodeResponse {
+    CaptchaRequired,
+    CallIssued,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceId {
+    device_id: u32,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmCodeMessage {
+    #[serde(with = "serde_base64")]
+    pub signaling_key: Vec<u8>,
+    pub supports_sms: bool,
+    pub fetches_messages: bool,
+    pub registration_id: u32,
+    pub name: String,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -102,11 +128,11 @@ impl ServiceError {
             StatusCode::NO_CONTENT => Ok(()),
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
-            },
+            }
             StatusCode::PAYLOAD_TOO_LARGE => {
                 // This is 413 and means rate limit exceeded for Signal.
                 Err(ServiceError::RateLimitExceeded)
-            },
+            }
             // XXX: fill in rest from PushServiceSocket
             _ => Err(ServiceError::UnhandledResponseCode {
                 http_code: code.as_u16(),
@@ -124,6 +150,15 @@ pub trait PushService {
     where
         for<'de> T: Deserialize<'de>;
 
+    async fn put<D, S>(
+        &mut self,
+        path: &str,
+        value: S,
+    ) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: Serialize;
+
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
         &mut self,
@@ -135,6 +170,25 @@ pub trait PushService {
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         self.get(CREATE_ACCOUNT_SMS_PATH).await?;
         Ok(SmsVerificationCodeResponse::SmsSent)
+    }
+
+    async fn request_voice_verification_code(
+        &mut self,
+    ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
+        self.get(CREATE_ACCOUNT_VOICE_PATH).await?;
+        Ok(VoiceVerificationCodeResponse::CallIssued)
+    }
+
+    async fn confirm_device(
+        &mut self,
+        confirm_code: u32,
+        confirm_code_message: &ConfirmCodeMessage,
+    ) -> Result<DeviceId, ServiceError> {
+        self.put(
+            &format!("{}{}", DEVICE_PATH, confirm_code),
+            confirm_code_message,
+        )
+        .await
     }
 
     async fn get_attachment_by_id(
@@ -161,7 +215,8 @@ pub trait PushService {
 
     async fn ws(
         &mut self,
-        credentials: Credentials,
+        path: &str,
+        credentials: Option<Credentials>,
     ) -> Result<
         (
             Self::WebSocket,
@@ -198,6 +253,18 @@ impl PushService for PanicingPushService {
         unimplemented!()
     }
 
+    async fn put<D, S>(
+        &mut self,
+        _path: &str,
+        _value: S,
+    ) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: Serialize,
+    {
+        unimplemented!()
+    }
+
     async fn get_from_cdn(
         &mut self,
         _path: &str,
@@ -207,7 +274,8 @@ impl PushService for PanicingPushService {
 
     async fn ws(
         &mut self,
-        _credentials: Credentials,
+        _path: &str,
+        _credentials: Option<Credentials>,
     ) -> Result<
         (
             Self::WebSocket,
