@@ -50,7 +50,7 @@ pub mod prelude {
     pub use super::ServiceAddress;
     pub use crate::{
         cipher::ServiceCipher,
-        configuration::{Credentials, ServiceConfiguration},
+        configuration::{Credentials, ServiceConfiguration, SignalServers},
         content::Content,
         envelope::Envelope,
         push_service::{PushService, ServiceError},
