@@ -42,7 +42,7 @@ pub const ATTACHMENT_PATH: &str = "/v2/attachments/form/upload";
 
 pub const PROFILE_PATH: &str = "/v1/profile/%s";
 
-pub const WEBSOCKET_PATH: &str = "/v1/websocket";
+pub const WEBSOCKET_PATH: &str = "/v1/websocket/";
 
 pub const SENDER_CERTIFICATE_LEGACY_PATH: &str = "/v1/certificate/delivery";
 pub const SENDER_CERTIFICATE_PATH: &str =
