@@ -1,9 +1,11 @@
+use std::collections::HashMap;
+
 use crate::envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE};
 
 #[derive(Clone)]
 pub struct ServiceConfiguration {
     pub service_urls: Vec<String>,
-    pub cdn_urls: Vec<String>,
+    pub cdn_urls: HashMap<u64, String>,
     pub contact_discovery_url: Vec<String>,
     pub certificate_authority: String,
 }
@@ -51,38 +53,40 @@ impl Into<ServiceConfiguration> for SignalServers {
         match self {
             // configuration with the Signal API staging endpoints
             // see: https://github.com/signalapp/Signal-Desktop/blob/master/config/default.json
-            SignalServers::Staging => {
-                ServiceConfiguration {
-                    service_urls: vec![
-                        "https://textsecure-service-staging.whispersystems.org".into(),
-                    ],
-                    cdn_urls: vec![
-                        "https://cdn-staging.signal.org".into(),
-                        "https://cdn2-staging.signal.org".into(),
-                    ],
-                    contact_discovery_url: vec![
-                        "https://api-staging.directory.signal.org".into(),
-                    ],
-                    certificate_authority: SIGNAL_ROOT_CA.into(),
-                }
+            SignalServers::Staging => ServiceConfiguration {
+                service_urls: vec![
+                    "https://textsecure-service-staging.whispersystems.org"
+                        .into(),
+                ],
+                cdn_urls: {
+                    let mut map = HashMap::new();
+                    map.insert(0, "https://cdn-staging.signal.org".into());
+                    map.insert(2, "https://cdn2-staging.signal.org".into());
+                    map
+                },
+                contact_discovery_url: vec![
+                    "https://api-staging.directory.signal.org".into(),
+                ],
+                certificate_authority: SIGNAL_ROOT_CA.into(),
             },
             // configuration with the Signal API production endpoints
             // https://github.com/signalapp/Signal-Desktop/blob/master/config/production.json
-            SignalServers::Production => {
-                ServiceConfiguration {
-                    service_urls: vec![
-                        "https://textsecure-service.whispersystems.org".into()
-                    ],
-                    cdn_urls: vec![
-                        "https://cdn.signal.org".into(),
-                        "https://cdn2.signal.org".into(),
-                    ],
-                    contact_discovery_url: vec![
-                        "https://api.directory.signal.org".into()
-                    ],
-                    certificate_authority: SIGNAL_ROOT_CA.into(),
-                }
-            }
+            SignalServers::Production => ServiceConfiguration {
+                service_urls: vec![
+                    "https://textsecure-service.whispersystems.org".into(),
+                ],
+                cdn_urls: {
+                    let mut map = HashMap::new();
+                    map.insert(0, "https://cdn.signal.org".into());
+                    map.insert(2, "https://cdn2.signal.org".into());
+                    map
+                },
+
+                contact_discovery_url: vec![
+                    "https://api.directory.signal.org".into()
+                ],
+                certificate_authority: SIGNAL_ROOT_CA.into(),
+            },
         }
     }
 }

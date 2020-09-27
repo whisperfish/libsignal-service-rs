@@ -4,7 +4,7 @@ use crate::{
     configuration::{Credentials, ServiceConfiguration},
     envelope::*,
     messagepipe::WebSocketService,
-    proto::AttachmentPointer,
+    proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     utils::serde_base64,
 };
 
@@ -128,11 +128,11 @@ impl ServiceError {
             StatusCode::NO_CONTENT => Ok(()),
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
-            }
+            },
             StatusCode::PAYLOAD_TOO_LARGE => {
                 // This is 413 and means rate limit exceeded for Signal.
                 Err(ServiceError::RateLimitExceeded)
-            }
+            },
             // XXX: fill in rest from PushServiceSocket
             _ => Err(ServiceError::UnhandledResponseCode {
                 http_code: code.as_u16(),
@@ -162,6 +162,7 @@ pub trait PushService {
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
         &mut self,
+        cdn_id: u64,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError>;
 
@@ -193,17 +194,24 @@ pub trait PushService {
 
     async fn get_attachment_by_id(
         &mut self,
-        id: u64,
+        id: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
         let path = format!("{}{}", ATTACHMENT_UPLOAD_PATH, id);
-        self.get_from_cdn(&path).await
+        self.get_from_cdn(0, &path).await
     }
 
     async fn get_attachment(
         &mut self,
         ptr: &AttachmentPointer,
     ) -> Result<Self::ByteStream, ServiceError> {
-        self.get_attachment_by_id(ptr.id()).await
+        match ptr.attachment_identifier.as_ref().unwrap() {
+            AttachmentIdentifier::CdnId(id) => {
+                self.get_attachment_by_id(&format!("{}", id)).await
+            },
+            AttachmentIdentifier::CdnKey(key) => {
+                self.get_attachment_by_id(key).await
+            },
+        }
     }
 
     async fn get_messages(
@@ -267,6 +275,7 @@ impl PushService for PanicingPushService {
 
     async fn get_from_cdn(
         &mut self,
+        _cdn_id: u64,
         _path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
         unimplemented!()

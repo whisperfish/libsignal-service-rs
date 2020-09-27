@@ -131,11 +131,12 @@ impl PushService for AwcPushService {
 
     async fn get_from_cdn(
         &mut self,
+        cdn_id: u64,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
         use futures::stream::TryStreamExt;
 
-        let url = Url::parse(&self.cfg.cdn_urls[0])
+        let url = Url::parse(&self.cfg.cdn_urls[&cdn_id])
             .expect("valid cdn base url")
             .join(path)
             .expect("valid CDN path");
