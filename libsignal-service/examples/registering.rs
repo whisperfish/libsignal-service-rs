@@ -44,9 +44,9 @@ async fn main() -> Result<(), Error> {
     .unwrap();
     let credentials = Credentials {
         uuid: None,
-        e164: args.username,
+        e164: args.username.clone(),
         password: Some(password),
-        signaling_key,
+        signaling_key: Some(signaling_key),
     };
 
     let service = PanicingPushService::new(
@@ -56,7 +56,7 @@ async fn main() -> Result<(), Error> {
     );
 
     let mut account_manager = AccountManager::new(service);
-    account_manager.request_sms_verification_code().await?;
+    account_manager.request_sms_verification_code(&args.username).await?;
 
     Ok(())
 }

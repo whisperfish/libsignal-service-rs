@@ -97,17 +97,17 @@ impl ServiceCipher {
                         needs_receipt: false,
                     },
                 )
-            }
+            },
             Type::UnidentifiedSender => {
                 // is unidentified sender
                 unimplemented!("UnidentifiedSender requires SealedSessionCipher, please report a bug against libsignal-service-rs.");
-            }
+            },
             _ => {
                 // else
                 return Err(ServiceError::InvalidFrameError {
                     reason: "Envelope has unknown type.".into(),
                 });
-            }
+            },
         };
 
         let mut plaintext = match envelope.r#type() {
@@ -124,7 +124,7 @@ impl ServiceCipher {
                     metadata,
                     data: Vec::from(buf.as_slice()),
                 }
-            }
+            },
             Type::Ciphertext => {
                 let cipher =
                     SessionCipher::new(&self.context, &self.store, &address)?;
@@ -135,13 +135,13 @@ impl ServiceCipher {
                     metadata,
                     data: Vec::from(buf.as_slice()),
                 }
-            }
+            },
             Type::UnidentifiedSender => {
                 unimplemented!("UnidentifiedSender requires SealedSessionCipher, please report a bug against libsignal-service-rs.");
-            }
+            },
             _ => {
                 unreachable!("conditions checked in previous match");
-            }
+            },
         };
 
         let version = self.store.load_session(&address)?.state().version();

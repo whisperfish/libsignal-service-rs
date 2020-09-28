@@ -3,3 +3,6 @@ members = [
     "libsignal-service",
     "libsignal-service-actix",
 ]
+
+[patch."https://github.com/Michael-F-Bryan/libsignal-protocol-rs"]
+libsignal-protocol = { path = "../libsignal-protocol-rs/libsignal-protocol" }

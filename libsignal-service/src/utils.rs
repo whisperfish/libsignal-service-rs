@@ -36,7 +36,7 @@ pub mod serde_optional_base64 {
         match bytes {
             Some(bytes) => {
                 serializer.serialize_str(&base64::encode(bytes.as_ref()))
-            }
+            },
             None => serializer.serialize_none(),
         }
     }
@@ -54,5 +54,55 @@ pub mod serde_optional_base64 {
                 .map(Some),
             None => Ok(None),
         }
+    }
+}
+
+pub mod serde_public_key {
+    use libsignal_protocol::keys::PublicKey;
+    use serde::Serializer;
+
+    pub fn serialize<S>(
+        public_key: &PublicKey,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::Error;
+        serializer
+            .serialize_str(&public_key.as_base64().map_err(S::Error::custom)?)
+    }
+}
+
+pub mod serde_private_key {
+    use libsignal_protocol::keys::PrivateKey;
+    use serde::Serializer;
+
+    pub fn serialize<S>(
+        private_key: &PrivateKey,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::Error;
+        serializer
+            .serialize_str(&private_key.as_base64().map_err(S::Error::custom)?)
+    }
+}
+
+pub mod serde_signaling_key {
+    use serde::Serializer;
+
+    use crate::configuration::SignalingKey;
+
+    pub fn serialize<S>(
+        signaling_key: &SignalingKey,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&base64::encode(signaling_key.to_vec()))
     }
 }

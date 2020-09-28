@@ -1,6 +1,11 @@
 use actix::Arbiter;
 
-use awc::{error::WsProtocolError, ws, ws::Frame};
+use awc::{
+    error::{WsClientError, WsProtocolError},
+    http::StatusCode,
+    ws,
+    ws::Frame,
+};
 use bytes::Bytes;
 use futures::{channel::mpsc::*, prelude::*};
 use url::Url;
@@ -23,7 +28,19 @@ pub enum AwcWebSocketError {
 
 impl From<AwcWebSocketError> for ServiceError {
     fn from(e: AwcWebSocketError) -> ServiceError {
-        todo!("error conversion {:?}", e)
+        match e {
+            AwcWebSocketError::ConnectionError(e) => match e {
+                WsClientError::InvalidResponseStatus(s) => match s {
+                    StatusCode::FORBIDDEN => ServiceError::Unauthorized,
+                    s => ServiceError::WsError {
+                        reason: format!("HTTP status {}", s),
+                    },
+                },
+                e => ServiceError::WsError {
+                    reason: e.to_string(),
+                },
+            },
+        }
     }
 }
 
@@ -146,7 +163,7 @@ impl AwcWebSocket {
             Ok(()) => (),
             Err(e) => {
                 log::warn!("Processing task terminated with error: {:?}", e)
-            }
+            },
         }));
 
         Ok((

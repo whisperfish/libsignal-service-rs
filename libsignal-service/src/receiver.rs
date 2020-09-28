@@ -15,9 +15,7 @@ pub enum MessageReceiverError {
 }
 
 impl<Service: PushService> MessageReceiver<Service> {
-    pub fn new(service: Service) -> Self {
-        MessageReceiver { service }
-    }
+    pub fn new(service: Service) -> Self { MessageReceiver { service } }
 
     /// One-off method to receive all pending messages.
     ///
@@ -37,7 +35,10 @@ impl<Service: PushService> MessageReceiver<Service> {
         &mut self,
         credentials: Credentials,
     ) -> Result<MessagePipe<Service::WebSocket>, MessageReceiverError> {
-        let (ws, stream) = self.service.ws(WEBSOCKET_PATH, Some(credentials.clone())).await?;
+        let (ws, stream) = self
+            .service
+            .ws("/v1/websocket/", Some(credentials.clone()))
+            .await?;
         Ok(MessagePipe::from_socket(ws, stream, credentials))
     }
 }

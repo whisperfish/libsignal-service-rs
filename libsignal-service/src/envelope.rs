@@ -3,7 +3,8 @@
 use prost::Message;
 
 use crate::{
-    push_service::ServiceError, utils::serde_optional_base64, ServiceAddress,
+    configuration::SignalingKey, push_service::ServiceError,
+    utils::serde_optional_base64, ServiceAddress,
 };
 
 pub use crate::proto::Envelope;
@@ -28,7 +29,7 @@ impl From<EnvelopeEntity> for Envelope {
 impl Envelope {
     pub fn decrypt(
         input: &[u8],
-        signaling_key: &[u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE],
+        signaling_key: &SignalingKey,
         is_signaling_key_encrypted: bool,
     ) -> Result<Self, ServiceError> {
         if !is_signaling_key_encrypted {
