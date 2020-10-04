@@ -5,7 +5,7 @@ use crate::envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE};
 #[derive(Clone)]
 pub struct ServiceConfiguration {
     pub service_urls: Vec<String>,
-    pub cdn_urls: HashMap<u64, String>,
+    pub cdn_urls: HashMap<u32, String>,
     pub contact_discovery_url: Vec<String>,
     pub certificate_authority: String,
 }
