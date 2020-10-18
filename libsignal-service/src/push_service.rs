@@ -211,7 +211,7 @@ pub trait PushService {
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
         &mut self,
-        cdn_id: u64,
+        cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError>;
 
@@ -280,9 +280,10 @@ pub trait PushService {
     async fn get_attachment_by_id(
         &mut self,
         id: &str,
+        cdn_id: u32,
     ) -> Result<Self::ByteStream, ServiceError> {
         let path = format!("attachments/{}", id);
-        self.get_from_cdn(0, &path).await
+        self.get_from_cdn(cdn_id, &path).await
     }
 
     async fn get_attachment(
@@ -291,10 +292,14 @@ pub trait PushService {
     ) -> Result<Self::ByteStream, ServiceError> {
         match ptr.attachment_identifier.as_ref().unwrap() {
             AttachmentIdentifier::CdnId(id) => {
-                self.get_attachment_by_id(&format!("{}", id)).await
+                // cdn_number did not exist for this part of the protocol.
+                // cdn_number(), however, returns 0 when the field does not
+                // exist.
+                self.get_attachment_by_id(&format!("{}", id), ptr.cdn_number())
+                    .await
             },
             AttachmentIdentifier::CdnKey(key) => {
-                self.get_attachment_by_id(key).await
+                self.get_attachment_by_id(key, ptr.cdn_number()).await
             },
         }
     }
@@ -360,7 +365,7 @@ impl PushService for PanicingPushService {
 
     async fn get_from_cdn(
         &mut self,
-        _cdn_id: u64,
+        _cdn_id: u32,
         _path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
         unimplemented!()

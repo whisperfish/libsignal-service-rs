@@ -24,7 +24,7 @@ log = "0.4.8"
 failure = "0.1.5"
 thiserror = "1.0"
 async-trait = "0.1.30"
-base64 = "0.12"
+base64 = "0.13"
 
 [dev-dependencies]
 env_logger = "0.7"

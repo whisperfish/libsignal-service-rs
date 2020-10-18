@@ -131,7 +131,7 @@ impl PushService for AwcPushService {
 
     async fn get_from_cdn(
         &mut self,
-        cdn_id: u64,
+        cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
         use futures::stream::TryStreamExt;
