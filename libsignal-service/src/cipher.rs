@@ -15,6 +15,7 @@ use prost::Message;
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
+#[derive(Clone, Debug)]
 pub struct ServiceCipher {
     store: StoreContext,
     local: ServiceAddress,
