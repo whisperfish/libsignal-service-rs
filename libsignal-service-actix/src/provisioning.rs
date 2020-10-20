@@ -32,13 +32,12 @@ pub enum SecondaryDeviceProvisioning {
 
 pub async fn provision_secondary_device(
     ctx: &Context,
+    service_configuration: &ServiceConfiguration,
     signaling_key: &[u8; 52],
     password: &str,
     device_name: &str,
     mut tx: Sender<SecondaryDeviceProvisioning>,
 ) -> Result<(), Error> {
-    let service_configuration: ServiceConfiguration =
-        SignalServers::Production.into();
 
     assert_eq!(
         password.len(),
