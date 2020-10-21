@@ -305,6 +305,8 @@ pub enum ProvisioningError {
     WsClosing { reason: String },
     #[error("Service error: {0}")]
     ServiceError(ServiceError),
+    #[error("libsignal-protocol error: {0}")]
+    ProtocolError(#[from] libsignal_protocol::Error)
 }
 
 impl From<failure::Error> for ProvisioningError {
