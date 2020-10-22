@@ -161,13 +161,7 @@ pub enum ServiceError {
     MacError,
 
     #[error("Protocol error: {0}")]
-    SignalProtocolError(libsignal_protocol::InternalError),
-}
-
-impl From<libsignal_protocol::InternalError> for ServiceError {
-    fn from(pe: libsignal_protocol::InternalError) -> Self {
-        ServiceError::SignalProtocolError(pe)
-    }
+    SignalProtocolError(#[from] libsignal_protocol::Error),
 }
 
 impl ServiceError {

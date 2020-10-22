@@ -8,14 +8,7 @@ use libsignal_protocol::{
     keys::{PrivateKey, PublicKey},
     Context,
 };
-use libsignal_service::{
-    configuration::{ServiceConfiguration, SignalServers},
-    messagepipe::Credentials,
-    prelude::PushService,
-    provisioning::{ProvisioningError, ProvisioningPipe, ProvisioningStep},
-    push_service::{ConfirmDeviceMessage, DeviceId},
-    USER_AGENT,
-};
+use libsignal_service::{USER_AGENT, configuration::{ServiceConfiguration, SignalServers}, messagepipe::Credentials, prelude::PushService, messagepipe::ServiceError, provisioning::{ProvisioningError, ProvisioningPipe, ProvisioningStep}, push_service::{ConfirmDeviceMessage, DeviceId}};
 
 #[derive(Debug)]
 pub enum SecondaryDeviceProvisioning {
@@ -37,7 +30,7 @@ pub async fn provision_secondary_device(
     password: &str,
     device_name: &str,
     mut tx: Sender<SecondaryDeviceProvisioning>,
-) -> Result<(), Error> {
+) -> Result<(), ProvisioningError> {
 
     assert_eq!(
         password.len(),
@@ -59,7 +52,7 @@ pub async fn provision_secondary_device(
     while let Some(step) = provision_stream.next().await {
         match step {
             Ok(ProvisioningStep::Url(url)) => {
-                tx.send(SecondaryDeviceProvisioning::Url(url)).await?;
+                tx.send(SecondaryDeviceProvisioning::Url(url)).await.expect("failed to send provisioning Url in channel");
             },
             Ok(ProvisioningStep::Message(message)) => {
                 let uuid =
@@ -137,7 +130,7 @@ pub async fn provision_secondary_device(
                     public_key,
                     profile_key,
                 })
-                .await?;
+                .await.expect("failed to send provisioning message in rx channel");
             },
             Err(e) => return Err(e.into()),
         }
