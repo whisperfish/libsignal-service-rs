@@ -1,9 +1,10 @@
 use failure::Error;
 use futures::{channel::mpsc::channel, future, StreamExt};
 use image::Luma;
+use libsignal_service::configuration::SignalServers;
 use log::LevelFilter;
 use qrcode::QrCode;
-use rand::RngCore;
+use rand::{distributions::Alphanumeric, Rng, RngCore};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -14,6 +15,8 @@ use libsignal_service_actix::provisioning::{
 
 #[derive(Debug, StructOpt)]
 struct Args {
+    #[structopt(long = "servers", short = "s", default_value = "staging")]
+    servers: SignalServers,
     #[structopt(
         long = "device-name",
         help = "Name of the device to register in the primary client"
@@ -43,9 +46,7 @@ async fn main() -> Result<(), Error> {
 
     // generate a random 16 bytes password
     let mut rng = rand::rngs::OsRng::default();
-    let mut password = [0u8; 16];
-    rng.fill_bytes(&mut password);
-    log::info!("generated password: {}", base64::encode(&password));
+    let password: String = rng.sample_iter(&Alphanumeric).take(24).collect();
 
     // generate a 52 bytes signaling key
     let mut signaling_key = [0u8; 52];
@@ -56,6 +57,7 @@ async fn main() -> Result<(), Error> {
     );
 
     let signal_context = Context::new(DefaultCrypto::default()).unwrap();
+    let service_configuration = args.servers.into();
 
     let (tx, mut rx) = channel(1);
 
@@ -64,8 +66,9 @@ async fn main() -> Result<(), Error> {
     let (fut1, fut2) = future::join(
         provision_secondary_device(
             &signal_context,
-            signaling_key,
-            password,
+            &service_configuration,
+            &signaling_key,
+            &password,
             &args.device_name,
             tx,
         ),
@@ -85,10 +88,12 @@ async fn main() -> Result<(), Error> {
                         opener::open(path)?;
                     }
                     SecondaryDeviceProvisioning::NewDeviceRegistration {
+                        phone_number,
                         device_id: _,
                         uuid,
                         private_key,
                         public_key,
+                        profile_key,
                     } => {
                         log::info!("successfully registered device {}", &uuid);
                         std::fs::write(
@@ -104,6 +109,11 @@ async fn main() -> Result<(), Error> {
                         .expect("failed to write private key");
 
                         std::fs::write(output.join("device.uuid"), uuid)?;
+
+                        std::fs::write(
+                            output.join("profile.pem"),
+                            profile_key,
+                        )?;
                     }
                 }
             }

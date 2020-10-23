@@ -56,3 +56,20 @@ pub mod serde_optional_base64 {
         }
     }
 }
+
+pub mod serde_public_key {
+    use libsignal_protocol::keys::PublicKey;
+    use serde::Serializer;
+
+    pub fn serialize<S>(
+        public_key: &PublicKey,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::Error;
+        serializer
+            .serialize_str(&public_key.as_base64().map_err(S::Error::custom)?)
+    }
+}

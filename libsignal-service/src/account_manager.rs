@@ -1,5 +1,5 @@
 use crate::push_service::{
-    ConfirmCodeMessage, DeviceId, PushService, SmsVerificationCodeResponse,
+    ConfirmDeviceMessage, DeviceId, PushService, SmsVerificationCodeResponse,
     VoiceVerificationCodeResponse,
 };
 
@@ -16,24 +16,32 @@ impl<Service: PushService> AccountManager<Service> {
 
     pub async fn request_sms_verification_code(
         &mut self,
+        phone_number: &str,
     ) -> Result<SmsVerificationCodeResponse, Error> {
-        Ok(self.service.request_sms_verification_code().await?)
+        Ok(self
+            .service
+            .request_sms_verification_code(phone_number)
+            .await?)
     }
 
     pub async fn request_voice_verification_code(
         &mut self,
+        phone_number: &str,
     ) -> Result<VoiceVerificationCodeResponse, Error> {
-        Ok(self.service.request_voice_verification_code().await?)
+        Ok(self
+            .service
+            .request_voice_verification_code(phone_number)
+            .await?)
     }
 
     pub async fn confirm_device(
         &mut self,
         confirmation_code: u32,
-        confirm_code_message: &ConfirmCodeMessage,
+        confirm_device_message: ConfirmDeviceMessage,
     ) -> Result<DeviceId, Error> {
         Ok(self
             .service
-            .confirm_device(confirmation_code, confirm_code_message)
+            .confirm_device(confirmation_code, confirm_device_message)
             .await?)
     }
 }

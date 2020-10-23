@@ -212,7 +212,8 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
         match (msg.r#type(), msg.request, msg.response) {
             (Type::Request, Some(request), _) => {
                 match request {
-                    // step 1: we get a ProvisioningUUID that we need to build a registration link
+                    // step 1: we get a ProvisioningUUID that we need to build a
+                    // registration link
                     WebSocketRequestMessage {
                         id,
                         verb,
@@ -244,8 +245,10 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
 
                         Ok(Some(ProvisioningStep::Url(provisioning_url)))
                     }
-                    // step 2: once the QR code is scanned by the (already validated) main device
-                    // we get a ProvisionMessage, that contains a bunch of useful things
+                    // step 2: once the QR code is scanned by the (already
+                    // validated) main device
+                    // we get a ProvisionMessage, that contains a bunch of
+                    // useful things
                     WebSocketRequestMessage {
                         id,
                         verb,
@@ -305,6 +308,8 @@ pub enum ProvisioningError {
     WsClosing { reason: String },
     #[error("Service error: {0}")]
     ServiceError(ServiceError),
+    #[error("libsignal-protocol error: {0}")]
+    ProtocolError(#[from] libsignal_protocol::Error),
 }
 
 impl From<failure::Error> for ProvisioningError {
