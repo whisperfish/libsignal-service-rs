@@ -8,7 +8,7 @@ addons:
     packages:
       - protobuf-compiler
 
-script: 
+script:
   - cargo build --all --verbose
   - cargo test --all --verbose
   - cargo doc --all --verbose
@@ -25,7 +25,7 @@ matrix:
 
   include:
     - rust: stable
-    - rust: 1.42.0
+    - rust: 1.47.0
     - rust: nightly
 
     - rust: stable
@@ -40,7 +40,7 @@ matrix:
 deploy:
   provider: pages
   skip_cleanup: true
-  github_token: $GITHUB_TOKEN 
+  github_token: $GITHUB_TOKEN
   keep_history: true
   local_dir: public
   on:
