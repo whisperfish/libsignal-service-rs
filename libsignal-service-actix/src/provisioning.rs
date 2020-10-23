@@ -1,49 +1,53 @@
-use failure::Error;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
-use serde::Serialize;
 use url::Url;
 
 use crate::push_service::AwcPushService;
 use libsignal_protocol::{
-    generate_registration_id, keys::PrivateKey, keys::PublicKey, Context,
+    generate_registration_id,
+    keys::{PrivateKey, PublicKey},
+    Context,
 };
 use libsignal_service::{
-    configuration::ServiceConfiguration, configuration::SignalServers,
-    messagepipe::Credentials, prelude::PushService,
-    provisioning::ProvisioningError, provisioning::ProvisioningPipe,
-    provisioning::ProvisioningStep, push_service::ConfirmCodeMessage,
-    push_service::DeviceId, push_service::PROVISIONING_WEBSOCKET_PATH,
+    configuration::ServiceConfiguration,
+    messagepipe::Credentials,
+    prelude::PushService,
+    provisioning::{ProvisioningError, ProvisioningPipe, ProvisioningStep},
+    push_service::{ConfirmDeviceMessage, DeviceId},
     USER_AGENT,
 };
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub enum SecondaryDeviceProvisioning {
     Url(Url),
     NewDeviceRegistration {
+        phone_number: String,
         device_id: DeviceId,
         uuid: String,
-        #[serde(skip)]
-        public_key: PublicKey,
-        #[serde(skip)]
         private_key: PrivateKey,
+        public_key: PublicKey,
+        profile_key: Vec<u8>,
     },
 }
 
 pub async fn provision_secondary_device(
     ctx: &Context,
-    signaling_key: [u8; 52],
-    password: [u8; 16],
+    service_configuration: &ServiceConfiguration,
+    signaling_key: &[u8; 52],
+    password: &str,
     device_name: &str,
     mut tx: Sender<SecondaryDeviceProvisioning>,
-) -> Result<(), Error> {
-    let service_configuration: ServiceConfiguration =
-        SignalServers::Production.into();
+) -> Result<(), ProvisioningError> {
+    assert_eq!(
+        password.len(),
+        24,
+        "the password needs to be a 24 characters ASCII string"
+    );
 
     let mut push_service =
         AwcPushService::new(service_configuration.clone(), None, USER_AGENT);
 
     let (ws, stream) =
-        push_service.ws(PROVISIONING_WEBSOCKET_PATH, None).await?;
+        push_service.ws("/v1/websocket/provisioning/", None).await?;
 
     let registration_id = generate_registration_id(&ctx, 0)?;
 
@@ -53,20 +57,11 @@ pub async fn provision_secondary_device(
     while let Some(step) = provision_stream.next().await {
         match step {
             Ok(ProvisioningStep::Url(url)) => {
-                tx.send(SecondaryDeviceProvisioning::Url(url)).await?;
+                tx.send(SecondaryDeviceProvisioning::Url(url))
+                    .await
+                    .expect("failed to send provisioning Url in channel");
             }
             Ok(ProvisioningStep::Message(message)) => {
-                let credentials = Credentials {
-                    e164: message.number.ok_or(
-                        ProvisioningError::InvalidData {
-                            reason: "missing number".into(),
-                        },
-                    )?,
-                    uuid: None,
-                    password: Some(base64::encode(password)),
-                    signaling_key,
-                };
-
                 let uuid =
                     message.uuid.ok_or(ProvisioningError::InvalidData {
                         reason: "missing client UUID".into(),
@@ -80,6 +75,7 @@ pub async fn provision_secondary_device(
                         },
                     )?,
                 )?;
+
                 let private_key = PrivateKey::decode_point(
                     &ctx,
                     &message.identity_key_private.ok_or(
@@ -89,9 +85,27 @@ pub async fn provision_secondary_device(
                     )?,
                 )?;
 
+                let profile_key = message.profile_key.ok_or(
+                    ProvisioningError::InvalidData {
+                        reason: "missing profile key".into(),
+                    },
+                )?;
+
+                let phone_number =
+                    message.number.ok_or(ProvisioningError::InvalidData {
+                        reason: "missing phone number".into(),
+                    })?;
+
+                // we need to authenticate with the phone number
+                // to confirm the new device
                 let mut push_service = AwcPushService::new(
                     service_configuration.clone(),
-                    Some(credentials),
+                    Some(Credentials {
+                        e164: phone_number.clone(),
+                        uuid: None,
+                        password: Some(password.to_string()),
+                        signaling_key: Some(*signaling_key),
+                    }),
                     USER_AGENT,
                 );
 
@@ -105,9 +119,9 @@ pub async fn provision_secondary_device(
                             })?
                             .parse()
                             .unwrap(),
-                        &ConfirmCodeMessage {
+                        ConfirmDeviceMessage {
                             signaling_key: signaling_key.to_vec(),
-                            supports_sms: true,
+                            supports_sms: false,
                             fetches_messages: true,
                             registration_id,
                             name: device_name.to_string(),
@@ -116,12 +130,15 @@ pub async fn provision_secondary_device(
                     .await?;
 
                 tx.send(SecondaryDeviceProvisioning::NewDeviceRegistration {
+                    phone_number,
                     device_id,
                     uuid,
-                    public_key,
                     private_key,
+                    public_key,
+                    profile_key,
                 })
-                .await?;
+                .await
+                .expect("failed to send provisioning message in rx channel");
             }
             Err(e) => return Err(e.into()),
         }

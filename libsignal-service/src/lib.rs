@@ -8,11 +8,12 @@ pub mod content;
 pub mod envelope;
 pub mod messagepipe;
 pub mod models;
+pub mod pre_keys;
 mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
-mod utils;
+pub mod utils;
 
 pub use crate::account_manager::AccountManager;
 
@@ -50,7 +51,7 @@ pub mod prelude {
     pub use super::ServiceAddress;
     pub use crate::{
         cipher::ServiceCipher,
-        configuration::{Credentials, ServiceConfiguration, SignalServers},
+        configuration::{Credentials, ServiceConfiguration, SignalingKey},
         content::Content,
         envelope::Envelope,
         push_service::{PushService, ServiceError},

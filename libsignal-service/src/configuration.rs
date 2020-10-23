@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use crate::envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE};
 
@@ -10,13 +10,14 @@ pub struct ServiceConfiguration {
     pub certificate_authority: String,
 }
 
+pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
+
 #[derive(Clone)]
 pub struct Credentials {
     pub uuid: Option<String>,
     pub e164: String,
     pub password: Option<String>,
-
-    pub signaling_key: [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE],
+    pub signaling_key: Option<SignalingKey>,
 }
 
 impl Credentials {
@@ -45,6 +46,30 @@ MIID7zCCAtegAwIBAgIJAIm6LatK5PNiMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYDVQQGEwJVUzETMBEG
 pub enum SignalServers {
     Staging,
     Production,
+}
+
+impl FromStr for SignalServers {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "staging" => Ok(Self::Staging),
+            "production" => Ok(Self::Production),
+            _ => {
+                panic!("invalid signal servers, must be: staging or production")
+            }
+        }
+    }
+}
+
+impl ToString for SignalServers {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Staging => "staging",
+            Self::Production => "production",
+        }
+        .to_string()
+    }
 }
 
 impl Into<ServiceConfiguration> for SignalServers {
@@ -81,7 +106,6 @@ impl Into<ServiceConfiguration> for SignalServers {
                     map.insert(2, "https://cdn2.signal.org".into());
                     map
                 },
-
                 contact_discovery_url: vec![
                     "https://api.directory.signal.org".into()
                 ],
