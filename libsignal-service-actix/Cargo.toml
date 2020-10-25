@@ -27,7 +27,7 @@ async-trait = "0.1.30"
 base64 = "0.13"
 
 [dev-dependencies]
-env_logger = "0.7"
+env_logger = "0.8"
 structopt = "0.3"
 image = { version = "0.23", default-features = false, features = ["png"] }
 qrcode = "0.12"

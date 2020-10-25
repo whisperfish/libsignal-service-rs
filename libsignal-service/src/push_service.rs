@@ -9,8 +9,10 @@ use crate::{
     utils::serde_base64,
 };
 
-use aes::block_cipher::generic_array::GenericArray;
-use aes_gcm::{aead::Aead, Aes256Gcm, NewAead};
+use aes_gcm::{
+    aead::{generic_array::GenericArray, Aead},
+    Aes256Gcm, NewAead,
+};
 use http::StatusCode;
 use serde::{Deserialize, Serialize};
 
