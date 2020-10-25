@@ -150,6 +150,9 @@ pub struct ConfirmCodeResponse {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
+    #[error("Service request timed out: {reason}")]
+    Timeout { reason: String },
+
     #[error("Error sending request: {reason}")]
     SendError { reason: String },
     #[error("Error decoding JSON response: {reason}")]

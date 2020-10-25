@@ -33,12 +33,19 @@ impl PushService for AwcPushService {
         let url = self.base_url.join(path).expect("valid url");
 
         log::debug!("AwcPushService::get({:?})", url);
-        let mut response =
-            self.client.get(url.as_str()).send().await.map_err(|e| {
-                ServiceError::SendError {
+        use awc::error::{ConnectError, SendRequestError};
+        let mut response = self.client.get(url.as_str()).send().await.map_err(
+            |e| match e {
+                SendRequestError::Connect(ConnectError::Timeout) => {
+                    ServiceError::Timeout {
+                        reason: e.to_string(),
+                    }
+                },
+                _ => ServiceError::SendError {
                     reason: e.to_string(),
-                }
-            })?;
+                },
+            },
+        )?;
 
         log::debug!("AwcPushService::get response: {:?}", response);
 
