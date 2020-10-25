@@ -61,6 +61,33 @@ pub enum ContentBody {
     TypingMessage(TypingMessage),
 }
 
+impl ContentBody {
+    pub fn into_proto(self) -> crate::proto::Content {
+        match self {
+            Self::DataMessage(msg) => crate::proto::Content {
+                data_message: Some(msg),
+                ..Default::default()
+            },
+            Self::SynchronizeMessage(msg) => crate::proto::Content {
+                sync_message: Some(msg),
+                ..Default::default()
+            },
+            Self::CallMessage(msg) => crate::proto::Content {
+                call_message: Some(msg),
+                ..Default::default()
+            },
+            Self::ReceiptMessage(msg) => crate::proto::Content {
+                receipt_message: Some(msg),
+                ..Default::default()
+            },
+            Self::TypingMessage(msg) => crate::proto::Content {
+                typing_message: Some(msg),
+                ..Default::default()
+            },
+        }
+    }
+}
+
 macro_rules! impl_from_for_content_body {
     ($enum:ident ($t:ty)) => {
         impl From<$t> for ContentBody {

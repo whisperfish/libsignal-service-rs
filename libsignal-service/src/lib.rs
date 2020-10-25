@@ -57,5 +57,6 @@ pub mod prelude {
         envelope::Envelope,
         push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
+        sender::MessageSender,
     };
 }
