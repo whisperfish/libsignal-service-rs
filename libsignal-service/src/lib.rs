@@ -13,6 +13,7 @@ mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
+pub mod sender;
 pub mod utils;
 
 pub use crate::account_manager::AccountManager;

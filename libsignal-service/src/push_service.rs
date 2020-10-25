@@ -6,6 +6,7 @@ use crate::{
     messagepipe::WebSocketService,
     pre_keys::PreKeyState,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
+    sender::{OutgoingPushMessages, SendMessageResponse},
     utils::serde_base64,
 };
 
@@ -315,6 +316,14 @@ pub trait PushService {
                 self.get_attachment_by_id(key, ptr.cdn_number()).await
             }
         }
+    }
+
+    async fn send_messages<'a>(
+        &mut self,
+        messages: OutgoingPushMessages<'a>,
+    ) -> Result<SendMessageResponse, ServiceError> {
+        let path = format!("/v1/messages/{}", messages.destination);
+        self.put(&path, messages).await
     }
 
     async fn get_messages(
