@@ -22,6 +22,7 @@ pub enum SecondaryDeviceProvisioning {
     NewDeviceRegistration {
         phone_number: String,
         device_id: DeviceId,
+        registration_id: u32,
         uuid: String,
         private_key: PrivateKey,
         public_key: PublicKey,
@@ -132,6 +133,7 @@ pub async fn provision_secondary_device(
                 tx.send(SecondaryDeviceProvisioning::NewDeviceRegistration {
                     phone_number,
                     device_id,
+                    registration_id,
                     uuid,
                     private_key,
                     public_key,

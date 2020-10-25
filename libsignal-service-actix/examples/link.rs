@@ -5,10 +5,9 @@ use libsignal_service::configuration::SignalServers;
 use log::LevelFilter;
 use qrcode::QrCode;
 use rand::{distributions::Alphanumeric, Rng, RngCore};
-use std::path::PathBuf;
 use structopt::StructOpt;
 
-use libsignal_protocol::{crypto::DefaultCrypto, Context, Serializable};
+use libsignal_protocol::{crypto::DefaultCrypto, Context};
 use libsignal_service_actix::provisioning::{
     provision_secondary_device, SecondaryDeviceProvisioning,
 };
@@ -21,12 +20,7 @@ struct Args {
         long = "device-name",
         help = "Name of the device to register in the primary client"
     )]
-    pub device_name: String,
-    #[structopt(
-        long = "output",
-        help = "Output directory to save the provisioned key pair and device-id"
-    )]
-    pub output: PathBuf,
+    pub device_name: String
 }
 
 #[actix_rt::main]
@@ -36,13 +30,6 @@ async fn main() -> Result<(), Error> {
         .filter_level(LevelFilter::Info)
         .init();
     let args = Args::from_args();
-
-    if !args.output.exists() {
-        return Err(failure::err_msg(format!(
-            "directory {} does not exist.",
-            args.output.display()
-        )));
-    }
 
     // generate a random 16 bytes password
     let mut rng = rand::rngs::OsRng::default();
@@ -60,8 +47,6 @@ async fn main() -> Result<(), Error> {
     let service_configuration = args.servers.into();
 
     let (tx, mut rx) = channel(1);
-
-    let output = args.output;
 
     let (fut1, fut2) = future::join(
         provision_secondary_device(
@@ -88,32 +73,16 @@ async fn main() -> Result<(), Error> {
                         opener::open(path)?;
                     }
                     SecondaryDeviceProvisioning::NewDeviceRegistration {
-                        phone_number,
+                        phone_number: _,
                         device_id: _,
+                        registration_id: _,
                         uuid,
-                        private_key,
-                        public_key,
-                        profile_key,
+                        private_key: _,
+                        public_key: _,
+                        profile_key: _,
                     } => {
                         log::info!("successfully registered device {}", &uuid);
-                        std::fs::write(
-                            output.join("public.pem"),
-                            public_key.serialize().unwrap().as_slice(),
-                        )
-                        .expect("failed to write public key");
-
-                        std::fs::write(
-                            output.join("private.pem"),
-                            private_key.serialize().unwrap().as_slice(),
-                        )
-                        .expect("failed to write private key");
-
-                        std::fs::write(output.join("device.uuid"), uuid)?;
-
-                        std::fs::write(
-                            output.join("profile.pem"),
-                            profile_key,
-                        )?;
+                        // here you would store all of this data somehow to use it later!
                     }
                 }
             }
