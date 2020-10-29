@@ -20,7 +20,7 @@ struct Args {
         long = "device-name",
         help = "Name of the device to register in the primary client"
     )]
-    pub device_name: String
+    pub device_name: String,
 }
 
 #[actix_rt::main]
