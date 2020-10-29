@@ -22,7 +22,7 @@ impl TryFrom<PreKey> for PreKeyEntity {
     fn try_from(key: PreKey) -> Result<Self, Self::Error> {
         Ok(PreKeyEntity {
             key_id: key.id(),
-            public_key: key.key_pair().public().as_bytes()?.as_slice().to_vec(),
+            public_key: key.key_pair().public().to_bytes()?.as_slice().to_vec(),
         })
     }
 }

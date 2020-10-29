@@ -165,7 +165,7 @@ where
                 .get_pre_keys(&self.cipher.context, recipient, device_id)
                 .await?;
             for pre_key_bundle in pre_keys {
-                if recipient.matches(self.cipher.local_address)
+                if recipient.matches(&self.cipher.local_address)
                     && self.device_id == pre_key_bundle.device_id()
                 {
                     trace!("not establishing a session with myself!");
