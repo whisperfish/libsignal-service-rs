@@ -14,11 +14,11 @@ use prost::Message;
 
 pub use crate::{
     configuration::Credentials,
+    prelude::ServiceError,
     proto::{
         web_socket_message, Envelope, WebSocketMessage,
         WebSocketRequestMessage, WebSocketResponseMessage,
     },
-    prelude::ServiceError,
 };
 
 pub enum WebSocketStreamItem {

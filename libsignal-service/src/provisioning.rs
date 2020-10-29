@@ -43,7 +43,9 @@ impl ProvisioningCipher {
         Self { ctx, key_pair }
     }
 
-    pub fn public_key(&self) -> PublicKey { self.key_pair.public() }
+    pub fn public_key(&self) -> PublicKey {
+        self.key_pair.public()
+    }
 
     pub fn decrypt(
         &self,
@@ -271,7 +273,7 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
                         reason: "Incorrect request".into(),
                     }),
                 }
-            },
+            }
             _ => Err(ProvisioningError::WsError {
                 reason: "Incorrect request".into(),
             }),
