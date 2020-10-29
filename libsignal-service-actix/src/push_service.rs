@@ -22,7 +22,7 @@ impl PushService for AwcPushService {
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = AwcWebSocket;
 
-    async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
+    async fn get<T>(&self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
@@ -33,12 +33,19 @@ impl PushService for AwcPushService {
         let url = self.base_url.join(path).expect("valid url");
 
         log::debug!("AwcPushService::get({:?})", url);
-        let mut response =
-            self.client.get(url.as_str()).send().await.map_err(|e| {
-                ServiceError::SendError {
-                    reason: e.to_string(),
+        use awc::error::{ConnectError, SendRequestError};
+        let mut response = self.client.get(url.as_str()).send().await.map_err(
+            |e| match e {
+                SendRequestError::Connect(ConnectError::Timeout) => {
+                    ServiceError::Timeout {
+                        reason: e.to_string(),
+                    }
                 }
-            })?;
+                _ => ServiceError::SendError {
+                    reason: e.to_string(),
+                },
+            },
+        )?;
 
         log::debug!("AwcPushService::get response: {:?}", response);
 
@@ -72,11 +79,7 @@ impl PushService for AwcPushService {
         }
     }
 
-    async fn put<D, S>(
-        &mut self,
-        path: &str,
-        value: S,
-    ) -> Result<D, ServiceError>
+    async fn put<D, S>(&self, path: &str, value: S) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
         S: Serialize,
@@ -130,7 +133,7 @@ impl PushService for AwcPushService {
     }
 
     async fn get_from_cdn(
-        &mut self,
+        &self,
         cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
@@ -212,9 +215,9 @@ pub fn get_client(
         ))
         .unwrap();
     let connector = Connector::new()
-                .rustls(Arc::new(ssl_config))
-                .timeout(Duration::from_secs(10)) // https://github.com/actix/actix-web/issues/1047
-                .finish();
+        .rustls(Arc::new(ssl_config))
+        .timeout(Duration::from_secs(10)) // https://github.com/actix/actix-web/issues/1047
+        .finish();
     let mut client = awc::ClientBuilder::new()
         .connector(connector)
         .header("X-Signal-Agent", user_agent)

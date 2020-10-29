@@ -1,7 +1,8 @@
 pub use crate::{
     proto::{
-        group_context::Type as GroupType, AttachmentPointer, CallMessage,
-        DataMessage, ReceiptMessage, SyncMessage, TypingMessage,
+        data_message::Reaction, group_context::Type as GroupType,
+        AttachmentPointer, CallMessage, DataMessage, ReceiptMessage,
+        SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };
@@ -59,6 +60,33 @@ pub enum ContentBody {
     CallMessage(CallMessage),
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
+}
+
+impl ContentBody {
+    pub fn into_proto(self) -> crate::proto::Content {
+        match self {
+            Self::DataMessage(msg) => crate::proto::Content {
+                data_message: Some(msg),
+                ..Default::default()
+            },
+            Self::SynchronizeMessage(msg) => crate::proto::Content {
+                sync_message: Some(msg),
+                ..Default::default()
+            },
+            Self::CallMessage(msg) => crate::proto::Content {
+                call_message: Some(msg),
+                ..Default::default()
+            },
+            Self::ReceiptMessage(msg) => crate::proto::Content {
+                receipt_message: Some(msg),
+                ..Default::default()
+            },
+            Self::TypingMessage(msg) => crate::proto::Content {
+                typing_message: Some(msg),
+                ..Default::default()
+            },
+        }
+    }
 }
 
 macro_rules! impl_from_for_content_body {

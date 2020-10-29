@@ -1,12 +1,14 @@
 use std::time::Duration;
 
 use crate::{
-    configuration::{Credentials, ServiceConfiguration},
+    configuration::Credentials,
     envelope::*,
     messagepipe::WebSocketService,
-    pre_keys::PreKeyState,
+    pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
+    sender::{OutgoingPushMessages, SendMessageResponse},
     utils::serde_base64,
+    ServiceAddress,
 };
 
 use aes_gcm::{
@@ -14,6 +16,7 @@ use aes_gcm::{
     Aes256Gcm, NewAead,
 };
 use http::StatusCode;
+use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
 
 /**
@@ -53,6 +56,7 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 **/
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
+pub const DEFAULT_DEVICE_ID: i32 = 1;
 
 pub enum SmsVerificationCodeResponse {
     CaptchaRequired,
@@ -67,7 +71,7 @@ pub enum VoiceVerificationCodeResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
-    pub device_id: u32,
+    pub device_id: i32,
 }
 
 #[derive(Debug, Serialize)]
@@ -148,8 +152,28 @@ pub struct ConfirmCodeResponse {
     pub storage_capable: bool,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreKeyResponse {
+    #[serde(with = "serde_base64")]
+    pub identity_key: Vec<u8>,
+    pub devices: Vec<PreKeyResponseItem>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreKeyResponseItem {
+    pub device_id: i32,
+    pub registration_id: u32,
+    pub signed_pre_key: Option<SignedPreKeyEntity>,
+    pub pre_key: Option<PreKeyEntity>,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
+    #[error("Service request timed out: {reason}")]
+    Timeout { reason: String },
+
     #[error("Error sending request: {reason}")]
     SendError { reason: String },
     #[error("Error decoding JSON response: {reason}")]
@@ -167,7 +191,7 @@ pub enum ServiceError {
     #[error("Websocket closing: {reason}")]
     WsClosing { reason: String },
 
-    #[error("Undecodable frame")]
+    #[error("Undecodable frame: {0}")]
     DecodeError(#[from] prost::DecodeError),
 
     #[error("Invalid frame: {reason}")]
@@ -205,28 +229,24 @@ pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
-    async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
+    async fn get<T>(&self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
 
-    async fn put<D, S>(
-        &mut self,
-        path: &str,
-        value: S,
-    ) -> Result<D, ServiceError>
+    async fn put<D, S>(&self, path: &str, value: S) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
         S: Serialize;
 
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
-        &mut self,
+        &self,
         cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError>;
 
     async fn request_sms_verification_code(
-        &mut self,
+        &self,
         phone_number: &str,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         match self
@@ -240,7 +260,7 @@ pub trait PushService {
     }
 
     async fn request_voice_verification_code(
-        &mut self,
+        &self,
         phone_number: &str,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
         match self
@@ -254,7 +274,7 @@ pub trait PushService {
     }
 
     async fn confirm_verification_code(
-        &mut self,
+        &self,
         confirm_code: u32,
         confirm_verification_message: ConfirmCodeMessage,
     ) -> Result<ConfirmCodeResponse, ServiceError> {
@@ -266,7 +286,7 @@ pub trait PushService {
     }
 
     async fn confirm_device(
-        &mut self,
+        &self,
         confirm_code: u32,
         confirm_code_message: ConfirmDeviceMessage,
     ) -> Result<DeviceId, ServiceError> {
@@ -278,7 +298,7 @@ pub trait PushService {
     }
 
     async fn register_pre_keys(
-        &mut self,
+        &self,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         match self.put("/v2/keys/", pre_key_state).await {
@@ -288,7 +308,7 @@ pub trait PushService {
     }
 
     async fn get_attachment_by_id(
-        &mut self,
+        &self,
         id: &str,
         cdn_id: u32,
     ) -> Result<Self::ByteStream, ServiceError> {
@@ -297,7 +317,7 @@ pub trait PushService {
     }
 
     async fn get_attachment(
-        &mut self,
+        &self,
         ptr: &AttachmentPointer,
     ) -> Result<Self::ByteStream, ServiceError> {
         match ptr.attachment_identifier.as_ref().unwrap() {
@@ -314,11 +334,71 @@ pub trait PushService {
         }
     }
 
-    async fn get_messages(
-        &mut self,
-    ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
+    async fn send_messages<'a>(
+        &self,
+        messages: OutgoingPushMessages<'a>,
+    ) -> Result<SendMessageResponse, ServiceError> {
+        let path = format!("/v1/messages/{}", messages.destination);
+        self.put(&path, messages).await
+    }
+
+    async fn get_messages(&self) -> Result<Vec<EnvelopeEntity>, ServiceError> {
         let entity_list: EnvelopeEntityList = self.get("/v1/messages/").await?;
         Ok(entity_list.messages)
+    }
+
+    async fn get_pre_keys(
+        &self,
+        context: &Context,
+        destination: &ServiceAddress,
+        device_id: i32,
+    ) -> Result<Vec<PreKeyBundle>, ServiceError> {
+        let path = match (device_id, destination.relay.as_ref()) {
+            (1, None) => format!("/v2/keys/{}/*", destination.identifier()),
+            (device_id, None) => {
+                format!("/v2/keys/{}/{}", destination.identifier(), device_id)
+            }
+            (1, Some(relay)) => format!(
+                "/v2/keys/{}/*?relay={}",
+                destination.identifier(),
+                relay
+            ),
+            (device_id, Some(relay)) => format!(
+                "/v2/keys/{}/{}?relay={}",
+                destination.identifier(),
+                device_id,
+                relay
+            ),
+        };
+        let pre_key_response: PreKeyResponse = self.get(&path).await?;
+        let mut pre_keys = vec![];
+        for device in pre_key_response.devices {
+            let mut bundle = PreKeyBundle::builder()
+                .identity_key(&PublicKey::decode_point(
+                    &context,
+                    &pre_key_response.identity_key,
+                )?)
+                .device_id(device.device_id)
+                .registration_id(device.registration_id);
+            if let Some(signed_pre_key) = device.signed_pre_key {
+                bundle = bundle.signed_pre_key(
+                    signed_pre_key.key_id,
+                    &PublicKey::decode_point(
+                        &context,
+                        &signed_pre_key.public_key,
+                    )?,
+                );
+                bundle = bundle.signature(&signed_pre_key.signature);
+            }
+            if let Some(pre_key) = device.pre_key {
+                bundle = bundle.pre_key(
+                    pre_key.key_id,
+                    &PublicKey::decode_point(context, &pre_key.public_key)?,
+                );
+            }
+            pre_keys.push(bundle.build()?)
+        }
+        Ok(pre_keys)
     }
 
     async fn ws(
@@ -332,66 +412,4 @@ pub trait PushService {
         ),
         ServiceError,
     >;
-}
-
-/// PushService that panics on every request, mainly for example code.
-pub struct PanicingPushService;
-
-impl PanicingPushService {
-    /// A PushService implementation typically takes a ServiceConfiguration,
-    /// credentials and a user agent.
-    pub fn new(
-        _cfg: ServiceConfiguration,
-        _credentials: Credentials,
-        _user_agent: &str,
-    ) -> Self {
-        Self
-    }
-}
-
-#[async_trait::async_trait(?Send)]
-impl PushService for PanicingPushService {
-    type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
-    type WebSocket = crate::messagepipe::PanicingWebSocketService;
-
-    async fn get<T>(&mut self, _path: &str) -> Result<T, ServiceError>
-    where
-        for<'de> T: Deserialize<'de>,
-    {
-        unimplemented!()
-    }
-
-    async fn put<D, S>(
-        &mut self,
-        _path: &str,
-        _value: S,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Serialize,
-    {
-        unimplemented!()
-    }
-
-    async fn get_from_cdn(
-        &mut self,
-        _cdn_id: u32,
-        _path: &str,
-    ) -> Result<Self::ByteStream, ServiceError> {
-        unimplemented!()
-    }
-
-    async fn ws(
-        &mut self,
-        _path: &str,
-        _credentials: Option<Credentials>,
-    ) -> Result<
-        (
-            Self::WebSocket,
-            <Self::WebSocket as WebSocketService>::Stream,
-        ),
-        ServiceError,
-    > {
-        unimplemented!()
-    }
 }

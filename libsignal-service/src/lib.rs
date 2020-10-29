@@ -13,6 +13,7 @@ mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
+pub mod sender;
 pub mod utils;
 
 pub use crate::account_manager::AccountManager;
@@ -29,7 +30,7 @@ pub const GROUP_LEAVE_FLAG: u32 = 2;
 
 pub struct TrustStore;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceAddress {
     pub uuid: Option<String>,
     // In principe, this is also Option<String> if you follow the Java code.
@@ -39,11 +40,15 @@ pub struct ServiceAddress {
 
 impl ServiceAddress {
     /// Returns uuid if present, e164 otherwise.
-    pub fn get_identifier(&self) -> &str {
+    pub fn identifier(&self) -> &str {
         if let Some(uuid) = self.uuid.as_deref() {
             return uuid;
         }
         &self.e164
+    }
+
+    pub fn matches(&self, other: &Self) -> bool {
+        self.e164 == other.e164 || self.uuid == other.uuid
     }
 }
 
@@ -56,5 +61,6 @@ pub mod prelude {
         envelope::Envelope,
         push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
+        sender::{MessageSender, MessageSenderError},
     };
 }

@@ -2,35 +2,40 @@ use crate::{
     content::{Content, Metadata},
     envelope::Envelope,
     push_service::ServiceError,
+    sender::OutgoingPushMessage,
     ServiceAddress,
 };
 
 use libsignal_protocol::{
+    messages::CiphertextType,
     messages::{PreKeySignalMessage, SignalMessage},
-    Address as ProtocolAddress, Context, Deserializable, SessionCipher,
-    StoreContext,
+    Address as ProtocolAddress, Context, Deserializable, Serializable,
+    SessionCipher, StoreContext,
 };
+
+use block_modes::block_padding::{Iso7816, Padding};
 use prost::Message;
 
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
+#[derive(Clone, Debug)]
 pub struct ServiceCipher {
-    store: StoreContext,
-    local: ServiceAddress,
-    context: Context,
+    pub(crate) store_context: StoreContext,
+    pub(crate) local_address: ServiceAddress,
+    pub(crate) context: Context,
 }
 
 impl ServiceCipher {
     pub fn from_context(
         context: Context,
-        local: ServiceAddress,
-        store: StoreContext,
+        local_address: ServiceAddress,
+        store_context: StoreContext,
     ) -> Self {
         Self {
             context,
-            store,
-            local,
+            store_context,
+            local_address,
         }
     }
 
@@ -100,7 +105,9 @@ impl ServiceCipher {
             }
             Type::UnidentifiedSender => {
                 // is unidentified sender
-                unimplemented!("UnidentifiedSender requires SealedSessionCipher, please report a bug against libsignal-service-rs.");
+                return Err(ServiceError::InvalidFrameError {
+                    reason: "UnidentifiedSender requires SealedSessionCipher, see: https://github.com/Michael-F-Bryan/libsignal-service-rs/issues/10".into(),
+                });
             }
             _ => {
                 // else
@@ -112,8 +119,11 @@ impl ServiceCipher {
 
         let mut plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
-                let cipher =
-                    SessionCipher::new(&self.context, &self.store, &address)?;
+                let cipher = SessionCipher::new(
+                    &self.context,
+                    &self.store_context,
+                    &address,
+                )?;
                 let buf = cipher.decrypt_pre_key_message(
                     &PreKeySignalMessage::deserialize(
                         &self.context,
@@ -126,8 +136,11 @@ impl ServiceCipher {
                 }
             }
             Type::Ciphertext => {
-                let cipher =
-                    SessionCipher::new(&self.context, &self.store, &address)?;
+                let cipher = SessionCipher::new(
+                    &self.context,
+                    &self.store_context,
+                    &address,
+                )?;
                 let buf = cipher.decrypt_message(
                     &SignalMessage::deserialize(&self.context, ciphertext)?,
                 )?;
@@ -144,7 +157,8 @@ impl ServiceCipher {
             }
         };
 
-        let version = self.store.load_session(&address)?.state().version();
+        let version =
+            self.store_context.load_session(&address)?.state().version();
 
         strip_padding(version, &mut plaintext.data)?;
         Ok(plaintext)
@@ -163,19 +177,56 @@ impl ServiceCipher {
         let e164 = ProtocolAddress::new(&address.e164, device as i32);
 
         if let Some(uuid) = uuid {
-            if self.store.contains_session(&uuid)? {
+            if self.store_context.contains_session(&uuid)? {
                 return Ok(uuid);
             }
         }
 
-        if self.store.contains_session(&e164)? {
+        if self.store_context.contains_session(&e164)? {
             return Ok(e164);
         }
 
-        return Ok(ProtocolAddress::new(
-            address.get_identifier(),
-            device as i32,
-        ));
+        return Ok(ProtocolAddress::new(address.identifier(), device as i32));
+    }
+
+    pub fn encrypt(
+        &self,
+        address: &ProtocolAddress,
+        unindentified_access: Option<bool>,
+        content: &[u8],
+    ) -> Result<OutgoingPushMessage, ServiceError> {
+        if unindentified_access.is_some() {
+            unimplemented!("unidentified access is not implemented");
+        } else {
+            let session_cipher = SessionCipher::new(
+                &self.context,
+                &self.store_context,
+                address,
+            )?;
+
+            let padded_content =
+                add_padding(session_cipher.get_session_version()?, content)?;
+            let message = session_cipher.encrypt(&padded_content)?;
+
+            let destination_registration_id =
+                session_cipher.get_remote_registration_id()?;
+            let body = base64::encode(message.serialize()?);
+            use crate::proto::envelope::Type;
+            let message_type = match message
+                .get_type()
+                .map_err(libsignal_protocol::Error::InternalError)?
+            {
+                CiphertextType::PreKey => Type::PrekeyBundle,
+                CiphertextType::Signal => Type::Ciphertext,
+                t => panic!("Bad type: {:?}", t),
+            } as u32;
+            Ok(OutgoingPushMessage {
+                r#type: message_type,
+                destination_device_id: address.device_id(),
+                destination_registration_id,
+                content: body,
+            })
+        }
     }
 }
 
@@ -184,27 +235,51 @@ struct Plaintext {
     data: Vec<u8>,
 }
 
+fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
+    if version < 2 {
+        Err(ServiceError::InvalidFrameError {
+            reason: format!("Unknown version {}", version),
+        })
+    } else if version == 2 {
+        Ok(contents.to_vec())
+    } else {
+        let message_length = contents.len();
+        let message_length_with_terminator = contents.len() + 1;
+        let mut message_part_count = message_length_with_terminator / 160;
+        if message_length_with_terminator % 160 != 0 {
+            message_part_count += 1;
+        }
+
+        let message_length_with_padding = message_part_count * 160;
+
+        let mut buffer = vec![0u8; message_length_with_padding];
+        buffer[..message_length].copy_from_slice(contents);
+        Iso7816::pad_block(&mut buffer, message_length).map_err(|e| {
+            ServiceError::InvalidFrameError {
+                reason: format!("Invalid message padding: {:?}", e),
+            }
+        })?;
+        Ok(buffer)
+    }
+}
+
 fn strip_padding(
     version: u32,
     contents: &mut Vec<u8>,
 ) -> Result<(), ServiceError> {
     if version < 2 {
-        return Err(ServiceError::InvalidFrameError {
+        Err(ServiceError::InvalidFrameError {
             reason: format!("Unknown version {}", version),
-        });
+        })
     } else if version == 2 {
-        // No-op
-        return Ok(());
+        Ok(())
+    } else {
+        let new_length = Iso7816::unpad(contents)
+            .map_err(|e| ServiceError::InvalidFrameError {
+                reason: format!("Invalid message padding: {:?}", e),
+            })?
+            .len();
+        contents.resize(new_length, 0);
+        Ok(())
     }
-
-    let first_non_null = contents.iter().rposition(|b| *b != 0x00);
-    if let Some(start) = first_non_null {
-        if contents[start] != 0x80 {
-            log::warn!("Badly padded message. Proceeding");
-            return Ok(());
-        } else {
-            contents.truncate(start);
-        }
-    }
-    Ok(())
 }

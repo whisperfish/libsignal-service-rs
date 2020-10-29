@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 pub mod serde_base64 {
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -58,7 +57,7 @@ pub mod serde_optional_base64 {
 }
 
 pub mod serde_public_key {
-    use libsignal_protocol::keys::PublicKey;
+    use libsignal_protocol::{keys::PublicKey, Base64};
     use serde::Serializer;
 
     pub fn serialize<S>(
