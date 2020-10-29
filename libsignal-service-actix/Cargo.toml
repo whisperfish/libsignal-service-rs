@@ -28,8 +28,9 @@ base64 = "0.13"
 
 [dev-dependencies]
 env_logger = "0.8"
-structopt = "0.3"
 image = { version = "0.23", default-features = false, features = ["png"] }
-qrcode = "0.12"
 opener = "0.4"
+qrcode = "0.12"
 rand = "0.7"
+structopt = "0.3"
+tokio = { version = "0.2", features=["macros"] }

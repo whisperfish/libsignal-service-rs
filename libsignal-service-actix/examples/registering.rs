@@ -18,10 +18,8 @@
 //! ```
 
 use failure::Error;
-use libsignal_service::{
-    configuration::*, push_service::PanicingPushService, AccountManager,
-    TrustStore,
-};
+use libsignal_service::{configuration::*, AccountManager, TrustStore};
+use libsignal_service_actix::push_service::AwcPushService;
 use std::io;
 use structopt::StructOpt;
 
@@ -33,7 +31,7 @@ async fn main() -> Result<(), Error> {
     let _trust_store = args.load_trust_store()?;
     let password = args.get_password()?;
 
-    let config: ServiceConfiguration = SignalServers::Production.into();
+    let config: ServiceConfiguration = SignalServers::Staging.into();
 
     let mut signaling_key = [0u8; 52];
     base64::decode_config_slice(
@@ -49,13 +47,10 @@ async fn main() -> Result<(), Error> {
         signaling_key: Some(signaling_key),
     };
 
-    let service = PanicingPushService::new(
-        config,
-        credentials,
-        libsignal_service::USER_AGENT,
-    );
+    let push_service =
+        AwcPushService::new(config, Some(credentials), &args.user_agent);
 
-    let mut account_manager = AccountManager::new(service);
+    let mut account_manager = AccountManager::new(push_service);
     account_manager
         .request_sms_verification_code(&args.username)
         .await?;
@@ -69,9 +64,9 @@ pub struct Args {
         short = "s",
         long = "server",
         help = "The server to connect to",
-        default_value = "https://my.signal.server.com"
+        default_value = "staging"
     )]
-    pub url: String,
+    pub servers: SignalServers,
     #[structopt(
         short = "u",
         long = "username",
