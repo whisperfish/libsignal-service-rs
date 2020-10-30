@@ -48,7 +48,8 @@ impl ServiceAddress {
     }
 
     pub fn matches(&self, other: &Self) -> bool {
-        self.e164 == other.e164 || self.uuid == other.uuid
+        self.e164 == other.e164
+            || self.uuid.is_some() && self.uuid == other.uuid
     }
 }
 
