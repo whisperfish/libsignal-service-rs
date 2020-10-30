@@ -172,10 +172,10 @@ impl ServiceCipher {
             return Ok(e164);
         }
 
-        return Ok(ProtocolAddress::new(
+        Ok(ProtocolAddress::new(
             address.get_identifier(),
             device as i32,
-        ));
+        ))
     }
 }
 

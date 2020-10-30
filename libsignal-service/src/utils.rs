@@ -70,6 +70,6 @@ pub mod serde_public_key {
     {
         use serde::ser::Error;
         serializer
-            .serialize_str(&public_key.as_base64().map_err(S::Error::custom)?)
+            .serialize_str(&public_key.to_base64().map_err(S::Error::custom)?)
     }
 }
