@@ -100,10 +100,7 @@ where
         let mut messages = vec![];
 
         let myself = recipient.matches(&self.cipher.local_address);
-        if !myself
-            || (self.device_id != DEFAULT_DEVICE_ID
-                || unidentified_access.is_some())
-        {
+        if !myself || unidentified_access.is_some() {
             messages.push(
                 self.create_encrypted_message(
                     recipient,
@@ -120,12 +117,10 @@ where
             .store_context
             .get_sub_device_sessions(recipient.identifier())?
         {
-            if (!myself || device_id != self.device_id)
-                && self.cipher.store_context.contains_session(&Address::new(
-                    recipient.identifier(),
-                    device_id,
-                ))?
-            {
+            if self.cipher.store_context.contains_session(&Address::new(
+                recipient.identifier(),
+                device_id,
+            ))? {
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
