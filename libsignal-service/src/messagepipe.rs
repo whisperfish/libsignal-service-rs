@@ -178,7 +178,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
         let request = WebSocketRequestMessage {
             id: Some(
                 std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH.into())
+                    .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_millis() as u64,
             ),

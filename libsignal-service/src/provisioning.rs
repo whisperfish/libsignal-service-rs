@@ -78,7 +78,7 @@ impl ProvisioningCipher {
         let shared_secrets = hkdf.derive_secrets(
             64,
             &agreement,
-            &vec![],
+            &[],
             b"TextSecure Provisioning Message",
         )?;
 

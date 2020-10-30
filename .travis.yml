@@ -35,7 +35,7 @@ matrix:
         - rustup component add clippy
       script:
         - cargo fmt --all -- --check
-        - cargo clippy -- -D clippy::all
+        - cargo clippy
 
 deploy:
   provider: pages
