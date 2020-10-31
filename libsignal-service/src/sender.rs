@@ -70,7 +70,7 @@ where
     // XXX: `online` supposedly has to do with Typing indicators.
     // Cfr. libsignal-service-java 7eb925190d78360a1aaae13402b6eb747997aeca
     pub async fn send_message(
-        &self,
+        &mut self,
         recipient: &ServiceAddress,
         content: impl Into<crate::content::ContentBody>,
         timestamp: u64,
@@ -161,7 +161,7 @@ where
 
     // Equivalent with `getEncryptedMessages`
     async fn create_encrypted_messages(
-        &self,
+        &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<bool>,
         content: &[u8],
@@ -209,7 +209,7 @@ where
     ///
     /// When no session with the recipient exists, we need to create one.
     async fn create_encrypted_message(
-        &self,
+        &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<bool>,
         device_id: i32,

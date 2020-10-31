@@ -228,24 +228,28 @@ pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
-    async fn get<T>(&self, path: &str) -> Result<T, ServiceError>
+    async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
 
-    async fn put<D, S>(&self, path: &str, value: S) -> Result<D, ServiceError>
+    async fn put<D, S>(
+        &mut self,
+        path: &str,
+        value: S,
+    ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
         S: Serialize;
 
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
-        &self,
+        &mut self,
         cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError>;
 
     async fn request_sms_verification_code(
-        &self,
+        &mut self,
         phone_number: &str,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         match self
@@ -259,7 +263,7 @@ pub trait PushService {
     }
 
     async fn request_voice_verification_code(
-        &self,
+        &mut self,
         phone_number: &str,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
         match self
@@ -273,7 +277,7 @@ pub trait PushService {
     }
 
     async fn confirm_verification_code(
-        &self,
+        &mut self,
         confirm_code: u32,
         confirm_verification_message: ConfirmCodeMessage,
     ) -> Result<ConfirmCodeResponse, ServiceError> {
@@ -285,7 +289,7 @@ pub trait PushService {
     }
 
     async fn confirm_device(
-        &self,
+        &mut self,
         confirm_code: u32,
         confirm_code_message: ConfirmDeviceMessage,
     ) -> Result<DeviceId, ServiceError> {
@@ -297,7 +301,7 @@ pub trait PushService {
     }
 
     async fn register_pre_keys(
-        &self,
+        &mut self,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         match self.put("/v2/keys/", pre_key_state).await {
@@ -307,7 +311,7 @@ pub trait PushService {
     }
 
     async fn get_attachment_by_id(
-        &self,
+        &mut self,
         id: &str,
         cdn_id: u32,
     ) -> Result<Self::ByteStream, ServiceError> {
@@ -316,7 +320,7 @@ pub trait PushService {
     }
 
     async fn get_attachment(
-        &self,
+        &mut self,
         ptr: &AttachmentPointer,
     ) -> Result<Self::ByteStream, ServiceError> {
         match ptr.attachment_identifier.as_ref().unwrap() {
@@ -334,20 +338,22 @@ pub trait PushService {
     }
 
     async fn send_messages<'a>(
-        &self,
+        &mut self,
         messages: OutgoingPushMessages<'a>,
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
         self.put(&path, messages).await
     }
 
-    async fn get_messages(&self) -> Result<Vec<EnvelopeEntity>, ServiceError> {
+    async fn get_messages(
+        &mut self,
+    ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
         let entity_list: EnvelopeEntityList = self.get("/v1/messages/").await?;
         Ok(entity_list.messages)
     }
 
     async fn get_pre_key(
-        &self,
+        &mut self,
         context: &Context,
         destination: &ServiceAddress,
         device_id: i32,
@@ -391,7 +397,7 @@ pub trait PushService {
     }
 
     async fn get_pre_keys(
-        &self,
+        &mut self,
         context: &Context,
         destination: &ServiceAddress,
         device_id: i32,

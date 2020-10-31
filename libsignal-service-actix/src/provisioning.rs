@@ -99,7 +99,7 @@ pub async fn provision_secondary_device(
 
                 // we need to authenticate with the phone number
                 // to confirm the new device
-                let push_service = AwcPushService::new(
+                let mut push_service = AwcPushService::new(
                     service_configuration.clone(),
                     Some(Credentials {
                         e164: phone_number.clone(),
