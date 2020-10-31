@@ -15,7 +15,7 @@ use aes_gcm::{
     aead::{generic_array::GenericArray, Aead},
     Aes256Gcm, NewAead,
 };
-use http::StatusCode;
+
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
 
@@ -169,6 +169,19 @@ pub struct PreKeyResponseItem {
     pub pre_key: Option<PreKeyEntity>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MismatchedDevices {
+    pub missing_devices: Vec<i32>,
+    pub extra_devices: Vec<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaleDevices {
+    pub stale_devices: Vec<i32>,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
@@ -202,26 +215,12 @@ pub enum ServiceError {
 
     #[error("Protocol error: {0}")]
     SignalProtocolError(#[from] libsignal_protocol::Error),
-}
 
-impl ServiceError {
-    pub fn from_status(code: http::StatusCode) -> Result<(), Self> {
-        match code {
-            StatusCode::OK => Ok(()),
-            StatusCode::NO_CONTENT => Ok(()),
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                Err(ServiceError::Unauthorized)
-            }
-            StatusCode::PAYLOAD_TOO_LARGE => {
-                // This is 413 and means rate limit exceeded for Signal.
-                Err(ServiceError::RateLimitExceeded)
-            }
-            // XXX: fill in rest from PushServiceSocket
-            _ => Err(ServiceError::UnhandledResponseCode {
-                http_code: code.as_u16(),
-            }),
-        }
-    }
+    #[error("{0:?}")]
+    MismatchedDevicesException(MismatchedDevices),
+
+    #[error("{0:?}")]
+    StaleDevices(StaleDevices),
 }
 
 #[async_trait::async_trait(?Send)]
@@ -345,6 +344,50 @@ pub trait PushService {
     async fn get_messages(&self) -> Result<Vec<EnvelopeEntity>, ServiceError> {
         let entity_list: EnvelopeEntityList = self.get("/v1/messages/").await?;
         Ok(entity_list.messages)
+    }
+
+    async fn get_pre_key(
+        &self,
+        context: &Context,
+        destination: &ServiceAddress,
+        device_id: i32,
+    ) -> Result<PreKeyBundle, ServiceError> {
+        let path = if let Some(ref relay) = destination.relay {
+            format!(
+                "/v2/keys/{}/{}?relay={}",
+                destination.identifier(),
+                device_id,
+                relay
+            )
+        } else {
+            format!("/v2/keys/{}/{}", destination.identifier(), device_id)
+        };
+
+        let mut pre_key_response: PreKeyResponse = self.get(&path).await?;
+        assert!(pre_key_response.devices.len() >= 1);
+
+        let device = pre_key_response.devices.remove(0);
+        let mut bundle = PreKeyBundle::builder()
+            .identity_key(&PublicKey::decode_point(
+                &context,
+                &pre_key_response.identity_key,
+            )?)
+            .device_id(device.device_id)
+            .registration_id(device.registration_id);
+        if let Some(signed_pre_key) = device.signed_pre_key {
+            bundle = bundle.signed_pre_key(
+                signed_pre_key.key_id,
+                &PublicKey::decode_point(&context, &signed_pre_key.public_key)?,
+            );
+            bundle = bundle.signature(&signed_pre_key.signature);
+        }
+        if let Some(pre_key) = device.pre_key {
+            bundle = bundle.pre_key(
+                pre_key.key_id,
+                &PublicKey::decode_point(context, &pre_key.public_key)?,
+            );
+        }
+        Ok(bundle.build()?)
     }
 
     async fn get_pre_keys(

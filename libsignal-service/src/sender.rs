@@ -35,10 +35,19 @@ pub struct MessageSender<Service> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum MessageSenderError {
-    #[error("Service error: {0}")]
+    #[error("{0}")]
     ServiceError(#[from] ServiceError),
-    #[error("Protocol error: {0}")]
+    #[error("protocol error: {0}")]
     ProtocolError(#[from] libsignal_protocol::Error),
+
+    #[error("Untrusted identity key!")]
+    UntrustedIdentityException,
+
+    #[error("No pre-key found to establish session with {0:?}")]
+    NoPreKey(ServiceAddress),
+
+    #[error("Please try again")]
+    TryAgain,
 }
 
 impl<Service> MessageSender<Service>
@@ -66,7 +75,7 @@ where
         content: impl Into<crate::content::ContentBody>,
         timestamp: u64,
         online: bool,
-    ) -> Result<(), MessageSenderError> {
+    ) -> Result<SendMessageResponse, MessageSenderError> {
         let content = {
             use prost::Message;
             let content_proto = content.into().into_proto();
@@ -80,14 +89,74 @@ where
         let messages = self
             .create_encrypted_messages(&recipient, None, &content)
             .await?;
+
         let messages = OutgoingPushMessages {
             destination: recipient.identifier(),
             timestamp,
             messages,
             online,
         };
-        self.service.send_messages(messages).await?;
-        Ok(())
+
+        match self.service.send_messages(messages).await {
+            Ok(m) => {
+                log::debug!("message sent!");
+                Ok(m)
+            }
+            Err(ServiceError::MismatchedDevicesException(ref m)) => {
+                log::debug!("{:?}", m);
+                for extra_device_id in &m.extra_devices {
+                    log::debug!(
+                        "dropping session with device {}",
+                        extra_device_id
+                    );
+                    if let Some(ref uuid) = recipient.uuid {
+                        self.cipher.store_context.delete_session(
+                            &libsignal_protocol::Address::new(
+                                uuid,
+                                *extra_device_id,
+                            ),
+                        )?;
+                    }
+                    self.cipher.store_context.delete_session(
+                        &libsignal_protocol::Address::new(
+                            &recipient.e164,
+                            *extra_device_id,
+                        ),
+                    )?;
+                }
+
+                for missing_device_id in &m.missing_devices {
+                    log::debug!(
+                        "creating session with missing device {}",
+                        missing_device_id
+                    );
+                    let pre_key = self
+                        .service
+                        .get_pre_key(
+                            &self.cipher.context,
+                            &recipient,
+                            *missing_device_id,
+                        )
+                        .await?;
+                    SessionBuilder::new(
+                        &self.cipher.context,
+                        &self.cipher.store_context,
+                        &libsignal_protocol::Address::new(
+                            &recipient.identifier(),
+                            *missing_device_id,
+                        ),
+                    )
+                    .process_pre_key_bundle(&pre_key)
+                    .map_err(|e| {
+                        log::error!("failed to create session: {}", e);
+                        MessageSenderError::UntrustedIdentityException
+                    })?;
+                }
+
+                Err(MessageSenderError::TryAgain)
+            }
+            Err(e) => Err(MessageSenderError::ServiceError(e)),
+        }
     }
 
     // Equivalent with `getEncryptedMessages`

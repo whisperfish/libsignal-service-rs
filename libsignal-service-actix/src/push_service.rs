@@ -1,6 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use awc::{Client, Connector};
+use awc::{
+    error::PayloadError, http::StatusCode, Client, ClientResponse, Connector,
+};
+use bytes::Bytes;
+use futures::Stream;
 use libsignal_service::{
     configuration::*, messagepipe::WebSocketService, push_service::*,
 };
@@ -49,7 +53,7 @@ impl PushService for AwcPushService {
 
         log::debug!("AwcPushService::get response: {:?}", response);
 
-        ServiceError::from_status(response.status())?;
+        Self::from_response(&mut response).await?;
 
         // In order to debug the output, we collect the whole response.
         // The actix-web api is meant to used as a streaming deserializer,
@@ -102,6 +106,8 @@ impl PushService for AwcPushService {
 
         log::debug!("AwcPushService::put response: {:?}", response);
 
+        Self::from_response(&mut response).await?;
+
         // In order to debug the output, we collect the whole response.
         // The actix-web api is meant to used as a streaming deserializer,
         // so we have this little awkward switch.
@@ -129,7 +135,6 @@ impl PushService for AwcPushService {
                 })
         };
 
-        ServiceError::from_status(response.status())?;
         json
     }
 
@@ -146,7 +151,7 @@ impl PushService for AwcPushService {
             .expect("valid CDN path");
 
         log::debug!("AwcPushService::get_stream({:?})", url);
-        let response =
+        let mut response =
             self.client.get(url.as_str()).send().await.map_err(|e| {
                 ServiceError::SendError {
                     reason: e.to_string(),
@@ -155,7 +160,7 @@ impl PushService for AwcPushService {
 
         log::debug!("AwcPushService::get_stream response: {:?}", response);
 
-        ServiceError::from_status(response.status())?;
+        Self::from_response(&mut response).await?;
 
         Ok(Box::new(
             response
@@ -251,6 +256,53 @@ impl AwcPushService {
             cfg,
             base_url,
             client,
+        }
+    }
+
+    async fn from_response<S>(
+        response: &mut ClientResponse<S>,
+    ) -> Result<(), ServiceError>
+    where
+        S: Stream<Item = Result<Bytes, PayloadError>> + Unpin,
+    {
+        match response.status() {
+            StatusCode::OK => Ok(()),
+            StatusCode::NO_CONTENT => Ok(()),
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                Err(ServiceError::Unauthorized)
+            }
+            StatusCode::PAYLOAD_TOO_LARGE => {
+                // This is 413 and means rate limit exceeded for Signal.
+                Err(ServiceError::RateLimitExceeded)
+            }
+            StatusCode::CONFLICT => {
+                let mismatched_devices =
+                    response.json().await.map_err(|e| {
+                        log::error!(
+                            "Failed to decode HTTP 409 response: {}",
+                            e
+                        );
+                        ServiceError::UnhandledResponseCode {
+                            http_code: StatusCode::CONFLICT.as_u16(),
+                        }
+                    })?;
+                Err(ServiceError::MismatchedDevicesException(
+                    mismatched_devices,
+                ))
+            }
+            StatusCode::GONE => {
+                let stale_devices = response.json().await.map_err(|e| {
+                    log::error!("Failed to decode HTTP 410 response: {}", e);
+                    ServiceError::UnhandledResponseCode {
+                        http_code: StatusCode::GONE.as_u16(),
+                    }
+                })?;
+                Err(ServiceError::StaleDevices(stale_devices))
+            }
+            // XXX: fill in rest from PushServiceSocket
+            code => Err(ServiceError::UnhandledResponseCode {
+                http_code: code.as_u16(),
+            }),
         }
     }
 }
