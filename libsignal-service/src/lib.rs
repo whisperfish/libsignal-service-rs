@@ -18,7 +18,7 @@ pub mod utils;
 
 pub use crate::account_manager::AccountManager;
 
-pub const USER_AGENT: &'static str =
+pub const USER_AGENT: &str =
     concat!(env!("CARGO_PKG_NAME"), "-rs-", env!("CARGO_PKG_VERSION"));
 
 /// GROUP_UPDATE_FLAG signals that this message updates the group membership or

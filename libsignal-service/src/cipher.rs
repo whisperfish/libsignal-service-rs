@@ -186,7 +186,7 @@ impl ServiceCipher {
             return Ok(e164);
         }
 
-        return Ok(ProtocolAddress::new(address.identifier(), device as i32));
+        Ok(ProtocolAddress::new(address.identifier(), device as i32))
     }
 
     pub fn encrypt(
