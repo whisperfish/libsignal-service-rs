@@ -48,6 +48,9 @@ pub enum MessageSenderError {
 
     #[error("Please try again")]
     TryAgain,
+
+    #[error("Exceeded maximum number of retries")]
+    MaximumRetriesLimitExceeded,
 }
 
 impl<Service> MessageSender<Service>
@@ -67,8 +70,6 @@ where
     }
 
     /// Send a message (`content`) to an address (`recipient`).
-    // XXX: `online` supposedly has to do with Typing indicators.
-    // Cfr. libsignal-service-java 7eb925190d78360a1aaae13402b6eb747997aeca
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
@@ -85,6 +86,27 @@ where
                 .expect("infallible message encoding");
             content
         };
+
+        for _ in 0..4 {
+            match self
+                .send_messages(recipient, &content, timestamp, online)
+                .await
+            {
+                Err(MessageSenderError::TryAgain) => continue,
+                r => return r,
+            }
+        }
+        Err(MessageSenderError::MaximumRetriesLimitExceeded)
+    }
+
+    async fn send_messages(
+        &mut self,
+        recipient: &ServiceAddress,
+        content: &[u8],
+        timestamp: u64,
+        online: bool,
+    ) -> Result<SendMessageResponse, MessageSenderError> {
+
 
         let messages = self
             .create_encrypted_messages(&recipient, None, &content)
