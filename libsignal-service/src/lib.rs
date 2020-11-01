@@ -13,6 +13,7 @@ mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
+pub mod sealed_session_cipher;
 pub mod sender;
 pub mod utils;
 

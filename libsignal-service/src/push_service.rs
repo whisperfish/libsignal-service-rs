@@ -221,6 +221,11 @@ pub enum ServiceError {
 
     #[error("{0:?}")]
     StaleDevices(StaleDevices),
+
+    #[error("SealedSessionCipher error: {0}")]
+    SealedSessionError(
+        #[from] crate::sealed_session_cipher::SealedSessionError,
+    ),
 }
 
 #[async_trait::async_trait(?Send)]

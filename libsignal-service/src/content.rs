@@ -2,9 +2,8 @@ pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
-        group_context::Type as GroupType, sync_message, AttachmentPointer,
-        CallMessage, DataMessage, GroupContext, ReceiptMessage, SyncMessage,
-        TypingMessage,
+        group_context::Type as GroupType, AttachmentPointer, CallMessage,
+        DataMessage, ReceiptMessage, SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };
@@ -12,7 +11,7 @@ pub use crate::{
 #[derive(Clone, Debug)]
 pub struct Metadata {
     pub sender: crate::ServiceAddress,
-    pub sender_device: u32,
+    pub sender_device: i32,
     pub timestamp: u64,
     pub needs_receipt: bool,
 }
