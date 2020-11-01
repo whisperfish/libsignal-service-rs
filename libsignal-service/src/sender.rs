@@ -27,6 +27,7 @@ pub struct SendMessageResponse {
 }
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
+#[derive(Clone)]
 pub struct MessageSender<Service> {
     service: Service,
     cipher: ServiceCipher,
