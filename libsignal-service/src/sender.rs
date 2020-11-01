@@ -73,11 +73,12 @@ where
     /// Send a message (`content`) to an address (`recipient`).
     pub async fn send_message(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: impl std::borrow::Borrow<ServiceAddress>,
         content: impl Into<crate::content::ContentBody>,
         timestamp: u64,
         online: bool,
     ) -> Result<SendMessageResponse, MessageSenderError> {
+        let recipient = recipient.borrow();
         let content = {
             use prost::Message;
             let content_proto = content.into().into_proto();
@@ -107,8 +108,6 @@ where
         timestamp: u64,
         online: bool,
     ) -> Result<SendMessageResponse, MessageSenderError> {
-
-
         let messages = self
             .create_encrypted_messages(&recipient, None, &content)
             .await?;
