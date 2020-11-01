@@ -177,6 +177,31 @@ where
 
                 Err(MessageSenderError::TryAgain)
             }
+            Err(ServiceError::StaleDevices(ref m)) => {
+                log::debug!("{:?}", m);
+                for extra_device_id in &m.stale_devices {
+                    log::debug!(
+                        "dropping session with device {}",
+                        extra_device_id
+                    );
+                    if let Some(ref uuid) = recipient.uuid {
+                        self.cipher.store_context.delete_session(
+                            &libsignal_protocol::Address::new(
+                                uuid,
+                                *extra_device_id,
+                            ),
+                        )?;
+                    }
+                    self.cipher.store_context.delete_session(
+                        &libsignal_protocol::Address::new(
+                            &recipient.e164,
+                            *extra_device_id,
+                        ),
+                    )?;
+                }
+
+                Err(MessageSenderError::TryAgain)
+            }
             Err(e) => Err(MessageSenderError::ServiceError(e)),
         }
     }
