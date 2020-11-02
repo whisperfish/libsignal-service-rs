@@ -139,12 +139,14 @@ where
                             ),
                         )?;
                     }
-                    self.cipher.store_context.delete_session(
-                        &libsignal_protocol::Address::new(
-                            &recipient.e164,
-                            *extra_device_id,
-                        ),
-                    )?;
+                    if let Some(ref e164) = recipient.e164 {
+                        self.cipher.store_context.delete_session(
+                            &libsignal_protocol::Address::new(
+                                &e164,
+                                *extra_device_id,
+                            ),
+                        )?;
+                    }
                 }
 
                 for missing_device_id in &m.missing_devices {
@@ -192,12 +194,14 @@ where
                             ),
                         )?;
                     }
-                    self.cipher.store_context.delete_session(
-                        &libsignal_protocol::Address::new(
-                            &recipient.e164,
-                            *extra_device_id,
-                        ),
-                    )?;
+                    if let Some(ref e164) = recipient.e164 {
+                        self.cipher.store_context.delete_session(
+                            &libsignal_protocol::Address::new(
+                                &e164,
+                                *extra_device_id,
+                            ),
+                        )?;
+                    }
                 }
 
                 Err(MessageSenderError::TryAgain)
