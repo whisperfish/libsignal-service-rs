@@ -186,7 +186,7 @@ impl ServiceCipher {
             _ => {
                 // else
                 return Err(ServiceError::InvalidFrameError {
-                    reason: "Envelope has unknown type.".into(),
+                    reason: format!("Envelope has unknown type {:?}.", envelope.r#type()),
                 });
             }
         };
