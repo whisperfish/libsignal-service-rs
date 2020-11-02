@@ -400,7 +400,10 @@ impl UnidentifiedSenderMessageContent {
                         _ => {
                             return Err(
                                 SealedSessionError::InvalidMetadataMessageError(
-                                    format!("Wrong message type ({})", message::Type::from_i32(message_type)),
+                                    format!(
+                                        "Wrong message type ({})",
+                                        message::Type::from_i32(message_type)
+                                    ),
                                 ),
                             )
                         }

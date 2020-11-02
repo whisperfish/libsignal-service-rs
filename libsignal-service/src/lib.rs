@@ -34,23 +34,26 @@ pub struct TrustStore;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceAddress {
     pub uuid: Option<String>,
-    // In principe, this is also Option<String> if you follow the Java code.
-    pub e164: String,
+    pub e164: Option<String>,
     pub relay: Option<String>,
 }
 
 impl ServiceAddress {
     /// Returns uuid if present, e164 otherwise.
     pub fn identifier(&self) -> &str {
-        if let Some(uuid) = self.uuid.as_deref() {
+        if let Some(ref uuid) = self.uuid {
             return uuid;
+        } else if let Some(ref e164) = self.e164 {
+            return e164;
         }
-        &self.e164
+        unreachable!(
+            "an address requires either a UUID or a E164 phone number"
+        );
     }
 
     pub fn matches(&self, other: &Self) -> bool {
-        self.e164 == other.e164
-            || self.uuid.is_some() && self.uuid == other.uuid
+        (self.e164.is_some() && self.e164 == other.e164)
+            || (self.uuid.is_some() && self.uuid == other.uuid)
     }
 }
 

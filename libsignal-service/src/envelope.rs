@@ -16,7 +16,7 @@ impl From<EnvelopeEntity> for Envelope {
         if entity.source.is_some() && entity.source_device > 0 {
             let address = ServiceAddress {
                 uuid: entity.source_uuid.clone(),
-                e164: entity.source.clone().unwrap(),
+                e164: entity.source.clone(),
                 relay: None,
             };
             Envelope::new_with_source(entity, address)
@@ -101,7 +101,7 @@ impl Envelope {
             source_device: Some(entity.source_device),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
-            source_e164: Some(source.e164),
+            source_e164: source.e164,
             source_uuid: source.uuid,
             legacy_message: entity.message,
             content: entity.content,
@@ -125,12 +125,12 @@ impl Envelope {
         self.r#type() == crate::proto::envelope::Type::Ciphertext
     }
 
-    pub fn source_address(&self) -> Option<ServiceAddress> {
-        self.source_e164.clone().map(|e164| ServiceAddress {
-            e164,
+    pub fn source_address(&self) -> ServiceAddress {
+        ServiceAddress {
+            e164: self.source_e164.clone(),
             uuid: self.source_uuid.clone(),
             relay: self.relay.clone(),
-        })
+        }
     }
 }
 
