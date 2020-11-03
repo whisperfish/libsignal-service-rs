@@ -31,3 +31,6 @@ rand = "0.7.0"
 
 [build-dependencies]
 prost-build = "0.6"
+
+[dev-dependencies]
+anyhow = "1.0"

@@ -1,17 +1,14 @@
-use aes::cipher::generic_array::GenericArray;
 use aes_ctr::{
-    cipher::stream::{NewStreamCipher, SyncStreamCipher},
+    cipher::stream::{NewStreamCipher, StreamCipher},
     Aes256Ctr,
 };
 
 use hmac::{Hmac, Mac, NewMac};
 use libsignal_protocol::{
-    keys::PrivateKey,
-    keys::{IdentityKeyPair, PublicKey},
-    messages::CiphertextType,
-    messages::PreKeySignalMessage,
-    messages::SignalMessage,
-    Address, Context, Deserializable, SessionCipher, StoreContext,
+    keys::{PrivateKey, PublicKey},
+    messages::{CiphertextType, PreKeySignalMessage, SignalMessage},
+    Address, Context, Deserializable, Serializable, SessionCipher,
+    StoreContext,
 };
 use log::error;
 use sha2::Sha256;
@@ -27,29 +24,39 @@ pub enum SealedSessionError {
     InvalidMetadataMessageError(String),
 
     #[error("Invalid MAC: {0}")]
-    InvalidMacError(MacError),
+    InvalidMacError(#[from] MacError),
 
-    #[error("Invalid certificate (missing fields)")]
+    #[error("Invalid certificate")]
     InvalidCertificate,
+
+    #[error("Expired certificate")]
+    ExpiredCertificate,
 
     #[error("Failed to decode protobuf {0}")]
     DecodeError(#[from] prost::DecodeError),
 
+    #[error("Failed to encode protobuf: {0}")]
+    EncodeError(#[from] prost::EncodeError),
+
     #[error("Protocol error {0}")]
     ProtocolError(#[from] libsignal_protocol::Error),
+
+    #[error("recipient not trusted")]
+    NoSessionWithRecipient,
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum MacError {
+    #[error("Invalid MAC key length")]
+    InvalidKeyLength,
     #[error("Ciphertext not long enough ({0} bytes) for MAC")]
     CiphertextNotLongEnough(usize),
     #[error("Bad MAC")]
     BadMac,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(crate) struct SealedSessionCipher {
-    identity: IdentityKeyPair,
     context: Context,
     store_context: StoreContext,
     local_address: ServiceAddress,
@@ -58,7 +65,6 @@ pub(crate) struct SealedSessionCipher {
 
 #[derive(Debug, Clone)]
 struct UnidentifiedSenderMessage {
-    version: u8,
     ephemeral: PublicKey,
     encrypted_static: Vec<u8>,
     encrypted_message: Vec<u8>,
@@ -101,7 +107,6 @@ impl SenderCertificate {
 pub struct ServerCertificate {
     key_id: u32,
     key: PublicKey,
-    // serialized: Vec<u8>, // I suppose this has some significance, but it's consumed
     certificate: Vec<u8>,
     signature: Vec<u8>,
 }
@@ -121,7 +126,7 @@ struct StaticKeys {
 
 #[derive(Debug, Clone)]
 pub struct CertificateValidator {
-    pub trust_root: PublicKey,
+    trust_root: PublicKey,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -136,7 +141,7 @@ pub(crate) struct DecryptionResult {
 impl UnidentifiedSenderMessage {
     const CIPHERTEXT_VERSION: u8 = 1;
 
-    fn new(
+    fn from_bytes(
         context: &Context,
         serialized: &[u8],
     ) -> Result<Self, SealedSessionError> {
@@ -160,7 +165,6 @@ impl UnidentifiedSenderMessage {
                 Some(encrypted_static),
                 Some(encrypted_message),
             ) => Ok(Self {
-                version,
                 ephemeral: PublicKey::decode_point(
                     &context,
                     &ephemeral_public,
@@ -173,18 +177,33 @@ impl UnidentifiedSenderMessage {
             )),
         }
     }
+
+    fn into_bytes(self) -> Result<Vec<u8>, SealedSessionError> {
+        use prost::Message;
+        let mut buf = vec![];
+        buf.push(
+            (Self::CIPHERTEXT_VERSION << 4 | Self::CIPHERTEXT_VERSION) & 0xFF,
+        );
+        crate::proto::UnidentifiedSenderMessage {
+            ephemeral_public: Some(
+                self.ephemeral.to_bytes()?.as_slice().to_vec(),
+            ),
+            encrypted_static: Some(self.encrypted_static),
+            encrypted_message: Some(self.encrypted_message),
+        }
+        .encode(&mut buf)?;
+        Ok(buf)
+    }
 }
 
 impl SealedSessionCipher {
     pub(crate) fn new(
-        identity: IdentityKeyPair,
         context: Context,
         store_context: StoreContext,
         local_address: ServiceAddress,
         certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            identity,
             context,
             store_context,
             local_address,
@@ -192,24 +211,97 @@ impl SealedSessionCipher {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn encrypt(
+        &self,
+        destination: &Address,
+        sender_certificate: SenderCertificate,
+        padded_plaintext: &[u8],
+    ) -> Result<Vec<u8>, SealedSessionError> {
+        let message = SessionCipher::new(
+            &self.context,
+            &self.store_context,
+            &destination,
+        )?
+        .encrypt(padded_plaintext)?;
+
+        let our_identity = &self.store_context.identity_key_pair()?;
+        let their_identity = self
+            .store_context
+            .get_identity(destination.clone())?
+            .ok_or(SealedSessionError::NoSessionWithRecipient)?;
+
+        let ephemeral = libsignal_protocol::generate_key_pair(&self.context)?;
+        let ephemeral_salt = [
+            "UnidentifiedDelivery".as_bytes(),
+            their_identity.to_bytes()?.as_slice(),
+            ephemeral.public().to_bytes()?.as_slice(),
+        ]
+        .concat();
+
+        let ephemeral_keys = self.calculate_ephemeral_keys(
+            &their_identity,
+            &ephemeral.private(),
+            &ephemeral_salt,
+        )?;
+
+        let static_key_ciphertext = self.encrypt_bytes(
+            &ephemeral_keys.cipher_key,
+            &ephemeral_keys.mac_key,
+            our_identity.public().to_bytes()?.as_slice(),
+        )?;
+
+        let static_salt = [
+            ephemeral_keys.chain_key.as_slice(),
+            static_key_ciphertext.as_slice(),
+        ]
+        .concat();
+
+        let static_keys = self.calculate_static_keys(
+            &their_identity,
+            &our_identity.private(),
+            &static_salt,
+        )?;
+
+        let content = UnidentifiedSenderMessageContent {
+            r#type: message.get_type()?,
+            sender_certificate,
+            content: message.serialize()?.as_slice().to_vec(),
+        };
+
+        let message_bytes = self.encrypt_bytes(
+            &static_keys.cipher_key,
+            &static_keys.mac_key,
+            &content.into_bytes()?,
+        )?;
+
+        Ok(UnidentifiedSenderMessage {
+            ephemeral: ephemeral.public(),
+            encrypted_static: static_key_ciphertext,
+            encrypted_message: message_bytes,
+        }
+        .into_bytes()?)
+    }
+
     pub fn decrypt(
         &self,
         ciphertext: &[u8],
         timestamp: u64,
     ) -> Result<DecryptionResult, SealedSessionError> {
+        let our_identity = self.store_context.identity_key_pair()?;
         let wrapper =
-            UnidentifiedSenderMessage::new(&self.context, ciphertext)?;
+            UnidentifiedSenderMessage::from_bytes(&self.context, ciphertext)?;
 
         let ephemeral_salt = [
             "UnidentifiedDelivery".as_bytes(),
-            self.identity.public().to_bytes()?.as_slice(),
+            our_identity.public().to_bytes()?.as_slice(),
             wrapper.ephemeral.to_bytes()?.as_slice(),
         ]
         .concat();
 
         let ephemeral_keys = self.calculate_ephemeral_keys(
             &wrapper.ephemeral,
-            &self.identity.private(),
+            &our_identity.private(),
             &ephemeral_salt,
         )?;
 
@@ -225,7 +317,7 @@ impl SealedSessionCipher {
             [ephemeral_keys.chain_key, wrapper.encrypted_static].concat();
         let static_keys = self.calculate_static_keys(
             &static_key,
-            &self.identity.private(),
+            &our_identity.private(),
             &static_salt,
         )?;
 
@@ -265,11 +357,12 @@ impl SealedSessionCipher {
             3,
         )?
         .derive_secrets(96, &ephemeral_secret, salt, &[])?;
-        Ok(EphemeralKeys {
+        let ephemeral_keys = EphemeralKeys {
             chain_key: ephemeral_derived[0..32].into(),
             cipher_key: ephemeral_derived[32..64].into(),
             mac_key: ephemeral_derived[64..96].into(),
-        })
+        };
+        Ok(ephemeral_keys)
     }
 
     fn calculate_static_keys(
@@ -287,6 +380,27 @@ impl SealedSessionCipher {
         })
     }
 
+    fn encrypt_bytes(
+        &self,
+        cipher_key: &[u8],
+        mac_key: &[u8],
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, SealedSessionError> {
+        let mut cipher = Aes256Ctr::new(cipher_key.into(), &[0u8; 16].into());
+
+        let mut ciphertext = plaintext.to_vec();
+        cipher.encrypt(&mut ciphertext);
+
+        let mut mac = Hmac::<Sha256>::new_varkey(&mac_key)
+            .map_err(|_| MacError::InvalidKeyLength)?;
+        mac.update(&ciphertext);
+        let our_mac = mac.finalize().into_bytes();
+
+        let encrypted = [ciphertext.as_slice(), &our_mac[..10]].concat();
+
+        Ok(encrypted)
+    }
+
     fn decrypt_bytes(
         cipher_key: &[u8],
         mac_key: &[u8],
@@ -302,21 +416,18 @@ impl SealedSessionCipher {
             ciphertext.split_at(ciphertext.len() - 10);
 
         let mut verifier = Hmac::<Sha256>::new_varkey(&mac_key)
-            .expect("failed to create HMAC-SHA256");
+            .map_err(|_| MacError::InvalidKeyLength)?;
         verifier.update(&ciphertext_part1);
         let digest = verifier.finalize().into_bytes();
-        let our_mac = &digest[0..10];
+        let our_mac = &digest[..10];
 
         if our_mac != their_mac {
             return Err(SealedSessionError::InvalidMacError(MacError::BadMac));
         }
 
-        let key = GenericArray::from_slice(cipher_key);
-        let nonce = GenericArray::from_slice(&[0u8; 16]);
-
         let mut decrypted = ciphertext_part1.to_vec();
-        let mut cipher = Aes256Ctr::new(key, nonce);
-        cipher.apply_keystream(&mut decrypted);
+        let mut cipher = Aes256Ctr::new(cipher_key.into(), &[0u8; 16].into());
+        cipher.decrypt(&mut decrypted);
 
         Ok(decrypted)
     }
@@ -397,13 +508,10 @@ impl UnidentifiedSenderMessageContent {
                         Some(message::Type::PrekeyMessage) => {
                             CiphertextType::PreKey
                         }
-                        _ => {
+                        t => {
                             return Err(
                                 SealedSessionError::InvalidMetadataMessageError(
-                                    format!(
-                                        "Wrong message type ({:?})",
-                                        message::Type::from_i32(message_type)
-                                    ),
+                                    format!("Wrong message type ({:?})", t),
                                 ),
                             )
                         }
@@ -419,6 +527,34 @@ impl UnidentifiedSenderMessageContent {
                 "Missing fields".into(),
             )),
         }
+    }
+
+    fn into_bytes(self) -> Result<Vec<u8>, SealedSessionError> {
+        use crate::proto::unidentified_sender_message::{self, message};
+        use prost::Message;
+        let mut data = vec![];
+
+        unidentified_sender_message::Message {
+            r#type: Some(match self.r#type {
+                CiphertextType::PreKey => message::Type::PrekeyMessage,
+                CiphertextType::Signal => message::Type::Message,
+                _ => {
+                    return Err(
+                        SealedSessionError::InvalidMetadataMessageError(
+                            "unknown ciphertext message type".into(),
+                        ),
+                    )
+                }
+            } as i32),
+            sender_certificate: Some(crate::proto::SenderCertificate {
+                certificate: Some(self.sender_certificate.certificate),
+                signature: Some(self.sender_certificate.signature),
+            }),
+            content: Some(self.content),
+        }
+        .encode(&mut data)?;
+
+        Ok(data)
     }
 }
 
@@ -501,7 +637,28 @@ impl ServerCertificate {
     }
 }
 
+// impl TryInto<Vec<u8>> for ServerCertificate {
+//     type Error = SealedSessionError;
+
+//     fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+//         use crate::proto::server_certificate::Certificate;
+//         use prost::Message;
+
+//         let mut serialized = vec![];
+//         let certificate = Certificate {
+//             id: Some(self.key_id),
+//             key: Some(self.key.serialize()?.as_slice().to_vec()),
+//         };
+//         certificate.encode(&mut serialized)?;
+//         Ok(serialized)
+//     }
+// }
+
 impl CertificateValidator {
+    pub(crate) fn new(trust_root: PublicKey) -> Self {
+        Self { trust_root }
+    }
+
     pub(crate) fn validate(
         &self,
         certificate: &SenderCertificate,
@@ -528,9 +685,386 @@ impl CertificateValidator {
 
         if validation_time > certificate.expiration {
             error!("certificate is expired");
-            return Err(SealedSessionError::InvalidCertificate);
+            return Err(SealedSessionError::ExpiredCertificate);
         }
 
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::UNIX_EPOCH;
+
+    use libsignal_protocol::{
+        self as sig,
+        crypto::DefaultCrypto,
+        keys::PreKey,
+        keys::{KeyPair, PublicKey},
+        stores::InMemoryPreKeyStore,
+        stores::InMemorySessionStore,
+        stores::{InMemoryIdentityKeyStore, InMemorySignedPreKeyStore},
+        Address as ProtocolAddress, Context, PreKeyBundle, Serializable,
+        SessionBuilder, StoreContext,
+    };
+
+    use crate::ServiceAddress;
+
+    use super::{
+        CertificateValidator, SealedSessionCipher, SealedSessionError,
+        SenderCertificate,
+    };
+
+    use prost::Message;
+
+    #[test]
+    fn test_encrypt_decrypt() -> anyhow::Result<()> {
+        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
+        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+
+        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let certificate_validator =
+            CertificateValidator::new(trust_root.public());
+        let sender_certificate = create_certificate_for(
+            &ctx,
+            &trust_root,
+            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
+            "+14151111111".into(),
+            1,
+            alice_store_context.identity_key_pair()?.public(),
+            31337,
+        )?;
+
+        let alice_cipher = SealedSessionCipher::new(
+            ctx.clone(),
+            alice_store_context,
+            ServiceAddress {
+                e164: Some("+14151111111".into()),
+                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
+                relay: None,
+            },
+            certificate_validator.clone(),
+        );
+        let ciphertext = alice_cipher.encrypt(
+            &ProtocolAddress::new("+14152222222", 1),
+            sender_certificate,
+            "smert za smert".as_bytes(),
+        )?;
+
+        let bob_cipher = SealedSessionCipher::new(
+            ctx.clone(),
+            bob_store_context,
+            ServiceAddress {
+                e164: Some("+14152222222".into()),
+                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
+                relay: None,
+            },
+            certificate_validator,
+        );
+
+        let plaintext = bob_cipher.decrypt(&ciphertext, 31335)?;
+
+        assert_eq!(
+            String::from_utf8_lossy(&plaintext.padded_message),
+            "smert za smert".to_string()
+        );
+        assert_eq!(
+            plaintext.sender_uuid,
+            Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into())
+        );
+        assert_eq!(plaintext.sender_e164, Some("+14151111111".into()));
+        assert_eq!(plaintext.device_id, 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_untrusted() -> anyhow::Result<()> {
+        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
+        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+
+        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let certificate_validator =
+            CertificateValidator::new(trust_root.public());
+
+        let false_trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let false_certificate_validator =
+            CertificateValidator::new(false_trust_root.public());
+
+        let sender_certificate = create_certificate_for(
+            &ctx,
+            &trust_root,
+            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
+            "+14151111111".into(),
+            1,
+            alice_store_context.identity_key_pair()?.public(),
+            31337,
+        )?;
+
+        let alice_cipher = SealedSessionCipher::new(
+            ctx.clone(),
+            alice_store_context,
+            ServiceAddress {
+                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
+                e164: Some("+14151111111".into()),
+                relay: None,
+            },
+            certificate_validator,
+        );
+
+        let ciphertext = alice_cipher.encrypt(
+            &ProtocolAddress::new("+14152222222", 1),
+            sender_certificate,
+            "и вот я".as_bytes(),
+        )?;
+
+        let bob_cipher = SealedSessionCipher::new(
+            ctx,
+            bob_store_context,
+            ServiceAddress {
+                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
+                e164: Some("+14152222222".into()),
+                relay: None,
+            },
+            false_certificate_validator,
+        );
+
+        let plaintext = bob_cipher.decrypt(&ciphertext, 31335);
+
+        match plaintext {
+            Err(SealedSessionError::InvalidCertificate) => Ok(()),
+            _ => panic!("decryption succeeded, this should not happen here!1!"),
+        }
+    }
+
+    #[test]
+    fn test_encrypt_decrypt_expired() -> anyhow::Result<()> {
+        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
+        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+
+        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let certificate_validator =
+            CertificateValidator::new(trust_root.public());
+        let sender_certificate = create_certificate_for(
+            &ctx,
+            &trust_root,
+            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
+            "+14151111111".into(),
+            1,
+            alice_store_context.identity_key_pair()?.public(),
+            31337,
+        )?;
+
+        let alice_cipher = SealedSessionCipher::new(
+            ctx.clone(),
+            alice_store_context,
+            ServiceAddress {
+                e164: Some("+14151111111".into()),
+                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
+                relay: None,
+            },
+            certificate_validator.clone(),
+        );
+
+        let ciphertext = alice_cipher.encrypt(
+            &ProtocolAddress::new("+14152222222", 1),
+            sender_certificate,
+            "smert za smert".as_bytes(),
+        )?;
+
+        let bob_cipher = SealedSessionCipher::new(
+            ctx.clone(),
+            bob_store_context,
+            ServiceAddress {
+                e164: Some("+14152222222".into()),
+                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
+                relay: None,
+            },
+            certificate_validator,
+        );
+
+        match bob_cipher.decrypt(&ciphertext, 31338) {
+            Err(SealedSessionError::ExpiredCertificate) => Ok(()),
+            _ => panic!("certificate is expired, we should not get decrypted data here!11!")
+        }
+    }
+
+    #[test]
+    fn test_encrypt_from_wrong_identity() -> anyhow::Result<()> {
+        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
+        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+
+        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let random_key_pair = libsignal_protocol::generate_key_pair(&ctx)?;
+        let certificate_validator =
+            CertificateValidator::new(trust_root.public());
+        let sender_certificate = create_certificate_for(
+            &ctx,
+            &random_key_pair,
+            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
+            "+14151111111".into(),
+            1,
+            alice_store_context.identity_key_pair()?.public(),
+            31337,
+        )?;
+
+        let alice_cipher = SealedSessionCipher::new(
+            ctx.clone(),
+            alice_store_context,
+            ServiceAddress {
+                e164: Some("+14151111111".into()),
+                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
+                relay: None,
+            },
+            certificate_validator.clone(),
+        );
+        let ciphertext = alice_cipher.encrypt(
+            &ProtocolAddress::new("+14152222222", 1),
+            sender_certificate,
+            "smert za smert".as_bytes(),
+        )?;
+
+        let bob_cipher = SealedSessionCipher::new(
+            ctx.clone(),
+            bob_store_context,
+            ServiceAddress {
+                e164: Some("+14152222222".into()),
+                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
+                relay: None,
+            },
+            certificate_validator,
+        );
+
+        match bob_cipher.decrypt(&ciphertext, 31335) {
+            Err(SealedSessionError::InvalidCertificate) => Ok(()),
+            _ => panic!("the certificate is invalid here!11"),
+        }
+    }
+
+    fn create_contexts(
+    ) -> Result<(Context, StoreContext, StoreContext), SealedSessionError> {
+        let ctx = Context::new(DefaultCrypto::default())?;
+
+        let alice_identity = sig::generate_identity_key_pair(&ctx).unwrap();
+        let alice_store = sig::store_context(
+            &ctx,
+            InMemoryPreKeyStore::default(),
+            InMemorySignedPreKeyStore::default(),
+            InMemorySessionStore::default(),
+            InMemoryIdentityKeyStore::new(
+                sig::generate_registration_id(&ctx, 0).unwrap(),
+                &alice_identity,
+            ),
+        )?;
+
+        let bob_identity = sig::generate_identity_key_pair(&ctx).unwrap();
+        let bob_store = sig::store_context(
+            &ctx,
+            InMemoryPreKeyStore::default(),
+            InMemorySignedPreKeyStore::default(),
+            InMemorySessionStore::default(),
+            InMemoryIdentityKeyStore::new(
+                sig::generate_registration_id(&ctx, 0).unwrap(),
+                &bob_identity,
+            ),
+        )?;
+
+        Ok((ctx, alice_store, bob_store))
+    }
+
+    fn create_certificate_for(
+        context: &Context,
+        trust_root: &KeyPair,
+        uuid: String,
+        e164: String,
+        device_id: u32,
+        identity_key: PublicKey,
+        expires: u64,
+    ) -> Result<SenderCertificate, SealedSessionError> {
+        let server_key = libsignal_protocol::generate_key_pair(&context)?;
+
+        let mut server_certificate_bytes = vec![];
+        crate::proto::server_certificate::Certificate {
+            id: Some(1),
+            key: Some(server_key.public().serialize()?.as_slice().to_vec()),
+        }
+        .encode(&mut server_certificate_bytes)?;
+
+        let server_certificate_signature =
+            libsignal_protocol::calculate_signature(
+                &context,
+                &trust_root.private(),
+                &server_certificate_bytes,
+            )?
+            .as_slice()
+            .to_vec();
+
+        let server_certificate = crate::proto::ServerCertificate {
+            certificate: Some(server_certificate_bytes),
+            signature: Some(server_certificate_signature),
+        };
+
+        let mut sender_certificate_bytes = vec![];
+        crate::proto::sender_certificate::Certificate {
+            sender_uuid: Some(uuid),
+            sender_e164: Some(e164),
+            sender_device: Some(device_id),
+            identity_key: Some(identity_key.serialize()?.as_slice().to_vec()),
+            expires: Some(expires),
+            signer: Some(server_certificate),
+        }
+        .encode(&mut sender_certificate_bytes)?;
+
+        let sender_certificate_signature =
+            libsignal_protocol::calculate_signature(
+                &context,
+                &server_key.private(),
+                &sender_certificate_bytes,
+            )?
+            .as_slice()
+            .to_vec();
+
+        Ok(SenderCertificate::try_from(
+            &context,
+            crate::proto::SenderCertificate {
+                certificate: Some(sender_certificate_bytes),
+                signature: Some(sender_certificate_signature),
+            },
+        )?)
+    }
+
+    fn initialize_session(
+        context: &Context,
+        bob_store_context: &StoreContext,
+        alice_store_context: &StoreContext,
+    ) -> Result<(), SealedSessionError> {
+        let bob_pre_key = libsignal_protocol::generate_key_pair(&context)?;
+        let bob_identity_key = bob_store_context.identity_key_pair()?;
+        let bob_signed_pre_key = libsignal_protocol::generate_signed_pre_key(
+            &context,
+            &bob_identity_key,
+            2,
+            UNIX_EPOCH,
+        )?;
+
+        let bob_bundle = PreKeyBundle::builder()
+            .registration_id(1)
+            .device_id(1)
+            .pre_key(1, &bob_pre_key.public())
+            .signed_pre_key(2, &bob_signed_pre_key.key_pair().public())
+            .signature(&bob_signed_pre_key.signature())
+            .identity_key(&bob_identity_key.public())
+            .build()?;
+
+        let alice_session_builder = SessionBuilder::new(
+            &context,
+            &alice_store_context,
+            &ProtocolAddress::new("+14152222222", 1),
+        );
+        alice_session_builder.process_pre_key_bundle(&bob_bundle)?;
+
+        bob_store_context.store_signed_pre_key(&bob_signed_pre_key)?;
+        bob_store_context.store_pre_key(&PreKey::new(1, &bob_pre_key)?)?;
         Ok(())
     }
 }

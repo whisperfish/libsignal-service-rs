@@ -131,12 +131,10 @@ impl ServiceConfiguration {
         &self,
         context: &Context,
     ) -> Result<CertificateValidator, ServiceError> {
-        Ok(CertificateValidator {
-            trust_root: PublicKey::decode_point(
-                context,
-                &base64::decode(&self.unidentified_sender_trust_root)
-                    .map_err(|_| SealedSessionError::InvalidCertificate)?,
-            )?,
-        })
+        Ok(CertificateValidator::new(PublicKey::decode_point(
+            context,
+            &base64::decode(&self.unidentified_sender_trust_root)
+                .map_err(|_| SealedSessionError::InvalidCertificate)?,
+        )?))
     }
 }

@@ -10,9 +10,7 @@ use crate::{
 };
 
 use libsignal_protocol::{
-    keys::IdentityKeyPair,
-    messages::CiphertextType,
-    messages::{PreKeySignalMessage, SignalMessage},
+    messages::{CiphertextType, PreKeySignalMessage, SignalMessage},
     Address as ProtocolAddress, Context, Deserializable, Serializable,
     SessionCipher, StoreContext,
 };
@@ -23,11 +21,11 @@ use prost::Message;
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ServiceCipher {
+    pub(crate) context: Context,
     pub(crate) store_context: StoreContext,
     pub(crate) local_address: ServiceAddress,
-    pub(crate) context: Context,
     sealed_session_cipher: SealedSessionCipher,
 }
 
@@ -35,7 +33,6 @@ impl ServiceCipher {
     pub fn from_context(
         context: Context,
         store_context: StoreContext,
-        identity: IdentityKeyPair,
         local_address: ServiceAddress,
         certificate_validator: CertificateValidator,
     ) -> Self {
@@ -44,7 +41,6 @@ impl ServiceCipher {
             store_context: store_context.clone(),
             local_address: local_address.clone(),
             sealed_session_cipher: SealedSessionCipher::new(
-                identity,
                 context,
                 store_context,
                 local_address,
@@ -236,10 +232,7 @@ impl ServiceCipher {
                 session_cipher.get_remote_registration_id()?;
             let body = base64::encode(message.serialize()?);
             use crate::proto::envelope::Type;
-            let message_type = match message
-                .get_type()
-                .map_err(libsignal_protocol::Error::InternalError)?
-            {
+            let message_type = match message.get_type()? {
                 CiphertextType::PreKey => Type::PrekeyBundle,
                 CiphertextType::Signal => Type::Ciphertext,
                 t => panic!("Bad type: {:?}", t),
