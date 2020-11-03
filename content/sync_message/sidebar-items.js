@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["fetch_latest",""],["message_request_response",""],["request",""],["sent",""],["sticker_pack_operation",""]],"struct":[["Blocked",""],["Configuration",""],["Contacts",""],["FetchLatest",""],["Groups",""],["Keys",""],["MessageRequestResponse",""],["Read",""],["Request",""],["Sent",""],["StickerPackOperation",""],["ViewOnceOpen",""]]});

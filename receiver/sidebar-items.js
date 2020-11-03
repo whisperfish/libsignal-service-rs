@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["MessageReceiverError",""]],"struct":[["MessageReceiver","Equivalent of Java's `SignalServiceMessageReceiver`."]]});

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["MessageSenderError",""]],"struct":[["MessageSender","Equivalent of Java's `SignalServiceMessageSender`."],["OutgoingPushMessage",""],["OutgoingPushMessages",""],["SendMessageResponse",""]]});
