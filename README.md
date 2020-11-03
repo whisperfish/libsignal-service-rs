@@ -1,5 +1,6 @@
 # libsignal-service-rs
 
+![Build Status](https://github.com/Michael-F-Bryan/libsignal-service-rs/workflows/CI/badge.svg)
 [![Build Status](https://travis-ci.com/Michael-F-Bryan/libsignal-service-rs.svg?branch=master)](https://travis-ci.com/Michael-F-Bryan/libsignal-service-rs)
 
 ([API Docs](https://michael-f-bryan.github.io/libsignal-service-rs))
