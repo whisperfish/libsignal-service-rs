@@ -1,5 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
+use actix_multipart_rfc7578::client::multipart;
 use awc::{
     error::PayloadError, http::StatusCode, Client, ClientResponse, Connector,
 };
@@ -178,6 +179,70 @@ impl PushService for AwcPushService {
                 })
                 .into_async_read(),
         ))
+    }
+
+    async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<(), ServiceError> {
+        let url = Url::parse(&self.cfg.cdn_urls[&0])
+            .expect("valid cdn base url")
+            .join(path)
+            .expect("valid CDN path");
+
+        log::debug!("AwcPushService::post_to_cdn({:?})", url);
+        let mut client = self.client.post(url.as_str());
+
+        let mut form = multipart::Form::default();
+
+        for (k, v) in value {
+            form.add_text(*k, *v);
+        }
+
+        if let Some((filename, file)) = file {
+            // XXX Actix doesn't cope with none-'static lifetimes
+            // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf)
+                .expect("infallible Read instance");
+            form.add_reader(filename, std::io::Cursor::new(buf));
+            client = client.header("Content-Type", "application/octet-stream");
+        }
+
+        let content_type = form.content_type();
+
+        // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
+        // stream.  Sadly, Content-Length != contents.len(), but should include the whole form.
+        let mut body = multipart::Body::from(form);
+        let mut body_contents = vec![];
+        use actix_http::body::MessageBody;
+        use futures::stream::StreamExt;
+        let mut stream = futures::stream::poll_fn(move |ctx| {
+            let body = std::pin::Pin::new(&mut body);
+            MessageBody::poll_next(body, ctx)
+        });
+        while let Some(b) = stream.next().await {
+            body_contents.extend(b.map_err(|e| ServiceError::SendError {
+                reason: e.to_string(),
+            })?);
+        }
+
+        let mut response = client
+            .content_type(content_type)
+            .content_length(body_contents.len() as u64)
+            .send_body(body_contents)
+            .await
+            .map_err(|e| ServiceError::SendError {
+                reason: e.to_string(),
+            })?;
+
+        log::debug!("AwcPushService::put response: {:?}", response);
+
+        Self::from_response(&mut response).await?;
+
+        Ok(())
     }
 
     async fn ws(
