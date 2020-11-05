@@ -2,6 +2,9 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
 
 name: Update GitHub Pages
 
@@ -23,5 +26,5 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: gh-pages
-          FOLDER: target/doc/libsignal_service
+          FOLDER: target/doc
           CLEAN: true # Automatically remove deleted files from the deploy branch
