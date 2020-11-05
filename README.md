@@ -11,7 +11,7 @@ with Signal servers.
 
 We're actively trying to make `libsignal-service-rs` fully functional.
 
-If you're looking to contribute, you're more than welcome to join our development channel on Matrix (#whisperfish:rubdos.be) or Freenode (#whisperfish) to get in touch with us!
+If you're looking to contribute or want to ask a question, you're more than welcome to join our development channel on Matrix (#whisperfish:rubdos.be) or Freenode (#whisperfish) to get in touch with us!
 
 ## License
 
