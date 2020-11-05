@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::proto::{
     attachment_pointer::AttachmentIdentifier,
     attachment_pointer::Flags as AttachmentPointerFlags, AttachmentPointer,
@@ -157,7 +159,12 @@ where
             height: Some(spec.height),
             caption: spec.caption,
             blur_hash: spec.blur_hash,
-            upload_timestamp: Some(chrono::Utc::now().timestamp_millis() as u64),
+            upload_timestamp: Some(
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("unix epoch in the past")
+                    .as_millis() as u64,
+            ),
             cdn_number: Some(0),
             attachment_identifier: Some(AttachmentIdentifier::CdnId(id)),
             ..Default::default()
