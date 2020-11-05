@@ -8,7 +8,13 @@
 A Rust version of the [libsignal-service-java][lsj] library for communicating
 with Signal servers.
 
-### License
+## Contributing
+
+We're actively trying to make `libsignal-service-rs` fully functional.
+
+If you're looking to contribute or want to ask a question, you're more than welcome to join our development channel on Matrix (#whisperfish:rubdos.be) or Freenode (#whisperfish) to get in touch with us!
+
+## License
 
 Copyright 2015-2019 Open Whisper Systems
 
