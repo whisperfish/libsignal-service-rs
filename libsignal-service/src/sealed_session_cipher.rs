@@ -233,7 +233,7 @@ impl SealedSessionCipher {
 
         let ephemeral = libsignal_protocol::generate_key_pair(&self.context)?;
         let ephemeral_salt = [
-            "UnidentifiedDelivery".as_bytes(),
+            b"UnidentifiedDelivery",
             their_identity.to_bytes()?.as_slice(),
             ephemeral.public().to_bytes()?.as_slice(),
         ]
@@ -293,7 +293,7 @@ impl SealedSessionCipher {
             UnidentifiedSenderMessage::from_bytes(&self.context, ciphertext)?;
 
         let ephemeral_salt = [
-            "UnidentifiedDelivery".as_bytes(),
+            b"UnidentifiedDelivery",
             our_identity.public().to_bytes()?.as_slice(),
             wrapper.ephemeral.to_bytes()?.as_slice(),
         ]
@@ -655,7 +655,7 @@ impl ServerCertificate {
 // }
 
 impl CertificateValidator {
-    pub(crate) fn new(trust_root: PublicKey) -> Self {
+    pub fn new(trust_root: PublicKey) -> Self {
         Self { trust_root }
     }
 
