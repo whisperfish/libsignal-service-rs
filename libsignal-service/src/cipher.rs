@@ -19,7 +19,7 @@ use prost::Message;
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ServiceCipher {
     pub(crate) store_context: StoreContext,
     pub(crate) local_address: ServiceAddress,
@@ -212,10 +212,11 @@ impl ServiceCipher {
                 session_cipher.get_remote_registration_id()?;
             let body = base64::encode(message.serialize()?);
             use crate::proto::envelope::Type;
-            let message_type = match message
-                .get_type()
-                .map_err(libsignal_protocol::Error::InternalError)?
-            {
+            let message_type = match message.get_type().map_err(|_| {
+                ServiceError::InvalidFrameError {
+                    reason: "unknown message type".into(),
+                }
+            })? {
                 CiphertextType::PreKey => Type::PrekeyBundle,
                 CiphertextType::Signal => Type::Ciphertext,
                 t => panic!("Bad type: {:?}", t),

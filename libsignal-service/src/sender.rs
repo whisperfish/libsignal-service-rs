@@ -1,5 +1,7 @@
+use bytes::Bytes;
 use libsignal_protocol::{Address, SessionBuilder};
 use log::{info, trace};
+use rand::RngCore;
 
 use crate::{cipher::ServiceCipher, push_service::*, ServiceAddress};
 
@@ -70,28 +72,54 @@ where
         }
     }
 
-    /// Send a message (`content`) to an address (`recipient`).
     pub async fn send_message(
         &mut self,
         recipient: impl std::borrow::Borrow<ServiceAddress>,
         content: impl Into<crate::content::ContentBody>,
         timestamp: u64,
         online: bool,
+    ) -> Result<(), MessageSenderError> {
+        let content = content.into().into_proto();
+        let response = self
+            .try_send_message(recipient.borrow(), &content, timestamp, online)
+            .await?;
+
+        if response.needs_sync {
+            let content = self.create_multi_device_sent_transcript_content(
+                Some(recipient.borrow()),
+                &content,
+                timestamp,
+                vec![response],
+                false,
+            )?;
+            self.try_send_message(
+                &self.cipher.local_address.clone(),
+                &content,
+                timestamp,
+                false,
+            )
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Send a message (`content`) to an address (`recipient`).
+    async fn try_send_message(
+        &mut self,
+        recipient: &ServiceAddress,
+        content: &crate::proto::Content,
+        timestamp: u64,
+        online: bool,
     ) -> Result<SendMessageResponse, MessageSenderError> {
-        let recipient = recipient.borrow();
-        let content = {
-            use prost::Message;
-            let content_proto = content.into().into_proto();
-            let mut content = Vec::with_capacity(content_proto.encoded_len());
-            content_proto
-                .encode(&mut content)
-                .expect("infallible message encoding");
-            content
-        };
+        use prost::Message;
+        let mut content_bytes = Vec::with_capacity(content.encoded_len());
+        content
+            .encode(&mut content_bytes)
+            .expect("infallible message encoding");
 
         for _ in 0..4 {
             match self
-                .send_messages(recipient, &content, timestamp, online)
+                .send_messages(recipient, &content_bytes, timestamp, online)
                 .await
             {
                 Err(MessageSenderError::TryAgain) => continue,
@@ -101,6 +129,10 @@ where
         Err(MessageSenderError::MaximumRetriesLimitExceeded)
     }
 
+    /// Send the same message to all established sessions (sub-devices) of a recipient
+    ///
+    /// If the server responds with either extra sessions or missing sessions, this function
+    /// will establish them and return `MessageSenderError::TryAgain`
     async fn send_messages(
         &mut self,
         recipient: &ServiceAddress,
@@ -217,6 +249,7 @@ where
 
         let myself = recipient.matches(&self.cipher.local_address);
         if !myself || unidentified_access.is_some() {
+            trace!("sending message to default device");
             messages.push(
                 self.create_encrypted_message(
                     recipient,
@@ -233,6 +266,7 @@ where
             .store_context
             .get_sub_device_sessions(recipient.identifier())?
         {
+            trace!("sending message to device {}", device_id);
             if self.cipher.store_context.contains_session(&Address::new(
                 recipient.identifier(),
                 device_id,
@@ -302,5 +336,90 @@ where
             content,
         )?;
         Ok(message)
+    }
+
+    /**
+
+    private byte[] createMultiDeviceSentTranscriptContent(byte[] content, Optional<SignalServiceAddress> recipient,
+                                                          long timestamp, List<SendMessageResult> sendMessageResults,
+                                                          boolean isRecipientUpdate)
+    {
+      try {
+        Content.Builder          container   = Content.newBuilder();
+        SyncMessage.Builder      syncMessage = createSyncMessageBuilder();
+        SyncMessage.Sent.Builder sentMessage = SyncMessage.Sent.newBuilder();
+        DataMessage              dataMessage = Content.parseFrom(content).getDataMessage();
+
+        sentMessage.setTimestamp(timestamp);
+        sentMessage.setMessage(dataMessage);
+
+        for (SendMessageResult result : sendMessageResults) {
+          if (result.getSuccess() != null) {
+            SyncMessage.Sent.UnidentifiedDeliveryStatus.Builder builder = SyncMessage.Sent.UnidentifiedDeliveryStatus.newBuilder();
+
+            if (result.getAddress().getUuid().isPresent()) {
+              builder = builder.setDestinationUuid(result.getAddress().getUuid().get().toString());
+            }
+
+            if (result.getAddress().getNumber().isPresent()) {
+              builder = builder.setDestinationE164(result.getAddress().getNumber().get());
+            }
+
+            builder.setUnidentified(result.getSuccess().isUnidentified());
+
+            sentMessage.addUnidentifiedStatus(builder.build());
+          }
+        }
+
+        if (recipient.isPresent()) {
+          if (recipient.get().getUuid().isPresent())   sentMessage.setDestinationUuid(recipient.get().getUuid().get().toString());
+          if (recipient.get().getNumber().isPresent()) sentMessage.setDestinationE164(recipient.get().getNumber().get());
+        }
+
+        if (dataMessage.getExpireTimer() > 0) {
+          sentMessage.setExpirationStartTimestamp(System.currentTimeMillis());
+        }
+
+        if (dataMessage.getIsViewOnce()) {
+          dataMessage = dataMessage.toBuilder().clearAttachments().build();
+          sentMessage.setMessage(dataMessage);
+        }
+
+        sentMessage.setIsRecipientUpdate(isRecipientUpdate);
+
+        return container.setSyncMessage(syncMessage.setSent(sentMessage)).build().toByteArray();
+      } catch (InvalidProtocolBufferException e) {
+        throw new AssertionError(e);
+      }
+    }
+
+
+    private byte[] createMultiDeviceSentTranscriptContent(byte[] content, Optional<SignalServiceAddress> recipient,
+                                                          long timestamp, List<SendMessageResult> sendMessageResults,
+                                                          boolean isRecipientUpdate)
+      **/
+
+    fn create_multi_device_sent_transcript_content(
+        &self,
+        recipient: Option<&ServiceAddress>,
+        content: &crate::proto::Content,
+        timestamp: u64,
+        send_message_results: Vec<SendMessageResponse>,
+        is_recipient_update: bool,
+    ) -> Result<crate::proto::Content, MessageSenderError> {
+        use crate::proto::{sync_message, Content, SyncMessage};
+        Ok(Content {
+            sync_message: Some(SyncMessage {
+                sent: Some(sync_message::Sent {
+                    destination_e164: recipient
+                        .and_then(|r| Some(r.e164.clone())),
+                    message: content.data_message.clone(),
+                    timestamp: Some(timestamp),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }),
+            ..Default::default()
+        })
     }
 }
