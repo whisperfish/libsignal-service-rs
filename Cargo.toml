@@ -2,4 +2,5 @@
 members = [
     "libsignal-service",
     "libsignal-service-actix",
+    "libsignal-service-hyper",
 ]
