@@ -204,10 +204,7 @@ impl ServiceCipher {
                 session_cipher.get_remote_registration_id()?;
             let body = base64::encode(message.serialize()?);
             use crate::proto::envelope::Type;
-            let message_type = match message
-                .get_type()
-                .map_err(libsignal_protocol::Error::InternalError)?
-            {
+            let message_type = match message.get_type()? {
                 CiphertextType::PreKey => Type::PrekeyBundle,
                 CiphertextType::Signal => Type::Ciphertext,
                 t => panic!("Bad type: {:?}", t),
