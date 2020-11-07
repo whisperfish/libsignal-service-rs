@@ -58,11 +58,13 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: i32 = 1;
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum SmsVerificationCodeResponse {
     CaptchaRequired,
     SmsSent,
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum VoiceVerificationCodeResponse {
     CaptchaRequired,
     CallIssued,
