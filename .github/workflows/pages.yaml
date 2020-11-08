@@ -19,9 +19,10 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: doc
+          args: --all-features --no-deps
       - uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: gh-pages
-          FOLDER: target/doc/libsignal_service
+          FOLDER: target/doc
           CLEAN: true # Automatically remove deleted files from the deploy branch
