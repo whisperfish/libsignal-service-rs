@@ -495,6 +495,18 @@
 <span id="494">494</span>
 <span id="495">495</span>
 <span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
 
@@ -612,6 +624,12 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 }
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ProfileKey</span>(<span class="kw">pub</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>);
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>)]</span>
+<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PreKeyStatus</span> {
+    <span class="kw">pub</span> <span class="ident">count</span>: <span class="ident">u32</span>,
+}
 
 <span class="kw">impl</span> <span class="ident">ProfileKey</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">derive_access_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">aes_gcm</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
@@ -823,6 +841,12 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             <span class="ident">confirm_code_message</span>,
         )
         .<span class="kw">await</span>
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_pre_key_status</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PreKeyStatus</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v2/keys/&quot;</span>).<span class="kw">await</span>
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">register_pre_keys</span>(
