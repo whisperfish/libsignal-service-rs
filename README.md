@@ -3,7 +3,7 @@
 ![Build Status](https://github.com/Michael-F-Bryan/libsignal-service-rs/workflows/CI/badge.svg)
 [![Build Status](https://travis-ci.com/Michael-F-Bryan/libsignal-service-rs.svg?branch=master)](https://travis-ci.com/Michael-F-Bryan/libsignal-service-rs)
 
-([API Docs](https://michael-f-bryan.github.io/libsignal-service-rs/libsignal_service))
+([API Docs](https://michael-f-bryan.github.io/libsignal-service-rs/libsignal_service/index.html))
 
 A Rust version of the [libsignal-service-java][lsj] library for communicating
 with Signal servers.
