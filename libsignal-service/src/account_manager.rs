@@ -59,18 +59,20 @@ impl<Service: PushService> AccountManager<Service> {
     /// signed pre-keys.
     ///
     /// Equivalent to Java's RefreshPreKeysJob
+    ///
+    /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
     pub async fn update_pre_key_bundle(
         &mut self,
         store_context: StoreContext,
         pre_keys_offset_id: u32,
         next_signed_pre_key_id: u32,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<(u32, u32), ServiceError> {
         let prekey_count = self.service.get_pre_key_status().await?.count;
         log::trace!("Remaining pre-keys on server: {}", prekey_count);
 
         if prekey_count >= PRE_KEY_MINIMUM {
             log::info!("Available keys sufficient");
-            return Ok(());
+            return Ok((pre_keys_offset_id, next_signed_pre_key_id));
         }
 
         let pre_keys = libsignal_protocol::generate_pre_keys(
@@ -103,6 +105,9 @@ impl<Service: PushService> AccountManager<Service> {
         self.service.register_pre_keys(pre_key_state).await?;
 
         log::trace!("Successfully refreshed prekeys");
-        Ok(())
+        Ok((
+            pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
+            next_signed_pre_key_id + 1,
+        ))
     }
 }
