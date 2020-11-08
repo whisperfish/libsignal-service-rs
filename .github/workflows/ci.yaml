@@ -31,9 +31,9 @@ jobs:
           profile: minimal
           toolchain: stable
           components: rustfmt
-      - uses: actions-rs/cargo@v1
+      - uses: actions-rs/clippy-check@v1
         with:
-          command: clippy -- -D warnings
+          args: -D warnings
 
   build:
     name: Build and test
