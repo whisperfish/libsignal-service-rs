@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["get_client","Creates a `awc::Client` with usable default settings: Creates a default `awc::Client`."]],"struct":[["AwcPushService",""]]});
