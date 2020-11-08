@@ -7,7 +7,7 @@ use crate::{
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
-    utils::serde_base64,
+    utils::{serde_base64, serde_optional_base64},
     ServiceAddress,
 };
 
@@ -58,11 +58,13 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: i32 = 1;
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum SmsVerificationCodeResponse {
     CaptchaRequired,
     SmsSent,
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum VoiceVerificationCodeResponse {
     CaptchaRequired,
     CallIssued,
@@ -89,26 +91,26 @@ pub struct ConfirmDeviceMessage {
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmCodeMessage {
     #[serde(with = "serde_base64")]
-    signaling_key: Vec<u8>,
-    supports_sms: bool,
-    registration_id: u32,
-    voice: bool,
-    video: bool,
-    fetches_messages: bool,
-    pin: Option<String>,
-    #[serde(with = "serde_base64")]
-    unidentified_access_key: Vec<u8>,
-    unrestricted_unidentified_access: bool,
-    discoverable_by_phone_number: bool,
-    capabilities: DeviceCapabilities,
+    pub signaling_key: Vec<u8>,
+    pub supports_sms: bool,
+    pub registration_id: u32,
+    pub voice: bool,
+    pub video: bool,
+    pub fetches_messages: bool,
+    pub pin: Option<String>,
+    #[serde(with = "serde_optional_base64")]
+    pub unidentified_access_key: Option<Vec<u8>>,
+    pub unrestricted_unidentified_access: bool,
+    pub discoverable_by_phone_number: bool,
+    pub capabilities: DeviceCapabilities,
 }
 
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct DeviceCapabilities {
-    uuid: bool,
-    gv2: bool,
-    storage: bool,
+pub struct DeviceCapabilities {
+    pub uuid: bool,
+    pub gv2: bool,
+    pub storage: bool,
 }
 
 pub struct ProfileKey(pub Vec<u8>);
@@ -137,7 +139,26 @@ impl ConfirmCodeMessage {
             video: false,
             fetches_messages: true,
             pin: None,
-            unidentified_access_key,
+            unidentified_access_key: Some(unidentified_access_key),
+            unrestricted_unidentified_access: false,
+            discoverable_by_phone_number: true,
+            capabilities: DeviceCapabilities::default(),
+        }
+    }
+
+    pub fn new_without_unidentified_access(
+        signaling_key: Vec<u8>,
+        registration_id: u32,
+    ) -> Self {
+        Self {
+            signaling_key,
+            supports_sms: false,
+            registration_id,
+            voice: false,
+            video: false,
+            fetches_messages: true,
+            pin: None,
+            unidentified_access_key: None,
             unrestricted_unidentified_access: false,
             discoverable_by_phone_number: true,
             capabilities: DeviceCapabilities::default(),
@@ -158,6 +179,12 @@ pub struct PreKeyResponse {
     #[serde(with = "serde_base64")]
     pub identity_key: Vec<u8>,
     pub devices: Vec<PreKeyResponseItem>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WhoAmIResponse {
+    uuid: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -357,6 +384,11 @@ pub trait PushService {
         Ok(entity_list.messages)
     }
 
+    /// Method used to check our own UUID
+    async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
+        self.get("/v1/accounts/whoami").await
+    }
+
     async fn get_pre_key(
         &mut self,
         context: &Context,
@@ -375,7 +407,7 @@ pub trait PushService {
         };
 
         let mut pre_key_response: PreKeyResponse = self.get(&path).await?;
-        assert!(pre_key_response.devices.len() >= 1);
+        assert!(!pre_key_response.devices.is_empty());
 
         let device = pre_key_response.devices.remove(0);
         let mut bundle = PreKeyBundle::builder()

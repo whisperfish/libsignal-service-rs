@@ -1,5 +1,4 @@
 use bytes::{Bytes, BytesMut};
-use failure::Error;
 use futures::{
     channel::mpsc::{self, Sender},
     prelude::*,
@@ -33,8 +32,24 @@ pub struct ProvisioningCipher {
     pub key_pair: KeyPair,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum ProvisioningError {
+    #[error("Invalid provisioning data: {reason}")]
+    InvalidData { reason: String },
+    #[error("Protobuf decoding error: {0}")]
+    DecodeError(#[from] prost::DecodeError),
+    #[error("Websocket error: {reason}")]
+    WsError { reason: String },
+    #[error("Websocket closing: {reason}")]
+    WsClosing { reason: String },
+    #[error("Service error: {0}")]
+    ServiceError(#[from] ServiceError),
+    #[error("libsignal-protocol error: {0}")]
+    ProtocolError(#[from] libsignal_protocol::Error),
+}
+
 impl ProvisioningCipher {
-    pub fn new(ctx: Context) -> Result<Self, Error> {
+    pub fn new(ctx: Context) -> Result<Self, ProvisioningError> {
         let key_pair = libsignal_protocol::generate_key_pair(&ctx)?;
         Ok(Self { ctx, key_pair })
     }
@@ -128,7 +143,7 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
         ws: WS,
         stream: WS::Stream,
         ctx: &Context,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, ProvisioningError> {
         Ok(ProvisioningPipe {
             ws,
             stream,
@@ -293,41 +308,5 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
 
         let combined = futures::stream::select(stream, runner.into_stream());
         combined.filter_map(|x| async { x })
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum ProvisioningError {
-    #[error("Invalid provisioning data: {reason}")]
-    InvalidData { reason: String },
-    #[error("Protobuf decoding error: {0}")]
-    DecodeError(prost::DecodeError),
-    #[error("Websocket error: {reason}")]
-    WsError { reason: String },
-    #[error("Websocket closing: {reason}")]
-    WsClosing { reason: String },
-    #[error("Service error: {0}")]
-    ServiceError(ServiceError),
-    #[error("libsignal-protocol error: {0}")]
-    ProtocolError(#[from] libsignal_protocol::Error),
-}
-
-impl From<failure::Error> for ProvisioningError {
-    fn from(err: failure::Error) -> ProvisioningError {
-        ProvisioningError::InvalidData {
-            reason: err.to_string(),
-        }
-    }
-}
-
-impl From<prost::DecodeError> for ProvisioningError {
-    fn from(err: prost::DecodeError) -> ProvisioningError {
-        ProvisioningError::DecodeError(err)
-    }
-}
-
-impl From<ServiceError> for ProvisioningError {
-    fn from(err: ServiceError) -> ProvisioningError {
-        ProvisioningError::ServiceError(err)
     }
 }

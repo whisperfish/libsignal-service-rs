@@ -38,6 +38,19 @@ pub struct ServiceAddress {
     pub relay: Option<String>,
 }
 
+impl std::fmt::Display for ServiceAddress {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+    ) -> Result<(), std::fmt::Error> {
+        match (&self.uuid, &self.e164, &self.relay) {
+            (_, Some(e164), _) => write!(f, "ServiceAddress({})", e164),
+            (Some(uuid), _, _) => write!(f, "ServiceAddress({})", uuid),
+            _ => write!(f, "ServiceAddress(INVALID)"),
+        }
+    }
+}
+
 impl ServiceAddress {
     /// Returns uuid if present, e164 otherwise.
     pub fn identifier(&self) -> &str {

@@ -4,7 +4,7 @@ use libsignal_protocol::{keys::PublicKey, Context};
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    messagepipe::ServiceError,
+    push_service::ServiceError,
     sealed_session_cipher::{CertificateValidator, SealedSessionError},
 };
 
@@ -56,15 +56,17 @@ pub enum SignalServers {
 }
 
 impl FromStr for SignalServers {
-    type Err = failure::Error;
+    type Err = std::io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use std::io::ErrorKind;
         match s {
             "staging" => Ok(Self::Staging),
             "production" => Ok(Self::Production),
-            _ => {
-                panic!("invalid signal servers, must be: staging or production")
-            }
+            _ => Err(Self::Err::new(
+                ErrorKind::InvalidInput,
+                "invalid signal servers, can be either: staging or production",
+            )),
         }
     }
 }

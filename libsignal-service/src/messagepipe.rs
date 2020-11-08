@@ -14,12 +14,13 @@ use prost::Message;
 
 pub use crate::{
     configuration::Credentials,
-    prelude::ServiceError,
     proto::{
         web_socket_message, Envelope, WebSocketMessage,
         WebSocketRequestMessage, WebSocketResponseMessage,
     },
 };
+
+use crate::push_service::ServiceError;
 
 pub enum WebSocketStreamItem {
     Message(Bytes),
@@ -99,7 +100,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
         impl Future<Output = Result<WebSocketResponseMessage, ServiceError>>,
         ServiceError,
     > {
-        let id = r.id.clone();
+        let id = r.id;
 
         self.transmit_request(r).await?;
 

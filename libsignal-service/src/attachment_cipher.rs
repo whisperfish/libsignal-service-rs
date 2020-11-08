@@ -91,11 +91,10 @@ pub fn decrypt_in_place(
 mod tests {
     use super::*;
 
-    use failure::Error;
     use rand::prelude::*;
 
     #[test]
-    fn attachment_encrypt_decrypt() -> Result<(), Error> {
+    fn attachment_encrypt_decrypt() -> Result<(), AttachmentCipherError> {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
         rand::thread_rng().fill_bytes(&mut key);
@@ -111,7 +110,7 @@ mod tests {
     }
 
     #[test]
-    fn attachment_encrypt_decrypt_empty() -> Result<(), Error> {
+    fn attachment_encrypt_decrypt_empty() -> Result<(), AttachmentCipherError> {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
         rand::thread_rng().fill_bytes(&mut key);
@@ -126,7 +125,8 @@ mod tests {
     }
 
     #[test]
-    fn attachment_encrypt_decrypt_bad_key() -> Result<(), Error> {
+    fn attachment_encrypt_decrypt_bad_key() -> Result<(), AttachmentCipherError>
+    {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
         rand::thread_rng().fill_bytes(&mut key);
@@ -146,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn know_answer_test_attachment() -> Result<(), Error> {
+    fn know_answer_test_attachment() -> Result<(), AttachmentCipherError> {
         let mut ciphertext = include!("kat.bin.rs");
         let key_material = [
             52, 102, 97, 87, 153, 192, 64, 116, 93, 96, 57, 110, 6, 197, 208,
