@@ -181,6 +181,12 @@ pub struct PreKeyResponse {
     pub devices: Vec<PreKeyResponseItem>,
 }
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct WhoAmIResponse {
+    uuid: String,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyResponseItem {
@@ -371,6 +377,11 @@ pub trait PushService {
     ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
         let entity_list: EnvelopeEntityList = self.get("/v1/messages/").await?;
         Ok(entity_list.messages)
+    }
+
+    /// Method used to check our own UUID
+    async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
+        self.get("/v1/accounts/whoami").await
     }
 
     async fn get_pre_key(
