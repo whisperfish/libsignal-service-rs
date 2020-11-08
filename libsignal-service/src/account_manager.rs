@@ -19,7 +19,7 @@ const PRE_KEY_BATCH_SIZE: u32 = 100;
 
 impl<Service: PushService> AccountManager<Service> {
     pub fn new(context: Context, service: Service) -> Self {
-        Self { service, context }
+        Self { context, service }
     }
 
     pub async fn request_sms_verification_code(
