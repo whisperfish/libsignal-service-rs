@@ -67,7 +67,16 @@ impl<Service: PushService> AccountManager<Service> {
         pre_keys_offset_id: u32,
         next_signed_pre_key_id: u32,
     ) -> Result<(u32, u32), ServiceError> {
-        let prekey_count = self.service.get_pre_key_status().await?.count;
+        let prekey_count = match self.service.get_pre_key_status().await {
+            Ok(status) => status.count,
+            Err(ServiceError::Unauthorized) => {
+                log::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
+                // Additionally, the second PUT request will fail if this really comes down to an
+                // authorization failure.
+                0
+            }
+            Err(e) => return Err(e),
+        };
         log::trace!("Remaining pre-keys on server: {}", prekey_count);
 
         if prekey_count >= PRE_KEY_MINIMUM {
