@@ -18,6 +18,7 @@
 //! ```
 
 use failure::Error;
+use libsignal_protocol::Context;
 use libsignal_service::{configuration::*, AccountManager, TrustStore};
 use libsignal_service_actix::push_service::AwcPushService;
 use std::io;
@@ -47,10 +48,12 @@ async fn main() -> Result<(), Error> {
         signaling_key: Some(signaling_key),
     };
 
+    let signal_context = Context::default();
+
     let push_service =
         AwcPushService::new(config, Some(credentials), &args.user_agent);
 
-    let mut account_manager = AccountManager::new(push_service);
+    let mut account_manager = AccountManager::new(signal_context, push_service);
     account_manager
         .request_sms_verification_code(&args.username)
         .await?;

@@ -115,6 +115,12 @@ pub struct DeviceCapabilities {
 
 pub struct ProfileKey(pub Vec<u8>);
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct PreKeyStatus {
+    pub count: u32,
+}
+
 impl ProfileKey {
     pub fn derive_access_key(&self) -> Result<Vec<u8>, aes_gcm::Error> {
         let key = GenericArray::from_slice(&self.0);
@@ -330,6 +336,12 @@ pub trait PushService {
             confirm_code_message,
         )
         .await
+    }
+
+    async fn get_pre_key_status(
+        &mut self,
+    ) -> Result<PreKeyStatus, ServiceError> {
+        self.get("/v2/keys/").await
     }
 
     async fn register_pre_keys(
