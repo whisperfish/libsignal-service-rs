@@ -100,7 +100,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
         impl Future<Output = Result<WebSocketResponseMessage, ServiceError>>,
         ServiceError,
     > {
-        let id = r.id.clone();
+        let id = r.id;
 
         self.transmit_request(r).await?;
 
