@@ -402,7 +402,7 @@ pub trait PushService {
         };
 
         let mut pre_key_response: PreKeyResponse = self.get(&path).await?;
-        assert!(pre_key_response.devices.len() >= 1);
+        assert!(!pre_key_response.devices.is_empty());
 
         let device = pre_key_response.devices.remove(0);
         let mut bundle = PreKeyBundle::builder()

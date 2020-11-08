@@ -66,8 +66,7 @@ where
 
     let mut ka_interval = actix::clock::interval_at(
         actix::clock::Instant::now(),
-        // + push_service::KEEPALIVE_TIMEOUT_SECONDS.into(),
-        push_service::KEEPALIVE_TIMEOUT_SECONDS.into(),
+        push_service::KEEPALIVE_TIMEOUT_SECONDS,
     )
     .fuse();
 

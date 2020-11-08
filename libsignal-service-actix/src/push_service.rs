@@ -118,7 +118,7 @@ impl PushService for AwcPushService {
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        let json = if log::log_enabled!(log::Level::Debug) {
+        if log::log_enabled!(log::Level::Debug) {
             let text = response.body().await.map_err(|e| {
                 ServiceError::JsonDecodeError {
                     reason: e.to_string(),
@@ -137,9 +137,7 @@ impl PushService for AwcPushService {
                 .map_err(|e| ServiceError::JsonDecodeError {
                     reason: e.to_string(),
                 })
-        };
-
-        json
+        }
     }
 
     async fn get_from_cdn(

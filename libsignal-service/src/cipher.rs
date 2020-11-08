@@ -224,6 +224,7 @@ struct Plaintext {
     data: Vec<u8>,
 }
 
+#[allow(clippy::clippy::comparison_chain)]
 fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     if version < 2 {
         Err(ServiceError::InvalidFrameError {
@@ -252,6 +253,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     }
 }
 
+#[allow(clippy::clippy::comparison_chain)]
 fn strip_padding(
     version: u32,
     contents: &mut Vec<u8>,
