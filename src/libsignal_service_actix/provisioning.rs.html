@@ -294,7 +294,7 @@
                 .<span class="kw">await</span>
                 .<span class="ident">expect</span>(<span class="string">&quot;failed to send provisioning message in rx channel&quot;</span>);
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>.<span class="ident">into</span>()),
+            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
         }
     }
 

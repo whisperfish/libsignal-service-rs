@@ -408,7 +408,7 @@
         <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">WebSocketResponseMessage</span>, <span class="ident">ServiceError</span><span class="op">&gt;&gt;</span>,
         <span class="ident">ServiceError</span>,
     <span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">r</span>.<span class="ident">id</span>.<span class="ident">clone</span>();
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">r</span>.<span class="ident">id</span>;
 
         <span class="self">self</span>.<span class="ident">transmit_request</span>(<span class="ident">r</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 

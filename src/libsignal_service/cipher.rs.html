@@ -273,6 +273,8 @@
 <span id="272">272</span>
 <span id="273">273</span>
 <span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">content</span>::{<span class="ident">Content</span>, <span class="ident">Metadata</span>},
@@ -500,6 +502,7 @@
     <span class="ident">data</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 }
 
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">clippy</span>::<span class="ident">comparison_chain</span>)]</span>
 <span class="kw">fn</span> <span class="ident">add_padding</span>(<span class="ident">version</span>: <span class="ident">u32</span>, <span class="ident">contents</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">version</span> <span class="op">&lt;</span> <span class="number">2</span> {
         <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">InvalidFrameError</span> {
@@ -528,6 +531,7 @@
     }
 }
 
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">clippy</span>::<span class="ident">comparison_chain</span>)]</span>
 <span class="kw">fn</span> <span class="ident">strip_padding</span>(
     <span class="ident">version</span>: <span class="ident">u32</span>,
     <span class="ident">contents</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,

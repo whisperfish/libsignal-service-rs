@@ -900,7 +900,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         };
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pre_key_response</span>: <span class="ident">PreKeyResponse</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">pre_key_response</span>.<span class="ident">devices</span>.<span class="ident">len</span>() <span class="op">&gt;=</span> <span class="number">1</span>);
+        <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">pre_key_response</span>.<span class="ident">devices</span>.<span class="ident">is_empty</span>());
 
         <span class="kw">let</span> <span class="ident">device</span> <span class="op">=</span> <span class="ident">pre_key_response</span>.<span class="ident">devices</span>.<span class="ident">remove</span>(<span class="number">0</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bundle</span> <span class="op">=</span> <span class="ident">PreKeyBundle</span>::<span class="ident">builder</span>()

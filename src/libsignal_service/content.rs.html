@@ -107,6 +107,7 @@
 <span id="106">106</span>
 <span id="107">107</span>
 <span id="108">108</span>
+<span id="109">109</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">proto</span>::{
@@ -166,6 +167,7 @@
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy</span>::<span class="ident">clippy</span>::<span class="ident">large_enum_variant</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">ContentBody</span> {
     <span class="ident">DataMessage</span>(<span class="ident">DataMessage</span>),
     <span class="ident">SynchronizeMessage</span>(<span class="ident">SyncMessage</span>),
