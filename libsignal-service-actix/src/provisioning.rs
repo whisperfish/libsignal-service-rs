@@ -142,7 +142,7 @@ pub async fn provision_secondary_device(
                 .await
                 .expect("failed to send provisioning message in rx channel");
             }
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         }
     }
 

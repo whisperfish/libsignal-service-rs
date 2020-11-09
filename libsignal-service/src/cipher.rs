@@ -88,15 +88,11 @@ impl ServiceCipher {
                 // is prekey signal message || is signal message
                 (
                     self.get_preferred_protocol_address(
-                        envelope
-                            .source_address()
-                            .expect("Envelope with source"),
+                        envelope.source_address(),
                         envelope.source_device(),
                     )?,
                     Metadata {
-                        sender: envelope
-                            .source_address()
-                            .expect("envelope with source"),
+                        sender: envelope.source_address(),
                         sender_device: envelope.source_device(),
                         timestamp: envelope.timestamp(),
                         needs_receipt: false,
@@ -170,20 +166,16 @@ impl ServiceCipher {
         address: ServiceAddress,
         device: u32,
     ) -> Result<ProtocolAddress, ServiceError> {
-        let uuid = address
-            .uuid
-            .as_deref()
-            .map(|uuid| ProtocolAddress::new(uuid, device as i32));
-        let e164 = ProtocolAddress::new(&address.e164, device as i32);
-
-        if let Some(uuid) = uuid {
-            if self.store_context.contains_session(&uuid)? {
-                return Ok(uuid);
+        if let Some(ref uuid) = address.uuid {
+            let address = ProtocolAddress::new(uuid, device as i32);
+            if self.store_context.contains_session(&address)? {
+                return Ok(address);
             }
-        }
-
-        if self.store_context.contains_session(&e164)? {
-            return Ok(e164);
+        } else if let Some(ref e164) = address.e164 {
+            let address = ProtocolAddress::new(e164, device as i32);
+            if self.store_context.contains_session(&address)? {
+                return Ok(address);
+            }
         }
 
         Ok(ProtocolAddress::new(address.identifier(), device as i32))
@@ -236,6 +228,7 @@ struct Plaintext {
     data: Vec<u8>,
 }
 
+#[allow(clippy::clippy::comparison_chain)]
 fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     if version < 2 {
         Err(ServiceError::InvalidFrameError {
@@ -264,6 +257,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     }
 }
 
+#[allow(clippy::clippy::comparison_chain)]
 fn strip_padding(
     version: u32,
     contents: &mut Vec<u8>,

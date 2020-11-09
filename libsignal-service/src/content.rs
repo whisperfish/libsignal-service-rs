@@ -56,6 +56,7 @@ impl Content {
 }
 
 #[derive(Clone, Debug)]
+#[allow(clippy::clippy::large_enum_variant)]
 pub enum ContentBody {
     DataMessage(DataMessage),
     SynchronizeMessage(SyncMessage),

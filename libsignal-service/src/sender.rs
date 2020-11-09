@@ -1,7 +1,5 @@
-use bytes::Bytes;
 use libsignal_protocol::{Address, SessionBuilder};
 use log::{info, trace};
-use rand::RngCore;
 
 use crate::{cipher::ServiceCipher, push_service::*, ServiceAddress};
 
@@ -171,12 +169,14 @@ where
                             ),
                         )?;
                     }
-                    self.cipher.store_context.delete_session(
-                        &libsignal_protocol::Address::new(
-                            &recipient.e164,
-                            *extra_device_id,
-                        ),
-                    )?;
+                    if let Some(ref e164) = recipient.e164 {
+                        self.cipher.store_context.delete_session(
+                            &libsignal_protocol::Address::new(
+                                &e164,
+                                *extra_device_id,
+                            ),
+                        )?;
+                    }
                 }
 
                 for missing_device_id in &m.missing_devices {
@@ -224,12 +224,14 @@ where
                             ),
                         )?;
                     }
-                    self.cipher.store_context.delete_session(
-                        &libsignal_protocol::Address::new(
-                            &recipient.e164,
-                            *extra_device_id,
-                        ),
-                    )?;
+                    if let Some(ref e164) = recipient.e164 {
+                        self.cipher.store_context.delete_session(
+                            &libsignal_protocol::Address::new(
+                                &e164,
+                                *extra_device_id,
+                            ),
+                        )?;
+                    }
                 }
 
                 Err(MessageSenderError::TryAgain)
@@ -404,15 +406,15 @@ where
         recipient: Option<&ServiceAddress>,
         content: &crate::proto::Content,
         timestamp: u64,
-        send_message_results: Vec<SendMessageResponse>,
-        is_recipient_update: bool,
+        _send_message_results: Vec<SendMessageResponse>,
+        _is_recipient_update: bool,
     ) -> Result<crate::proto::Content, MessageSenderError> {
         use crate::proto::{sync_message, Content, SyncMessage};
         Ok(Content {
             sync_message: Some(SyncMessage {
                 sent: Some(sync_message::Sent {
                     destination_e164: recipient
-                        .and_then(|r| Some(r.e164.clone())),
+                        .and_then(|r| r.e164.clone()),
                     message: content.data_message.clone(),
                     timestamp: Some(timestamp),
                     ..Default::default()
