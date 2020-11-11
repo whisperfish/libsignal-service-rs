@@ -1,7 +1,10 @@
 use libsignal_protocol::{Address, SessionBuilder};
 use log::{info, trace};
 
-use crate::{cipher::ServiceCipher, push_service::*, ServiceAddress};
+use crate::{
+    cipher::ServiceCipher, content::ContentBody, push_service::*,
+    ServiceAddress,
+};
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -70,25 +73,35 @@ where
         }
     }
 
+    /// Send a message `content` to a single `recipient`.
     pub async fn send_message(
         &mut self,
         recipient: impl std::borrow::Borrow<ServiceAddress>,
         content: impl Into<crate::content::ContentBody>,
         timestamp: u64,
         online: bool,
-    ) -> Result<(), MessageSenderError> {
-        let content = content.into().into_proto();
+    ) -> Result<SendMessageResponse, MessageSenderError> {
+        let content_body = content.into();
+        let recipient = recipient.borrow();
+
+        use crate::proto::data_message::Flags;
+        let end_session = match &content_body {
+            ContentBody::DataMessage(message) => {
+                message.flags == Some(Flags::EndSession as u32)
+            }
+            _ => false,
+        };
+
+        let content = content_body.clone().into_proto();
         let response = self
-            .try_send_message(recipient.borrow(), &content, timestamp, online)
+            .try_send_message(recipient, &content, timestamp, online)
             .await?;
 
         if response.needs_sync {
             let content = self.create_multi_device_sent_transcript_content(
-                Some(recipient.borrow()),
+                Some(recipient),
                 &content,
                 timestamp,
-                vec![response],
-                false,
             )?;
             self.try_send_message(
                 &self.cipher.local_address.clone(),
@@ -98,7 +111,17 @@ where
             )
             .await?;
         }
-        Ok(())
+
+        if end_session {
+            if let Some(ref uuid) = recipient.uuid {
+                self.cipher.store_context.delete_all_sessions(&uuid)?;
+            }
+            if let Some(ref e164) = recipient.e164 {
+                self.cipher.store_context.delete_all_sessions(&e164)?;
+            }
+        }
+
+        Ok(response)
     }
 
     /// Send a message (`content`) to an address (`recipient`).
@@ -406,15 +429,12 @@ where
         recipient: Option<&ServiceAddress>,
         content: &crate::proto::Content,
         timestamp: u64,
-        _send_message_results: Vec<SendMessageResponse>,
-        _is_recipient_update: bool,
     ) -> Result<crate::proto::Content, MessageSenderError> {
         use crate::proto::{sync_message, Content, SyncMessage};
         Ok(Content {
             sync_message: Some(SyncMessage {
                 sent: Some(sync_message::Sent {
-                    destination_e164: recipient
-                        .and_then(|r| r.e164.clone()),
+                    destination_e164: recipient.and_then(|r| r.e164.clone()),
                     message: content.data_message.clone(),
                     timestamp: Some(timestamp),
                     ..Default::default()
