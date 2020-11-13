@@ -1,11 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use actix_multipart_rfc7578::client::multipart;
 use awc::{
     error::PayloadError, http::StatusCode, Client, ClientResponse, Connector,
 };
 use bytes::Bytes;
-use futures::Stream;
+use futures::prelude::*;
 use libsignal_service::{
     configuration::*, messagepipe::WebSocketService, push_service::*,
 };
@@ -193,12 +192,12 @@ impl PushService for AwcPushService {
             .expect("valid CDN path");
 
         log::debug!("AwcPushService::post_to_cdn({:?})", url);
-        let mut client = self.client.post(url.as_str());
+        let client = self.client.post(url.as_str());
 
-        let mut form = multipart::Form::default();
+        let mut form = mpart_async::client::MultipartRequest::default();
 
-        for (k, v) in value {
-            form.add_text(*k, *v);
+        for &(k, v) in value {
+            form.add_field(k, v);
         }
 
         if let Some((filename, file)) = file {
@@ -207,30 +206,28 @@ impl PushService for AwcPushService {
             let mut buf = Vec::new();
             file.read_to_end(&mut buf)
                 .expect("infallible Read instance");
-            form.add_reader(filename, std::io::Cursor::new(buf));
-            client = client.header("Content-Type", "application/octet-stream");
+            form.add_stream(
+                "file",
+                &filename,
+                "application/octet-stream",
+                futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
+            );
         }
-
-        let content_type = form.content_type();
 
         // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
         // stream.  Sadly, Content-Length != contents.len(), but should include the whole form.
-        let mut body = multipart::Body::from(form);
         let mut body_contents = vec![];
-        use actix_http::body::MessageBody;
         use futures::stream::StreamExt;
-        let mut stream = futures::stream::poll_fn(move |ctx| {
-            let body = std::pin::Pin::new(&mut body);
-            MessageBody::poll_next(body, ctx)
-        });
-        while let Some(b) = stream.next().await {
-            body_contents.extend(b.map_err(|e| ServiceError::SendError {
-                reason: e.to_string(),
-            })?);
+        while let Some(b) = form.next().await {
+            // Unwrap, because no error type was used above
+            body_contents.extend(b.unwrap());
         }
 
         let mut response = client
-            .content_type(content_type)
+            .content_type(&format!(
+                "multipart/form-data; boundary={}",
+                form.get_boundary()
+            ))
             .content_length(body_contents.len() as u64)
             .send_body(body_contents)
             .await
