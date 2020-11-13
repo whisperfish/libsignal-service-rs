@@ -1,13 +1,6 @@
-use crate::{
-    content::{Content, Metadata},
-    envelope::Envelope,
-    push_service::ServiceError,
-    sealed_session_cipher::{
+use crate::{ServiceAddress, content::{Content, Metadata}, envelope::Envelope, push_service::ServiceError, sealed_session_cipher::{
         CertificateValidator, DecryptionResult, SealedSessionCipher,
-    },
-    sender::OutgoingPushMessage,
-    ServiceAddress,
-};
+    }, sender::OutgoingPushMessage, sealed_session_cipher::UnidentifiedAccess};
 
 use libsignal_protocol::{
     messages::{CiphertextType, PreKeySignalMessage, SignalMessage},
@@ -187,10 +180,10 @@ impl ServiceCipher {
         Ok(plaintext)
     }
 
-    pub fn encrypt(
+    pub(crate) fn encrypt(
         &self,
         address: &ProtocolAddress,
-        unindentified_access: Option<bool>,
+        unindentified_access: Option<&UnidentifiedAccess>,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, ServiceError> {
         if unindentified_access.is_some() {

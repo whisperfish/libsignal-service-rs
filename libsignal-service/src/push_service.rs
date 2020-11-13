@@ -122,12 +122,12 @@ pub struct PreKeyStatus {
 }
 
 impl ProfileKey {
-    pub fn derive_access_key(&self) -> Result<Vec<u8>, aes_gcm::Error> {
+    pub fn derive_access_key(&self) -> Vec<u8> {
         let key = GenericArray::from_slice(&self.0);
         let cipher = Aes256Gcm::new(key);
         let nonce = GenericArray::from_slice(&[0u8; 12]);
         let buf = [0u8; 16];
-        cipher.encrypt(nonce, &buf[..])
+        cipher.encrypt(nonce, &buf[..]).unwrap()
     }
 }
 

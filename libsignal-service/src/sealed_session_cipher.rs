@@ -13,7 +13,7 @@ use libsignal_protocol::{
 use log::error;
 use sha2::Sha256;
 
-use crate::ServiceAddress;
+use crate::{push_service::ProfileKey, ServiceAddress};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SealedSessionError {
@@ -61,6 +61,18 @@ pub(crate) struct SealedSessionCipher {
     store_context: StoreContext,
     local_address: ServiceAddress,
     certificate_validator: CertificateValidator,
+}
+
+#[derive(Clone)]
+pub struct UnidentifiedAccessPair {
+    target_unidentified_access: UnidentifiedAccess,
+    self_unidentified_access: UnidentifiedAccess,
+}
+
+#[derive(Clone)]
+pub struct UnidentifiedAccess {
+    access_key: Vec<u8>,
+    sender_certificate: SenderCertificate,
 }
 
 #[derive(Debug, Clone)]
@@ -122,6 +134,15 @@ pub(crate) struct DecryptionResult {
     pub device_id: i32,
     pub padded_message: Vec<u8>,
     pub version: u32,
+}
+
+impl UnidentifiedAccess {
+    pub fn new(profile_key: &ProfileKey, sender_certificate: SenderCertificate) -> Result<Self, SealedSessionError> {
+        Ok(UnidentifiedAccess {
+            access_key: profile_key.derive_access_key(),
+            sender_certificate,
+        })
+    }
 }
 
 impl UnidentifiedSenderMessage {
@@ -197,6 +218,8 @@ impl SealedSessionCipher {
         }
     }
 
+    /// unused until we make progress on https://github.com/Michael-F-Bryan/libsignal-service-rs/issues/25
+    /// messages from unidentified senders can only be sent via a unidentifiedPipe
     #[allow(dead_code)]
     pub fn encrypt(
         &self,

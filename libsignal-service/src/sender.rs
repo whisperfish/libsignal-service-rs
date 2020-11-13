@@ -1,7 +1,7 @@
 use libsignal_protocol::{Address, SessionBuilder};
 use log::{info, trace};
 
-use crate::{cipher::ServiceCipher, push_service::*, ServiceAddress};
+use crate::{ServiceAddress, cipher::ServiceCipher, sealed_session_cipher::UnidentifiedAccess, push_service::*};
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -74,6 +74,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: impl std::borrow::Borrow<ServiceAddress>,
+        unidentified_access: Option<UnidentifiedAccess>,
         content: impl Into<crate::content::ContentBody>,
         timestamp: u64,
         online: bool,
@@ -91,7 +92,7 @@ where
 
         for _ in 0..4 {
             match self
-                .send_messages(recipient, &content, timestamp, online)
+                .send_messages(recipient, unidentified_access.as_ref(), &content, timestamp, online)
                 .await
             {
                 Err(MessageSenderError::TryAgain) => continue,
@@ -104,6 +105,7 @@ where
     async fn send_messages(
         &mut self,
         recipient: &ServiceAddress,
+        _unidentified_access: Option<&UnidentifiedAccess>,
         content: &[u8],
         timestamp: u64,
         online: bool,
@@ -214,7 +216,7 @@ where
     async fn create_encrypted_messages(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<bool>,
+        unidentified_access: Option<UnidentifiedAccess>,
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
@@ -224,7 +226,7 @@ where
             messages.push(
                 self.create_encrypted_message(
                     recipient,
-                    unidentified_access,
+                    unidentified_access.as_ref(),
                     DEFAULT_DEVICE_ID,
                     content,
                 )
@@ -244,7 +246,7 @@ where
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
-                        unidentified_access,
+                        unidentified_access.as_ref(),
                         device_id,
                         content,
                     )
@@ -262,7 +264,7 @@ where
     async fn create_encrypted_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<bool>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         device_id: i32,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
