@@ -196,7 +196,8 @@ impl ServiceCipher {
             if self.store_context.contains_session(&address)? {
                 return Ok(address);
             }
-        } else if let Some(ref e164) = address.e164 {
+        }
+        if let Some(ref e164) = address.e164 {
             let address = ProtocolAddress::new(e164, device as i32);
             if self.store_context.contains_session(&address)? {
                 return Ok(address);
