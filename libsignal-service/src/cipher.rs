@@ -95,9 +95,10 @@ impl ServiceCipher {
         use crate::proto::envelope::Type;
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
-                let sender = self.get_preferred_protocol_address(
+                let sender = get_preferred_protocol_address(
+                    &self.store_context,
                     envelope.source_address(),
-                    envelope.source_device(),
+                    envelope.source_device() as i32,
                 )?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
@@ -125,9 +126,10 @@ impl ServiceCipher {
                 Plaintext { metadata, data }
             }
             Type::Ciphertext => {
-                let sender = self.get_preferred_protocol_address(
+                let sender = get_preferred_protocol_address(
+                    &self.store_context,
                     envelope.source_address(),
-                    envelope.source_device(),
+                    envelope.source_device() as i32,
                 )?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
@@ -183,28 +185,6 @@ impl ServiceCipher {
             }
         };
         Ok(plaintext)
-    }
-
-    /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
-    fn get_preferred_protocol_address(
-        &self,
-        address: ServiceAddress,
-        device: u32,
-    ) -> Result<ProtocolAddress, ServiceError> {
-        if let Some(ref uuid) = address.uuid {
-            let address = ProtocolAddress::new(uuid, device as i32);
-            if self.store_context.contains_session(&address)? {
-                return Ok(address);
-            }
-        }
-        if let Some(ref e164) = address.e164 {
-            let address = ProtocolAddress::new(e164, device as i32);
-            if self.store_context.contains_session(&address)? {
-                return Ok(address);
-            }
-        }
-
-        Ok(ProtocolAddress::new(address.identifier(), device as i32))
     }
 
     pub fn encrypt(
@@ -299,4 +279,25 @@ fn strip_padding(
         contents.resize(new_length, 0);
         Ok(())
     }
+}
+
+/// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
+pub fn get_preferred_protocol_address(
+    store_context: &StoreContext,
+    address: ServiceAddress,
+    device_id: i32,
+) -> Result<ProtocolAddress, libsignal_protocol::Error> {
+    if let Some(ref uuid) = address.uuid {
+        let address = ProtocolAddress::new(uuid, device_id as i32);
+        if store_context.contains_session(&address)? {
+            return Ok(address);
+        }
+    } else if let Some(ref e164) = address.e164 {
+        let address = ProtocolAddress::new(e164, device_id as i32);
+        if store_context.contains_session(&address)? {
+            return Ok(address);
+        }
+    }
+
+    Ok(ProtocolAddress::new(address.identifier(), device_id as i32))
 }

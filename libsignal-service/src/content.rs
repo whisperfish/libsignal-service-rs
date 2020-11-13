@@ -2,8 +2,8 @@ pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
-        group_context::Type as GroupType, AttachmentPointer, CallMessage,
-        DataMessage, ReceiptMessage, SyncMessage, TypingMessage,
+        group_context::Type as GroupType, sync_message, AttachmentPointer,
+        CallMessage, DataMessage, ReceiptMessage, SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };

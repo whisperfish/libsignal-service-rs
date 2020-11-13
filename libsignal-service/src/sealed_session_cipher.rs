@@ -7,8 +7,8 @@ use hmac::{Hmac, Mac, NewMac};
 use libsignal_protocol::{
     keys::{PrivateKey, PublicKey},
     messages::{CiphertextType, PreKeySignalMessage, SignalMessage},
-    Address, Context, Deserializable, Serializable, SessionCipher,
-    StoreContext,
+    Address as ProtocolAddress, Context, Deserializable, Serializable,
+    SessionCipher, StoreContext,
 };
 use log::error;
 use sha2::Sha256;
@@ -87,20 +87,6 @@ pub struct SenderCertificate {
     expiration: u64,
     pub certificate: Vec<u8>,
     pub signature: Vec<u8>,
-}
-
-impl SenderCertificate {
-    // XXX: Result
-    fn sender(&self) -> String {
-        match self
-            .sender_e164
-            .as_ref()
-            .or_else(|| self.sender_uuid.as_ref())
-        {
-            Some(r) => r.clone(),
-            None => "".to_string(),
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -214,7 +200,7 @@ impl SealedSessionCipher {
     #[allow(dead_code)]
     pub fn encrypt(
         &self,
-        destination: &Address,
+        destination: &ProtocolAddress,
         sender_certificate: SenderCertificate,
         padded_plaintext: &[u8],
     ) -> Result<Vec<u8>, SealedSessionError> {
@@ -334,15 +320,7 @@ impl SealedSessionCipher {
         self.certificate_validator
             .validate(&content.sender_certificate, timestamp)?;
 
-        let (padded_message, version) =
-            self.decrypt_message_content(&content)?;
-        Ok(DecryptionResult {
-            padded_message,
-            version,
-            sender_uuid: content.sender_certificate.sender_uuid,
-            sender_e164: content.sender_certificate.sender_e164,
-            device_id: content.sender_certificate.sender_device_id,
-        })
+        self.decrypt_message_content(content)
     }
 
     fn calculate_ephemeral_keys(
@@ -432,53 +410,32 @@ impl SealedSessionCipher {
         Ok(decrypted)
     }
 
-    fn get_preferred_address(
-        &self,
-        certificate: &SenderCertificate,
-    ) -> Result<Address, SealedSessionError> {
-        if let Some(ref sender_uuid) = certificate.sender_uuid {
-            let address =
-                Address::new(sender_uuid, certificate.sender_device_id as i32);
-            if self.store_context.contains_session(&address)? {
-                return Ok(address);
-            }
-        } else if let Some(ref sender_e164) = certificate.sender_e164 {
-            let address =
-                Address::new(sender_e164, certificate.sender_device_id as i32);
-            if self.store_context.contains_session(&address)? {
-                return Ok(address);
-            }
-        }
-
-        Ok(Address::new(
-            certificate.sender(),
-            certificate.sender_device_id as i32,
-        ))
-    }
-
     fn decrypt_message_content(
         &self,
-        message: &UnidentifiedSenderMessageContent,
-    ) -> Result<(Vec<u8>, u32), SealedSessionError> {
-        let sender = self.get_preferred_address(&message.sender_certificate)?;
+        message: UnidentifiedSenderMessageContent,
+    ) -> Result<DecryptionResult, SealedSessionError> {
+        let UnidentifiedSenderMessageContent {
+            r#type,
+            content,
+            sender_certificate,
+        } = message;
+        let sender = crate::cipher::get_preferred_protocol_address(
+            &self.store_context,
+            sender_certificate.address(),
+            sender_certificate.sender_device_id,
+        )?;
         let session_cipher =
             SessionCipher::new(&self.context, &self.store_context, &sender)?;
-        let msg = match message.r#type {
+        let msg = match r#type {
             CiphertextType::Signal => {
                 let msg = session_cipher.decrypt_message(
-                    &SignalMessage::deserialize(
-                        &self.context,
-                        &message.content,
-                    )?,
+                    &SignalMessage::deserialize(&self.context, &content)?,
                 )?;
                 msg.as_slice().to_vec()
             }
             CiphertextType::PreKey => {
                 let msg = session_cipher.decrypt_pre_key_message(
-                    &PreKeySignalMessage::deserialize(
-                        &self.context,
-                        &message.content,
-                    )?,
+                    &PreKeySignalMessage::deserialize(&self.context, &content)?,
                 )?;
                 msg.as_slice().to_vec()
             }
@@ -486,7 +443,13 @@ impl SealedSessionCipher {
         };
 
         let version = session_cipher.get_session_version()?;
-        Ok((msg, version))
+        Ok(DecryptionResult {
+            padded_message: msg,
+            version,
+            sender_uuid: sender_certificate.sender_uuid,
+            sender_e164: sender_certificate.sender_e164,
+            device_id: sender_certificate.sender_device_id,
+        })
     }
 }
 
@@ -608,6 +571,14 @@ impl SenderCertificate {
             _ => Err(SealedSessionError::InvalidCertificate),
         }
     }
+
+    fn address(&self) -> ServiceAddress {
+        ServiceAddress {
+            uuid: self.sender_uuid.clone(),
+            e164: self.sender_e164.clone(),
+            relay: None,
+        }
+    }
 }
 
 impl ServerCertificate {
@@ -636,23 +607,6 @@ impl ServerCertificate {
         }
     }
 }
-
-// impl TryInto<Vec<u8>> for ServerCertificate {
-//     type Error = SealedSessionError;
-
-//     fn try_into(self) -> Result<Vec<u8>, Self::Error> {
-//         use crate::proto::server_certificate::Certificate;
-//         use prost::Message;
-
-//         let mut serialized = vec![];
-//         let certificate = Certificate {
-//             id: Some(self.key_id),
-//             key: Some(self.key.serialize()?.as_slice().to_vec()),
-//         };
-//         certificate.encode(&mut serialized)?;
-//         Ok(serialized)
-//     }
-// }
 
 impl CertificateValidator {
     pub fn new(trust_root: PublicKey) -> Self {
