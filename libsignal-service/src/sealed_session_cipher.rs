@@ -137,7 +137,10 @@ pub(crate) struct DecryptionResult {
 }
 
 impl UnidentifiedAccess {
-    pub fn new(profile_key: &ProfileKey, sender_certificate: SenderCertificate) -> Result<Self, SealedSessionError> {
+    pub fn new(
+        profile_key: &ProfileKey,
+        sender_certificate: SenderCertificate,
+    ) -> Result<Self, SealedSessionError> {
         Ok(UnidentifiedAccess {
             access_key: profile_key.derive_access_key(),
             sender_certificate,

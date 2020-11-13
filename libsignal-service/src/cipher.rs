@@ -1,6 +1,14 @@
-use crate::{ServiceAddress, content::{Content, Metadata}, envelope::Envelope, push_service::ServiceError, sealed_session_cipher::{
+use crate::{
+    content::{Content, Metadata},
+    envelope::Envelope,
+    push_service::ServiceError,
+    sealed_session_cipher::UnidentifiedAccess,
+    sealed_session_cipher::{
         CertificateValidator, DecryptionResult, SealedSessionCipher,
-    }, sender::OutgoingPushMessage, sealed_session_cipher::UnidentifiedAccess};
+    },
+    sender::OutgoingPushMessage,
+    ServiceAddress,
+};
 
 use libsignal_protocol::{
     messages::{CiphertextType, PreKeySignalMessage, SignalMessage},

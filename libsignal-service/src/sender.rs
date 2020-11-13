@@ -1,7 +1,10 @@
 use libsignal_protocol::{Address, SessionBuilder};
 use log::{info, trace};
 
-use crate::{ServiceAddress, cipher::ServiceCipher, sealed_session_cipher::UnidentifiedAccess, push_service::*};
+use crate::{
+    cipher::ServiceCipher, push_service::*,
+    sealed_session_cipher::UnidentifiedAccess, ServiceAddress,
+};
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -92,7 +95,13 @@ where
 
         for _ in 0..4 {
             match self
-                .send_messages(recipient, unidentified_access.as_ref(), &content, timestamp, online)
+                .send_messages(
+                    recipient,
+                    unidentified_access.as_ref(),
+                    &content,
+                    timestamp,
+                    online,
+                )
                 .await
             {
                 Err(MessageSenderError::TryAgain) => continue,
