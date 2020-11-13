@@ -124,7 +124,28 @@ where
             rand::thread_rng().fill_bytes(&mut iv);
             (key, iv)
         };
-        // XXX upstream Java seems to pad this further
+
+        // Padded length uses an exponential bracketting thingy.
+        // If you want to see how it looks:
+        // https://www.wolframalpha.com/input/?i=plot+floor%281.05%5Eceil%28log_1.05%28x%29%29%29+for+x+from+0+to+5000000
+        let padded_len: usize = {
+            // Java:
+            // return (int) Math.max(541, Math.floor(Math.pow(1.05, Math.ceil(Math.log(size) / Math.log(1.05)))))
+            std::cmp::max(
+                541,
+                1.05f64.powf((len as f64).log(1.05).ceil()).floor() as usize,
+            )
+        };
+        if padded_len < len {
+            log::error!(
+                "Padded len {} < len {}. Continuing with a privacy risk.",
+                padded_len,
+                len
+            );
+        } else {
+            contents.resize(padded_len, 0);
+        }
+
         crate::attachment_cipher::encrypt_in_place(iv, key, &mut contents);
 
         // Request upload attributes
