@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["MacError",""],["SealedSessionError",""]],"struct":[["CertificateValidator",""],["SenderCertificate",""],["ServerCertificate",""],["UnidentifiedAccess",""],["UnidentifiedAccessPair",""],["UnidentifiedSenderMessageContent",""]]});
