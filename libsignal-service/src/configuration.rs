@@ -1,6 +1,12 @@
 use std::{collections::HashMap, str::FromStr};
 
-use crate::envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE};
+use libsignal_protocol::{keys::PublicKey, Context};
+
+use crate::{
+    envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
+    push_service::ServiceError,
+    sealed_session_cipher::{CertificateValidator, SealedSessionError},
+};
 
 #[derive(Debug, Clone)]
 pub struct ServiceConfiguration {
@@ -8,6 +14,7 @@ pub struct ServiceConfiguration {
     pub cdn_urls: HashMap<u32, String>,
     pub contact_discovery_url: Vec<String>,
     pub certificate_authority: String,
+    pub unidentified_sender_trust_root: String,
 }
 
 pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
@@ -95,6 +102,8 @@ impl Into<ServiceConfiguration> for SignalServers {
                     "https://api-staging.directory.signal.org".into(),
                 ],
                 certificate_authority: SIGNAL_ROOT_CA.into(),
+                unidentified_sender_trust_root:
+                    "BbqY1DzohE4NUZoVF+L18oUPrK3kILllLEJh2UnPSsEx".into(),
             },
             // configuration with the Signal API production endpoints
             // https://github.com/signalapp/Signal-Desktop/blob/master/config/production.json
@@ -112,7 +121,22 @@ impl Into<ServiceConfiguration> for SignalServers {
                     "https://api.directory.signal.org".into()
                 ],
                 certificate_authority: SIGNAL_ROOT_CA.into(),
+                unidentified_sender_trust_root:
+                    "BXu6QIKVz5MA8gstzfOgRQGqyLqOwNKHL6INkv3IHWMF".into(),
             },
         }
+    }
+}
+
+impl ServiceConfiguration {
+    pub fn credentials_validator(
+        &self,
+        context: &Context,
+    ) -> Result<CertificateValidator, ServiceError> {
+        Ok(CertificateValidator::new(PublicKey::decode_point(
+            context,
+            &base64::decode(&self.unidentified_sender_trust_root)
+                .map_err(|_| SealedSessionError::InvalidCertificate)?,
+        )?))
     }
 }
