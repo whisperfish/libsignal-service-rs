@@ -293,7 +293,8 @@ pub fn get_preferred_protocol_address(
         if store_context.contains_session(&address)? {
             return Ok(address);
         }
-    } else if let Some(ref e164) = address.e164 {
+    }
+    if let Some(ref e164) = address.e164 {
         let address = ProtocolAddress::new(e164, device_id as i32);
         if store_context.contains_session(&address)? {
             return Ok(address);
