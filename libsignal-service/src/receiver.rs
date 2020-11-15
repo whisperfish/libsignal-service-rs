@@ -12,6 +12,9 @@ pub struct MessageReceiver<Service> {
 pub enum MessageReceiverError {
     #[error("ServiceError")]
     ServiceError(#[from] ServiceError),
+
+    #[error("Envelop parse error")]
+    EnvelopeParseError(#[from] crate::envelope::EnvelopeParseError),
 }
 
 impl<Service: PushService> MessageReceiver<Service> {
@@ -28,8 +31,13 @@ impl<Service: PushService> MessageReceiver<Service> {
     pub async fn retrieve_messages(
         &mut self,
     ) -> Result<Vec<Envelope>, MessageReceiverError> {
+        use std::convert::TryFrom;
+
         let entities = self.service.get_messages().await?;
-        let entities = entities.into_iter().map(Envelope::from).collect();
+        let entities = entities
+            .into_iter()
+            .map(Envelope::try_from)
+            .collect::<Result<_, _>>()?;
         Ok(entities)
     }
 

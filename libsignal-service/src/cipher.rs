@@ -296,12 +296,13 @@ pub fn get_preferred_protocol_address(
     device_id: i32,
 ) -> Result<ProtocolAddress, libsignal_protocol::Error> {
     if let Some(ref uuid) = address.uuid {
-        let address = ProtocolAddress::new(uuid, device_id as i32);
+        let address = ProtocolAddress::new(uuid.to_string(), device_id as i32);
         if store_context.contains_session(&address)? {
             return Ok(address);
         }
     }
     if let Some(ref e164) = address.e164 {
+        let e164 = e164.format().mode(phonenumber::Mode::E164).to_string();
         let address = ProtocolAddress::new(e164, device_id as i32);
         if store_context.contains_session(&address)? {
             return Ok(address);

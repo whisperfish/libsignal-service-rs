@@ -340,9 +340,13 @@ where
         if end_session {
             log::debug!("ending session with {}", recipient);
             if let Some(ref uuid) = recipient.uuid {
-                self.cipher.store_context.delete_all_sessions(&uuid)?;
+                self.cipher
+                    .store_context
+                    .delete_all_sessions(&uuid.to_string())?;
             }
             if let Some(ref e164) = recipient.e164 {
+                let e164 =
+                    e164.format().mode(phonenumber::Mode::E164).to_string();
                 self.cipher.store_context.delete_all_sessions(&e164)?;
             }
         }
@@ -437,8 +441,9 @@ where
                 .create_encrypted_messages(&recipient, None, &content_bytes)
                 .await?;
 
+            let destination = recipient.identifier();
             let messages = OutgoingPushMessages {
-                destination: recipient.identifier(),
+                destination: &destination,
                 timestamp,
                 messages,
                 online,
@@ -463,12 +468,16 @@ where
                         if let Some(ref uuid) = recipient.uuid {
                             self.cipher.store_context.delete_session(
                                 &libsignal_protocol::Address::new(
-                                    uuid,
+                                    uuid.to_string(),
                                     *extra_device_id,
                                 ),
                             )?;
                         }
                         if let Some(ref e164) = recipient.e164 {
+                            let e164 = e164
+                                .format()
+                                .mode(phonenumber::Mode::E164)
+                                .to_string();
                             self.cipher.store_context.delete_session(
                                 &libsignal_protocol::Address::new(
                                     &e164,
@@ -518,15 +527,19 @@ where
                         if let Some(ref uuid) = recipient.uuid {
                             self.cipher.store_context.delete_session(
                                 &libsignal_protocol::Address::new(
-                                    uuid,
+                                    uuid.to_string(),
                                     *extra_device_id,
                                 ),
                             )?;
                         }
                         if let Some(ref e164) = recipient.e164 {
+                            let e164 = e164
+                                .format()
+                                .mode(phonenumber::Mode::E164)
+                                .to_string();
                             self.cipher.store_context.delete_session(
                                 &libsignal_protocol::Address::new(
-                                    &e164,
+                                    e164,
                                     *extra_device_id,
                                 ),
                             )?;
@@ -638,12 +651,15 @@ where
         let mut sub_device_sessions = Vec::new();
         if let Some(uuid) = &recipient.uuid {
             sub_device_sessions.extend(
-                self.cipher.store_context.get_sub_device_sessions(uuid)?,
+                self.cipher
+                    .store_context
+                    .get_sub_device_sessions(&uuid.to_string())?,
             );
         }
         if let Some(e164) = &recipient.e164 {
+            let e164 = e164.format().mode(phonenumber::Mode::E164).to_string();
             sub_device_sessions.extend(
-                self.cipher.store_context.get_sub_device_sessions(e164)?,
+                self.cipher.store_context.get_sub_device_sessions(&e164)?,
             );
         }
 
@@ -735,7 +751,14 @@ where
     ) -> Result<ContentBody, MessageSenderError> {
         Ok(ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
-                destination_e164: recipient.and_then(|r| r.e164.clone()),
+                destination_uuid: recipient
+                    .and_then(|r| r.uuid)
+                    .map(|u| u.to_string()),
+                destination_e164: recipient.and_then(|r| r.e164.as_ref()).map(
+                    |e164| {
+                        e164.format().mode(phonenumber::Mode::E164).to_string()
+                    },
+                ),
                 message: data_message,
                 timestamp: Some(timestamp),
                 ..Default::default()

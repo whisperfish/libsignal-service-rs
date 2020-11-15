@@ -1,3 +1,6 @@
+use phonenumber::PhoneNumber;
+use uuid::Uuid;
+
 use aes_ctr::{
     cipher::stream::{NewStreamCipher, StreamCipher},
     Aes256Ctr,
@@ -43,6 +46,12 @@ pub enum SealedSessionError {
 
     #[error("recipient not trusted")]
     NoSessionWithRecipient,
+
+    #[error("Supplied phone number could not be parsed")]
+    InvalidE164Error(#[from] uuid::Error),
+
+    #[error("Supplied uuid could not be parsed")]
+    InvalidUuidError(#[from] phonenumber::ParseError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -94,8 +103,8 @@ pub struct SenderCertificate {
     signer: ServerCertificate,
     key: PublicKey,
     sender_device_id: i32,
-    sender_uuid: Option<String>,
-    sender_e164: Option<String>,
+    sender_uuid: Option<uuid::Uuid>,
+    sender_e164: Option<phonenumber::PhoneNumber>,
     expiration: u64,
     pub certificate: Vec<u8>,
     pub signature: Vec<u8>,
@@ -129,8 +138,8 @@ pub struct CertificateValidator {
 
 #[derive(Default, Debug, Clone)]
 pub(crate) struct DecryptionResult {
-    pub sender_uuid: Option<String>,
-    pub sender_e164: Option<String>,
+    pub sender_uuid: Option<Uuid>,
+    pub sender_e164: Option<PhoneNumber>,
     pub device_id: i32,
     pub padded_message: Vec<u8>,
     pub version: u32,
@@ -575,6 +584,14 @@ impl SenderCertificate {
                             return Err(SealedSessionError::InvalidCertificate);
                         }
 
+                        let sender_e164 = sender_e164
+                            .map(|s| phonenumber::parse(None, s))
+                            .transpose()?;
+                        let sender_uuid = sender_uuid
+                            .as_deref()
+                            .map(Uuid::parse_str)
+                            .transpose()?;
+
                         Ok(Self {
                             signer: ServerCertificate::try_from(
                                 &context, signer,
@@ -697,6 +714,22 @@ mod tests {
 
     use prost::Message;
 
+    fn alice_address() -> ServiceAddress {
+        ServiceAddress {
+            e164: Some(phonenumber::parse(None, "+14151111111").unwrap()),
+            uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".parse().unwrap()),
+            relay: None,
+        }
+    }
+
+    fn bob_address() -> ServiceAddress {
+        ServiceAddress {
+            e164: Some(phonenumber::parse(None, "+14152222222").unwrap()),
+            uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".parse().unwrap()),
+            relay: None,
+        }
+    }
+
     #[test]
     fn test_encrypt_decrypt() -> anyhow::Result<()> {
         let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
@@ -708,8 +741,7 @@ mod tests {
         let sender_certificate = create_certificate_for(
             &ctx,
             &trust_root,
-            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
-            "+14151111111".into(),
+            alice_address(),
             1,
             alice_store_context.identity_key_pair()?.public(),
             31337,
@@ -718,11 +750,7 @@ mod tests {
         let alice_cipher = SealedSessionCipher::new(
             ctx.clone(),
             alice_store_context,
-            ServiceAddress {
-                e164: Some("+14151111111".into()),
-                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
-                relay: None,
-            },
+            alice_address(),
             certificate_validator.clone(),
         );
         let ciphertext = alice_cipher.encrypt(
@@ -734,11 +762,7 @@ mod tests {
         let bob_cipher = SealedSessionCipher::new(
             ctx.clone(),
             bob_store_context,
-            ServiceAddress {
-                e164: Some("+14152222222".into()),
-                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
-                relay: None,
-            },
+            bob_address(),
             certificate_validator,
         );
 
@@ -748,11 +772,8 @@ mod tests {
             String::from_utf8_lossy(&plaintext.padded_message),
             "smert za smert".to_string()
         );
-        assert_eq!(
-            plaintext.sender_uuid,
-            Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into())
-        );
-        assert_eq!(plaintext.sender_e164, Some("+14151111111".into()));
+        assert_eq!(plaintext.sender_uuid, alice_address().uuid);
+        assert_eq!(plaintext.sender_e164, alice_address().e164);
         assert_eq!(plaintext.device_id, 1);
 
         Ok(())
@@ -774,8 +795,7 @@ mod tests {
         let sender_certificate = create_certificate_for(
             &ctx,
             &trust_root,
-            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
-            "+14151111111".into(),
+            alice_address(),
             1,
             alice_store_context.identity_key_pair()?.public(),
             31337,
@@ -784,11 +804,7 @@ mod tests {
         let alice_cipher = SealedSessionCipher::new(
             ctx.clone(),
             alice_store_context,
-            ServiceAddress {
-                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
-                e164: Some("+14151111111".into()),
-                relay: None,
-            },
+            alice_address(),
             certificate_validator,
         );
 
@@ -801,11 +817,7 @@ mod tests {
         let bob_cipher = SealedSessionCipher::new(
             ctx,
             bob_store_context,
-            ServiceAddress {
-                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
-                e164: Some("+14152222222".into()),
-                relay: None,
-            },
+            bob_address(),
             false_certificate_validator,
         );
 
@@ -828,8 +840,7 @@ mod tests {
         let sender_certificate = create_certificate_for(
             &ctx,
             &trust_root,
-            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
-            "+14151111111".into(),
+            alice_address(),
             1,
             alice_store_context.identity_key_pair()?.public(),
             31337,
@@ -838,11 +849,7 @@ mod tests {
         let alice_cipher = SealedSessionCipher::new(
             ctx.clone(),
             alice_store_context,
-            ServiceAddress {
-                e164: Some("+14151111111".into()),
-                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
-                relay: None,
-            },
+            alice_address(),
             certificate_validator.clone(),
         );
 
@@ -855,11 +862,7 @@ mod tests {
         let bob_cipher = SealedSessionCipher::new(
             ctx.clone(),
             bob_store_context,
-            ServiceAddress {
-                e164: Some("+14152222222".into()),
-                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
-                relay: None,
-            },
+            bob_address(),
             certificate_validator,
         );
 
@@ -881,8 +884,7 @@ mod tests {
         let sender_certificate = create_certificate_for(
             &ctx,
             &random_key_pair,
-            "9d0652a3-dcc3-4d11-975f-74d61598733f".into(),
-            "+14151111111".into(),
+            alice_address(),
             1,
             alice_store_context.identity_key_pair()?.public(),
             31337,
@@ -891,11 +893,7 @@ mod tests {
         let alice_cipher = SealedSessionCipher::new(
             ctx.clone(),
             alice_store_context,
-            ServiceAddress {
-                e164: Some("+14151111111".into()),
-                uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
-                relay: None,
-            },
+            alice_address(),
             certificate_validator.clone(),
         );
         let ciphertext = alice_cipher.encrypt(
@@ -907,11 +905,7 @@ mod tests {
         let bob_cipher = SealedSessionCipher::new(
             ctx.clone(),
             bob_store_context,
-            ServiceAddress {
-                e164: Some("+14152222222".into()),
-                uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".into()),
-                relay: None,
-            },
+            bob_address(),
             certificate_validator,
         );
 
@@ -955,13 +949,17 @@ mod tests {
     fn create_certificate_for(
         context: &Context,
         trust_root: &KeyPair,
-        uuid: String,
-        e164: String,
+        addr: ServiceAddress,
         device_id: u32,
         identity_key: PublicKey,
         expires: u64,
     ) -> Result<SenderCertificate, SealedSessionError> {
         let server_key = libsignal_protocol::generate_key_pair(&context)?;
+
+        let uuid = addr.uuid.as_ref().map(uuid::Uuid::to_string);
+        let e164 = addr.e164.map(|e164| {
+            e164.format().mode(phonenumber::Mode::E164).to_string()
+        });
 
         let mut server_certificate_bytes = vec![];
         crate::proto::server_certificate::Certificate {
@@ -986,8 +984,8 @@ mod tests {
 
         let mut sender_certificate_bytes = vec![];
         crate::proto::sender_certificate::Certificate {
-            sender_uuid: Some(uuid),
-            sender_e164: Some(e164),
+            sender_uuid: uuid,
+            sender_e164: e164,
             sender_device: Some(device_id),
             identity_key: Some(identity_key.serialize()?.as_slice().to_vec()),
             expires: Some(expires),

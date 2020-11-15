@@ -1,27 +1,57 @@
 #![allow(dead_code)] // XXX: remove when all constants on bottom are used.
 
 use prost::Message;
+use uuid::Uuid;
 
 use crate::{
     configuration::SignalingKey, push_service::ServiceError,
-    utils::serde_optional_base64, ServiceAddress,
+    utils::serde_optional_base64, ParseServiceAddressError, ServiceAddress,
 };
 
 pub use crate::proto::Envelope;
 
-impl From<EnvelopeEntity> for Envelope {
-    fn from(entity: EnvelopeEntity) -> Envelope {
-        // XXX: Java also checks whether .source and .source_uuid are
-        // not null.
-        if entity.source.is_some() && entity.source_device > 0 {
-            let address = ServiceAddress {
-                uuid: entity.source_uuid.clone(),
-                e164: entity.source.clone(),
-                relay: None,
-            };
-            Envelope::new_with_source(entity, address)
-        } else {
-            Envelope::new_from_entity(entity)
+#[derive(thiserror::Error, Debug, Clone)]
+pub enum EnvelopeParseError {
+    #[error("Supplied phone number could not be parsed")]
+    InvalidE164Error(#[from] phonenumber::ParseError),
+
+    #[error("Supplied uuid could not be parsed")]
+    InvalidUuidError(#[from] uuid::Error),
+
+    #[error("Envelope with neither Uuid or E164")]
+    NoSenderError,
+}
+
+impl std::convert::TryFrom<EnvelopeEntity> for Envelope {
+    type Error = EnvelopeParseError;
+
+    fn try_from(
+        entity: EnvelopeEntity,
+    ) -> Result<Envelope, EnvelopeParseError> {
+        use ParseServiceAddressError::*;
+        if entity.source.is_none() && entity.source_uuid.is_none() {
+            return Err(EnvelopeParseError::NoSenderError);
+        }
+
+        // XXX: throwing allocations like it's Java.
+        let source = ServiceAddress::parse(
+            entity.source.as_deref(),
+            entity.source_uuid.as_deref(),
+        );
+        match source {
+            // Valid source
+            Ok(source) if entity.source_device > 0 => {
+                Ok(Envelope::new_with_source(entity, source))
+            }
+            // No source
+            Ok(_) | Err(NoSenderError) => Ok(Envelope::new_from_entity(entity)),
+            // Source specified, but unparsable
+            Err(InvalidE164Error(e)) => {
+                Err(EnvelopeParseError::InvalidE164Error(e))
+            }
+            Err(InvalidUuidError(e)) => {
+                Err(EnvelopeParseError::InvalidUuidError(e))
+            }
         }
     }
 }
@@ -101,8 +131,11 @@ impl Envelope {
             source_device: Some(entity.source_device),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
-            source_e164: source.e164,
-            source_uuid: source.uuid,
+            source_e164: source
+                .e164
+                .as_ref()
+                .map(|s| s.format().mode(phonenumber::Mode::E164).to_string()),
+            source_uuid: source.uuid.as_ref().map(|s| s.to_string()),
             legacy_message: entity.message,
             content: entity.content,
             ..Default::default()
@@ -126,9 +159,22 @@ impl Envelope {
     }
 
     pub fn source_address(&self) -> ServiceAddress {
+        let e164 = self
+            .source_e164
+            .as_ref()
+            .map(|s| phonenumber::parse(None, s))
+            .transpose()
+            .expect("valid e164 checked in constructor");
+
+        let uuid = self
+            .source_uuid
+            .as_deref()
+            .map(Uuid::parse_str)
+            .transpose()
+            .expect("valid e164 checked in constructor");
         ServiceAddress {
-            e164: self.source_e164.clone(),
-            uuid: self.source_uuid.clone(),
+            e164,
+            uuid,
             relay: self.relay.clone(),
         }
     }
