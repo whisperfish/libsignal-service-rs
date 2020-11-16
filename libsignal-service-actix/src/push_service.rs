@@ -183,7 +183,7 @@ impl PushService for AwcPushService {
     async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
         &mut self,
         path: &str,
-        value: &[(&str, &str)],
+        mut value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError> {
         let url = Url::parse(&self.cfg.cdn_urls[&0])
@@ -196,8 +196,23 @@ impl PushService for AwcPushService {
 
         let mut form = mpart_async::client::MultipartRequest::default();
 
-        for &(k, v) in value {
+        // XXX: mpart-async has a *very* peculiar ordering of the form items,
+        //      and Amazon S3 expects them in a very specific order (i.e., the file contents should
+        //      go last.
+        //
+        //      Currently, talking version 4.1, mpart-async internally stores a STATE and a list of
+        //      FIELDS.  The very first item to be added is set as STATE, while every next items is
+        //      appended to the vector of FIELDS.
+        //      When yielding as a stream, msync-async returns the current STATE, and then uses
+        //      `Vec::pop` to decide on the next state.
+        //      This, however, is an implementation detail to us, which we are exploiting here.
+        //
+        //      https://github.com/cetra3/mpart-async/issues/16
+        if !value.is_empty() {
+            let (k, v) = value[0];
             form.add_field(k, v);
+
+            value = &value[1..];
         }
 
         if let Some((filename, file)) = file {
@@ -214,6 +229,13 @@ impl PushService for AwcPushService {
             );
         }
 
+        for &(k, v) in value {
+            form.add_field(k, v);
+        }
+
+        let content_type =
+            format!("multipart/form-data; boundary={}", form.get_boundary());
+
         // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
         // stream.  Sadly, Content-Length != contents.len(), but should include the whole form.
         let mut body_contents = vec![];
@@ -222,12 +244,14 @@ impl PushService for AwcPushService {
             // Unwrap, because no error type was used above
             body_contents.extend(b.unwrap());
         }
+        log::trace!(
+            "Sending PUT with Content-Type={} and length {}",
+            content_type,
+            body_contents.len()
+        );
 
         let mut response = client
-            .content_type(&format!(
-                "multipart/form-data; boundary={}",
-                form.get_boundary()
-            ))
+            .content_type(&content_type)
             .content_length(body_contents.len() as u64)
             .send_body(body_contents)
             .await
@@ -364,9 +388,13 @@ impl AwcPushService {
                 Err(ServiceError::StaleDevices(stale_devices))
             }
             // XXX: fill in rest from PushServiceSocket
-            code => Err(ServiceError::UnhandledResponseCode {
-                http_code: code.as_u16(),
-            }),
+            code => {
+                let contents = response.body().await;
+                log::trace!("Unhandled response with body: {:?}", contents);
+                Err(ServiceError::UnhandledResponseCode {
+                    http_code: code.as_u16(),
+                })
+            }
         }
     }
 }
