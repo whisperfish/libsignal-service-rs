@@ -5,6 +5,7 @@ pub mod attachment_cipher;
 pub mod cipher;
 pub mod configuration;
 pub mod content;
+mod digeststream;
 pub mod envelope;
 pub mod messagepipe;
 pub mod models;

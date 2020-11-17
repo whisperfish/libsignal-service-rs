@@ -215,6 +215,39 @@ pub struct StaleDevices {
     pub stale_devices: Vec<i32>,
 }
 
+#[derive(Debug, serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CdnUploadAttributes {
+    path: String,
+    acl: String,
+    key: String,
+    policy: String,
+    algorithm: String,
+    credential: String,
+    date: String,
+    signature: String,
+    content_type: String,
+    length: u64,
+}
+
+#[derive(Debug, serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentV2UploadAttributes {
+    url: Option<String>,
+    key: String,
+    credential: String,
+    acl: String,
+    algorithm: String,
+    date: String,
+    policy: String,
+    signature: String,
+    // This is different from Java's implementation,
+    // and I (Ruben) am unsure why they decide to force-parse at upload-time instead of at registration
+    // time.
+    attachment_id: u64,
+    attachment_id_string: String,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
@@ -285,6 +318,16 @@ pub trait PushService {
         cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError>;
+
+    /// Upload larger file to CDN0 in legacy fashion, e.g. for attachments.
+    ///
+    /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
+    async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<(), ServiceError>;
 
     async fn request_sms_verification_code(
         &mut self,
@@ -387,6 +430,45 @@ pub trait PushService {
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
         self.put(&path, messages).await
+    }
+
+    /// Request AttachmentV2UploadAttributes
+    ///
+    /// Equivalent with getAttachmentV2UploadAttributes
+    async fn get_attachment_v2_upload_attributes(
+        &mut self,
+    ) -> Result<AttachmentV2UploadAttributes, ServiceError> {
+        self.get("/v2/attachments/form/upload").await
+    }
+
+    /// Upload attachment to CDN
+    ///
+    /// Returns attachment ID and the attachment digest
+    async fn upload_attachment<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        attrs: &AttachmentV2UploadAttributes,
+        content: &'s mut C,
+    ) -> Result<(u64, Vec<u8>), ServiceError> {
+        let values = [
+            ("acl", &attrs.acl as &str),
+            ("key", &attrs.key),
+            ("policy", &attrs.policy),
+            ("Content-Type", "application/octet-stream"),
+            ("x-amz-algorithm", &attrs.algorithm),
+            ("x-amz-credential", &attrs.credential),
+            ("x-amz-date", &attrs.date),
+            ("x-amz-signature", &attrs.signature),
+        ];
+
+        let mut digester = crate::digeststream::DigestingReader::new(content);
+
+        self.post_to_cdn0(
+            "attachments/",
+            &values,
+            Some(("file", &mut digester)),
+        )
+        .await?;
+        Ok((attrs.attachment_id, digester.finalize()))
     }
 
     async fn get_messages(

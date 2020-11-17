@@ -1,3 +1,10 @@
+use std::time::SystemTime;
+
+use crate::proto::{
+    attachment_pointer::AttachmentIdentifier,
+    attachment_pointer::Flags as AttachmentPointerFlags, AttachmentPointer,
+};
+
 use libsignal_protocol::{Address, SessionBuilder};
 use log::{info, trace};
 
@@ -29,12 +36,37 @@ pub struct SendMessageResponse {
     pub needs_sync: bool,
 }
 
+/// Attachment specification to be used for uploading.
+///
+/// Loose equivalent of Java's `SignalServiceAttachmentStream`.
+pub struct AttachmentSpec {
+    pub content_type: String,
+    pub length: usize,
+    pub file_name: Option<String>,
+    pub preview: Option<Vec<u8>>,
+    pub voice_note: bool,
+    pub borderless: bool,
+    pub width: u32,
+    pub height: u32,
+    pub caption: Option<String>,
+    pub blur_hash: Option<String>,
+}
+
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
 pub struct MessageSender<Service> {
     service: Service,
     cipher: ServiceCipher,
     device_id: i32,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum AttachmentUploadError {
+    #[error("{0}")]
+    ServiceError(#[from] ServiceError),
+
+    #[error("Could not read attachment contents")]
+    IoError(#[from] std::io::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -71,6 +103,93 @@ where
             cipher,
             device_id,
         }
+    }
+
+    /// Encrypts and uploads an attachment
+    ///
+    /// Contents are accepted as an owned, plain text Vec, because encryption happens in-place.
+    pub async fn upload_attachment(
+        &mut self,
+        spec: AttachmentSpec,
+        mut contents: Vec<u8>,
+    ) -> Result<AttachmentPointer, AttachmentUploadError> {
+        let len = contents.len();
+        // Encrypt
+        let (key, iv) = {
+            use rand::RngCore;
+            let mut key = [0u8; 64];
+            let mut iv = [0u8; 16];
+            // thread_rng is guaranteed to be cryptographically secure
+            rand::thread_rng().fill_bytes(&mut key);
+            rand::thread_rng().fill_bytes(&mut iv);
+            (key, iv)
+        };
+
+        // Padded length uses an exponential bracketting thingy.
+        // If you want to see how it looks:
+        // https://www.wolframalpha.com/input/?i=plot+floor%281.05%5Eceil%28log_1.05%28x%29%29%29+for+x+from+0+to+5000000
+        let padded_len: usize = {
+            // Java:
+            // return (int) Math.max(541, Math.floor(Math.pow(1.05, Math.ceil(Math.log(size) / Math.log(1.05)))))
+            std::cmp::max(
+                541,
+                1.05f64.powf((len as f64).log(1.05).ceil()).floor() as usize,
+            )
+        };
+        if padded_len < len {
+            log::error!(
+                "Padded len {} < len {}. Continuing with a privacy risk.",
+                padded_len,
+                len
+            );
+        } else {
+            contents.resize(padded_len, 0);
+        }
+
+        crate::attachment_cipher::encrypt_in_place(iv, key, &mut contents);
+
+        // Request upload attributes
+        log::trace!("Requesting upload attributes");
+        let attrs = self.service.get_attachment_v2_upload_attributes().await?;
+
+        log::trace!("Uploading attachment");
+        let (id, digest) = self
+            .service
+            .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
+            .await?;
+
+        Ok(AttachmentPointer {
+            content_type: Some(spec.content_type),
+            key: Some(key.to_vec()),
+            size: Some(len as u32),
+            // thumbnail: Option<Vec<u8>>,
+            digest: Some(digest),
+            file_name: spec.file_name,
+            flags: Some(
+                if spec.voice_note {
+                    AttachmentPointerFlags::VoiceMessage as u32
+                } else {
+                    0
+                } | if spec.borderless {
+                    AttachmentPointerFlags::Borderless as u32
+                } else {
+                    0
+                },
+            ),
+            width: Some(spec.width),
+            height: Some(spec.height),
+            caption: spec.caption,
+            blur_hash: spec.blur_hash,
+            upload_timestamp: Some(
+                SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .expect("unix epoch in the past")
+                    .as_millis() as u64,
+            ),
+            cdn_number: Some(0),
+            attachment_identifier: Some(AttachmentIdentifier::CdnId(id)),
+            ..Default::default()
+        })
     }
 
     /// Send a message (`content`) to an address (`recipient`).
