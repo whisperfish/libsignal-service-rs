@@ -309,6 +309,96 @@
 <span id="308">308</span>
 <span id="309">309</span>
 <span id="310">310</span>
+<span id="311">311</span>
+<span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
@@ -316,7 +406,7 @@
     <span class="ident">error</span>::<span class="ident">PayloadError</span>, <span class="ident">http</span>::<span class="ident">StatusCode</span>, <span class="ident">Client</span>, <span class="ident">ClientResponse</span>, <span class="ident">Connector</span>,
 };
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Bytes</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">Stream</span>;
+<span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libsignal_service</span>::{
     <span class="ident">configuration</span>::<span class="kw-2">*</span>, <span class="ident">messagepipe</span>::<span class="ident">WebSocketService</span>, <span class="ident">push_service</span>::<span class="kw-2">*</span>,
 };
@@ -492,6 +582,92 @@
         ))
     }
 
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">post_to_cdn0</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+        <span class="kw-2">mut</span> <span class="ident">value</span>: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)],
+        <span class="ident">file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> <span class="kw-2">mut</span> <span class="ident">C</span>)<span class="op">&gt;</span>,
+    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="ident">Url</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">cdn_urls</span>[<span class="kw-2">&amp;</span><span class="number">0</span>])
+            .<span class="ident">expect</span>(<span class="string">&quot;valid cdn base url&quot;</span>)
+            .<span class="ident">join</span>(<span class="ident">path</span>)
+            .<span class="ident">expect</span>(<span class="string">&quot;valid CDN path&quot;</span>);
+
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::post_to_cdn({:?})&quot;</span>, <span class="ident">url</span>);
+        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">post</span>(<span class="ident">url</span>.<span class="ident">as_str</span>());
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">form</span> <span class="op">=</span> <span class="ident">mpart_async</span>::<span class="ident">client</span>::<span class="ident">MultipartRequest</span>::<span class="ident">default</span>();
+
+        <span class="comment">// XXX: mpart-async has a *very* peculiar ordering of the form items,</span>
+        <span class="comment">//      and Amazon S3 expects them in a very specific order (i.e., the file contents should</span>
+        <span class="comment">//      go last.</span>
+        <span class="comment">//</span>
+        <span class="comment">//      Currently, talking version 4.1, mpart-async internally stores a STATE and a list of</span>
+        <span class="comment">//      FIELDS.  The very first item to be added is set as STATE, while every next items is</span>
+        <span class="comment">//      appended to the vector of FIELDS.</span>
+        <span class="comment">//      When yielding as a stream, msync-async returns the current STATE, and then uses</span>
+        <span class="comment">//      `Vec::pop` to decide on the next state.</span>
+        <span class="comment">//      This, however, is an implementation detail to us, which we are exploiting here.</span>
+        <span class="comment">//</span>
+        <span class="comment">//      https://github.com/cetra3/mpart-async/issues/16</span>
+        <span class="kw">if</span> <span class="op">!</span><span class="ident">value</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">let</span> (<span class="ident">k</span>, <span class="ident">v</span>) <span class="op">=</span> <span class="ident">value</span>[<span class="number">0</span>];
+            <span class="ident">form</span>.<span class="ident">add_field</span>(<span class="ident">k</span>, <span class="ident">v</span>);
+
+            <span class="ident">value</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..];
+        }
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">filename</span>, <span class="ident">file</span>)) <span class="op">=</span> <span class="ident">file</span> {
+            <span class="comment">// XXX Actix doesn&#39;t cope with none-&#39;static lifetimes</span>
+            <span class="comment">// https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+            <span class="ident">file</span>.<span class="ident">read_to_end</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>)
+                .<span class="ident">expect</span>(<span class="string">&quot;infallible Read instance&quot;</span>);
+            <span class="ident">form</span>.<span class="ident">add_stream</span>(
+                <span class="string">&quot;file&quot;</span>,
+                <span class="kw-2">&amp;</span><span class="ident">filename</span>,
+                <span class="string">&quot;application/octet-stream&quot;</span>,
+                <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">Bytes</span>::<span class="ident">from</span>(<span class="ident">buf</span>)).<span class="ident">into_stream</span>(),
+            );
+        }
+
+        <span class="kw">for</span> <span class="kw-2">&amp;</span>(<span class="ident">k</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">value</span> {
+            <span class="ident">form</span>.<span class="ident">add_field</span>(<span class="ident">k</span>, <span class="ident">v</span>);
+        }
+
+        <span class="kw">let</span> <span class="ident">content_type</span> <span class="op">=</span>
+            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;multipart/form-data; boundary={}&quot;</span>, <span class="ident">form</span>.<span class="ident">get_boundary</span>());
+
+        <span class="comment">// XXX Amazon S3 needs the Content-Length, but we don&#39;t know it without depleting the whole</span>
+        <span class="comment">// stream.  Sadly, Content-Length != contents.len(), but should include the whole form.</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">body_contents</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+        <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">StreamExt</span>;
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">b</span>) <span class="op">=</span> <span class="ident">form</span>.<span class="ident">next</span>().<span class="kw">await</span> {
+            <span class="comment">// Unwrap, because no error type was used above</span>
+            <span class="ident">body_contents</span>.<span class="ident">extend</span>(<span class="ident">b</span>.<span class="ident">unwrap</span>());
+        }
+        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(
+            <span class="string">&quot;Sending PUT with Content-Type={} and length {}&quot;</span>,
+            <span class="ident">content_type</span>,
+            <span class="ident">body_contents</span>.<span class="ident">len</span>()
+        );
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">client</span>
+            .<span class="ident">content_type</span>(<span class="kw-2">&amp;</span><span class="ident">content_type</span>)
+            .<span class="ident">content_length</span>(<span class="ident">body_contents</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>)
+            .<span class="ident">send_body</span>(<span class="ident">body_contents</span>)
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+            })<span class="question-mark">?</span>;
+
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::put response: {:?}&quot;</span>, <span class="ident">response</span>);
+
+        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">ws</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
@@ -614,9 +790,13 @@
                 <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">StaleDevices</span>(<span class="ident">stale_devices</span>))
             }
             <span class="comment">// XXX: fill in rest from PushServiceSocket</span>
-            <span class="ident">code</span> <span class="op">=&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">UnhandledResponseCode</span> {
-                <span class="ident">http_code</span>: <span class="ident">code</span>.<span class="ident">as_u16</span>(),
-            }),
+            <span class="ident">code</span> <span class="op">=&gt;</span> {
+                <span class="kw">let</span> <span class="ident">contents</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="kw">await</span>;
+                <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Unhandled response with body: {:?}&quot;</span>, <span class="ident">contents</span>);
+                <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">UnhandledResponseCode</span> {
+                    <span class="ident">http_code</span>: <span class="ident">code</span>.<span class="ident">as_u16</span>(),
+                })
+            }
         }
     }
 }

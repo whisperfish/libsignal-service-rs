@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["MessageSenderError",""]],"struct":[["MessageSender","Equivalent of Java's `SignalServiceMessageSender`."],["OutgoingPushMessage",""],["OutgoingPushMessages",""],["SendMessageResponse",""]]});
+initSidebarItems({"enum":[["AttachmentUploadError",""],["MessageSenderError",""]],"struct":[["AttachmentSpec","Attachment specification to be used for uploading."],["MessageSender","Equivalent of Java's `SignalServiceMessageSender`."],["OutgoingPushMessage",""],["OutgoingPushMessages",""],["SendMessageResponse",""]]});

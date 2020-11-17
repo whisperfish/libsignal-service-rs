@@ -320,7 +320,133 @@
 <span id="319">319</span>
 <span id="320">320</span>
 <span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
+<span id="438">438</span>
+<span id="439">439</span>
+<span id="440">440</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">SystemTime</span>;
+
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::{
+    <span class="ident">attachment_pointer</span>::<span class="ident">AttachmentIdentifier</span>,
+    <span class="ident">attachment_pointer</span>::<span class="ident">Flags</span> <span class="kw">as</span> <span class="ident">AttachmentPointerFlags</span>, <span class="ident">AttachmentPointer</span>,
+};
+
 <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">Address</span>, <span class="ident">SessionBuilder</span>};
 <span class="kw">use</span> <span class="ident">log</span>::{<span class="ident">info</span>, <span class="ident">trace</span>};
 
@@ -352,12 +478,37 @@
     <span class="kw">pub</span> <span class="ident">needs_sync</span>: <span class="ident">bool</span>,
 }
 
+<span class="doccomment">/// Attachment specification to be used for uploading.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Loose equivalent of Java&#39;s `SignalServiceAttachmentStream`.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AttachmentSpec</span> {
+    <span class="kw">pub</span> <span class="ident">content_type</span>: <span class="ident">String</span>,
+    <span class="kw">pub</span> <span class="ident">length</span>: <span class="ident">usize</span>,
+    <span class="kw">pub</span> <span class="ident">file_name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">preview</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">voice_note</span>: <span class="ident">bool</span>,
+    <span class="kw">pub</span> <span class="ident">borderless</span>: <span class="ident">bool</span>,
+    <span class="kw">pub</span> <span class="ident">width</span>: <span class="ident">u32</span>,
+    <span class="kw">pub</span> <span class="ident">height</span>: <span class="ident">u32</span>,
+    <span class="kw">pub</span> <span class="ident">caption</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">blur_hash</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+}
+
 <span class="doccomment">/// Equivalent of Java&#39;s `SignalServiceMessageSender`.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MessageSender</span><span class="op">&lt;</span><span class="ident">Service</span><span class="op">&gt;</span> {
     <span class="ident">service</span>: <span class="ident">Service</span>,
     <span class="ident">cipher</span>: <span class="ident">ServiceCipher</span>,
     <span class="ident">device_id</span>: <span class="ident">i32</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">thiserror</span>::<span class="ident">Error</span>, <span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">AttachmentUploadError</span> {
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;{0}&quot;</span>)]</span>
+    <span class="ident">ServiceError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">ServiceError</span>),
+
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Could not read attachment contents&quot;</span>)]</span>
+    <span class="ident">IoError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span>),
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">thiserror</span>::<span class="ident">Error</span>, <span class="ident">Debug</span>)]</span>
@@ -394,6 +545,93 @@
             <span class="ident">cipher</span>,
             <span class="ident">device_id</span>,
         }
+    }
+
+    <span class="doccomment">/// Encrypts and uploads an attachment</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Contents are accepted as an owned, plain text Vec, because encryption happens in-place.</span>
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">upload_attachment</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">spec</span>: <span class="ident">AttachmentSpec</span>,
+        <span class="kw-2">mut</span> <span class="ident">contents</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
+    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentPointer</span>, <span class="ident">AttachmentUploadError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">contents</span>.<span class="ident">len</span>();
+        <span class="comment">// Encrypt</span>
+        <span class="kw">let</span> (<span class="ident">key</span>, <span class="ident">iv</span>) <span class="op">=</span> {
+            <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">RngCore</span>;
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">key</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">64</span>];
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">iv</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">16</span>];
+            <span class="comment">// thread_rng is guaranteed to be cryptographically secure</span>
+            <span class="ident">rand</span>::<span class="ident">thread_rng</span>().<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">key</span>);
+            <span class="ident">rand</span>::<span class="ident">thread_rng</span>().<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">iv</span>);
+            (<span class="ident">key</span>, <span class="ident">iv</span>)
+        };
+
+        <span class="comment">// Padded length uses an exponential bracketting thingy.</span>
+        <span class="comment">// If you want to see how it looks:</span>
+        <span class="comment">// https://www.wolframalpha.com/input/?i=plot+floor%281.05%5Eceil%28log_1.05%28x%29%29%29+for+x+from+0+to+5000000</span>
+        <span class="kw">let</span> <span class="ident">padded_len</span>: <span class="ident">usize</span> <span class="op">=</span> {
+            <span class="comment">// Java:</span>
+            <span class="comment">// return (int) Math.max(541, Math.floor(Math.pow(1.05, Math.ceil(Math.log(size) / Math.log(1.05)))))</span>
+            <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">max</span>(
+                <span class="number">541</span>,
+                <span class="number">1.05f64</span>.<span class="ident">powf</span>((<span class="ident">len</span> <span class="kw">as</span> <span class="ident">f64</span>).<span class="ident">log</span>(<span class="number">1.05</span>).<span class="ident">ceil</span>()).<span class="ident">floor</span>() <span class="kw">as</span> <span class="ident">usize</span>,
+            )
+        };
+        <span class="kw">if</span> <span class="ident">padded_len</span> <span class="op">&lt;</span> <span class="ident">len</span> {
+            <span class="ident">log</span>::<span class="macro">error</span><span class="macro">!</span>(
+                <span class="string">&quot;Padded len {} &lt; len {}. Continuing with a privacy risk.&quot;</span>,
+                <span class="ident">padded_len</span>,
+                <span class="ident">len</span>
+            );
+        } <span class="kw">else</span> {
+            <span class="ident">contents</span>.<span class="ident">resize</span>(<span class="ident">padded_len</span>, <span class="number">0</span>);
+        }
+
+        <span class="kw">crate</span>::<span class="ident">attachment_cipher</span>::<span class="ident">encrypt_in_place</span>(<span class="ident">iv</span>, <span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">contents</span>);
+
+        <span class="comment">// Request upload attributes</span>
+        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Requesting upload attributes&quot;</span>);
+        <span class="kw">let</span> <span class="ident">attrs</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">get_attachment_v2_upload_attributes</span>().<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Uploading attachment&quot;</span>);
+        <span class="kw">let</span> (<span class="ident">id</span>, <span class="ident">digest</span>) <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">service</span>
+            .<span class="ident">upload_attachment</span>(<span class="kw-2">&amp;</span><span class="ident">attrs</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Cursor</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">contents</span>))
+            .<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(<span class="ident">AttachmentPointer</span> {
+            <span class="ident">content_type</span>: <span class="prelude-val">Some</span>(<span class="ident">spec</span>.<span class="ident">content_type</span>),
+            <span class="ident">key</span>: <span class="prelude-val">Some</span>(<span class="ident">key</span>.<span class="ident">to_vec</span>()),
+            <span class="ident">size</span>: <span class="prelude-val">Some</span>(<span class="ident">len</span> <span class="kw">as</span> <span class="ident">u32</span>),
+            <span class="comment">// thumbnail: Option&lt;Vec&lt;u8&gt;&gt;,</span>
+            <span class="ident">digest</span>: <span class="prelude-val">Some</span>(<span class="ident">digest</span>),
+            <span class="ident">file_name</span>: <span class="ident">spec</span>.<span class="ident">file_name</span>,
+            <span class="ident">flags</span>: <span class="prelude-val">Some</span>(
+                <span class="kw">if</span> <span class="ident">spec</span>.<span class="ident">voice_note</span> {
+                    <span class="ident">AttachmentPointerFlags</span>::<span class="ident">VoiceMessage</span> <span class="kw">as</span> <span class="ident">u32</span>
+                } <span class="kw">else</span> {
+                    <span class="number">0</span>
+                } <span class="op">|</span> <span class="kw">if</span> <span class="ident">spec</span>.<span class="ident">borderless</span> {
+                    <span class="ident">AttachmentPointerFlags</span>::<span class="ident">Borderless</span> <span class="kw">as</span> <span class="ident">u32</span>
+                } <span class="kw">else</span> {
+                    <span class="number">0</span>
+                },
+            ),
+            <span class="ident">width</span>: <span class="prelude-val">Some</span>(<span class="ident">spec</span>.<span class="ident">width</span>),
+            <span class="ident">height</span>: <span class="prelude-val">Some</span>(<span class="ident">spec</span>.<span class="ident">height</span>),
+            <span class="ident">caption</span>: <span class="ident">spec</span>.<span class="ident">caption</span>,
+            <span class="ident">blur_hash</span>: <span class="ident">spec</span>.<span class="ident">blur_hash</span>,
+            <span class="ident">upload_timestamp</span>: <span class="prelude-val">Some</span>(
+                <span class="ident">SystemTime</span>::<span class="ident">now</span>()
+                    .<span class="ident">duration_since</span>(<span class="ident">SystemTime</span>::<span class="ident">UNIX_EPOCH</span>)
+                    .<span class="ident">expect</span>(<span class="string">&quot;unix epoch in the past&quot;</span>)
+                    .<span class="ident">as_millis</span>() <span class="kw">as</span> <span class="ident">u64</span>,
+            ),
+            <span class="ident">cdn_number</span>: <span class="prelude-val">Some</span>(<span class="number">0</span>),
+            <span class="ident">attachment_identifier</span>: <span class="prelude-val">Some</span>(<span class="ident">AttachmentIdentifier</span>::<span class="ident">CdnId</span>(<span class="ident">id</span>)),
+            ..<span class="ident">Default</span>::<span class="ident">default</span>()
+        })
     }
 
     <span class="doccomment">/// Send a message (`content`) to an address (`recipient`).</span>
