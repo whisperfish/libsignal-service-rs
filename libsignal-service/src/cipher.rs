@@ -302,6 +302,10 @@ pub fn get_preferred_protocol_address(
         if store_context.contains_session(&address)? {
             return Ok(address);
         }
+        if cfg!(feature = "prefer-e164") {
+            log::warn!("prefer-e164 triggered.  This is a legacy feature and shouldn't be used for new applications.");
+            return Ok(address);
+        }
     }
 
     Ok(ProtocolAddress::new(address.identifier(), device_id as i32))
