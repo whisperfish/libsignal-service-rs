@@ -183,7 +183,7 @@ impl PushService for AwcPushService {
     async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
         &mut self,
         path: &str,
-        mut value: &[(&str, &str)],
+        value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError> {
         let url = Url::parse(&self.cfg.cdn_urls[&0])
@@ -196,23 +196,16 @@ impl PushService for AwcPushService {
 
         let mut form = mpart_async::client::MultipartRequest::default();
 
-        // XXX: mpart-async has a *very* peculiar ordering of the form items,
-        //      and Amazon S3 expects them in a very specific order (i.e., the file contents should
-        //      go last.
+        // mpart-async has a peculiar ordering of the form items,
+        // and Amazon S3 expects them in a very specific order (i.e., the file contents should
+        // go last.
         //
-        //      Currently, talking version 4.1, mpart-async internally stores a STATE and a list of
-        //      FIELDS.  The very first item to be added is set as STATE, while every next items is
-        //      appended to the vector of FIELDS.
-        //      When yielding as a stream, msync-async returns the current STATE, and then uses
-        //      `Vec::pop` to decide on the next state.
-        //      This, however, is an implementation detail to us, which we are exploiting here.
+        // mpart-async uses a VecDeque internally for ordering the fields in the order given.
         //
-        //      https://github.com/cetra3/mpart-async/issues/16
-        if !value.is_empty() {
-            let (k, v) = value[0];
-            form.add_field(k, v);
+        // https://github.com/cetra3/mpart-async/issues/16
 
-            value = &value[1..];
+        for &(k, v) in value {
+            form.add_field(k, v);
         }
 
         if let Some((filename, file)) = file {
@@ -227,10 +220,6 @@ impl PushService for AwcPushService {
                 "application/octet-stream",
                 futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
             );
-        }
-
-        for &(k, v) in value {
-            form.add_field(k, v);
         }
 
         let content_type =
