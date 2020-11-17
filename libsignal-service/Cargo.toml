@@ -33,3 +33,6 @@ prost-build = "0.6"
 
 [dev-dependencies]
 anyhow = "1.0"
+
+[features]
+prefer-e164 = []
