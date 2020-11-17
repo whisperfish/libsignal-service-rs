@@ -138,7 +138,7 @@ impl ServiceCipher {
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
-                let data = SessionCipher::new(
+                let mut data = SessionCipher::new(
                     &self.context,
                     &self.store_context,
                     &sender,
@@ -149,6 +149,9 @@ impl ServiceCipher {
                 )?)?
                 .as_slice()
                 .to_vec();
+                let version =
+                    self.store_context.load_session(&sender)?.state().version();
+                strip_padding(version, &mut data)?;
                 Plaintext { metadata, data }
             }
             Type::UnidentifiedSender => {
