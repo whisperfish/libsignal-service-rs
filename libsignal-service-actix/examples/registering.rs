@@ -19,7 +19,7 @@
 
 use failure::Error;
 use libsignal_protocol::Context;
-use libsignal_service::{configuration::*, AccountManager, TrustStore};
+use libsignal_service::{configuration::*, AccountManager};
 use libsignal_service_actix::push_service::AwcPushService;
 use std::io;
 use structopt::StructOpt;
@@ -29,7 +29,6 @@ async fn main() -> Result<(), Error> {
     let args = Args::from_args();
 
     // Only used with MessageSender and MessageReceiver
-    let _trust_store = args.load_trust_store()?;
     let password = args.get_password()?;
 
     let config: ServiceConfiguration = SignalServers::Staging.into();
@@ -97,10 +96,6 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn load_trust_store(&self) -> Result<TrustStore, Error> {
-        Ok(TrustStore)
-    }
-
     pub fn get_password(&self) -> Result<String, Error> {
         if let Some(ref pw) = self.password {
             return Ok(pw.clone());

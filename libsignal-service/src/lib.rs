@@ -13,6 +13,7 @@ mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
+pub mod sealed_session_cipher;
 pub mod sender;
 pub mod utils;
 
@@ -27,8 +28,6 @@ pub const GROUP_UPDATE_FLAG: u32 = 1;
 
 /// GROUP_LEAVE_FLAG signals that this message is a group leave message.
 pub const GROUP_LEAVE_FLAG: u32 = 2;
-
-pub struct TrustStore;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceAddress {

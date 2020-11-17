@@ -2,13 +2,16 @@ use crate::{
     content::{Content, Metadata},
     envelope::Envelope,
     push_service::ServiceError,
+    sealed_session_cipher::UnidentifiedAccess,
+    sealed_session_cipher::{
+        CertificateValidator, DecryptionResult, SealedSessionCipher,
+    },
     sender::OutgoingPushMessage,
     ServiceAddress,
 };
 
 use libsignal_protocol::{
-    messages::CiphertextType,
-    messages::{PreKeySignalMessage, SignalMessage},
+    messages::{CiphertextType, PreKeySignalMessage, SignalMessage},
     Address as ProtocolAddress, Context, Deserializable, Serializable,
     SessionCipher, StoreContext,
 };
@@ -21,21 +24,29 @@ use prost::Message;
 /// Equivalent of SignalServiceCipher in Java.
 #[derive(Clone)]
 pub struct ServiceCipher {
+    pub(crate) context: Context,
     pub(crate) store_context: StoreContext,
     pub(crate) local_address: ServiceAddress,
-    pub(crate) context: Context,
+    sealed_session_cipher: SealedSessionCipher,
 }
 
 impl ServiceCipher {
     pub fn from_context(
         context: Context,
-        local_address: ServiceAddress,
         store_context: StoreContext,
+        local_address: ServiceAddress,
+        certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            context,
-            store_context,
-            local_address,
+            context: context.clone(),
+            store_context: store_context.clone(),
+            local_address: local_address.clone(),
+            sealed_session_cipher: SealedSessionCipher::new(
+                context,
+                store_context,
+                local_address,
+                certificate_validator,
+            ),
         }
     }
 
@@ -83,108 +94,104 @@ impl ServiceCipher {
         };
 
         use crate::proto::envelope::Type;
-        let (address, metadata) = match envelope.r#type() {
-            Type::PrekeyBundle | Type::Ciphertext => {
-                // is prekey signal message || is signal message
-                (
-                    self.get_preferred_protocol_address(
-                        envelope.source_address(),
-                        envelope.source_device(),
-                    )?,
-                    Metadata {
-                        sender: envelope.source_address(),
-                        sender_device: envelope.source_device(),
-                        timestamp: envelope.timestamp(),
-                        needs_receipt: false,
-                    },
-                )
+        let plaintext = match envelope.r#type() {
+            Type::PrekeyBundle => {
+                let sender = get_preferred_protocol_address(
+                    &self.store_context,
+                    envelope.source_address(),
+                    envelope.source_device() as i32,
+                )?;
+                let metadata = Metadata {
+                    sender: envelope.source_address(),
+                    sender_device: envelope.source_device() as i32,
+                    timestamp: envelope.timestamp(),
+                    needs_receipt: false,
+                };
+                let cipher = SessionCipher::new(
+                    &self.context,
+                    &self.store_context,
+                    &sender,
+                )?;
+                let mut data = cipher
+                    .decrypt_pre_key_message(
+                        &PreKeySignalMessage::deserialize(
+                            &self.context,
+                            ciphertext,
+                        )?,
+                    )?
+                    .as_slice()
+                    .to_vec();
+                let version =
+                    self.store_context.load_session(&sender)?.state().version();
+                strip_padding(version, &mut data)?;
+                Plaintext { metadata, data }
+            }
+            Type::Ciphertext => {
+                let sender = get_preferred_protocol_address(
+                    &self.store_context,
+                    envelope.source_address(),
+                    envelope.source_device() as i32,
+                )?;
+                let metadata = Metadata {
+                    sender: envelope.source_address(),
+                    sender_device: envelope.source_device() as i32,
+                    timestamp: envelope.timestamp(),
+                    needs_receipt: false,
+                };
+                let data = SessionCipher::new(
+                    &self.context,
+                    &self.store_context,
+                    &sender,
+                )?
+                .decrypt_message(&SignalMessage::deserialize(
+                    &self.context,
+                    ciphertext,
+                )?)?
+                .as_slice()
+                .to_vec();
+                Plaintext { metadata, data }
             }
             Type::UnidentifiedSender => {
-                // is unidentified sender
-                return Err(ServiceError::InvalidFrameError {
-                    reason: "UnidentifiedSender requires SealedSessionCipher, see: https://github.com/Michael-F-Bryan/libsignal-service-rs/issues/10".into(),
-                });
+                let DecryptionResult {
+                    sender_uuid,
+                    sender_e164,
+                    device_id,
+                    padded_message: mut data,
+                    version,
+                } = self
+                    .sealed_session_cipher
+                    .decrypt(ciphertext, envelope.timestamp())?;
+                let sender = ServiceAddress {
+                    e164: sender_e164,
+                    uuid: sender_uuid,
+                    relay: None,
+                };
+                let metadata = Metadata {
+                    sender,
+                    sender_device: device_id,
+                    timestamp: envelope.timestamp(),
+                    needs_receipt: false,
+                };
+                strip_padding(version, &mut data)?;
+                Plaintext { metadata, data }
             }
             _ => {
                 // else
                 return Err(ServiceError::InvalidFrameError {
-                    reason: "Envelope has unknown type.".into(),
+                    reason: format!(
+                        "Envelope has unknown type {:?}.",
+                        envelope.r#type()
+                    ),
                 });
             }
         };
-
-        let mut plaintext = match envelope.r#type() {
-            Type::PrekeyBundle => {
-                let cipher = SessionCipher::new(
-                    &self.context,
-                    &self.store_context,
-                    &address,
-                )?;
-                let buf = cipher.decrypt_pre_key_message(
-                    &PreKeySignalMessage::deserialize(
-                        &self.context,
-                        ciphertext,
-                    )?,
-                )?;
-                Plaintext {
-                    metadata,
-                    data: Vec::from(buf.as_slice()),
-                }
-            }
-            Type::Ciphertext => {
-                let cipher = SessionCipher::new(
-                    &self.context,
-                    &self.store_context,
-                    &address,
-                )?;
-                let buf = cipher.decrypt_message(
-                    &SignalMessage::deserialize(&self.context, ciphertext)?,
-                )?;
-                Plaintext {
-                    metadata,
-                    data: Vec::from(buf.as_slice()),
-                }
-            }
-            Type::UnidentifiedSender => {
-                unimplemented!("UnidentifiedSender requires SealedSessionCipher, please report a bug against libsignal-service-rs.");
-            }
-            _ => {
-                unreachable!("conditions checked in previous match");
-            }
-        };
-
-        let version =
-            self.store_context.load_session(&address)?.state().version();
-
-        strip_padding(version, &mut plaintext.data)?;
         Ok(plaintext)
     }
 
-    /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
-    fn get_preferred_protocol_address(
-        &self,
-        address: ServiceAddress,
-        device: u32,
-    ) -> Result<ProtocolAddress, ServiceError> {
-        if let Some(ref uuid) = address.uuid {
-            let address = ProtocolAddress::new(uuid, device as i32);
-            if self.store_context.contains_session(&address)? {
-                return Ok(address);
-            }
-        } else if let Some(ref e164) = address.e164 {
-            let address = ProtocolAddress::new(e164, device as i32);
-            if self.store_context.contains_session(&address)? {
-                return Ok(address);
-            }
-        }
-
-        Ok(ProtocolAddress::new(address.identifier(), device as i32))
-    }
-
-    pub fn encrypt(
+    pub(crate) fn encrypt(
         &self,
         address: &ProtocolAddress,
-        unindentified_access: Option<bool>,
+        unindentified_access: Option<&UnidentifiedAccess>,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, ServiceError> {
         if unindentified_access.is_some() {
@@ -277,4 +284,26 @@ fn strip_padding(
         contents.resize(new_length, 0);
         Ok(())
     }
+}
+
+/// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
+pub fn get_preferred_protocol_address(
+    store_context: &StoreContext,
+    address: ServiceAddress,
+    device_id: i32,
+) -> Result<ProtocolAddress, libsignal_protocol::Error> {
+    if let Some(ref uuid) = address.uuid {
+        let address = ProtocolAddress::new(uuid, device_id as i32);
+        if store_context.contains_session(&address)? {
+            return Ok(address);
+        }
+    }
+    if let Some(ref e164) = address.e164 {
+        let address = ProtocolAddress::new(e164, device_id as i32);
+        if store_context.contains_session(&address)? {
+            return Ok(address);
+        }
+    }
+
+    Ok(ProtocolAddress::new(address.identifier(), device_id as i32))
 }

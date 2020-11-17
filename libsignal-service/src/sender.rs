@@ -3,7 +3,7 @@ use log::{info, trace};
 
 use crate::{
     cipher::ServiceCipher, content::ContentBody, push_service::*,
-    ServiceAddress,
+    sealed_session_cipher::UnidentifiedAccess, ServiceAddress,
 };
 
 #[derive(serde::Serialize, Debug)]
@@ -77,6 +77,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: impl std::borrow::Borrow<ServiceAddress>,
+        unidentified_access: Option<UnidentifiedAccess>,
         content: impl Into<crate::content::ContentBody>,
         timestamp: u64,
         online: bool,
@@ -94,7 +95,13 @@ where
 
         let content = content_body.clone().into_proto();
         let response = self
-            .try_send_message(recipient, &content, timestamp, online)
+            .try_send_message(
+                recipient,
+                unidentified_access,
+                &content,
+                timestamp,
+                online,
+            )
             .await?;
 
         if response.needs_sync {
@@ -105,6 +112,7 @@ where
             )?;
             self.try_send_message(
                 &self.cipher.local_address.clone(),
+                None,
                 &content,
                 timestamp,
                 false,
@@ -128,6 +136,7 @@ where
     async fn try_send_message(
         &mut self,
         recipient: &ServiceAddress,
+        unidentified_access: Option<UnidentifiedAccess>,
         content: &crate::proto::Content,
         timestamp: u64,
         online: bool,
@@ -140,7 +149,13 @@ where
 
         for _ in 0..4 {
             match self
-                .send_messages(recipient, &content_bytes, timestamp, online)
+                .send_messages(
+                    recipient,
+                    unidentified_access.as_ref(),
+                    &content_bytes,
+                    timestamp,
+                    online,
+                )
                 .await
             {
                 Err(MessageSenderError::TryAgain) => continue,
@@ -157,6 +172,7 @@ where
     async fn send_messages(
         &mut self,
         recipient: &ServiceAddress,
+        _unidentified_access: Option<&UnidentifiedAccess>,
         content: &[u8],
         timestamp: u64,
         online: bool,
@@ -267,7 +283,7 @@ where
     async fn create_encrypted_messages(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<bool>,
+        unidentified_access: Option<UnidentifiedAccess>,
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
@@ -278,7 +294,7 @@ where
             messages.push(
                 self.create_encrypted_message(
                     recipient,
-                    unidentified_access,
+                    unidentified_access.as_ref(),
                     DEFAULT_DEVICE_ID,
                     content,
                 )
@@ -299,7 +315,7 @@ where
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
-                        unidentified_access,
+                        unidentified_access.as_ref(),
                         device_id,
                         content,
                     )
@@ -317,7 +333,7 @@ where
     async fn create_encrypted_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<bool>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         device_id: i32,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
@@ -362,67 +378,6 @@ where
         )?;
         Ok(message)
     }
-
-    /**
-
-    private byte[] createMultiDeviceSentTranscriptContent(byte[] content, Optional<SignalServiceAddress> recipient,
-                                                          long timestamp, List<SendMessageResult> sendMessageResults,
-                                                          boolean isRecipientUpdate)
-    {
-      try {
-        Content.Builder          container   = Content.newBuilder();
-        SyncMessage.Builder      syncMessage = createSyncMessageBuilder();
-        SyncMessage.Sent.Builder sentMessage = SyncMessage.Sent.newBuilder();
-        DataMessage              dataMessage = Content.parseFrom(content).getDataMessage();
-
-        sentMessage.setTimestamp(timestamp);
-        sentMessage.setMessage(dataMessage);
-
-        for (SendMessageResult result : sendMessageResults) {
-          if (result.getSuccess() != null) {
-            SyncMessage.Sent.UnidentifiedDeliveryStatus.Builder builder = SyncMessage.Sent.UnidentifiedDeliveryStatus.newBuilder();
-
-            if (result.getAddress().getUuid().isPresent()) {
-              builder = builder.setDestinationUuid(result.getAddress().getUuid().get().toString());
-            }
-
-            if (result.getAddress().getNumber().isPresent()) {
-              builder = builder.setDestinationE164(result.getAddress().getNumber().get());
-            }
-
-            builder.setUnidentified(result.getSuccess().isUnidentified());
-
-            sentMessage.addUnidentifiedStatus(builder.build());
-          }
-        }
-
-        if (recipient.isPresent()) {
-          if (recipient.get().getUuid().isPresent())   sentMessage.setDestinationUuid(recipient.get().getUuid().get().toString());
-          if (recipient.get().getNumber().isPresent()) sentMessage.setDestinationE164(recipient.get().getNumber().get());
-        }
-
-        if (dataMessage.getExpireTimer() > 0) {
-          sentMessage.setExpirationStartTimestamp(System.currentTimeMillis());
-        }
-
-        if (dataMessage.getIsViewOnce()) {
-          dataMessage = dataMessage.toBuilder().clearAttachments().build();
-          sentMessage.setMessage(dataMessage);
-        }
-
-        sentMessage.setIsRecipientUpdate(isRecipientUpdate);
-
-        return container.setSyncMessage(syncMessage.setSent(sentMessage)).build().toByteArray();
-      } catch (InvalidProtocolBufferException e) {
-        throw new AssertionError(e);
-      }
-    }
-
-
-    private byte[] createMultiDeviceSentTranscriptContent(byte[] content, Optional<SignalServiceAddress> recipient,
-                                                          long timestamp, List<SendMessageResult> sendMessageResults,
-                                                          boolean isRecipientUpdate)
-      **/
 
     fn create_multi_device_sent_transcript_content(
         &self,

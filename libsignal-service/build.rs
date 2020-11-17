@@ -3,6 +3,13 @@ use std::path::Path;
 fn main() {
     let protobuf = Path::new("protobuf").to_owned();
 
+    // Build script does not automagically rerun when a new protobuf file is added.
+    // Directories are checked against mtime, which is platform specific
+    println!("cargo:rerun-if-changed=protobuf");
+    // Adding src/proto.rs means an extra `include!` will trigger a rerun. This is on best-effort
+    // basis.
+    println!("cargo:rerun-if-changed=src/proto.rs");
+
     let input: Vec<_> = protobuf
         .read_dir()
         .expect("protobuf directory")
