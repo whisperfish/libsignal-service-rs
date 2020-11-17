@@ -388,17 +388,6 @@
 <span id="387">387</span>
 <span id="388">388</span>
 <span id="389">389</span>
-<span id="390">390</span>
-<span id="391">391</span>
-<span id="392">392</span>
-<span id="393">393</span>
-<span id="394">394</span>
-<span id="395">395</span>
-<span id="396">396</span>
-<span id="397">397</span>
-<span id="398">398</span>
-<span id="399">399</span>
-<span id="400">400</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
@@ -585,7 +574,7 @@
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">post_to_cdn0</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="kw-2">mut</span> <span class="ident">value</span>: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)],
+        <span class="ident">value</span>: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)],
         <span class="ident">file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> <span class="kw-2">mut</span> <span class="ident">C</span>)<span class="op">&gt;</span>,
     ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="ident">Url</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">cdn_urls</span>[<span class="kw-2">&amp;</span><span class="number">0</span>])
@@ -598,23 +587,16 @@
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">form</span> <span class="op">=</span> <span class="ident">mpart_async</span>::<span class="ident">client</span>::<span class="ident">MultipartRequest</span>::<span class="ident">default</span>();
 
-        <span class="comment">// XXX: mpart-async has a *very* peculiar ordering of the form items,</span>
-        <span class="comment">//      and Amazon S3 expects them in a very specific order (i.e., the file contents should</span>
-        <span class="comment">//      go last.</span>
+        <span class="comment">// mpart-async has a peculiar ordering of the form items,</span>
+        <span class="comment">// and Amazon S3 expects them in a very specific order (i.e., the file contents should</span>
+        <span class="comment">// go last.</span>
         <span class="comment">//</span>
-        <span class="comment">//      Currently, talking version 4.1, mpart-async internally stores a STATE and a list of</span>
-        <span class="comment">//      FIELDS.  The very first item to be added is set as STATE, while every next items is</span>
-        <span class="comment">//      appended to the vector of FIELDS.</span>
-        <span class="comment">//      When yielding as a stream, msync-async returns the current STATE, and then uses</span>
-        <span class="comment">//      `Vec::pop` to decide on the next state.</span>
-        <span class="comment">//      This, however, is an implementation detail to us, which we are exploiting here.</span>
+        <span class="comment">// mpart-async uses a VecDeque internally for ordering the fields in the order given.</span>
         <span class="comment">//</span>
-        <span class="comment">//      https://github.com/cetra3/mpart-async/issues/16</span>
-        <span class="kw">if</span> <span class="op">!</span><span class="ident">value</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">let</span> (<span class="ident">k</span>, <span class="ident">v</span>) <span class="op">=</span> <span class="ident">value</span>[<span class="number">0</span>];
-            <span class="ident">form</span>.<span class="ident">add_field</span>(<span class="ident">k</span>, <span class="ident">v</span>);
+        <span class="comment">// https://github.com/cetra3/mpart-async/issues/16</span>
 
-            <span class="ident">value</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..];
+        <span class="kw">for</span> <span class="kw-2">&amp;</span>(<span class="ident">k</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">value</span> {
+            <span class="ident">form</span>.<span class="ident">add_field</span>(<span class="ident">k</span>, <span class="ident">v</span>);
         }
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">filename</span>, <span class="ident">file</span>)) <span class="op">=</span> <span class="ident">file</span> {
@@ -629,10 +611,6 @@
                 <span class="string">&quot;application/octet-stream&quot;</span>,
                 <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">Bytes</span>::<span class="ident">from</span>(<span class="ident">buf</span>)).<span class="ident">into_stream</span>(),
             );
-        }
-
-        <span class="kw">for</span> <span class="kw-2">&amp;</span>(<span class="ident">k</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">value</span> {
-            <span class="ident">form</span>.<span class="ident">add_field</span>(<span class="ident">k</span>, <span class="ident">v</span>);
         }
 
         <span class="kw">let</span> <span class="ident">content_type</span> <span class="op">=</span>
