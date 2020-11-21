@@ -16,7 +16,8 @@ use crate::{
     proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
     provisioning::{ProvisioningCipher, ProvisioningError},
     push_service::{
-        AccountAttributes, HttpAuthOverride, PushService, ServiceError,
+        AccountAttributes, ContactTokenDetails, ContactTokenList,
+        HttpAuthOverride, PushService, ServiceError,
     },
 };
 
@@ -400,5 +401,49 @@ impl<Service: PushService> AccountManager<Service> {
         attributes: AccountAttributes,
     ) -> Result<(), ServiceError> {
         self.service.set_account_attributes(attributes).await
+    }
+
+    /// Checks which contacts in a set are registered with the server.
+    ///
+    /// Equivalent with AccountManager::getContacts
+    pub async fn get_contacts(
+        &mut self,
+        numbers: impl AsRef<[phonenumber::PhoneNumber]>,
+    ) -> Result<
+        Vec<(phonenumber::PhoneNumber, ContactTokenDetails)>,
+        ServiceError,
+    > {
+        let numbers = numbers.as_ref();
+
+        // createDirectoryServerTokenMap
+        let contacts = numbers.iter().map(|number| {
+            // createDirectoryServerToken
+            use sha1::Digest;
+
+            let e164 =
+                number.format().mode(phonenumber::Mode::E164).to_string();
+            let mut sha = sha1::Sha1::new();
+            sha.update(e164);
+            let sha = sha.finalize();
+            (base64::encode(&sha[0..10]), number)
+        });
+
+        let contacts: std::collections::HashMap<_, _> = contacts.collect();
+
+        let tokens = ContactTokenList {
+            // XXX unnecessary allocation
+            contacts: contacts.keys().cloned().collect(),
+        };
+
+        let active_tokens = self.service.retrieve_directory(tokens).await?;
+
+        // Fill in the numbers
+        Ok(active_tokens
+            .contacts
+            .into_iter()
+            .filter_map(|token| {
+                Some(((*contacts.get(&token.token)?).clone(), token))
+            })
+            .collect())
     }
 }

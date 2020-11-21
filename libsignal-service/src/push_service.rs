@@ -113,6 +113,12 @@ pub struct DeviceCapabilities {
 #[derive(Clone)]
 pub struct ProfileKey(pub [u8; 32]);
 
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ContactTokenList {
+    pub contacts: Vec<String>,
+}
+
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyStatus {
@@ -271,6 +277,23 @@ pub struct AttachmentV2UploadAttributes {
     attachment_id: u64,
 }
 
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ContactTokenDetailsList {
+    pub contacts: Vec<ContactTokenDetails>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ContactTokenDetails {
+    pub token: String,
+    pub relay: String,
+    // We do not provide `number` in this struct, because it's not returned by OWS
+    // pub number: String,
+    pub voice: bool,
+    pub video: bool,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
@@ -400,6 +423,23 @@ pub trait PushService: MaybeSend {
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError>;
+
+    /// Checks which contacts in a set are registered with the server.
+    ///
+    /// Equivalent with `PushServiceSocket::retrieveDirectory`.
+    async fn retrieve_directory(
+        &mut self,
+        tokens: ContactTokenList,
+    ) -> Result<ContactTokenDetailsList, ServiceError> {
+        Ok(self
+            .put_json(
+                Endpoint::Service,
+                "/v1/directory/tokens",
+                HttpAuthOverride::NoOverride,
+                tokens,
+            )
+            .await?)
+    }
 
     async fn ws(
         &mut self,
