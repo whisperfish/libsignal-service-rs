@@ -299,15 +299,11 @@ pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
-    async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
+    async fn get<T>(&self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
 
-    async fn put<D, S>(
-        &mut self,
-        path: &str,
-        value: S,
-    ) -> Result<D, ServiceError>
+    async fn put<D, S>(&self, path: &str, value: S) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
         S: Serialize;
@@ -425,7 +421,7 @@ pub trait PushService {
     }
 
     async fn send_messages<'a>(
-        &mut self,
+        &self,
         messages: OutgoingPushMessages<'a>,
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
@@ -484,7 +480,7 @@ pub trait PushService {
     }
 
     async fn get_pre_key(
-        &mut self,
+        &self,
         context: &Context,
         destination: &ServiceAddress,
         device_id: i32,
@@ -528,7 +524,7 @@ pub trait PushService {
     }
 
     async fn get_pre_keys(
-        &mut self,
+        &self,
         context: &Context,
         destination: &ServiceAddress,
         device_id: i32,

@@ -152,7 +152,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
                                 });
                                 background_work.push(request.boxed_local());
                             },
-                            Err(e) => log::warn!("Could not send keep alive"),
+                            Err(e) => log::warn!("Could not send keep alive: {}", e),
                         }
                     },
                     None => {

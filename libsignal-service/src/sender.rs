@@ -36,6 +36,13 @@ pub struct SendMessageResponse {
     pub needs_sync: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct SendMessageResult {
+    recipient: ServiceAddress,
+    unidentified: bool,
+    needs_sync: bool,
+}
+
 /// Attachment specification to be used for uploading.
 ///
 /// Loose equivalent of Java's `SignalServiceAttachmentStream`.
@@ -76,8 +83,8 @@ pub enum MessageSenderError {
     #[error("protocol error: {0}")]
     ProtocolError(#[from] libsignal_protocol::Error),
 
-    #[error("Untrusted identity key!")]
-    UntrustedIdentityException,
+    #[error("Untrusted identity key with {identifier}")]
+    UntrustedIdentity { identifier: String },
 
     #[error("No pre-key found to establish session with {0:?}")]
     NoPreKey(ServiceAddress),
@@ -87,11 +94,20 @@ pub enum MessageSenderError {
 
     #[error("Exceeded maximum number of retries")]
     MaximumRetriesLimitExceeded,
+
+    #[error("Network failure sending message to {recipient}")]
+    NetworkFailure { recipient: ServiceAddress },
+
+    #[error("Unregistered recipient {recipient}")]
+    UnregisteredFailure { recipient: ServiceAddress },
+
+    #[error("Identity verification failure with {recipient}")]
+    IdentityFailure { recipient: ServiceAddress },
 }
 
 impl<Service> MessageSender<Service>
 where
-    Service: PushService,
+    Service: PushService + Clone,
 {
     pub fn new(
         service: Service,
@@ -195,14 +211,13 @@ where
     /// Send a message `content` to a single `recipient`.
     pub async fn send_message(
         &mut self,
-        recipient: impl std::borrow::Borrow<ServiceAddress>,
-        unidentified_access: Option<UnidentifiedAccess>,
-        content: impl Into<crate::content::ContentBody>,
+        recipient: ServiceAddress,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        message: crate::proto::DataMessage,
         timestamp: u64,
         online: bool,
-    ) -> Result<SendMessageResponse, MessageSenderError> {
-        let content_body = content.into();
-        let recipient = recipient.borrow();
+    ) -> Result<SendMessageResult, MessageSenderError> {
+        let content_body = message.clone().into();
 
         use crate::proto::data_message::Flags;
         let end_session = match &content_body {
@@ -212,34 +227,39 @@ where
             _ => false,
         };
 
-        let content = content_body.clone().into_proto();
-        let response = self
+        let result = self
             .try_send_message(
-                recipient,
+                recipient.clone(),
                 unidentified_access,
-                &content,
+                &content_body,
                 timestamp,
                 online,
             )
-            .await?;
+            .await;
 
-        if response.needs_sync {
-            let content = self.create_multi_device_sent_transcript_content(
-                Some(recipient),
-                &content,
-                timestamp,
-            )?;
-            self.try_send_message(
-                &self.cipher.local_address.clone(),
-                None,
-                &content,
-                timestamp,
-                false,
-            )
-            .await?;
+        match result {
+            Ok(SendMessageResult { needs_sync, .. }) if needs_sync => {
+                log::debug!("sending multi-device sync message");
+                let sync_message = self
+                    .create_multi_device_sent_transcript_content(
+                        Some(&recipient),
+                        Some(message),
+                        timestamp,
+                    )?;
+                self.try_send_message(
+                    (&self.cipher.local_address).clone(),
+                    None,
+                    &sync_message,
+                    timestamp,
+                    false,
+                )
+                .await?;
+            }
+            _ => (),
         }
 
         if end_session {
+            log::debug!("ending session with {}", recipient);
             if let Some(ref uuid) = recipient.uuid {
                 self.cipher.store_context.delete_all_sessions(&uuid)?;
             }
@@ -248,159 +268,204 @@ where
             }
         }
 
-        Ok(response)
+        result
+    }
+
+    /// Send a message to the recipients in a group.
+    pub async fn send_message_to_group(
+        &mut self,
+        recipients: Vec<ServiceAddress>,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        message: crate::proto::DataMessage,
+        timestamp: u64,
+        online: bool,
+    ) -> Result<
+        Vec<Result<SendMessageResult, MessageSenderError>>,
+        MessageSenderError,
+    > {
+        // TODO: discuss and fix the rather horrible type above
+        let content_body: ContentBody = message.clone().into();
+
+        let mut send_futures = vec![];
+        for recipient in recipients.iter() {
+            send_futures.push(self.try_send_message(
+                recipient.clone(),
+                unidentified_access,
+                &content_body,
+                timestamp,
+                online,
+            ))
+        }
+
+        let results: Vec<Result<SendMessageResult, MessageSenderError>> =
+            futures::future::join_all(send_futures).await;
+        for result in results.iter() {
+            match result {
+                Ok(SendMessageResult { needs_sync, .. }) if *needs_sync => {
+                    let recipient = match content_body {
+                        ContentBody::DataMessage(
+                            crate::proto::DataMessage {
+                                group, group_v2, ..
+                            },
+                        ) if group.is_none()
+                            && group_v2.is_none()
+                            && recipients.len() == 1 =>
+                        {
+                            Some(&recipients[0])
+                        }
+                        _ => None,
+                    };
+                    let sync_message = self
+                        .create_multi_device_sent_transcript_content(
+                            recipient,
+                            Some(message),
+                            timestamp,
+                        )?;
+                    self.try_send_message(
+                        self.cipher.local_address.clone(),
+                        unidentified_access,
+                        &sync_message,
+                        timestamp,
+                        false,
+                    )
+                    .await?;
+
+                    return Ok(results);
+                }
+                _ => (),
+            }
+        }
+
+        Ok(results)
     }
 
     /// Send a message (`content`) to an address (`recipient`).
     async fn try_send_message(
-        &mut self,
-        recipient: &ServiceAddress,
-        unidentified_access: Option<UnidentifiedAccess>,
-        content: &crate::proto::Content,
+        &self,
+        recipient: ServiceAddress,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        content_body: &ContentBody,
         timestamp: u64,
         online: bool,
-    ) -> Result<SendMessageResponse, MessageSenderError> {
+    ) -> Result<SendMessageResult, MessageSenderError> {
         use prost::Message;
+        let content = content_body.clone().into_proto();
         let mut content_bytes = Vec::with_capacity(content.encoded_len());
         content
             .encode(&mut content_bytes)
             .expect("infallible message encoding");
 
-        for _ in 0..4 {
-            match self
-                .send_messages(
-                    recipient,
-                    unidentified_access.as_ref(),
-                    &content_bytes,
-                    timestamp,
-                    online,
-                )
-                .await
-            {
-                Err(MessageSenderError::TryAgain) => continue,
-                r => return r,
-            }
-        }
-        Err(MessageSenderError::MaximumRetriesLimitExceeded)
-    }
+        for _ in 0..4u8 {
+            let messages = self
+                .create_encrypted_messages(&recipient, None, &content_bytes)
+                .await?;
 
-    /// Send the same message to all established sessions (sub-devices) of a recipient
-    ///
-    /// If the server responds with either extra sessions or missing sessions, this function
-    /// will establish them and return `MessageSenderError::TryAgain`
-    async fn send_messages(
-        &mut self,
-        recipient: &ServiceAddress,
-        _unidentified_access: Option<&UnidentifiedAccess>,
-        content: &[u8],
-        timestamp: u64,
-        online: bool,
-    ) -> Result<SendMessageResponse, MessageSenderError> {
-        let messages = self
-            .create_encrypted_messages(&recipient, None, &content)
-            .await?;
+            let messages = OutgoingPushMessages {
+                destination: recipient.identifier(),
+                timestamp,
+                messages,
+                online,
+            };
 
-        let messages = OutgoingPushMessages {
-            destination: recipient.identifier(),
-            timestamp,
-            messages,
-            online,
-        };
-
-        match self.service.send_messages(messages).await {
-            Ok(m) => {
-                log::debug!("message sent!");
-                Ok(m)
-            }
-            Err(ServiceError::MismatchedDevicesException(ref m)) => {
-                log::debug!("{:?}", m);
-                for extra_device_id in &m.extra_devices {
-                    log::debug!(
-                        "dropping session with device {}",
-                        extra_device_id
-                    );
-                    if let Some(ref uuid) = recipient.uuid {
-                        self.cipher.store_context.delete_session(
-                            &libsignal_protocol::Address::new(
-                                uuid,
-                                *extra_device_id,
-                            ),
-                        )?;
-                    }
-                    if let Some(ref e164) = recipient.e164 {
-                        self.cipher.store_context.delete_session(
-                            &libsignal_protocol::Address::new(
-                                &e164,
-                                *extra_device_id,
-                            ),
-                        )?;
-                    }
+            match self.service.send_messages(messages).await {
+                Ok(SendMessageResponse { needs_sync }) => {
+                    log::debug!("message sent!");
+                    return Ok(SendMessageResult {
+                        recipient,
+                        unidentified: unidentified_access.is_some(),
+                        needs_sync,
+                    });
                 }
+                Err(ServiceError::MismatchedDevicesException(ref m)) => {
+                    log::debug!("{:?}", m);
+                    for extra_device_id in &m.extra_devices {
+                        log::debug!(
+                            "dropping session with device {}",
+                            extra_device_id
+                        );
+                        if let Some(ref uuid) = recipient.uuid {
+                            self.cipher.store_context.delete_session(
+                                &libsignal_protocol::Address::new(
+                                    uuid,
+                                    *extra_device_id,
+                                ),
+                            )?;
+                        }
+                        if let Some(ref e164) = recipient.e164 {
+                            self.cipher.store_context.delete_session(
+                                &libsignal_protocol::Address::new(
+                                    &e164,
+                                    *extra_device_id,
+                                ),
+                            )?;
+                        }
+                    }
 
-                for missing_device_id in &m.missing_devices {
-                    log::debug!(
-                        "creating session with missing device {}",
-                        missing_device_id
-                    );
-                    let pre_key = self
-                        .service
-                        .get_pre_key(
+                    for missing_device_id in &m.missing_devices {
+                        log::debug!(
+                            "creating session with missing device {}",
+                            missing_device_id
+                        );
+                        let pre_key = self
+                            .service
+                            .get_pre_key(
+                                &self.cipher.context,
+                                &recipient,
+                                *missing_device_id,
+                            )
+                            .await?;
+                        SessionBuilder::new(
                             &self.cipher.context,
-                            &recipient,
-                            *missing_device_id,
+                            &self.cipher.store_context,
+                            &libsignal_protocol::Address::new(
+                                &recipient.identifier(),
+                                *missing_device_id,
+                            ),
                         )
-                        .await?;
-                    SessionBuilder::new(
-                        &self.cipher.context,
-                        &self.cipher.store_context,
-                        &libsignal_protocol::Address::new(
-                            &recipient.identifier(),
-                            *missing_device_id,
-                        ),
-                    )
-                    .process_pre_key_bundle(&pre_key)
-                    .map_err(|e| {
-                        log::error!("failed to create session: {}", e);
-                        MessageSenderError::UntrustedIdentityException
-                    })?;
-                }
-
-                Err(MessageSenderError::TryAgain)
-            }
-            Err(ServiceError::StaleDevices(ref m)) => {
-                log::debug!("{:?}", m);
-                for extra_device_id in &m.stale_devices {
-                    log::debug!(
-                        "dropping session with device {}",
-                        extra_device_id
-                    );
-                    if let Some(ref uuid) = recipient.uuid {
-                        self.cipher.store_context.delete_session(
-                            &libsignal_protocol::Address::new(
-                                uuid,
-                                *extra_device_id,
-                            ),
-                        )?;
-                    }
-                    if let Some(ref e164) = recipient.e164 {
-                        self.cipher.store_context.delete_session(
-                            &libsignal_protocol::Address::new(
-                                &e164,
-                                *extra_device_id,
-                            ),
-                        )?;
+                        .process_pre_key_bundle(&pre_key)
+                        .map_err(|e| {
+                            log::error!("failed to create session: {}", e);
+                            MessageSenderError::UntrustedIdentity {
+                                identifier: recipient.identifier().to_string(),
+                            }
+                        })?;
                     }
                 }
-
-                Err(MessageSenderError::TryAgain)
+                Err(ServiceError::StaleDevices(ref m)) => {
+                    log::debug!("{:?}", m);
+                    for extra_device_id in &m.stale_devices {
+                        log::debug!(
+                            "dropping session with device {}",
+                            extra_device_id
+                        );
+                        if let Some(ref uuid) = recipient.uuid {
+                            self.cipher.store_context.delete_session(
+                                &libsignal_protocol::Address::new(
+                                    uuid,
+                                    *extra_device_id,
+                                ),
+                            )?;
+                        }
+                        if let Some(ref e164) = recipient.e164 {
+                            self.cipher.store_context.delete_session(
+                                &libsignal_protocol::Address::new(
+                                    &e164,
+                                    *extra_device_id,
+                                ),
+                            )?;
+                        }
+                    }
+                }
+                Err(e) => return Err(MessageSenderError::ServiceError(e)),
             }
-            Err(e) => Err(MessageSenderError::ServiceError(e)),
         }
+
+        Err(MessageSenderError::MaximumRetriesLimitExceeded)
     }
 
     // Equivalent with `getEncryptedMessages`
     async fn create_encrypted_messages(
-        &mut self,
+        &self,
         recipient: &ServiceAddress,
         unidentified_access: Option<UnidentifiedAccess>,
         content: &[u8],
@@ -450,7 +515,7 @@ where
     ///
     /// When no session with the recipient exists, we need to create one.
     async fn create_encrypted_message(
-        &mut self,
+        &self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&UnidentifiedAccess>,
         device_id: i32,
@@ -501,21 +566,18 @@ where
     fn create_multi_device_sent_transcript_content(
         &self,
         recipient: Option<&ServiceAddress>,
-        content: &crate::proto::Content,
+        data_message: Option<crate::proto::DataMessage>,
         timestamp: u64,
-    ) -> Result<crate::proto::Content, MessageSenderError> {
-        use crate::proto::{sync_message, Content, SyncMessage};
-        Ok(Content {
-            sync_message: Some(SyncMessage {
-                sent: Some(sync_message::Sent {
-                    destination_e164: recipient.and_then(|r| r.e164.clone()),
-                    message: content.data_message.clone(),
-                    timestamp: Some(timestamp),
-                    ..Default::default()
-                }),
+    ) -> Result<ContentBody, MessageSenderError> {
+        use crate::proto::{sync_message, SyncMessage};
+        Ok(ContentBody::SynchronizeMessage(SyncMessage {
+            sent: Some(sync_message::Sent {
+                destination_e164: recipient.and_then(|r| r.e164.clone()),
+                message: data_message,
+                timestamp: Some(timestamp),
                 ..Default::default()
             }),
             ..Default::default()
-        })
+        }))
     }
 }
