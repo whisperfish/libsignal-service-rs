@@ -138,7 +138,7 @@ impl ServiceCipher {
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
-                let data = SessionCipher::new(
+                let mut data = SessionCipher::new(
                     &self.context,
                     &self.store_context,
                     &sender,
@@ -149,6 +149,9 @@ impl ServiceCipher {
                 )?)?
                 .as_slice()
                 .to_vec();
+                let version =
+                    self.store_context.load_session(&sender)?.state().version();
+                strip_padding(version, &mut data)?;
                 Plaintext { metadata, data }
             }
             Type::UnidentifiedSender => {
@@ -301,6 +304,10 @@ pub fn get_preferred_protocol_address(
     if let Some(ref e164) = address.e164 {
         let address = ProtocolAddress::new(e164, device_id as i32);
         if store_context.contains_session(&address)? {
+            return Ok(address);
+        }
+        if cfg!(feature = "prefer-e164") {
+            log::warn!("prefer-e164 triggered.  This is a legacy feature and shouldn't be used for new applications.");
             return Ok(address);
         }
     }
