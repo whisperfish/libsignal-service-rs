@@ -26,7 +26,7 @@ impl PushService for AwcPushService {
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = AwcWebSocket;
 
-    async fn get<T>(&self, path: &str) -> Result<T, ServiceError>
+    async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
@@ -83,7 +83,11 @@ impl PushService for AwcPushService {
         }
     }
 
-    async fn put<D, S>(&self, path: &str, value: S) -> Result<D, ServiceError>
+    async fn put<D, S>(
+        &mut self,
+        path: &str,
+        value: S,
+    ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
         S: Serialize,

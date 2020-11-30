@@ -274,38 +274,34 @@ where
     /// Send a message to the recipients in a group.
     pub async fn send_message_to_group(
         &mut self,
-        recipients: Vec<ServiceAddress>,
+        recipients: impl AsRef<[ServiceAddress]>,
         unidentified_access: Option<&UnidentifiedAccess>,
         message: crate::proto::DataMessage,
         timestamp: u64,
         online: bool,
-    ) -> Result<
-        Vec<Result<SendMessageResult, MessageSenderError>>,
-        MessageSenderError,
-    > {
-        // TODO: discuss and fix the rather horrible type above
+    ) -> Vec<Result<SendMessageResult, MessageSenderError>> {
         let content_body: ContentBody = message.clone().into();
+        let mut results = vec![];
 
-        let mut send_futures = vec![];
+        let recipients = recipients.as_ref();
         for recipient in recipients.iter() {
-            send_futures.push(self.try_send_message(
-                recipient.clone(),
-                unidentified_access,
-                &content_body,
-                timestamp,
-                online,
-            ))
-        }
-
-        let results: Vec<Result<SendMessageResult, MessageSenderError>> =
-            futures::future::join_all(send_futures).await;
-        for result in results.iter() {
-            match result {
-                Ok(SendMessageResult { needs_sync, .. }) if *needs_sync => {
+            let result = match self
+                .try_send_message(
+                    recipient.clone(),
+                    unidentified_access,
+                    &content_body,
+                    timestamp,
+                    online,
+                )
+                .await
+            {
+                Ok(SendMessageResult { needs_sync, .. }) if needs_sync => {
                     let recipient = match content_body {
                         ContentBody::DataMessage(
                             crate::proto::DataMessage {
-                                group, group_v2, ..
+                                ref group,
+                                ref group_v2,
+                                ..
                             },
                         ) if group.is_none()
                             && group_v2.is_none()
@@ -315,33 +311,35 @@ where
                         }
                         _ => None,
                     };
-                    let sync_message = self
-                        .create_multi_device_sent_transcript_content(
-                            recipient,
-                            Some(message),
-                            timestamp,
-                        )?;
-                    self.try_send_message(
-                        self.cipher.local_address.clone(),
-                        unidentified_access,
-                        &sync_message,
+                    match self.create_multi_device_sent_transcript_content(
+                        recipient,
+                        Some(message.clone()),
                         timestamp,
-                        false,
-                    )
-                    .await?;
-
-                    return Ok(results);
+                    ) {
+                        Ok(sync_message) => {
+                            self.try_send_message(
+                                self.cipher.local_address.clone(),
+                                unidentified_access,
+                                &sync_message,
+                                timestamp,
+                                false,
+                            )
+                            .await
+                        }
+                        Err(e) => Err(e),
+                    }
                 }
-                _ => (),
-            }
+                result => result,
+            };
+            results.push(result);
         }
 
-        Ok(results)
+        results
     }
 
     /// Send a message (`content`) to an address (`recipient`).
     async fn try_send_message(
-        &self,
+        &mut self,
         recipient: ServiceAddress,
         unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
@@ -465,7 +463,7 @@ where
 
     // Equivalent with `getEncryptedMessages`
     async fn create_encrypted_messages(
-        &self,
+        &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<UnidentifiedAccess>,
         content: &[u8],
@@ -515,7 +513,7 @@ where
     ///
     /// When no session with the recipient exists, we need to create one.
     async fn create_encrypted_message(
-        &self,
+        &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&UnidentifiedAccess>,
         device_id: i32,
