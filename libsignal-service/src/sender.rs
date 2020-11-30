@@ -211,7 +211,7 @@ where
     /// Send a message `content` to a single `recipient`.
     pub async fn send_message(
         &mut self,
-        recipient: ServiceAddress,
+        recipient: &ServiceAddress,
         unidentified_access: Option<&UnidentifiedAccess>,
         message: crate::proto::DataMessage,
         timestamp: u64,
