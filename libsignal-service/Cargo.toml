@@ -26,7 +26,7 @@ aes = "0.6.0"
 aes-gcm = "0.8.0"
 aes-ctr = "0.6.0"
 block-modes = "0.7.0"
-rand = "0.7.0"
+rand = "0.8.0"
 
 [build-dependencies]
 prost-build = "0.6"
