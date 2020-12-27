@@ -29,7 +29,6 @@ async fn main() -> Result<(), Error> {
     let args = Args::from_args();
 
     // Only used with MessageSender and MessageReceiver
-    let _trust_store = args.load_trust_store()?;
     let password = args.get_password()?;
 
     let config: ServiceConfiguration = SignalServers::Staging.into();
