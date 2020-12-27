@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `libsignal-service/src/push_service.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>push_service.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="shortcut icon" href="../../favicon.ico"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../libsignal_service/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source to the Rust file `libsignal-service/src/push_service.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>push_service.rs.html -- source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script src="../../storage.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../../libsignal_service/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -696,7 +698,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub</span> <span class="ident">fetches_messages</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">pin</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
     <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_optional_base64&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="ident">unidentified_access_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">unidentified_access_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">unrestricted_unidentified_access</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">discoverable_by_phone_number</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">capabilities</span>: <span class="ident">DeviceCapabilities</span>,
@@ -719,7 +721,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 }
 
 <span class="kw">impl</span> <span class="ident">ProfileKey</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">derive_access_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">derive_access_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">GenericArray</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>);
         <span class="kw">let</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">Aes256Gcm</span>::<span class="ident">new</span>(<span class="ident">key</span>);
         <span class="kw">let</span> <span class="ident">nonce</span> <span class="op">=</span> <span class="ident">GenericArray</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">12</span>]);
@@ -733,7 +735,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         <span class="ident">signaling_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
         <span class="ident">registration_id</span>: <span class="ident">u32</span>,
         <span class="ident">unidentified_access_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-    ) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">signaling_key</span>,
             <span class="ident">supports_sms</span>: <span class="bool-val">false</span>,
@@ -752,7 +754,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_without_unidentified_access</span>(
         <span class="ident">signaling_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
         <span class="ident">registration_id</span>: <span class="ident">u32</span>,
-    ) <span class="op">-&gt;</span> <span class="self">Self</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">signaling_key</span>,
             <span class="ident">supports_sms</span>: <span class="bool-val">false</span>,
@@ -896,156 +898,156 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">type</span> <span class="ident">WebSocket</span>: <span class="ident">WebSocketService</span>;
     <span class="kw">type</span> <span class="ident">ByteStream</span>: <span class="ident">futures</span>::<span class="ident">io</span>::<span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span>;
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>;
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">put</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">S</span><span class="op">&gt;</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">put</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">S</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="ident">value</span>: <span class="ident">S</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">D</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
         <span class="ident">S</span>: <span class="ident">Serialize</span>;
 
     <span class="doccomment">/// Downloads larger files in streaming fashion, e.g. attachments.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_from_cdn</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_from_cdn</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">cdn_id</span>: <span class="ident">u32</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>;
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Upload larger file to CDN0 in legacy fashion, e.g. for attachments.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Implementations are allowed to *panic* when the Read instance throws an IO-Error</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">post_to_cdn0</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">post_to_cdn0</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="ident">value</span>: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)],
         <span class="ident">file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> <span class="kw-2">mut</span> <span class="ident">C</span>)<span class="op">&gt;</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span>;
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span>;
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">request_sms_verification_code</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">request_sms_verification_code</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">phone_number</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SmsVerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SmsVerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>
             .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v1/accounts/sms/code/{}&quot;</span>, <span class="ident">phone_number</span>))
-            .<span class="kw">await</span>
+            .<span class="ident">await</span>
         {
-            <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> { .. }) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="ident">r</span> <span class="op">=&gt;</span> <span class="ident">r</span>,
+            <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> { .. }) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="ident">r</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
         }<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">SmsVerificationCodeResponse</span>::<span class="ident">SmsSent</span>)
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">request_voice_verification_code</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">request_voice_verification_code</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">phone_number</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VoiceVerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VoiceVerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>
             .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v1/accounts/voice/code/{}&quot;</span>, <span class="ident">phone_number</span>))
-            .<span class="kw">await</span>
+            .<span class="ident">await</span>
         {
-            <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> { .. }) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="ident">r</span> <span class="op">=&gt;</span> <span class="ident">r</span>,
+            <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> { .. }) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="ident">r</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
         }<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">VoiceVerificationCodeResponse</span>::<span class="ident">CallIssued</span>)
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">confirm_verification_code</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">confirm_verification_code</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">confirm_code</span>: <span class="ident">u32</span>,
         <span class="ident">confirm_verification_message</span>: <span class="ident">ConfirmCodeMessage</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ConfirmCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ConfirmCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">put</span>(
             <span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v1/accounts/code/{}&quot;</span>, <span class="ident">confirm_code</span>),
             <span class="ident">confirm_verification_message</span>,
         )
-        .<span class="kw">await</span>
+        .<span class="ident">await</span>
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">confirm_device</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">confirm_device</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">confirm_code</span>: <span class="ident">u32</span>,
         <span class="ident">confirm_code_message</span>: <span class="ident">ConfirmDeviceMessage</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">DeviceId</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">DeviceId</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">put</span>(
             <span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v1/devices/{}&quot;</span>, <span class="ident">confirm_code</span>),
             <span class="ident">confirm_code_message</span>,
         )
-        .<span class="kw">await</span>
+        .<span class="ident">await</span>
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_pre_key_status</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_pre_key_status</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PreKeyStatus</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v2/keys/&quot;</span>).<span class="kw">await</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PreKeyStatus</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v2/keys/&quot;</span>).<span class="ident">await</span>
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">register_pre_keys</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">register_pre_keys</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">pre_key_state</span>: <span class="ident">PreKeyState</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">put</span>(<span class="string">&quot;/v2/keys/&quot;</span>, <span class="ident">pre_key_state</span>).<span class="kw">await</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> { .. }) <span class="op">=&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="ident">r</span> <span class="op">=&gt;</span> <span class="ident">r</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">put</span>(<span class="string">&quot;/v2/keys/&quot;</span>, <span class="ident">pre_key_state</span>).<span class="ident">await</span> {
+            <span class="prelude-val">Err</span>(<span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> { .. }) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="ident">r</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_attachment_by_id</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_attachment_by_id</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="ident">cdn_id</span>: <span class="ident">u32</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;attachments/{}&quot;</span>, <span class="ident">id</span>);
-        <span class="self">self</span>.<span class="ident">get_from_cdn</span>(<span class="ident">cdn_id</span>, <span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="kw">await</span>
+        <span class="self">self</span>.<span class="ident">get_from_cdn</span>(<span class="ident">cdn_id</span>, <span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">await</span>
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_attachment</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_attachment</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">ptr</span>: <span class="kw-2">&amp;</span><span class="ident">AttachmentPointer</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="ident">ptr</span>.<span class="ident">attachment_identifier</span>.<span class="ident">as_ref</span>().<span class="ident">unwrap</span>() {
-            <span class="ident">AttachmentIdentifier</span>::<span class="ident">CdnId</span>(<span class="ident">id</span>) <span class="op">=&gt;</span> {
+            <span class="ident">AttachmentIdentifier</span>::<span class="ident">CdnId</span>(<span class="ident">id</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="comment">// cdn_number did not exist for this part of the protocol.</span>
                 <span class="comment">// cdn_number(), however, returns 0 when the field does not</span>
                 <span class="comment">// exist.</span>
                 <span class="self">self</span>.<span class="ident">get_attachment_by_id</span>(<span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">id</span>), <span class="ident">ptr</span>.<span class="ident">cdn_number</span>())
-                    .<span class="kw">await</span>
+                    .<span class="ident">await</span>
             }
-            <span class="ident">AttachmentIdentifier</span>::<span class="ident">CdnKey</span>(<span class="ident">key</span>) <span class="op">=&gt;</span> {
-                <span class="self">self</span>.<span class="ident">get_attachment_by_id</span>(<span class="ident">key</span>, <span class="ident">ptr</span>.<span class="ident">cdn_number</span>()).<span class="kw">await</span>
+            <span class="ident">AttachmentIdentifier</span>::<span class="ident">CdnKey</span>(<span class="ident">key</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="self">self</span>.<span class="ident">get_attachment_by_id</span>(<span class="ident">key</span>, <span class="ident">ptr</span>.<span class="ident">cdn_number</span>()).<span class="ident">await</span>
             }
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_messages</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">send_messages</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">messages</span>: <span class="ident">OutgoingPushMessages</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SendMessageResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SendMessageResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v1/messages/{}&quot;</span>, <span class="ident">messages</span>.<span class="ident">destination</span>);
-        <span class="self">self</span>.<span class="ident">put</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>, <span class="ident">messages</span>).<span class="kw">await</span>
+        <span class="self">self</span>.<span class="ident">put</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>, <span class="ident">messages</span>).<span class="ident">await</span>
     }
 
     <span class="doccomment">/// Request AttachmentV2UploadAttributes</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Equivalent with getAttachmentV2UploadAttributes</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_attachment_v2_upload_attributes</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_attachment_v2_upload_attributes</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentV2UploadAttributes</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v2/attachments/form/upload&quot;</span>).<span class="kw">await</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentV2UploadAttributes</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v2/attachments/form/upload&quot;</span>).<span class="ident">await</span>
     }
 
     <span class="doccomment">/// Upload attachment to CDN</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Returns attachment ID and the attachment digest</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">upload_attachment</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">upload_attachment</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">attrs</span>: <span class="kw-2">&amp;</span><span class="ident">AttachmentV2UploadAttributes</span>,
         <span class="ident">content</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> <span class="kw-2">mut</span> <span class="ident">C</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">u64</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">u64</span>, <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">values</span> <span class="op">=</span> [
             (<span class="string">&quot;acl&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">attrs</span>.<span class="ident">acl</span> <span class="kw">as</span> <span class="kw-2">&amp;</span><span class="ident">str</span>),
             (<span class="string">&quot;key&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">attrs</span>.<span class="ident">key</span>),
@@ -1064,28 +1066,28 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             <span class="kw-2">&amp;</span><span class="ident">values</span>,
             <span class="prelude-val">Some</span>((<span class="string">&quot;file&quot;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">digester</span>)),
         )
-        .<span class="kw">await</span><span class="question-mark">?</span>;
+        .<span class="ident">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>((<span class="ident">attrs</span>.<span class="ident">attachment_id</span>, <span class="ident">digester</span>.<span class="ident">finalize</span>()))
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_messages</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_messages</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EnvelopeEntity</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">entity_list</span>: <span class="ident">EnvelopeEntityList</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v1/messages/&quot;</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">EnvelopeEntity</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">entity_list</span>: <span class="ident">EnvelopeEntityList</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v1/messages/&quot;</span>).<span class="ident">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">entity_list</span>.<span class="ident">messages</span>)
     }
 
     <span class="doccomment">/// Method used to check our own UUID</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">whoami</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">WhoAmIResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v1/accounts/whoami&quot;</span>).<span class="kw">await</span>
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">whoami</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">WhoAmIResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v1/accounts/whoami&quot;</span>).<span class="ident">await</span>
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_pre_key</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_pre_key</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>,
         <span class="ident">destination</span>: <span class="kw-2">&amp;</span><span class="ident">ServiceAddress</span>,
         <span class="ident">device_id</span>: <span class="ident">i32</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PreKeyBundle</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PreKeyBundle</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">relay</span>) <span class="op">=</span> <span class="ident">destination</span>.<span class="ident">relay</span> {
             <span class="macro">format</span><span class="macro">!</span>(
                 <span class="string">&quot;/v2/keys/{}/{}?relay={}&quot;</span>,
@@ -1097,7 +1099,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v2/keys/{}/{}&quot;</span>, <span class="ident">destination</span>.<span class="ident">identifier</span>(), <span class="ident">device_id</span>)
         };
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pre_key_response</span>: <span class="ident">PreKeyResponse</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pre_key_response</span>: <span class="ident">PreKeyResponse</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">await</span><span class="question-mark">?</span>;
         <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">pre_key_response</span>.<span class="ident">devices</span>.<span class="ident">is_empty</span>());
 
         <span class="kw">let</span> <span class="ident">device</span> <span class="op">=</span> <span class="ident">pre_key_response</span>.<span class="ident">devices</span>.<span class="ident">remove</span>(<span class="number">0</span>);
@@ -1124,30 +1126,30 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         <span class="prelude-val">Ok</span>(<span class="ident">bundle</span>.<span class="ident">build</span>()<span class="question-mark">?</span>)
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_pre_keys</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">get_pre_keys</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>,
         <span class="ident">destination</span>: <span class="kw-2">&amp;</span><span class="ident">ServiceAddress</span>,
         <span class="ident">device_id</span>: <span class="ident">i32</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PreKeyBundle</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">PreKeyBundle</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="kw">match</span> (<span class="ident">device_id</span>, <span class="ident">destination</span>.<span class="ident">relay</span>.<span class="ident">as_ref</span>()) {
-            (<span class="number">1</span>, <span class="prelude-val">None</span>) <span class="op">=&gt;</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v2/keys/{}/*&quot;</span>, <span class="ident">destination</span>.<span class="ident">identifier</span>()),
-            (<span class="ident">device_id</span>, <span class="prelude-val">None</span>) <span class="op">=&gt;</span> {
+            (<span class="number">1</span>, <span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v2/keys/{}/*&quot;</span>, <span class="ident">destination</span>.<span class="ident">identifier</span>()),
+            (<span class="ident">device_id</span>, <span class="prelude-val">None</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v2/keys/{}/{}&quot;</span>, <span class="ident">destination</span>.<span class="ident">identifier</span>(), <span class="ident">device_id</span>)
             }
-            (<span class="number">1</span>, <span class="prelude-val">Some</span>(<span class="ident">relay</span>)) <span class="op">=&gt;</span> <span class="macro">format</span><span class="macro">!</span>(
+            (<span class="number">1</span>, <span class="prelude-val">Some</span>(<span class="ident">relay</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format</span><span class="macro">!</span>(
                 <span class="string">&quot;/v2/keys/{}/*?relay={}&quot;</span>,
                 <span class="ident">destination</span>.<span class="ident">identifier</span>(),
                 <span class="ident">relay</span>
             ),
-            (<span class="ident">device_id</span>, <span class="prelude-val">Some</span>(<span class="ident">relay</span>)) <span class="op">=&gt;</span> <span class="macro">format</span><span class="macro">!</span>(
+            (<span class="ident">device_id</span>, <span class="prelude-val">Some</span>(<span class="ident">relay</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format</span><span class="macro">!</span>(
                 <span class="string">&quot;/v2/keys/{}/{}?relay={}&quot;</span>,
                 <span class="ident">destination</span>.<span class="ident">identifier</span>(),
                 <span class="ident">device_id</span>,
                 <span class="ident">relay</span>
             ),
         };
-        <span class="kw">let</span> <span class="ident">pre_key_response</span>: <span class="ident">PreKeyResponse</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">pre_key_response</span>: <span class="ident">PreKeyResponse</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">path</span>).<span class="ident">await</span><span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">pre_keys</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
         <span class="kw">for</span> <span class="ident">device</span> <span class="kw">in</span> <span class="ident">pre_key_response</span>.<span class="ident">devices</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bundle</span> <span class="op">=</span> <span class="ident">PreKeyBundle</span>::<span class="ident">builder</span>()
@@ -1178,11 +1180,11 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         <span class="prelude-val">Ok</span>(<span class="ident">pre_keys</span>)
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">ws</span>(
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">ws</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Credentials</span><span class="op">&gt;</span>,
-    ) <span class="op">-&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>
         (
             <span class="self">Self</span>::<span class="ident">WebSocket</span>,
             <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">WebSocket</span> <span class="kw">as</span> <span class="ident">WebSocketService</span><span class="op">&gt;</span>::<span class="ident">Stream</span>,
