@@ -190,7 +190,7 @@ pub struct PreKeyResponse {
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WhoAmIResponse {
-    uuid: String,
+    pub uuid: String,
 }
 
 #[derive(Debug, Deserialize)]
