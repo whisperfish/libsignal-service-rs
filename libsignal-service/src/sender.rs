@@ -213,11 +213,11 @@ where
         &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&UnidentifiedAccess>,
-        message: crate::proto::DataMessage,
+        message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
     ) -> Result<SendMessageResult, MessageSenderError> {
-        let content_body = message.clone().into();
+        let content_body = message.into();
 
         use crate::proto::data_message::Flags;
         let end_session = match &content_body {
@@ -237,13 +237,14 @@ where
             )
             .await;
 
-        match result {
-            Ok(SendMessageResult { needs_sync, .. }) if needs_sync => {
+        match (&content_body, &result) {
+            // if we sent a data message and we have linked devices, we need to send a sync message
+            (ContentBody::DataMessage(message), Ok(SendMessageResult { needs_sync, .. })) if *needs_sync => {
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         Some(&recipient),
-                        Some(message),
+                        Some(message.clone()),
                         timestamp,
                     )?;
                 self.try_send_message(
