@@ -239,7 +239,10 @@ where
 
         match (&content_body, &result) {
             // if we sent a data message and we have linked devices, we need to send a sync message
-            (ContentBody::DataMessage(message), Ok(SendMessageResult { needs_sync, .. })) if *needs_sync => {
+            (
+                ContentBody::DataMessage(message),
+                Ok(SendMessageResult { needs_sync, .. }),
+            ) if *needs_sync => {
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
