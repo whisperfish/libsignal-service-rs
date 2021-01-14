@@ -64,4 +64,5 @@ pub struct PreKeyState {
     pub signed_pre_key: SignedPreKey,
     #[serde(with = "serde_public_key")]
     pub identity_key: PublicKey,
+    pub last_resort_key: PreKeyEntity,
 }
