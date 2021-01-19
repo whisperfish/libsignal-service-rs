@@ -1,4 +1,5 @@
-use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
+use futures::{pin_mut, prelude::Sink, SinkExt, StreamExt};
+use std::fmt::Debug;
 use url::Url;
 
 use crate::push_service::AwcPushService;
@@ -30,14 +31,18 @@ pub enum SecondaryDeviceProvisioning {
     },
 }
 
-pub async fn provision_secondary_device(
+pub async fn provision_secondary_device<S>(
     ctx: &Context,
     service_configuration: &ServiceConfiguration,
     signaling_key: &[u8; 52],
     password: &str,
     device_name: &str,
-    mut tx: Sender<SecondaryDeviceProvisioning>,
-) -> Result<(), ProvisioningError> {
+    mut tx: S,
+) -> Result<(), ProvisioningError>
+where
+    S: Sink<SecondaryDeviceProvisioning> + Unpin,
+    <S as Sink<SecondaryDeviceProvisioning>>::Error: Debug,
+{
     assert_eq!(
         password.len(),
         24,
