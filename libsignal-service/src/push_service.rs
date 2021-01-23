@@ -370,6 +370,9 @@ pub trait PushService {
         Ok(VoiceVerificationCodeResponse::CallIssued)
     }
 
+    /// Fetches a list of all devices tied to the authenticated account.
+    ///
+    /// This list include the device that sends the request.
     async fn devices(&mut self) -> Result<Vec<DeviceInfo>, ServiceError> {
         #[derive(serde::Deserialize)]
         struct DeviceInfoList {
