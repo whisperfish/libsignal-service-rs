@@ -16,6 +16,8 @@ use aes_gcm::{
     Aes256Gcm, NewAead,
 };
 
+use chrono::prelude::*;
+
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
 
@@ -74,6 +76,17 @@ pub enum VoiceVerificationCodeResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
     pub device_id: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceInfo {
+    pub id: i64,
+    pub name: Option<String>,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub created: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub last_seen: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize)]
