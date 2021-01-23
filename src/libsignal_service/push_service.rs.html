@@ -596,6 +596,33 @@
 <span id="593">593</span>
 <span id="594">594</span>
 <span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
+<span id="615">615</span>
+<span id="616">616</span>
+<span id="617">617</span>
+<span id="618">618</span>
+<span id="619">619</span>
+<span id="620">620</span>
+<span id="621">621</span>
+<span id="622">622</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
 
@@ -614,6 +641,8 @@
     <span class="ident">aead</span>::{<span class="ident">generic_array</span>::<span class="ident">GenericArray</span>, <span class="ident">Aead</span>},
     <span class="ident">Aes256Gcm</span>, <span class="ident">NewAead</span>,
 };
+
+<span class="kw">use</span> <span class="ident">chrono</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 
 <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">keys</span>::<span class="ident">PublicKey</span>, <span class="ident">Context</span>, <span class="ident">PreKeyBundle</span>};
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
@@ -673,6 +702,17 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DeviceId</span> {
     <span class="kw">pub</span> <span class="ident">device_id</span>: <span class="ident">i32</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
+<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">DeviceInfo</span> {
+    <span class="kw">pub</span> <span class="ident">id</span>: <span class="ident">i64</span>,
+    <span class="kw">pub</span> <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;chrono::serde::ts_milliseconds&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">created</span>: <span class="ident">DateTime</span><span class="op">&lt;</span><span class="ident">Utc</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;chrono::serde::ts_milliseconds&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">last_seen</span>: <span class="ident">DateTime</span><span class="op">&lt;</span><span class="ident">Utc</span><span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>)]</span>
@@ -954,6 +994,20 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             <span class="ident">r</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
         }<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">VoiceVerificationCodeResponse</span>::<span class="ident">CallIssued</span>)
+    }
+
+    <span class="doccomment">/// Fetches a list of all devices tied to the authenticated account.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This list include the device that sends the request.</span>
+    <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">devices</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DeviceInfo</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">serde</span>::<span class="ident">Deserialize</span>)]</span>
+        <span class="kw">struct</span> <span class="ident">DeviceInfoList</span> {
+            <span class="ident">devices</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">DeviceInfo</span><span class="op">&gt;</span>,
+        }
+
+        <span class="kw">let</span> <span class="ident">devices</span>: <span class="ident">DeviceInfoList</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get</span>(<span class="string">&quot;/v1/devices/&quot;</span>).<span class="ident">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(<span class="ident">devices</span>.<span class="ident">devices</span>)
     }
 
     <span class="ident">async</span> <span class="kw">fn</span> <span class="ident">confirm_verification_code</span>(
