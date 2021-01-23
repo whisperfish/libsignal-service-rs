@@ -370,6 +370,17 @@ pub trait PushService {
         Ok(VoiceVerificationCodeResponse::CallIssued)
     }
 
+    async fn devices(&mut self) -> Result<Vec<DeviceInfo>, ServiceError> {
+        #[derive(serde::Deserialize)]
+        struct DeviceInfoList {
+            devices: Vec<DeviceInfo>,
+        }
+
+        let devices: DeviceInfoList = self.get("/v1/devices/").await?;
+
+        Ok(devices.devices)
+    }
+
     async fn confirm_verification_code(
         &mut self,
         confirm_code: u32,
