@@ -16,6 +16,8 @@ use aes_gcm::{
     Aes256Gcm, NewAead,
 };
 
+use chrono::prelude::*;
+
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
 
@@ -74,6 +76,17 @@ pub enum VoiceVerificationCodeResponse {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
     pub device_id: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceInfo {
+    pub id: i64,
+    pub name: Option<String>,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub created: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub last_seen: DateTime<Utc>,
 }
 
 #[derive(Debug, Serialize)]
@@ -355,6 +368,20 @@ pub trait PushService {
             r => r,
         }?;
         Ok(VoiceVerificationCodeResponse::CallIssued)
+    }
+
+    /// Fetches a list of all devices tied to the authenticated account.
+    ///
+    /// This list include the device that sends the request.
+    async fn devices(&mut self) -> Result<Vec<DeviceInfo>, ServiceError> {
+        #[derive(serde::Deserialize)]
+        struct DeviceInfoList {
+            devices: Vec<DeviceInfo>,
+        }
+
+        let devices: DeviceInfoList = self.get("/v1/devices/").await?;
+
+        Ok(devices.devices)
     }
 
     async fn confirm_verification_code(
