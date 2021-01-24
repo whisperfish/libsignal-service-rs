@@ -189,6 +189,7 @@
 <span id="186">186</span>
 <span id="187">187</span>
 <span id="188">188</span>
+<span id="189">189</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">actix</span>::<span class="ident">Arbiter</span>;
 
@@ -259,12 +260,13 @@
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ka_interval</span> <span class="op">=</span> <span class="ident">actix</span>::<span class="ident">clock</span>::<span class="ident">interval_at</span>(
         <span class="ident">actix</span>::<span class="ident">clock</span>::<span class="ident">Instant</span>::<span class="ident">now</span>(),
         <span class="ident">push_service</span>::<span class="ident">KEEPALIVE_TIMEOUT_SECONDS</span>,
-    )
-    .<span class="ident">fuse</span>();
+    );
 
     <span class="kw">loop</span> {
+        <span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="ident">ka_interval</span>.<span class="ident">tick</span>().<span class="ident">fuse</span>();
+        <span class="ident">futures</span>::<span class="macro">pin_mut</span><span class="macro">!</span>(<span class="ident">tick</span>);
         <span class="ident">futures</span>::<span class="macro">select</span><span class="macro">!</span> {
-            <span class="kw">_</span> <span class="op">=</span> <span class="ident">ka_interval</span>.<span class="ident">next</span>() <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="kw">_</span> <span class="op">=</span> <span class="ident">tick</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(<span class="string">&quot;Triggering keep-alive&quot;</span>);
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">incoming_sink</span>.<span class="ident">send</span>(<span class="ident">WebSocketStreamItem</span>::<span class="ident">KeepAliveRequest</span>).<span class="ident">await</span> {
                     <span class="ident">log</span>::<span class="macro">info</span><span class="macro">!</span>(<span class="string">&quot;Websocket sink has closed: {:?}.&quot;</span>, <span class="ident">e</span>);
