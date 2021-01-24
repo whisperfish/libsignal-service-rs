@@ -1,17 +1,35 @@
+use crate::configuration::Credentials;
 use crate::pre_keys::{PreKeyEntity, PreKeyState};
+use crate::provisioning::*;
 use crate::push_service::{
     ConfirmDeviceMessage, DeviceId, PushService, ServiceError,
     SmsVerificationCodeResponse, VoiceVerificationCodeResponse,
 };
 
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::time::SystemTime;
 
+use libsignal_protocol::keys::PublicKey;
 use libsignal_protocol::{Context, StoreContext};
 
 pub struct AccountManager<Service> {
     context: Context,
     service: Service,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum LinkError {
+    #[error(transparent)]
+    ServiceError(#[from] ServiceError),
+    #[error("TsUrl has an invalid UUID field")]
+    InvalidUuid,
+    #[error("TsUrl has an invalid pub_key field")]
+    InvalidPublicKey,
+    #[error("Protocol error {0}")]
+    ProtocolError(#[from] libsignal_protocol::Error),
+    #[error(transparent)]
+    ProvisioningError(#[from] ProvisioningError),
 }
 
 const PRE_KEY_MINIMUM: u32 = 10;
@@ -127,5 +145,73 @@ impl<Service: PushService> AccountManager<Service> {
             pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
             next_signed_pre_key_id + 1,
         ))
+    }
+
+    /// Link a new device, given a tsurl.
+    ///
+    /// Equivalent of Java's `AccountManager::addDevice()`
+    ///
+    /// When calling this, make sure that UnidentifiedDelivery is disabled, ie., that your
+    /// application does not send any unidentified messages before linking is complete.
+    /// Cfr.:
+    /// - `app/src/main/java/org/thoughtcrime/securesms/migrations/LegacyMigrationJob.java`:250 and;
+    /// - `app/src/main/java/org/thoughtcrime/securesms/DeviceActivity.java`:195
+    ///
+    /// ```java
+    /// TextSecurePreferences.setIsUnidentifiedDeliveryEnabled(context, false);
+    /// ```
+    pub async fn link_device(
+        &mut self,
+        url: url::Url,
+        store_context: StoreContext,
+        credentials: Credentials,
+        // XXX maybe this should also be a property in the AccountManager.
+        profile_key: Option<Vec<u8>>,
+    ) -> Result<(), LinkError> {
+        let query: HashMap<_, _> = url.query_pairs().collect();
+        let ephemeral_id = query.get("uuid").ok_or(LinkError::InvalidUuid)?;
+        let pub_key =
+            query.get("pub_key").ok_or(LinkError::InvalidPublicKey)?;
+        let pub_key = base64::decode(&**pub_key)
+            .map_err(|_e| LinkError::InvalidPublicKey)?;
+        let pub_key = PublicKey::decode_point(&self.context, &pub_key)
+            .map_err(|_e| LinkError::InvalidPublicKey)?;
+
+        let identity_key_pair = store_context.identity_key_pair()?;
+
+        if credentials.uuid.is_none() {
+            log::warn!("No local UUID set");
+        }
+
+        let provisioning_code =
+            self.service.new_device_provisioning_code().await?;
+
+        let msg = ProvisionMessage {
+            identity_key_public: Some(
+                identity_key_pair.public().to_bytes()?.as_slice().to_vec(),
+            ),
+            identity_key_private: Some(
+                identity_key_pair.private().to_bytes()?.as_slice().to_vec(),
+            ),
+            number: Some(credentials.e164),
+            uuid: credentials.uuid.clone(),
+            profile_key,
+            // CURRENT is not exposed by prost :(
+            provisioning_version: Some(i32::from(
+                ProvisioningVersion::TabletSupport,
+            ) as _),
+            provisioning_code: Some(provisioning_code),
+            read_receipts: None,
+            user_agent: None,
+        };
+
+        let cipher =
+            ProvisioningCipher::from_public(self.context.clone(), pub_key);
+
+        let encrypted = cipher.encrypt(msg)?;
+        self.service
+            .send_provisioning_message(ephemeral_id, encrypted)
+            .await?;
+        Ok(())
     }
 }

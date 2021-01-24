@@ -18,13 +18,16 @@ use libsignal_protocol::{
     Context,
 };
 
+pub use crate::proto::{
+    ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
+};
+
 use crate::{
     envelope::{CIPHER_KEY_SIZE, IV_LENGTH, IV_OFFSET},
     messagepipe::{WebSocketService, WebSocketStreamItem},
     proto::{
-        web_socket_message, ProvisionEnvelope, ProvisionMessage,
-        ProvisioningUuid, WebSocketMessage, WebSocketRequestMessage,
-        WebSocketResponseMessage,
+        web_socket_message, ProvisioningUuid, WebSocketMessage,
+        WebSocketRequestMessage, WebSocketResponseMessage,
     },
     push_service::ServiceError,
 };
