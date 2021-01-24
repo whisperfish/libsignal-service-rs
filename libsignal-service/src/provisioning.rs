@@ -161,7 +161,11 @@ impl ProvisioningCipher {
         use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
         let cipher = Cbc::<Aes256, Pkcs7>::new_var(&parts1, &iv)
             .expect("initalization of CBC/AES/PKCS7");
-        let input = cipher.decrypt_vec(cipher_text).expect("decryption");
+        let input = cipher.decrypt_vec(cipher_text).map_err(|e| {
+            ProvisioningError::InvalidData {
+                reason: format!("CBC/Padding error: {:?}", e),
+            }
+        })?;
 
         Ok(prost::Message::decode(Bytes::from(input))?)
     }
