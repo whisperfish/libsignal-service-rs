@@ -1,3 +1,5 @@
+use aes::Aes256;
+use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 use bytes::{Bytes, BytesMut};
 use futures::{
     channel::mpsc::{self, Sender},
@@ -7,6 +9,7 @@ use futures::{
 use hmac::{Hmac, Mac, NewMac};
 use pin_project::pin_project;
 use prost::Message;
+use rand::Rng;
 use sha2::Sha256;
 use url::Url;
 
@@ -25,6 +28,8 @@ use crate::{
     },
     push_service::ServiceError,
 };
+
+const VERSION: u8 = 1;
 
 #[derive(Debug)]
 enum CipherMode {
@@ -94,9 +99,54 @@ impl ProvisioningCipher {
 
     pub fn encrypt(
         &self,
-        _msg: ProvisionMessage,
+        msg: ProvisionMessage,
     ) -> Result<ProvisionEnvelope, ProvisioningError> {
-        unimplemented!()
+        let msg = {
+            let mut encoded = Vec::with_capacity(msg.encoded_len());
+            msg.encode(&mut encoded).expect("infallible encoding");
+            encoded
+        };
+
+        let mut rng = rand::thread_rng();
+        let our_key_pair = libsignal_protocol::generate_key_pair(&self.ctx)?;
+        let agreement = self
+            .public_key()
+            .calculate_agreement(&our_key_pair.private())?;
+        let hkdf = libsignal_protocol::create_hkdf(&self.ctx, 3)?;
+
+        let shared_secrets = hkdf.derive_secrets(
+            64,
+            &agreement,
+            &[],
+            b"TextSecure Provisioning Message",
+        )?;
+
+        let aes_key = &shared_secrets[0..32];
+        let mac_key = &shared_secrets[32..];
+        let iv: [u8; IV_LENGTH] = rng.gen();
+
+        let cipher = Cbc::<Aes256, Pkcs7>::new_var(&aes_key, &iv)
+            .expect("initalization of CBC/AES/PKCS7");
+        let ciphertext = cipher.encrypt_vec(&msg);
+        let mut mac = Hmac::<Sha256>::new_varkey(&mac_key)
+            .expect("HMAC can take any size key");
+        mac.update(&[VERSION]);
+        mac.update(&iv);
+        mac.update(&ciphertext);
+        let mac = mac.finalize().into_bytes();
+
+        let body: Vec<u8> = std::iter::once(VERSION)
+            .chain(iv.iter().cloned())
+            .chain(ciphertext)
+            .chain(mac)
+            .collect();
+
+        Ok(ProvisionEnvelope {
+            public_key: Some(
+                our_key_pair.public().to_bytes()?.as_slice().to_vec(),
+            ),
+            body: Some(body),
+        })
     }
 
     pub fn decrypt(
@@ -116,7 +166,7 @@ impl ProvisioningCipher {
         let body = provision_envelope
             .body
             .expect("no body in ProvisionMessage");
-        if body[0] != 1 {
+        if body[0] != VERSION {
             return Err(ProvisioningError::InvalidData {
                 reason: "Bad version number".into(),
             });
@@ -154,11 +204,9 @@ impl ProvisioningCipher {
             });
         }
 
-        use aes::Aes256;
         // libsignal-service-java uses Pkcs5,
         // but that should not matter.
         // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-        use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
         let cipher = Cbc::<Aes256, Pkcs7>::new_var(&parts1, &iv)
             .expect("initalization of CBC/AES/PKCS7");
         let input = cipher.decrypt_vec(cipher_text).map_err(|e| {
