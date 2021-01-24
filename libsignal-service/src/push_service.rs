@@ -5,7 +5,10 @@ use crate::{
     envelope::*,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
-    proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
+    proto::{
+        attachment_pointer::AttachmentIdentifier, AttachmentPointer,
+        ProvisionEnvelope,
+    },
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
     ServiceAddress,
@@ -15,6 +18,7 @@ use aes_gcm::{
     aead::{generic_array::GenericArray, Aead},
     Aes256Gcm, NewAead,
 };
+use prost::Message;
 
 use chrono::prelude::*;
 
@@ -390,6 +394,28 @@ pub trait PushService {
 
     async fn unlink_device(&mut self, id: i64) -> Result<(), ServiceError> {
         self.delete(&format!("/v1/devices/{}", id)).await
+    }
+
+    async fn send_provisioning_message(
+        &mut self,
+        destination: &str,
+        env: ProvisionEnvelope,
+    ) -> Result<(), ServiceError> {
+        #[derive(serde::Serialize)]
+        struct ProvisioningMessage {
+            body: String,
+        }
+
+        let mut body = Vec::with_capacity(env.encoded_len());
+        env.encode(&mut body).expect("infallible encode");
+
+        self.put(
+            &format!("/v1/provisioning/{}", destination),
+            &ProvisioningMessage {
+                body: base64::encode(body),
+            },
+        )
+        .await
     }
 
     async fn new_device_provisioning_code(
