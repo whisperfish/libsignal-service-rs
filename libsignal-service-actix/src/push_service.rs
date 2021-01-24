@@ -180,7 +180,7 @@ impl PushService for AwcPushService {
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        if log::log_enabled!(log::Level::Debug) {
+        let result = if log::log_enabled!(log::Level::Debug) {
             let text = response.body().await.map_err(|e| {
                 ServiceError::JsonDecodeError {
                     reason: e.to_string(),
@@ -199,6 +199,14 @@ impl PushService for AwcPushService {
                 .map_err(|e| ServiceError::JsonDecodeError {
                     reason: e.to_string(),
                 })
+        };
+
+        if result.is_err()
+            && response.status() == awc::http::StatusCode::NO_CONTENT
+        {
+            serde_json::from_slice(b"null").or(result)
+        } else {
+            result
         }
     }
 
