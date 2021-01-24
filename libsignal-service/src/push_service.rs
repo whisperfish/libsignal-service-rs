@@ -316,6 +316,10 @@ pub trait PushService {
     where
         for<'de> T: Deserialize<'de>;
 
+    async fn delete<T>(&mut self, path: &str) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>;
+
     async fn put<D, S>(
         &mut self,
         path: &str,

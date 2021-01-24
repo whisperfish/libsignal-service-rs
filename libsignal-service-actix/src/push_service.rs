@@ -83,6 +83,68 @@ impl PushService for AwcPushService {
         }
     }
 
+    /// Deletes a resource through the HTTP DELETE verb.
+    async fn delete<T>(&mut self, path: &str) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>,
+    {
+        // In principle, we should be using http::uri::Uri,
+        // but that doesn't seem like an owned type where we can do this kind of
+        // constructions on.
+        // https://docs.rs/http/0.2.1/http/uri/struct.Uri.html
+        let url = self.base_url.join(path).expect("valid url");
+
+        log::debug!("AwcPushService::delete({:?})", url);
+        use awc::error::{ConnectError, SendRequestError};
+        let mut response =
+            self.client.delete(url.as_str()).send().await.map_err(
+                |e| match e {
+                    SendRequestError::Connect(ConnectError::Timeout) => {
+                        ServiceError::Timeout {
+                            reason: e.to_string(),
+                        }
+                    }
+                    _ => ServiceError::SendError {
+                        reason: e.to_string(),
+                    },
+                },
+            )?;
+
+        log::debug!("AwcPushService::delete response: {:?}", response);
+
+        Self::from_response(&mut response).await?;
+
+        // In order to debug the output, we collect the whole response.
+        // The actix-web api is meant to used as a streaming deserializer,
+        // so we have this little awkward switch.
+        //
+        // This is also the reason we depend directly on serde_json, however
+        // actix already imports that anyway.
+        if log::log_enabled!(log::Level::Debug) {
+            let text = response.body().await.map_err(|e| {
+                ServiceError::JsonDecodeError {
+                    reason: e.to_string(),
+                }
+            })?;
+            log::debug!(
+                "DELETE response: {:?}",
+                String::from_utf8_lossy(&text)
+            );
+            serde_json::from_slice(&text).map_err(|e| {
+                ServiceError::JsonDecodeError {
+                    reason: e.to_string(),
+                }
+            })
+        } else {
+            response
+                .json()
+                .await
+                .map_err(|e| ServiceError::JsonDecodeError {
+                    reason: e.to_string(),
+                })
+        }
+    }
+
     async fn put<D, S>(
         &mut self,
         path: &str,
