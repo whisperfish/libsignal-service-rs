@@ -109,11 +109,10 @@ impl<Service: PushService> AccountManager<Service> {
             pre_keys: pre_key_entities,
             signed_pre_key: signed_pre_key.into(),
             identity_key: identity_key_pair.public(),
-            // From Signal-Desktop: this is just to make the server happy (v2 clients should choke on publicKey)
-            last_resort_key: PreKeyEntity {
+            last_resort_key: Some(PreKeyEntity {
                 key_id: 0x7fffffff,
                 public_key: "NDI=".into(),
-            },
+            }),
         };
 
         self.service.register_pre_keys(pre_key_state).await?;
