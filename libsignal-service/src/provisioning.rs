@@ -74,6 +74,13 @@ impl ProvisioningCipher {
         })
     }
 
+    pub fn from_public(ctx: Context, key: PublicKey) -> Self {
+        Self {
+            ctx,
+            key_material: CipherMode::Encrypt(key),
+        }
+    }
+
     pub fn from_key_pair(ctx: Context, key_pair: KeyPair) -> Self {
         Self {
             ctx,
@@ -83,6 +90,13 @@ impl ProvisioningCipher {
 
     pub fn public_key(&self) -> PublicKey {
         self.key_material.public()
+    }
+
+    pub fn encrypt(
+        &self,
+        _msg: ProvisionMessage,
+    ) -> Result<ProvisionEnvelope, ProvisioningError> {
+        unimplemented!()
     }
 
     pub fn decrypt(
@@ -337,5 +351,35 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
 
         let combined = futures::stream::select(stream, runner.into_stream());
         combined.filter_map(|x| async { x })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn encrypt_provisioning_roundtrip() {
+        let ctx = Context::default();
+        let cipher = ProvisioningCipher::new(ctx.clone()).unwrap();
+        let encrypt_cipher =
+            ProvisioningCipher::from_public(ctx.clone(), cipher.public_key());
+
+        assert_eq!(
+            cipher.public_key(),
+            encrypt_cipher.public_key(),
+            "copy public key"
+        );
+
+        let msg = ProvisionMessage::default();
+        let encrypted = encrypt_cipher.encrypt(msg.clone()).unwrap();
+
+        assert!(matches!(
+            encrypt_cipher.decrypt(encrypted.clone()),
+            Err(ProvisioningError::EncryptOnlyProvisioningCipher)
+        ));
+
+        let decrypted = cipher.decrypt(encrypted).expect("decryptability");
+        assert_eq!(msg, decrypted);
     }
 }
