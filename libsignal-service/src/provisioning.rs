@@ -27,9 +27,24 @@ use crate::{
 };
 
 #[derive(Debug)]
+enum CipherMode {
+    Decrypt(KeyPair),
+    Encrypt(PublicKey),
+}
+
+impl CipherMode {
+    fn public(&self) -> PublicKey {
+        match self {
+            CipherMode::Decrypt(pair) => pair.public(),
+            CipherMode::Encrypt(pub_key) => pub_key.clone(),
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ProvisioningCipher {
     ctx: Context,
-    pub key_pair: KeyPair,
+    key_material: CipherMode,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -46,26 +61,40 @@ pub enum ProvisioningError {
     ServiceError(#[from] ServiceError),
     #[error("libsignal-protocol error: {0}")]
     ProtocolError(#[from] libsignal_protocol::Error),
+    #[error("ProvisioningCipher in encrypt-only mode")]
+    EncryptOnlyProvisioningCipher,
 }
 
 impl ProvisioningCipher {
     pub fn new(ctx: Context) -> Result<Self, ProvisioningError> {
         let key_pair = libsignal_protocol::generate_key_pair(&ctx)?;
-        Ok(Self { ctx, key_pair })
+        Ok(Self {
+            ctx,
+            key_material: CipherMode::Decrypt(key_pair),
+        })
     }
 
     pub fn from_key_pair(ctx: Context, key_pair: KeyPair) -> Self {
-        Self { ctx, key_pair }
+        Self {
+            ctx,
+            key_material: CipherMode::Decrypt(key_pair),
+        }
     }
 
     pub fn public_key(&self) -> PublicKey {
-        self.key_pair.public()
+        self.key_material.public()
     }
 
     pub fn decrypt(
         &self,
         provision_envelope: ProvisionEnvelope,
     ) -> Result<ProvisionMessage, ProvisioningError> {
+        let key_pair = match self.key_material {
+            CipherMode::Decrypt(ref key_pair) => key_pair,
+            CipherMode::Encrypt(_) => {
+                return Err(ProvisioningError::EncryptOnlyProvisioningCipher);
+            }
+        };
         let master_ephemeral = PublicKey::decode_point(
             &self.ctx,
             &provision_envelope.public_key.expect("no public key"),
@@ -87,7 +116,7 @@ impl ProvisioningCipher {
         debug_assert_eq!(mac.len(), 32);
 
         let agreement =
-            master_ephemeral.calculate_agreement(&self.key_pair.private())?;
+            master_ephemeral.calculate_agreement(&key_pair.private())?;
         let hkdf = libsignal_protocol::create_hkdf(&self.ctx, 3)?;
 
         let shared_secrets = hkdf.derive_secrets(
