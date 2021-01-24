@@ -392,6 +392,19 @@ pub trait PushService {
         self.delete(&format!("/v1/devices/{}", id)).await
     }
 
+    async fn new_device_provisioning_code(
+        &mut self,
+    ) -> Result<String, ServiceError> {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct DeviceCode {
+            verification_code: String,
+        }
+
+        let dc: DeviceCode = self.get("/v1/devices/provisioning/code").await?;
+        Ok(dc.verification_code)
+    }
+
     async fn confirm_verification_code(
         &mut self,
         confirm_code: u32,
