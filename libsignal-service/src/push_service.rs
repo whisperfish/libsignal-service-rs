@@ -388,6 +388,10 @@ pub trait PushService {
         Ok(devices.devices)
     }
 
+    async fn unlink_device(&mut self, id: i64) -> Result<(), ServiceError> {
+        self.delete(&format!("/v1/devices/{}", id)).await
+    }
+
     async fn confirm_verification_code(
         &mut self,
         confirm_code: u32,
