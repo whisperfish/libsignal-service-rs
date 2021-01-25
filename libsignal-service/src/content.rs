@@ -3,8 +3,8 @@ pub use crate::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
         group_context::Type as GroupType, sync_message, AttachmentPointer,
-        CallMessage, DataMessage, GroupContext, ReceiptMessage, SyncMessage,
-        TypingMessage,
+        CallMessage, DataMessage, GroupContext, GroupContextV2, ReceiptMessage,
+        SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };

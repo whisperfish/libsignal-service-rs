@@ -66,6 +66,7 @@ impl<Service: PushService> AccountManager<Service> {
         store_context: StoreContext,
         pre_keys_offset_id: u32,
         next_signed_pre_key_id: u32,
+        use_last_resort_key: bool,
     ) -> Result<(u32, u32), ServiceError> {
         let prekey_count = match self.service.get_pre_key_status().await {
             Ok(status) => status.count,
@@ -109,6 +110,14 @@ impl<Service: PushService> AccountManager<Service> {
             pre_keys: pre_key_entities,
             signed_pre_key: signed_pre_key.into(),
             identity_key: identity_key_pair.public(),
+            last_resort_key: if use_last_resort_key {
+                Some(PreKeyEntity {
+                    key_id: 0x7fffffff,
+                    public_key: "NDI=".into(),
+                })
+            } else {
+                None
+            },
         };
 
         self.service.register_pre_keys(pre_key_state).await?;
