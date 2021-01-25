@@ -10,19 +10,19 @@ edition = "2018"
 libsignal-service = { path = "../libsignal-service" }
 libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
 
-awc = { version = "2.0.0", features=["rustls"] }
-actix = "0.10.0"
-actix-http = "2.1.0"
-actix-rt = "1.1"
-mpart-async = "0.4.2"
+awc = { version = "3.0.0-beta.1", features=["rustls"] }
+actix = "0.11.0-beta.1"
+actix-http = "3.0.0-beta.1"
+actix-rt = "2.0.0-beta.1"
+mpart-async = "0.5.0"
 serde_json = "1.0"
 futures = "0.3"
-bytes = "0.5"
-rustls = "0.18"
+bytes = "1"
+rustls = "0.19"
 url = "2.1"
 serde = "1.0"
-log = "0.4.8"
-rand = "0.7"
+log = "0.4"
+rand = "0.8"
 
 failure = "0.1.5"
 thiserror = "1.0"
@@ -34,6 +34,6 @@ env_logger = "0.8"
 image = { version = "0.23", default-features = false, features = ["png"] }
 opener = "0.4"
 qrcode = "0.12"
-rand = "0.7"
+rand = "0.8"
 structopt = "0.3"
-tokio = { version = "0.2", features=["macros"] }
+tokio = { version = "1", features=["macros"] }

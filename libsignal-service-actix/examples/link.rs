@@ -33,7 +33,8 @@ async fn main() -> Result<(), Error> {
 
     // generate a random 16 bytes password
     let mut rng = rand::rngs::OsRng::default();
-    let password: String = rng.sample_iter(&Alphanumeric).take(24).collect();
+    let password: Vec<u8> = rng.sample_iter(&Alphanumeric).take(24).collect();
+    let password = std::str::from_utf8(&password)?;
 
     // generate a 52 bytes signaling key
     let mut signaling_key = [0u8; 52];
@@ -53,7 +54,7 @@ async fn main() -> Result<(), Error> {
             &signal_context,
             &service_configuration,
             &signaling_key,
-            &password,
+            password,
             &args.device_name,
             tx,
         ),
