@@ -67,12 +67,13 @@ where
     let mut ka_interval = actix::clock::interval_at(
         actix::clock::Instant::now(),
         push_service::KEEPALIVE_TIMEOUT_SECONDS,
-    )
-    .fuse();
+    );
 
     loop {
+        let tick = ka_interval.tick().fuse();
+        futures::pin_mut!(tick);
         futures::select! {
-            _ = ka_interval.next() => {
+            _ = tick => {
                 log::trace!("Triggering keep-alive");
                 if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
                     log::info!("Websocket sink has closed: {:?}.", e);
