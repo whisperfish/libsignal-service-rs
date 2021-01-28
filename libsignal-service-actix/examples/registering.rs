@@ -52,7 +52,8 @@ async fn main() -> Result<(), Error> {
     let push_service =
         AwcPushService::new(config, Some(credentials), &args.user_agent);
 
-    let mut account_manager = AccountManager::new(signal_context, push_service);
+    let mut account_manager =
+        AccountManager::new(signal_context, push_service, None);
     account_manager
         .request_sms_verification_code(&args.username)
         .await?;
