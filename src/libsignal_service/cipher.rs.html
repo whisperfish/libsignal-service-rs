@@ -313,6 +313,10 @@
 <span id="310">310</span>
 <span id="311">311</span>
 <span id="312">312</span>
+<span id="313">313</span>
+<span id="314">314</span>
+<span id="315">315</span>
+<span id="316">316</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">content</span>::{<span class="ident">Content</span>, <span class="ident">Metadata</span>},
@@ -530,7 +534,11 @@
                 <span class="ident">session_cipher</span>.<span class="ident">get_remote_registration_id</span>()<span class="question-mark">?</span>;
             <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">base64</span>::<span class="ident">encode</span>(<span class="ident">message</span>.<span class="ident">serialize</span>()<span class="question-mark">?</span>);
             <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">envelope</span>::<span class="ident">Type</span>;
-            <span class="kw">let</span> <span class="ident">message_type</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">message</span>.<span class="ident">get_type</span>()<span class="question-mark">?</span> {
+            <span class="kw">let</span> <span class="ident">message_type</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">message</span>.<span class="ident">get_type</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+                <span class="ident">ServiceError</span>::<span class="ident">InvalidFrameError</span> {
+                    <span class="ident">reason</span>: <span class="string">&quot;unknown message type&quot;</span>.<span class="ident">into</span>(),
+                }
+            })<span class="question-mark">?</span> {
                 <span class="ident">CiphertextType</span>::<span class="ident">PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Type</span>::<span class="ident">PrekeyBundle</span>,
                 <span class="ident">CiphertextType</span>::<span class="ident">Signal</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Type</span>::<span class="ident">Ciphertext</span>,
                 <span class="ident">t</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Bad type: {:?}&quot;</span>, <span class="ident">t</span>),

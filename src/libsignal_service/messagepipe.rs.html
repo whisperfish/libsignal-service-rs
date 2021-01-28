@@ -462,7 +462,7 @@
                                 });
                                 <span class="ident">background_work</span>.<span class="ident">push</span>(<span class="ident">request</span>.<span class="ident">boxed_local</span>());
                             },
-                            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">log</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Could not send keep alive&quot;</span>),
+                            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">log</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;Could not send keep alive: {}&quot;</span>, <span class="ident">e</span>),
                         }
                     },
                     <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> {
