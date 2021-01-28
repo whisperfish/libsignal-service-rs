@@ -16,6 +16,7 @@ use libsignal_protocol::{Context, StoreContext};
 pub struct AccountManager<Service> {
     context: Context,
     service: Service,
+    profile_key: Option<Vec<u8>>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -36,8 +37,16 @@ const PRE_KEY_MINIMUM: u32 = 10;
 const PRE_KEY_BATCH_SIZE: u32 = 100;
 
 impl<Service: PushService> AccountManager<Service> {
-    pub fn new(context: Context, service: Service) -> Self {
-        Self { context, service }
+    pub fn new(
+        context: Context,
+        service: Service,
+        profile_key: Option<Vec<u8>>,
+    ) -> Self {
+        Self {
+            context,
+            service,
+            profile_key,
+        }
     }
 
     pub async fn request_sms_verification_code(
@@ -165,8 +174,6 @@ impl<Service: PushService> AccountManager<Service> {
         url: url::Url,
         store_context: StoreContext,
         credentials: Credentials,
-        // XXX maybe this should also be a property in the AccountManager.
-        profile_key: Option<Vec<u8>>,
     ) -> Result<(), LinkError> {
         let query: HashMap<_, _> = url.query_pairs().collect();
         let ephemeral_id = query.get("uuid").ok_or(LinkError::InvalidUuid)?;
@@ -195,7 +202,7 @@ impl<Service: PushService> AccountManager<Service> {
             ),
             number: Some(credentials.e164),
             uuid: credentials.uuid.clone(),
-            profile_key,
+            profile_key: self.profile_key.clone(),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(
                 ProvisioningVersion::TabletSupport,
