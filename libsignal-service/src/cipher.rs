@@ -311,6 +311,12 @@ pub fn get_preferred_protocol_address(
             return Ok(address);
         }
     }
+    if cfg!(feature = "prefer-e164") {
+        panic!(
+            "{:?}:{} does not have a e164 associated, falling back to UUID.",
+            address, device_id
+        );
+    }
 
     Ok(ProtocolAddress::new(address.identifier(), device_id as i32))
 }

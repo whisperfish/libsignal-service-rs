@@ -1,11 +1,12 @@
 use std::time::SystemTime;
 
+use crate::cipher::get_preferred_protocol_address;
 use crate::proto::{
     attachment_pointer::AttachmentIdentifier,
     attachment_pointer::Flags as AttachmentPointerFlags, AttachmentPointer,
 };
 
-use libsignal_protocol::{Address, SessionBuilder};
+use libsignal_protocol::SessionBuilder;
 use log::{info, trace};
 
 use crate::{
@@ -488,16 +489,28 @@ where
             );
         }
 
-        for device_id in self
-            .cipher
-            .store_context
-            .get_sub_device_sessions(recipient.identifier())?
-        {
+        // XXX maybe refactor this in a method, this is probably something we need on every call to
+        // get_sub_device_sessions.
+        let mut sub_device_sessions = Vec::new();
+        if let Some(uuid) = &recipient.uuid {
+            sub_device_sessions.extend(
+                self.cipher.store_context.get_sub_device_sessions(uuid)?,
+            );
+        }
+        if let Some(e164) = &recipient.e164 {
+            sub_device_sessions.extend(
+                self.cipher.store_context.get_sub_device_sessions(e164)?,
+            );
+        }
+
+        for device_id in sub_device_sessions {
             trace!("sending message to device {}", device_id);
-            if self.cipher.store_context.contains_session(&Address::new(
-                recipient.identifier(),
+            let ppa = get_preferred_protocol_address(
+                &self.cipher.store_context,
+                recipient.clone(),
                 device_id,
-            ))? {
+            )?;
+            if self.cipher.store_context.contains_session(&ppa)? {
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
@@ -523,7 +536,11 @@ where
         device_id: i32,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
-        let recipient_address = Address::new(recipient.identifier(), device_id);
+        let recipient_address = get_preferred_protocol_address(
+            &self.cipher.store_context,
+            recipient.clone(),
+            device_id,
+        )?;
         log::trace!("encrypting message for {:?}", recipient_address);
 
         if !self
@@ -544,10 +561,11 @@ where
                     continue;
                 }
 
-                let pre_key_address = Address::new(
-                    recipient.identifier(),
+                let pre_key_address = get_preferred_protocol_address(
+                    &self.cipher.store_context,
+                    recipient.clone(),
                     pre_key_bundle.device_id(),
-                );
+                )?;
                 let session_builder = SessionBuilder::new(
                     &self.cipher.context,
                     &self.cipher.store_context,
