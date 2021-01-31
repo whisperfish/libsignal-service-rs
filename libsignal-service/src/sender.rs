@@ -52,10 +52,10 @@ pub struct AttachmentSpec {
     pub length: usize,
     pub file_name: Option<String>,
     pub preview: Option<Vec<u8>>,
-    pub voice_note: bool,
-    pub borderless: bool,
-    pub width: u32,
-    pub height: u32,
+    pub voice_note: Option<bool>,
+    pub borderless: Option<bool>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
     pub caption: Option<String>,
     pub blur_hash: Option<String>,
 }
@@ -183,18 +183,18 @@ where
             digest: Some(digest),
             file_name: spec.file_name,
             flags: Some(
-                if spec.voice_note {
+                if spec.voice_note == Some(true) {
                     AttachmentPointerFlags::VoiceMessage as u32
                 } else {
                     0
-                } | if spec.borderless {
+                } | if spec.borderless == Some(true) {
                     AttachmentPointerFlags::Borderless as u32
                 } else {
                     0
                 },
             ),
-            width: Some(spec.width),
-            height: Some(spec.height),
+            width: spec.width,
+            height: spec.height,
             caption: spec.caption,
             blur_hash: spec.blur_hash,
             upload_timestamp: Some(
