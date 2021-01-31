@@ -3,9 +3,11 @@ use std::time::SystemTime;
 use crate::cipher::get_preferred_protocol_address;
 use crate::proto::{
     attachment_pointer::AttachmentIdentifier,
-    attachment_pointer::Flags as AttachmentPointerFlags, AttachmentPointer,
+    attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
+    AttachmentPointer, SyncMessage,
 };
 
+use chrono::prelude::*;
 use libsignal_protocol::SessionBuilder;
 use log::{info, trace};
 
@@ -13,6 +15,8 @@ use crate::{
     cipher::ServiceCipher, content::ContentBody, push_service::*,
     sealed_session_cipher::UnidentifiedAccess, ServiceAddress,
 };
+
+pub use crate::proto::ContactDetails;
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -83,6 +87,8 @@ pub enum MessageSenderError {
     ServiceError(#[from] ServiceError),
     #[error("protocol error: {0}")]
     ProtocolError(#[from] libsignal_protocol::Error),
+    #[error("Failed to upload attachment {0}")]
+    AttachmentUploadError(#[from] AttachmentUploadError),
 
     #[error("Untrusted identity key with {identifier}")]
     UntrustedIdentity { identifier: String },
@@ -207,6 +213,40 @@ where
             attachment_identifier: Some(AttachmentIdentifier::CdnId(id)),
             ..Default::default()
         })
+    }
+
+    /// Upload contact details to the CDN
+    ///
+    /// Returns attachment ID and the attachment digest
+    async fn upload_contact_details<Contacts>(
+        &mut self,
+        contacts: Contacts,
+    ) -> Result<AttachmentPointer, AttachmentUploadError>
+    where
+        Contacts: IntoIterator<Item = ContactDetails>,
+    {
+        use prost::Message;
+        let mut out = Vec::new();
+        for contact in contacts {
+            contact
+                .encode_length_delimited(&mut out)
+                .expect("infallible encoding");
+            // XXX add avatar here
+        }
+
+        let spec = AttachmentSpec {
+            content_type: "application/octet-stream".into(),
+            length: out.len(),
+            file_name: None,
+            preview: None,
+            voice_note: None,
+            borderless: None,
+            width: None,
+            height: None,
+            caption: None,
+            blur_hash: None,
+        };
+        self.upload_attachment(spec, out).await
     }
 
     /// Send a message `content` to a single `recipient`.
@@ -466,6 +506,43 @@ where
         Err(MessageSenderError::MaximumRetriesLimitExceeded)
     }
 
+    /// Upload contact details to the CDN and send a sync message
+    pub async fn send_contact_details<Contacts>(
+        &mut self,
+        recipient: &ServiceAddress,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        // XXX It may be interesting to use an intermediary type,
+        //     instead of ContactDetails directly,
+        //     because it allows us to add the avatar content.
+        contacts: Contacts,
+        online: bool,
+        complete: bool,
+    ) -> Result<(), MessageSenderError>
+    where
+        Contacts: IntoIterator<Item = ContactDetails>,
+    {
+        let ptr = self.upload_contact_details(contacts).await?;
+
+        let msg = SyncMessage {
+            contacts: Some(sync_message::Contacts {
+                blob: Some(ptr),
+                complete: Some(complete),
+            }),
+            ..Default::default()
+        };
+
+        self.send_message(
+            recipient,
+            unidentified_access,
+            msg,
+            Utc::now().timestamp_millis() as u64,
+            online,
+        )
+        .await?;
+
+        Ok(())
+    }
+
     // Equivalent with `getEncryptedMessages`
     async fn create_encrypted_messages(
         &mut self,
@@ -589,7 +666,6 @@ where
         data_message: Option<crate::proto::DataMessage>,
         timestamp: u64,
     ) -> Result<ContentBody, MessageSenderError> {
-        use crate::proto::{sync_message, SyncMessage};
         Ok(ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
                 destination_e164: recipient.and_then(|r| r.e164.clone()),
