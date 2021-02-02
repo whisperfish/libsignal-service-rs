@@ -350,32 +350,61 @@ pub trait PushService {
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError>;
 
+    fn build_verification_code_request_url(
+        msg_type: &str,
+        phone_number: &str,
+        captcha: Option<&str>,
+        challenge: Option<&str>,
+    ) -> String {
+        if let Some(cl) = challenge {
+            format!("/v1/accounts/{}/code/{}?challenge={}", msg_type, phone_number, cl)
+        } else if let Some(cc) = captcha {
+            format!("/v1/accounts/{}/code/{}?captcha={}", msg_type, phone_number, cc)
+        } else {
+            format!("/v1/accounts/{}/code/{}", msg_type, phone_number)
+        }
+    }
+
     async fn request_sms_verification_code(
         &mut self,
         phone_number: &str,
+        captcha: Option<&str>,
+        challenge: Option<&str>,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
-        match self
-            .get(&format!("/v1/accounts/sms/code/{}", phone_number))
+        let res = match self
+            .get(Self::build_verification_code_request_url("sms", phone_number, captcha, challenge).as_ref())
             .await
         {
             Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
             r => r,
-        }?;
-        Ok(SmsVerificationCodeResponse::SmsSent)
+        };
+        match res {
+            Ok(_) => Ok(SmsVerificationCodeResponse::SmsSent),
+            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) =>
+                     Ok(SmsVerificationCodeResponse::CaptchaRequired),
+            Err(e) => Err(e)
+        }
     }
 
     async fn request_voice_verification_code(
         &mut self,
         phone_number: &str,
+        captcha: Option<&str>,
+        challenge: Option<&str>,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
-        match self
-            .get(&format!("/v1/accounts/voice/code/{}", phone_number))
+        let res = match self
+            .get(Self::build_verification_code_request_url("voice", phone_number, captcha, challenge).as_ref())
             .await
         {
             Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
             r => r,
-        }?;
-        Ok(VoiceVerificationCodeResponse::CallIssued)
+        };
+        match res {
+            Ok(_) => Ok(VoiceVerificationCodeResponse::CallIssued),
+            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) =>
+                     Ok(VoiceVerificationCodeResponse::CaptchaRequired),
+            Err(e) => Err(e)
+        }
     }
 
     /// Fetches a list of all devices tied to the authenticated account.
