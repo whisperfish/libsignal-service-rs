@@ -83,7 +83,6 @@ impl<Service: PushService> AccountManager<Service> {
             .await?)
     }
 
-
     pub async fn request_voice_verification_code(
         &mut self,
         phone_number: &str,
