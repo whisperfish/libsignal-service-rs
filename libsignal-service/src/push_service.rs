@@ -349,9 +349,15 @@ pub trait PushService {
         challenge: Option<&str>,
     ) -> String {
         if let Some(cl) = challenge {
-            format!("/v1/accounts/{}/code/{}?challenge={}", msg_type, phone_number, cl)
+            format!(
+                "/v1/accounts/{}/code/{}?challenge={}",
+                msg_type, phone_number, cl
+            )
         } else if let Some(cc) = captcha {
-            format!("/v1/accounts/{}/code/{}?captcha={}", msg_type, phone_number, cc)
+            format!(
+                "/v1/accounts/{}/code/{}?captcha={}",
+                msg_type, phone_number, cc
+            )
         } else {
             format!("/v1/accounts/{}/code/{}", msg_type, phone_number)
         }
@@ -364,7 +370,15 @@ pub trait PushService {
         challenge: Option<&str>,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         let res = match self
-            .get(Self::build_verification_code_request_url("sms", phone_number, captcha, challenge).as_ref())
+            .get(
+                Self::build_verification_code_request_url(
+                    "sms",
+                    phone_number,
+                    captcha,
+                    challenge,
+                )
+                .as_ref(),
+            )
             .await
         {
             Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
@@ -372,9 +386,10 @@ pub trait PushService {
         };
         match res {
             Ok(_) => Ok(SmsVerificationCodeResponse::SmsSent),
-            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) =>
-                     Ok(SmsVerificationCodeResponse::CaptchaRequired),
-            Err(e) => Err(e)
+            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
+                Ok(SmsVerificationCodeResponse::CaptchaRequired)
+            }
+            Err(e) => Err(e),
         }
     }
 
@@ -385,7 +400,15 @@ pub trait PushService {
         challenge: Option<&str>,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
         let res = match self
-            .get(Self::build_verification_code_request_url("voice", phone_number, captcha, challenge).as_ref())
+            .get(
+                Self::build_verification_code_request_url(
+                    "voice",
+                    phone_number,
+                    captcha,
+                    challenge,
+                )
+                .as_ref(),
+            )
             .await
         {
             Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
@@ -393,9 +416,10 @@ pub trait PushService {
         };
         match res {
             Ok(_) => Ok(VoiceVerificationCodeResponse::CallIssued),
-            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) =>
-                     Ok(VoiceVerificationCodeResponse::CaptchaRequired),
-            Err(e) => Err(e)
+            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
+                Ok(VoiceVerificationCodeResponse::CaptchaRequired)
+            }
+            Err(e) => Err(e),
         }
     }
 
