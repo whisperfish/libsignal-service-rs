@@ -22,7 +22,7 @@ impl<Service: PushService> AccountManager<Service> {
         Self { context, service }
     }
 
-    pub async fn request_sms_verification_code_with_data(
+    pub async fn request_sms_verification_code(
         &mut self,
         phone_number: &str,
         captcha: Option<&str>,
@@ -34,17 +34,7 @@ impl<Service: PushService> AccountManager<Service> {
             .await?)
     }
 
-    pub async fn request_sms_verification_code(
-        &mut self,
-        phone_number: &str,
-    ) -> Result<SmsVerificationCodeResponse, ServiceError> {
-        Ok(self
-            .service
-            .request_sms_verification_code(phone_number, None, None)
-            .await?)
-    }
-
-    pub async fn request_voice_verification_code_with_data(
+    pub async fn request_voice_verification_code(
         &mut self,
         phone_number: &str,
         captcha: Option<&str>,
@@ -53,16 +43,6 @@ impl<Service: PushService> AccountManager<Service> {
         Ok(self
             .service
             .request_voice_verification_code(phone_number, captcha, challenge)
-            .await?)
-    }
-
-    pub async fn request_voice_verification_code(
-        &mut self,
-        phone_number: &str,
-    ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
-        Ok(self
-            .service
-            .request_voice_verification_code(phone_number, None, None)
             .await?)
     }
 
