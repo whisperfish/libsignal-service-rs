@@ -52,20 +52,24 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn request_sms_verification_code(
         &mut self,
         phone_number: &str,
+        captcha: Option<&str>,
+        challenge: Option<&str>,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         Ok(self
             .service
-            .request_sms_verification_code(phone_number)
+            .request_sms_verification_code(phone_number, captcha, challenge)
             .await?)
     }
 
     pub async fn request_voice_verification_code(
         &mut self,
         phone_number: &str,
+        captcha: Option<&str>,
+        challenge: Option<&str>,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
         Ok(self
             .service
-            .request_voice_verification_code(phone_number)
+            .request_voice_verification_code(phone_number, captcha, challenge)
             .await?)
     }
 
