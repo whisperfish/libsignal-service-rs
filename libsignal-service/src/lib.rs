@@ -7,10 +7,11 @@ pub mod configuration;
 pub mod content;
 mod digeststream;
 pub mod envelope;
+pub mod gv2;
 pub mod messagepipe;
 pub mod models;
 pub mod pre_keys;
-mod proto;
+pub mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
@@ -43,4 +44,8 @@ pub mod prelude {
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
     };
+    pub use phonenumber;
+    pub use prost;
+    pub use uuid;
+    pub use zkgroup::groups::{GroupMasterKey, GroupSecretParams};
 }

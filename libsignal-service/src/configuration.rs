@@ -1,6 +1,8 @@
 use std::{collections::HashMap, str::FromStr};
 
 use libsignal_protocol::{keys::PublicKey, Context};
+use url::Url;
+use zkgroup::ServerPublicParams;
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
@@ -8,13 +10,15 @@ use crate::{
     sealed_session_cipher::{CertificateValidator, SealedSessionError},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ServiceConfiguration {
-    pub service_urls: Vec<String>,
-    pub cdn_urls: HashMap<u32, String>,
-    pub contact_discovery_url: Vec<String>,
+    service_url: Url,
+    storage_url: Url,
+    cdn_urls: HashMap<u32, Url>,
+    contact_discovery_url: Url,
     pub certificate_authority: String,
     pub unidentified_sender_trust_root: String,
+    pub zkgroup_server_public_params: ServerPublicParams,
 }
 
 pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
@@ -32,9 +36,9 @@ impl Credentials {
     /// Kind-of equivalent with `PushServiceSocket::getAuthorizationHeader`
     ///
     /// None when `self.password == None`
-    pub fn authorization(&self) -> Option<(String, &str)> {
+    pub fn authorization(&self) -> Option<(String, String)> {
         let identifier = self.login();
-        Some((identifier, self.password.as_ref()?))
+        Some((identifier, self.password.as_ref()?.clone()))
     }
 
     pub fn e164(&self) -> String {
@@ -71,6 +75,14 @@ pub enum SignalServers {
     Production,
 }
 
+#[derive(Debug)]
+pub enum Endpoint {
+    Service,
+    Storage,
+    Cdn(u32),
+    ContactDiscovery,
+}
+
 impl FromStr for SignalServers {
     type Err = std::io::Error;
 
@@ -104,41 +116,39 @@ impl Into<ServiceConfiguration> for SignalServers {
             // configuration with the Signal API staging endpoints
             // see: https://github.com/signalapp/Signal-Desktop/blob/master/config/default.json
             SignalServers::Staging => ServiceConfiguration {
-                service_urls: vec![
-                    "https://textsecure-service-staging.whispersystems.org"
-                        .into(),
-                ],
+                service_url: "https://textsecure-service-staging.whispersystems.org".parse().unwrap(),
+                storage_url:"https://storage-staging.signal.org".parse().unwrap(),
                 cdn_urls: {
                     let mut map = HashMap::new();
-                    map.insert(0, "https://cdn-staging.signal.org".into());
-                    map.insert(2, "https://cdn2-staging.signal.org".into());
+                    map.insert(0, "https://cdn-staging.signal.org".parse().unwrap());
+                    map.insert(2, "https://cdn2-staging.signal.org".parse().unwrap());
                     map
                 },
-                contact_discovery_url: vec![
-                    "https://api-staging.directory.signal.org".into(),
-                ],
+                contact_discovery_url:
+                    "https://api-staging.directory.signal.org".parse().unwrap(),
                 certificate_authority: SIGNAL_ROOT_CA.into(),
                 unidentified_sender_trust_root:
                     "BbqY1DzohE4NUZoVF+L18oUPrK3kILllLEJh2UnPSsEx".into(),
+                zkgroup_server_public_params: bincode::deserialize(&base64::decode("ABSY21VckQcbSXVNCGRYJcfWHiAMZmpTtTELcDmxgdFbtp/bWsSxZdMKzfCp8rvIs8ocCU3B37fT3r4Mi5qAemeGeR2X+/YmOGR5ofui7tD5mDQfstAI9i+4WpMtIe8KC3wU5w3Inq3uNWVmoGtpKndsNfwJrCg0Hd9zmObhypUnSkfYn2ooMOOnBpfdanRtrvetZUayDMSC5iSRcXKpdls=").unwrap()).unwrap(),
             },
             // configuration with the Signal API production endpoints
             // https://github.com/signalapp/Signal-Desktop/blob/master/config/production.json
             SignalServers::Production => ServiceConfiguration {
-                service_urls: vec![
-                    "https://textsecure-service.whispersystems.org".into(),
-                ],
+                service_url:
+                    "https://textsecure-service.whispersystems.org".parse().unwrap(),
+                storage_url: "https://storage.signal.org".parse().unwrap(),
                 cdn_urls: {
                     let mut map = HashMap::new();
-                    map.insert(0, "https://cdn.signal.org".into());
-                    map.insert(2, "https://cdn2.signal.org".into());
+                    map.insert(0, "https://cdn.signal.org".parse().unwrap());
+                    map.insert(2, "https://cdn2.signal.org".parse().unwrap());
                     map
                 },
-                contact_discovery_url: vec![
-                    "https://api.directory.signal.org".into()
-                ],
+                contact_discovery_url: "https://api.directory.signal.org".parse().unwrap(),
                 certificate_authority: SIGNAL_ROOT_CA.into(),
                 unidentified_sender_trust_root:
                     "BXu6QIKVz5MA8gstzfOgRQGqyLqOwNKHL6INkv3IHWMF".into(),
+                zkgroup_server_public_params: bincode::deserialize(
+                    &base64::decode("AMhf5ywVwITZMsff/eCyudZx9JDmkkkbV6PInzG4p8x3VqVJSFiMvnvlEKWuRob/1eaIetR31IYeAbm0NdOuHH8Qi+Rexi1wLlpzIo1gstHWBfZzy1+qHRV5A4TqPp15YzBPm0WSggW6PbSn+F4lf57VCnHF7p8SvzAA2ZZJPYJURt8X7bbg+H3i+PEjH9DXItNEqs2sNcug37xZQDLm7X0=").unwrap()).unwrap(),
             },
         }
     }
@@ -154,5 +164,14 @@ impl ServiceConfiguration {
             &base64::decode(&self.unidentified_sender_trust_root)
                 .map_err(|_| SealedSessionError::InvalidCertificate)?,
         )?))
+    }
+
+    pub fn base_url<'a>(&'a self, endpoint: Endpoint) -> &'a Url {
+        match endpoint {
+            Endpoint::Service => &self.service_url,
+            Endpoint::Storage => &self.storage_url,
+            Endpoint::Cdn(ref n) => &self.cdn_urls[n],
+            Endpoint::ContactDiscovery => &self.contact_discovery_url,
+        }
     }
 }

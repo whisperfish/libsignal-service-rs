@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    configuration::Credentials,
+    configuration::{Credentials, Endpoint},
     envelope::*,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
@@ -271,10 +271,26 @@ pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
     Timeout { reason: String },
 
+    #[error("invalid URL: {0}")]
+    InvalidUrl(#[from] url::ParseError),
+
     #[error("Error sending request: {reason}")]
     SendError { reason: String },
+
+    #[error("Error decoding response: {reason}")]
+    ResponseError { reason: String },
+
     #[error("Error decoding JSON response: {reason}")]
     JsonDecodeError { reason: String },
+
+    #[error("Error decoding protobuf frame: {0}")]
+    ProtobufDecodeError(#[from] prost::DecodeError),
+
+    #[error("Error encoding protobuf frame: {0}")]
+    ProtobufEncodeError(#[from] prost::EncodeError),
+
+    #[error(transparent)]
+    BincodeError(#[from] bincode::Error),
 
     #[error("Rate limit exceeded")]
     RateLimitExceeded,
@@ -287,9 +303,6 @@ pub enum ServiceError {
     WsError { reason: String },
     #[error("Websocket closing: {reason}")]
     WsClosing { reason: String },
-
-    #[error("Undecodable frame: {0}")]
-    DecodeError(#[from] prost::DecodeError),
 
     #[error("Invalid frame: {reason}")]
     InvalidFrameError { reason: String },
@@ -310,6 +323,9 @@ pub enum ServiceError {
     SealedSessionError(
         #[from] crate::sealed_session_cipher::SealedSessionError,
     ),
+
+    #[error(transparent)]
+    CredentialsCacheError(#[from] crate::gv2::CredentialsCacheError),
 }
 
 #[async_trait::async_trait(?Send)]
@@ -317,22 +333,51 @@ pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
-    async fn get<T>(&mut self, path: &str) -> Result<T, ServiceError>
-    where
-        for<'de> T: Deserialize<'de>;
-
-    async fn delete<T>(&mut self, path: &str) -> Result<T, ServiceError>
-    where
-        for<'de> T: Deserialize<'de>;
-
-    async fn put<D, S>(
+    async fn get_json<T>(
         &mut self,
+        service: Endpoint,
+        path: &str,
+        credentials: Option<(String, String)>,
+    ) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>;
+
+    async fn delete_json<T>(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+    ) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>;
+
+    async fn put_json<D, S>(
+        &mut self,
+        service: Endpoint,
         path: &str,
         value: S,
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
         S: Serialize;
+
+    async fn get_protobuf<T>(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        credentials: Option<(String, String)>,
+    ) -> Result<T, ServiceError>
+    where
+        T: Default + prost::Message;
+
+    async fn put_protobuf<D, S>(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        value: S,
+    ) -> Result<D, ServiceError>
+    where
+        D: Default + prost::Message,
+        S: Sized + prost::Message;
 
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
@@ -380,7 +425,8 @@ pub trait PushService {
         challenge: Option<&str>,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
         let res = match self
-            .get(
+            .get_json(
+                Endpoint::Service,
                 Self::build_verification_code_request_url(
                     "sms",
                     phone_number,
@@ -388,6 +434,7 @@ pub trait PushService {
                     challenge,
                 )
                 .as_ref(),
+                None,
             )
             .await
         {
@@ -410,7 +457,8 @@ pub trait PushService {
         challenge: Option<&str>,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
         let res = match self
-            .get(
+            .get_json(
+                Endpoint::Service,
                 Self::build_verification_code_request_url(
                     "voice",
                     phone_number,
@@ -418,6 +466,7 @@ pub trait PushService {
                     challenge,
                 )
                 .as_ref(),
+                None,
             )
             .await
         {
@@ -442,13 +491,16 @@ pub trait PushService {
             devices: Vec<DeviceInfo>,
         }
 
-        let devices: DeviceInfoList = self.get("/v1/devices/").await?;
+        let devices: DeviceInfoList = self
+            .get_json(Endpoint::Service, "/v1/devices/", None)
+            .await?;
 
         Ok(devices.devices)
     }
 
     async fn unlink_device(&mut self, id: i64) -> Result<(), ServiceError> {
-        self.delete(&format!("/v1/devices/{}", id)).await
+        self.delete_json(Endpoint::Service, &format!("/v1/devices/{}", id))
+            .await
     }
 
     async fn send_provisioning_message(
@@ -464,7 +516,8 @@ pub trait PushService {
         let mut body = Vec::with_capacity(env.encoded_len());
         env.encode(&mut body).expect("infallible encode");
 
-        self.put(
+        self.put_json(
+            Endpoint::Service,
             &format!("/v1/provisioning/{}", destination),
             &ProvisioningMessage {
                 body: base64::encode(body),
@@ -482,7 +535,9 @@ pub trait PushService {
             verification_code: String,
         }
 
-        let dc: DeviceCode = self.get("/v1/devices/provisioning/code").await?;
+        let dc: DeviceCode = self
+            .get_json(Endpoint::Service, "/v1/devices/provisioning/code", None)
+            .await?;
         Ok(dc.verification_code)
     }
 
@@ -491,7 +546,8 @@ pub trait PushService {
         confirm_code: u32,
         confirm_verification_message: ConfirmCodeMessage,
     ) -> Result<ConfirmCodeResponse, ServiceError> {
-        self.put(
+        self.put_json(
+            Endpoint::Service,
             &format!("/v1/accounts/code/{}", confirm_code),
             confirm_verification_message,
         )
@@ -503,7 +559,8 @@ pub trait PushService {
         confirm_code: u32,
         confirm_code_message: ConfirmDeviceMessage,
     ) -> Result<DeviceId, ServiceError> {
-        self.put(
+        self.put_json(
+            Endpoint::Service,
             &format!("/v1/devices/{}", confirm_code),
             confirm_code_message,
         )
@@ -513,14 +570,17 @@ pub trait PushService {
     async fn get_pre_key_status(
         &mut self,
     ) -> Result<PreKeyStatus, ServiceError> {
-        self.get("/v2/keys/").await
+        self.get_json(Endpoint::Service, "/v2/keys/", None).await
     }
 
     async fn register_pre_keys(
         &mut self,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
-        match self.put("/v2/keys/", pre_key_state).await {
+        match self
+            .put_json(Endpoint::Service, "/v2/keys/", pre_key_state)
+            .await
+        {
             Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
             r => r,
         }
@@ -558,7 +618,7 @@ pub trait PushService {
         messages: OutgoingPushMessages<'a>,
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
-        self.put(&path, messages).await
+        self.put_json(Endpoint::Service, &path, messages).await
     }
 
     /// Request AttachmentV2UploadAttributes
@@ -567,7 +627,8 @@ pub trait PushService {
     async fn get_attachment_v2_upload_attributes(
         &mut self,
     ) -> Result<AttachmentV2UploadAttributes, ServiceError> {
-        self.get("/v2/attachments/form/upload").await
+        self.get_json(Endpoint::Service, "/v2/attachments/form/upload", None)
+            .await
     }
 
     /// Upload attachment to CDN
@@ -603,13 +664,16 @@ pub trait PushService {
     async fn get_messages(
         &mut self,
     ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
-        let entity_list: EnvelopeEntityList = self.get("/v1/messages/").await?;
+        let entity_list: EnvelopeEntityList = self
+            .get_json(Endpoint::Service, "/v1/messages/", None)
+            .await?;
         Ok(entity_list.messages)
     }
 
     /// Method used to check our own UUID
     async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
-        self.get("/v1/accounts/whoami").await
+        self.get_json(Endpoint::Service, "/v1/accounts/whoami", None)
+            .await
     }
 
     async fn get_pre_key(
@@ -629,7 +693,8 @@ pub trait PushService {
             format!("/v2/keys/{}/{}", destination.identifier(), device_id)
         };
 
-        let mut pre_key_response: PreKeyResponse = self.get(&path).await?;
+        let mut pre_key_response: PreKeyResponse =
+            self.get_json(Endpoint::Service, &path, None).await?;
         assert!(!pre_key_response.devices.is_empty());
 
         let device = pre_key_response.devices.remove(0);
@@ -679,7 +744,8 @@ pub trait PushService {
                 relay
             ),
         };
-        let pre_key_response: PreKeyResponse = self.get(&path).await?;
+        let pre_key_response: PreKeyResponse =
+            self.get_json(Endpoint::Service, &path, None).await?;
         let mut pre_keys = vec![];
         for device in pre_key_response.devices {
             let mut bundle = PreKeyBundle::builder()
