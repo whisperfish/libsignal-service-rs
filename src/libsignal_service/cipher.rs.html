@@ -317,6 +317,12 @@
 <span id="314">314</span>
 <span id="315">315</span>
 <span id="316">316</span>
+<span id="317">317</span>
+<span id="318">318</span>
+<span id="319">319</span>
+<span id="320">320</span>
+<span id="321">321</span>
+<span id="322">322</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">content</span>::{<span class="ident">Content</span>, <span class="ident">Metadata</span>},
@@ -630,6 +636,12 @@
             <span class="ident">log</span>::<span class="macro">warn</span><span class="macro">!</span>(<span class="string">&quot;prefer-e164 triggered.  This is a legacy feature and shouldn&#39;t be used for new applications.&quot;</span>);
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">address</span>);
         }
+    }
+    <span class="kw">if</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;prefer-e164&quot;</span>) {
+        <span class="macro">panic</span><span class="macro">!</span>(
+            <span class="string">&quot;{:?}:{} does not have a e164 associated, falling back to UUID.&quot;</span>,
+            <span class="ident">address</span>, <span class="ident">device_id</span>
+        );
     }
 
     <span class="prelude-val">Ok</span>(<span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="ident">address</span>.<span class="ident">identifier</span>(), <span class="ident">device_id</span> <span class="kw">as</span> <span class="ident">i32</span>))
