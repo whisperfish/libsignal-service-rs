@@ -24,7 +24,7 @@ use libsignal_service_actix::push_service::AwcPushService;
 use std::io;
 use structopt::StructOpt;
 
-#[tokio::main]
+#[actix_rt::main]
 async fn main() -> Result<(), Error> {
     let args = Args::from_args();
 

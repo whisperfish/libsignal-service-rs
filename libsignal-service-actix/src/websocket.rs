@@ -1,5 +1,3 @@
-use actix::Arbiter;
-
 use awc::{
     error::{WsClientError, WsProtocolError},
     http::StatusCode,
@@ -159,7 +157,7 @@ impl AwcWebSocket {
 
         // When the processing_task stops, the consuming stream and sink also
         // terminate.
-        Arbiter::spawn(processing_task.map(|v| match v {
+        actix_rt::spawn(processing_task.map(|v| match v {
             Ok(()) => (),
             Err(e) => {
                 log::warn!("Processing task terminated with error: {:?}", e)
