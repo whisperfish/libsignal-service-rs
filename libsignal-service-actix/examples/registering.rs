@@ -55,7 +55,8 @@ async fn main() -> Result<(), Error> {
     let mut account_manager =
         AccountManager::new(signal_context, push_service, None);
     account_manager
-        .request_sms_verification_code(&args.username)
+        // You probably want to generate a reCAPTCHA though!
+        .request_sms_verification_code(&args.username, None, None)
         .await?;
 
     Ok(())
