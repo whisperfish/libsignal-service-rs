@@ -21,8 +21,8 @@ pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 
 #[derive(Clone)]
 pub struct Credentials {
-    pub uuid: Option<String>,
-    pub e164: String,
+    pub uuid: Option<uuid::Uuid>,
+    pub phonenumber: phonenumber::PhoneNumber,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
 }
@@ -31,16 +31,23 @@ impl Credentials {
     /// Kind-of equivalent with `PushServiceSocket::getAuthorizationHeader`
     ///
     /// None when `self.password == None`
-    pub fn authorization(&self) -> Option<(&str, &str)> {
+    pub fn authorization(&self) -> Option<(String, &str)> {
         let identifier = self.login();
         Some((identifier, self.password.as_ref()?))
     }
 
-    pub fn login(&self) -> &str {
+    pub fn e164(&self) -> String {
+        self.phonenumber
+            .format()
+            .mode(phonenumber::Mode::E164)
+            .to_string()
+    }
+
+    pub fn login(&self) -> String {
         if let Some(uuid) = self.uuid.as_ref() {
-            uuid
+            uuid.to_string()
         } else {
-            &self.e164
+            self.e164()
         }
     }
 }

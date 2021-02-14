@@ -29,6 +29,8 @@ thiserror = "1.0"
 async-trait = "0.1.30"
 base64 = "0.13"
 
+phonenumber = "0.3"
+
 [dev-dependencies]
 env_logger = "0.8"
 image = { version = "0.23", default-features = false, features = ["png"] }

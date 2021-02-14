@@ -138,7 +138,7 @@ impl AwcWebSocket {
 
         if let Some(credentials) = credentials {
             url.query_pairs_mut()
-                .append_pair("login", credentials.login())
+                .append_pair("login", &credentials.login())
                 .append_pair(
                     "password",
                     credentials.password.as_ref().expect("a password"),
