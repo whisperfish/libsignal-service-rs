@@ -165,7 +165,7 @@ impl ServiceCipher {
                     .sealed_session_cipher
                     .decrypt(ciphertext, envelope.timestamp())?;
                 let sender = ServiceAddress {
-                    e164: sender_e164,
+                    phonenumber: sender_e164,
                     uuid: sender_uuid,
                     relay: None,
                 };
@@ -301,8 +301,7 @@ pub fn get_preferred_protocol_address(
             return Ok(address);
         }
     }
-    if let Some(ref e164) = address.e164 {
-        let e164 = e164.format().mode(phonenumber::Mode::E164).to_string();
+    if let Some(e164) = address.e164() {
         let address = ProtocolAddress::new(e164, device_id as i32);
         if store_context.contains_session(&address)? {
             return Ok(address);

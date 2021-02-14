@@ -131,10 +131,7 @@ impl Envelope {
             source_device: Some(entity.source_device),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
-            source_e164: source
-                .e164
-                .as_ref()
-                .map(|s| s.format().mode(phonenumber::Mode::E164).to_string()),
+            source_e164: source.e164(),
             source_uuid: source.uuid.as_ref().map(|s| s.to_string()),
             legacy_message: entity.message,
             content: entity.content,
@@ -159,7 +156,7 @@ impl Envelope {
     }
 
     pub fn source_address(&self) -> ServiceAddress {
-        let e164 = self
+        let phonenumber = self
             .source_e164
             .as_ref()
             .map(|s| phonenumber::parse(None, s))
@@ -173,7 +170,7 @@ impl Envelope {
             .transpose()
             .expect("valid e164 checked in constructor");
         ServiceAddress {
-            e164,
+            phonenumber,
             uuid,
             relay: self.relay.clone(),
         }

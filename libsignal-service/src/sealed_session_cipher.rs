@@ -618,7 +618,7 @@ impl SenderCertificate {
     fn address(&self) -> ServiceAddress {
         ServiceAddress {
             uuid: self.sender_uuid.clone(),
-            e164: self.sender_e164.clone(),
+            phonenumber: self.sender_e164.clone(),
             relay: None,
         }
     }
@@ -715,19 +715,19 @@ mod tests {
     use prost::Message;
 
     fn alice_address() -> ServiceAddress {
-        ServiceAddress {
-            e164: Some(phonenumber::parse(None, "+14151111111").unwrap()),
-            uuid: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".parse().unwrap()),
-            relay: None,
-        }
+        ServiceAddress::parse(
+            Some("+14151111111"),
+            Some("9d0652a3-dcc3-4d11-975f-74d61598733f"),
+        )
+        .unwrap()
     }
 
     fn bob_address() -> ServiceAddress {
-        ServiceAddress {
-            e164: Some(phonenumber::parse(None, "+14152222222").unwrap()),
-            uuid: Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1".parse().unwrap()),
-            relay: None,
-        }
+        ServiceAddress::parse(
+            Some("+14152222222"),
+            Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1"),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -773,7 +773,7 @@ mod tests {
             "smert za smert".to_string()
         );
         assert_eq!(plaintext.sender_uuid, alice_address().uuid);
-        assert_eq!(plaintext.sender_e164, alice_address().e164);
+        assert_eq!(plaintext.sender_e164, alice_address().phonenumber);
         assert_eq!(plaintext.device_id, 1);
 
         Ok(())
@@ -957,9 +957,7 @@ mod tests {
         let server_key = libsignal_protocol::generate_key_pair(&context)?;
 
         let uuid = addr.uuid.as_ref().map(uuid::Uuid::to_string);
-        let e164 = addr.e164.map(|e164| {
-            e164.format().mode(phonenumber::Mode::E164).to_string()
-        });
+        let e164 = addr.e164();
 
         let mut server_certificate_bytes = vec![];
         crate::proto::server_certificate::Certificate {

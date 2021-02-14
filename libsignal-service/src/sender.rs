@@ -344,9 +344,7 @@ where
                     .store_context
                     .delete_all_sessions(&uuid.to_string())?;
             }
-            if let Some(ref e164) = recipient.e164 {
-                let e164 =
-                    e164.format().mode(phonenumber::Mode::E164).to_string();
+            if let Some(e164) = recipient.e164() {
                 self.cipher.store_context.delete_all_sessions(&e164)?;
             }
         }
@@ -473,11 +471,7 @@ where
                                 ),
                             )?;
                         }
-                        if let Some(ref e164) = recipient.e164 {
-                            let e164 = e164
-                                .format()
-                                .mode(phonenumber::Mode::E164)
-                                .to_string();
+                        if let Some(e164) = recipient.e164() {
                             self.cipher.store_context.delete_session(
                                 &libsignal_protocol::Address::new(
                                     &e164,
@@ -532,11 +526,7 @@ where
                                 ),
                             )?;
                         }
-                        if let Some(ref e164) = recipient.e164 {
-                            let e164 = e164
-                                .format()
-                                .mode(phonenumber::Mode::E164)
-                                .to_string();
+                        if let Some(e164) = recipient.e164() {
                             self.cipher.store_context.delete_session(
                                 &libsignal_protocol::Address::new(
                                     e164,
@@ -656,8 +646,7 @@ where
                     .get_sub_device_sessions(&uuid.to_string())?,
             );
         }
-        if let Some(e164) = &recipient.e164 {
-            let e164 = e164.format().mode(phonenumber::Mode::E164).to_string();
+        if let Some(e164) = &recipient.e164() {
             sub_device_sessions.extend(
                 self.cipher.store_context.get_sub_device_sessions(&e164)?,
             );
@@ -754,11 +743,7 @@ where
                 destination_uuid: recipient
                     .and_then(|r| r.uuid)
                     .map(|u| u.to_string()),
-                destination_e164: recipient.and_then(|r| r.e164.as_ref()).map(
-                    |e164| {
-                        e164.format().mode(phonenumber::Mode::E164).to_string()
-                    },
-                ),
+                destination_e164: recipient.and_then(|r| r.e164()),
                 message: data_message,
                 timestamp: Some(timestamp),
                 ..Default::default()

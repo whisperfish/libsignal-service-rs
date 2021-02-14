@@ -16,8 +16,17 @@ pub enum ParseServiceAddressError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ServiceAddress {
     pub uuid: Option<Uuid>,
-    pub e164: Option<PhoneNumber>,
+    pub phonenumber: Option<PhoneNumber>,
     pub relay: Option<String>,
+}
+
+impl ServiceAddress {
+    /// Formats the phone number, if present, as E164
+    pub fn e164(&self) -> Option<String> {
+        self.phonenumber
+            .as_ref()
+            .map(|pn| pn.format().mode(phonenumber::Mode::E164).to_string())
+    }
 }
 
 impl std::fmt::Display for ServiceAddress {
@@ -25,7 +34,7 @@ impl std::fmt::Display for ServiceAddress {
         &self,
         f: &mut std::fmt::Formatter<'_>,
     ) -> Result<(), std::fmt::Error> {
-        match (&self.uuid, &self.e164, &self.relay) {
+        match (&self.uuid, &self.phonenumber, &self.relay) {
             (_, Some(e164), _) => write!(f, "ServiceAddress({})", e164),
             (Some(uuid), _, _) => write!(f, "ServiceAddress({})", uuid),
             _ => write!(f, "ServiceAddress(INVALID)"),
@@ -38,11 +47,12 @@ impl ServiceAddress {
         e164: Option<&str>,
         uuid: Option<&str>,
     ) -> Result<ServiceAddress, ParseServiceAddressError> {
-        let e164 = e164.map(|s| phonenumber::parse(None, s)).transpose()?;
+        let phonenumber =
+            e164.map(|s| phonenumber::parse(None, s)).transpose()?;
         let uuid = uuid.map(Uuid::parse_str).transpose()?;
 
         Ok(ServiceAddress {
-            e164,
+            phonenumber,
             uuid,
             relay: None,
         })
@@ -52,8 +62,8 @@ impl ServiceAddress {
     pub fn identifier(&self) -> String {
         if let Some(ref uuid) = self.uuid {
             return uuid.to_string();
-        } else if let Some(ref e164) = self.e164 {
-            return e164.format().mode(phonenumber::Mode::E164).to_string();
+        } else if let Some(e164) = self.e164() {
+            return e164;
         }
         unreachable!(
             "an address requires either a UUID or a E164 phone number"
@@ -61,7 +71,7 @@ impl ServiceAddress {
     }
 
     pub fn matches(&self, other: &Self) -> bool {
-        (self.e164.is_some() && self.e164 == other.e164)
+        (self.phonenumber.is_some() && self.phonenumber == other.phonenumber)
             || (self.uuid.is_some() && self.uuid == other.uuid)
     }
 }
