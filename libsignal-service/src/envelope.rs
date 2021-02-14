@@ -12,8 +12,8 @@ pub use crate::proto::Envelope;
 
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum EnvelopeParseError {
-    #[error("Supplied phone number could not be parsed")]
-    InvalidE164Error(#[from] phonenumber::ParseError),
+    #[error("Supplied phone number could not be parsed in E164 format")]
+    InvalidPhoneNumber(#[from] phonenumber::ParseError),
 
     #[error("Supplied uuid could not be parsed")]
     InvalidUuidError(#[from] uuid::Error),
@@ -46,8 +46,8 @@ impl std::convert::TryFrom<EnvelopeEntity> for Envelope {
             // No source
             Ok(_) | Err(NoSenderError) => Ok(Envelope::new_from_entity(entity)),
             // Source specified, but unparsable
-            Err(InvalidE164Error(e)) => {
-                Err(EnvelopeParseError::InvalidE164Error(e))
+            Err(InvalidPhoneNumber(e)) => {
+                Err(EnvelopeParseError::InvalidPhoneNumber(e))
             }
             Err(InvalidUuidError(e)) => {
                 Err(EnvelopeParseError::InvalidUuidError(e))

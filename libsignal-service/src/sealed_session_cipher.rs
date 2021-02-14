@@ -47,11 +47,11 @@ pub enum SealedSessionError {
     #[error("recipient not trusted")]
     NoSessionWithRecipient,
 
-    #[error("Supplied phone number could not be parsed")]
-    InvalidE164Error(#[from] uuid::Error),
+    #[error("Supplied phone number could not be parsed in E164 format")]
+    InvalidPhoneNumber(#[from] phonenumber::ParseError),
 
     #[error("Supplied uuid could not be parsed")]
-    InvalidUuidError(#[from] phonenumber::ParseError),
+    InvalidUuidError(#[from] uuid::Error),
 }
 
 #[derive(thiserror::Error, Debug)]

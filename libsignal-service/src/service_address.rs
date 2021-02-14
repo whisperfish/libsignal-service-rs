@@ -3,8 +3,8 @@ use uuid::Uuid;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParseServiceAddressError {
-    #[error("Supplied phone number could not be parsed")]
-    InvalidE164Error(#[from] phonenumber::ParseError),
+    #[error("Supplied phone number could not be parsed in E164 format")]
+    InvalidPhoneNumber(#[from] phonenumber::ParseError),
 
     #[error("Supplied uuid could not be parsed")]
     InvalidUuidError(#[from] uuid::Error),
