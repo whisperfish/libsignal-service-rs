@@ -13,7 +13,7 @@ pub enum MessageReceiverError {
     #[error("ServiceError")]
     ServiceError(#[from] ServiceError),
 
-    #[error("Envelop parse error")]
+    #[error("Envelope parsing error")]
     EnvelopeParseError(#[from] crate::envelope::EnvelopeParseError),
 }
 
