@@ -617,7 +617,7 @@ impl SenderCertificate {
 
     fn address(&self) -> ServiceAddress {
         ServiceAddress {
-            uuid: self.sender_uuid.clone(),
+            uuid: self.sender_uuid,
             phonenumber: self.sender_e164.clone(),
             relay: None,
         }

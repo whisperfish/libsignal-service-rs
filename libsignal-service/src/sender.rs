@@ -506,7 +506,7 @@ where
                         .map_err(|e| {
                             log::error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
-                                identifier: recipient.identifier().to_string(),
+                                identifier: recipient.identifier(),
                             }
                         })?;
                     }
