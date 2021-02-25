@@ -25,6 +25,7 @@ pub struct Credentials {
     pub e164: String,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
+    pub device_id: Option<i32>,
 }
 
 impl Credentials {

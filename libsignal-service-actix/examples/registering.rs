@@ -45,6 +45,7 @@ async fn main() -> Result<(), Error> {
         e164: args.username.clone(),
         password: Some(password),
         signaling_key: Some(signaling_key),
+        device_id: None,
     };
 
     let signal_context = Context::default();
