@@ -4,7 +4,7 @@ use libsignal_protocol::{keys::PublicKey, Context};
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    push_service::{DEFAULT_DEVICE_ID, ServiceError},
+    push_service::{ServiceError, DEFAULT_DEVICE_ID},
     sealed_session_cipher::{CertificateValidator, SealedSessionError},
 };
 
@@ -43,14 +43,13 @@ impl Credentials {
                 uuid
             } else {
                 &self.e164
-            }.to_owned()
+            }
+            .to_owned()
         };
 
         match self.device_id {
             None | Some(DEFAULT_DEVICE_ID) => identifier,
-            Some(id) => {
-                identifier + "." + id.to_string().as_str()
-            },
+            Some(id) => identifier + "." + id.to_string().as_str(),
         }
     }
 }
