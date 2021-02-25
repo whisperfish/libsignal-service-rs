@@ -747,6 +747,14 @@
 <span id="744">744</span>
 <span id="745">745</span>
 <span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">SystemTime</span>;
 
@@ -1090,9 +1098,11 @@
         <span class="kw">if</span> <span class="ident">end_session</span> {
             <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;ending session with {}&quot;</span>, <span class="ident">recipient</span>);
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">uuid</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">uuid</span> {
-                <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">delete_all_sessions</span>(<span class="kw-2">&amp;</span><span class="ident">uuid</span>)<span class="question-mark">?</span>;
+                <span class="self">self</span>.<span class="ident">cipher</span>
+                    .<span class="ident">store_context</span>
+                    .<span class="ident">delete_all_sessions</span>(<span class="kw-2">&amp;</span><span class="ident">uuid</span>.<span class="ident">to_string</span>())<span class="question-mark">?</span>;
             }
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">e164</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">e164</span> {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e164</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">e164</span>() {
                 <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">delete_all_sessions</span>(<span class="kw-2">&amp;</span><span class="ident">e164</span>)<span class="question-mark">?</span>;
             }
         }
@@ -1187,8 +1197,9 @@
                 .<span class="ident">create_encrypted_messages</span>(<span class="kw-2">&amp;</span><span class="ident">recipient</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">content_bytes</span>)
                 .<span class="kw">await</span><span class="question-mark">?</span>;
 
+            <span class="kw">let</span> <span class="ident">destination</span> <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">identifier</span>();
             <span class="kw">let</span> <span class="ident">messages</span> <span class="op">=</span> <span class="ident">OutgoingPushMessages</span> {
-                <span class="ident">destination</span>: <span class="ident">recipient</span>.<span class="ident">identifier</span>(),
+                <span class="ident">destination</span>: <span class="kw-2">&amp;</span><span class="ident">destination</span>,
                 <span class="ident">timestamp</span>,
                 <span class="ident">messages</span>,
                 <span class="ident">online</span>,
@@ -1213,12 +1224,12 @@
                         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">uuid</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">uuid</span> {
                             <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">delete_session</span>(
                                 <span class="kw-2">&amp;</span><span class="ident">libsignal_protocol</span>::<span class="ident">Address</span>::<span class="ident">new</span>(
-                                    <span class="ident">uuid</span>,
+                                    <span class="ident">uuid</span>.<span class="ident">to_string</span>(),
                                     <span class="kw-2">*</span><span class="ident">extra_device_id</span>,
                                 ),
                             )<span class="question-mark">?</span>;
                         }
-                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">e164</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">e164</span> {
+                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e164</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">e164</span>() {
                             <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">delete_session</span>(
                                 <span class="kw-2">&amp;</span><span class="ident">libsignal_protocol</span>::<span class="ident">Address</span>::<span class="ident">new</span>(
                                     <span class="kw-2">&amp;</span><span class="ident">e164</span>,
@@ -1253,7 +1264,7 @@
                         .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
                             <span class="ident">log</span>::<span class="macro">error</span><span class="macro">!</span>(<span class="string">&quot;failed to create session: {}&quot;</span>, <span class="ident">e</span>);
                             <span class="ident">MessageSenderError</span>::<span class="ident">UntrustedIdentity</span> {
-                                <span class="ident">identifier</span>: <span class="ident">recipient</span>.<span class="ident">identifier</span>().<span class="ident">to_string</span>(),
+                                <span class="ident">identifier</span>: <span class="ident">recipient</span>.<span class="ident">identifier</span>(),
                             }
                         })<span class="question-mark">?</span>;
                     }
@@ -1268,15 +1279,15 @@
                         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">uuid</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">uuid</span> {
                             <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">delete_session</span>(
                                 <span class="kw-2">&amp;</span><span class="ident">libsignal_protocol</span>::<span class="ident">Address</span>::<span class="ident">new</span>(
-                                    <span class="ident">uuid</span>,
+                                    <span class="ident">uuid</span>.<span class="ident">to_string</span>(),
                                     <span class="kw-2">*</span><span class="ident">extra_device_id</span>,
                                 ),
                             )<span class="question-mark">?</span>;
                         }
-                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">e164</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">e164</span> {
+                        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e164</span>) <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">e164</span>() {
                             <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">delete_session</span>(
                                 <span class="kw-2">&amp;</span><span class="ident">libsignal_protocol</span>::<span class="ident">Address</span>::<span class="ident">new</span>(
-                                    <span class="kw-2">&amp;</span><span class="ident">e164</span>,
+                                    <span class="ident">e164</span>,
                                     <span class="kw-2">*</span><span class="ident">extra_device_id</span>,
                                 ),
                             )<span class="question-mark">?</span>;
@@ -1388,12 +1399,14 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sub_device_sessions</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">uuid</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">recipient</span>.<span class="ident">uuid</span> {
             <span class="ident">sub_device_sessions</span>.<span class="ident">extend</span>(
-                <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">get_sub_device_sessions</span>(<span class="ident">uuid</span>)<span class="question-mark">?</span>,
+                <span class="self">self</span>.<span class="ident">cipher</span>
+                    .<span class="ident">store_context</span>
+                    .<span class="ident">get_sub_device_sessions</span>(<span class="kw-2">&amp;</span><span class="ident">uuid</span>.<span class="ident">to_string</span>())<span class="question-mark">?</span>,
             );
         }
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e164</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">recipient</span>.<span class="ident">e164</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e164</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">recipient</span>.<span class="ident">e164</span>() {
             <span class="ident">sub_device_sessions</span>.<span class="ident">extend</span>(
-                <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">get_sub_device_sessions</span>(<span class="ident">e164</span>)<span class="question-mark">?</span>,
+                <span class="self">self</span>.<span class="ident">cipher</span>.<span class="ident">store_context</span>.<span class="ident">get_sub_device_sessions</span>(<span class="kw-2">&amp;</span><span class="ident">e164</span>)<span class="question-mark">?</span>,
             );
         }
 
@@ -1485,7 +1498,10 @@
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ContentBody</span>, <span class="ident">MessageSenderError</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">ContentBody</span>::<span class="ident">SynchronizeMessage</span>(<span class="ident">SyncMessage</span> {
             <span class="ident">sent</span>: <span class="prelude-val">Some</span>(<span class="ident">sync_message</span>::<span class="ident">Sent</span> {
-                <span class="ident">destination_e164</span>: <span class="ident">recipient</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">e164</span>.<span class="ident">clone</span>()),
+                <span class="ident">destination_uuid</span>: <span class="ident">recipient</span>
+                    .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">uuid</span>)
+                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">u</span><span class="op">|</span> <span class="ident">u</span>.<span class="ident">to_string</span>()),
+                <span class="ident">destination_e164</span>: <span class="ident">recipient</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">r</span><span class="op">|</span> <span class="ident">r</span>.<span class="ident">e164</span>()),
                 <span class="ident">message</span>: <span class="ident">data_message</span>,
                 <span class="ident">timestamp</span>: <span class="prelude-val">Some</span>(<span class="ident">timestamp</span>),
                 ..<span class="ident">Default</span>::<span class="ident">default</span>()

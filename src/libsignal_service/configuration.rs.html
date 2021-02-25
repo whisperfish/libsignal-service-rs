@@ -152,6 +152,13 @@
 <span id="149">149</span>
 <span id="150">150</span>
 <span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">str</span>::<span class="ident">FromStr</span>};
 
@@ -176,8 +183,8 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Credentials</span> {
-    <span class="kw">pub</span> <span class="ident">uuid</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">e164</span>: <span class="ident">String</span>,
+    <span class="kw">pub</span> <span class="ident">uuid</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">uuid</span>::<span class="ident">Uuid</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">phonenumber</span>: <span class="ident">phonenumber</span>::<span class="ident">PhoneNumber</span>,
     <span class="kw">pub</span> <span class="ident">password</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">signaling_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SignalingKey</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">device_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>,
@@ -192,12 +199,19 @@
         <span class="prelude-val">Some</span>((<span class="ident">identifier</span>, <span class="self">self</span>.<span class="ident">password</span>.<span class="ident">as_ref</span>()<span class="question-mark">?</span>))
     }
 
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">e164</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+        <span class="self">self</span>.<span class="ident">phonenumber</span>
+            .<span class="ident">format</span>()
+            .<span class="ident">mode</span>(<span class="ident">phonenumber</span>::<span class="ident">Mode</span>::<span class="ident">E164</span>)
+            .<span class="ident">to_string</span>()
+    }
+
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">login</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="kw">let</span> <span class="ident">identifier</span> <span class="op">=</span> {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">uuid</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">uuid</span>.<span class="ident">as_ref</span>() {
-                <span class="ident">uuid</span>
+                <span class="ident">uuid</span>.<span class="ident">to_string</span>()
             } <span class="kw">else</span> {
-                <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">e164</span>
+                <span class="self">self</span>.<span class="ident">e164</span>()
             }
             .<span class="ident">to_owned</span>()
         };

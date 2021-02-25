@@ -157,6 +157,10 @@
 <span id="154">154</span>
 <span id="155">155</span>
 <span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">pin_mut</span>, <span class="ident">prelude</span>::<span class="ident">Sink</span>, <span class="ident">SinkExt</span>, <span class="ident">StreamExt</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>;
@@ -181,7 +185,7 @@
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SecondaryDeviceProvisioning</span> {
     <span class="ident">Url</span>(<span class="ident">Url</span>),
     <span class="ident">NewDeviceRegistration</span> {
-        <span class="ident">phone_number</span>: <span class="ident">String</span>,
+        <span class="ident">phone_number</span>: <span class="ident">phonenumber</span>::<span class="ident">PhoneNumber</span>,
         <span class="ident">device_id</span>: <span class="ident">DeviceId</span>,
         <span class="ident">registration_id</span>: <span class="ident">u32</span>,
         <span class="ident">uuid</span>: <span class="ident">String</span>,
@@ -261,13 +265,17 @@
                     <span class="ident">message</span>.<span class="ident">number</span>.<span class="ident">ok_or</span>(<span class="ident">ProvisioningError</span>::<span class="ident">InvalidData</span> {
                         <span class="ident">reason</span>: <span class="string">&quot;missing phone number&quot;</span>.<span class="ident">into</span>(),
                     })<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">phone_number</span> <span class="op">=</span> <span class="ident">phonenumber</span>::<span class="ident">parse</span>(<span class="prelude-val">None</span>, <span class="ident">phone_number</span>)
+                    .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ProvisioningError</span>::<span class="ident">InvalidData</span> {
+                        <span class="ident">reason</span>: <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;invalid phone number ({})&quot;</span>, <span class="ident">e</span>),
+                    })<span class="question-mark">?</span>;
 
                 <span class="comment">// we need to authenticate with the phone number</span>
                 <span class="comment">// to confirm the new device</span>
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">push_service</span> <span class="op">=</span> <span class="ident">AwcPushService</span>::<span class="ident">new</span>(
                     <span class="ident">service_configuration</span>.<span class="ident">clone</span>(),
                     <span class="prelude-val">Some</span>(<span class="ident">Credentials</span> {
-                        <span class="ident">e164</span>: <span class="ident">phone_number</span>.<span class="ident">clone</span>(),
+                        <span class="ident">phonenumber</span>: <span class="ident">phone_number</span>.<span class="ident">clone</span>(),
                         <span class="ident">uuid</span>: <span class="prelude-val">None</span>,
                         <span class="ident">password</span>: <span class="prelude-val">Some</span>(<span class="ident">password</span>.<span class="ident">to_string</span>()),
                         <span class="ident">signaling_key</span>: <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">signaling_key</span>),
