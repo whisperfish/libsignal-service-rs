@@ -111,6 +111,7 @@ where
                         uuid: None,
                         password: Some(password.to_string()),
                         signaling_key: Some(*signaling_key),
+                        device_id: None,
                     }),
                     USER_AGENT,
                 );

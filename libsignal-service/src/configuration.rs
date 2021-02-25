@@ -4,7 +4,7 @@ use libsignal_protocol::{keys::PublicKey, Context};
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    push_service::ServiceError,
+    push_service::{ServiceError, DEFAULT_DEVICE_ID},
     sealed_session_cipher::{CertificateValidator, SealedSessionError},
 };
 
@@ -25,22 +25,31 @@ pub struct Credentials {
     pub e164: String,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
+    pub device_id: Option<i32>,
 }
 
 impl Credentials {
     /// Kind-of equivalent with `PushServiceSocket::getAuthorizationHeader`
     ///
     /// None when `self.password == None`
-    pub fn authorization(&self) -> Option<(&str, &str)> {
+    pub fn authorization(&self) -> Option<(String, &str)> {
         let identifier = self.login();
         Some((identifier, self.password.as_ref()?))
     }
 
-    pub fn login(&self) -> &str {
-        if let Some(uuid) = self.uuid.as_ref() {
-            uuid
-        } else {
-            &self.e164
+    pub fn login(&self) -> String {
+        let identifier = {
+            if let Some(uuid) = self.uuid.as_ref() {
+                uuid
+            } else {
+                &self.e164
+            }
+            .to_owned()
+        };
+
+        match self.device_id {
+            None | Some(DEFAULT_DEVICE_ID) => identifier,
+            Some(id) => format!("{}.{}", identifier, id),
         }
     }
 }
