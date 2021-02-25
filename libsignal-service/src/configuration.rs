@@ -4,7 +4,7 @@ use libsignal_protocol::{keys::PublicKey, Context};
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    push_service::ServiceError,
+    push_service::{ServiceError, DEFAULT_DEVICE_ID},
     sealed_session_cipher::{CertificateValidator, SealedSessionError},
 };
 
@@ -25,6 +25,7 @@ pub struct Credentials {
     pub phonenumber: phonenumber::PhoneNumber,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
+    pub device_id: Option<i32>,
 }
 
 impl Credentials {
@@ -44,10 +45,18 @@ impl Credentials {
     }
 
     pub fn login(&self) -> String {
-        if let Some(uuid) = self.uuid.as_ref() {
-            uuid.to_string()
-        } else {
-            self.e164()
+        let identifier = {
+            if let Some(uuid) = self.uuid.as_ref() {
+                uuid.to_string()
+            } else {
+                self.e164()
+            }
+            .to_owned()
+        };
+
+        match self.device_id {
+            None | Some(DEFAULT_DEVICE_ID) => identifier,
+            Some(id) => format!("{}.{}", identifier, id),
         }
     }
 }
