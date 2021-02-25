@@ -21,8 +21,8 @@ pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 
 #[derive(Clone)]
 pub struct Credentials {
-    pub uuid: Option<String>,
-    pub e164: String,
+    pub uuid: Option<uuid::Uuid>,
+    pub phonenumber: phonenumber::PhoneNumber,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
     pub device_id: Option<i32>,
@@ -37,12 +37,19 @@ impl Credentials {
         Some((identifier, self.password.as_ref()?))
     }
 
+    pub fn e164(&self) -> String {
+        self.phonenumber
+            .format()
+            .mode(phonenumber::Mode::E164)
+            .to_string()
+    }
+
     pub fn login(&self) -> String {
         let identifier = {
             if let Some(uuid) = self.uuid.as_ref() {
-                uuid
+                uuid.to_string()
             } else {
-                &self.e164
+                self.e164()
             }
             .to_owned()
         };

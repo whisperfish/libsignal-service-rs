@@ -13,6 +13,8 @@ use std::time::SystemTime;
 use libsignal_protocol::keys::PublicKey;
 use libsignal_protocol::{Context, StoreContext};
 
+use phonenumber::PhoneNumber;
+
 pub struct AccountManager<Service> {
     context: Context,
     service: Service,
@@ -51,7 +53,7 @@ impl<Service: PushService> AccountManager<Service> {
 
     pub async fn request_sms_verification_code(
         &mut self,
-        phone_number: &str,
+        phone_number: PhoneNumber,
         captcha: Option<&str>,
         challenge: Option<&str>,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
@@ -63,7 +65,7 @@ impl<Service: PushService> AccountManager<Service> {
 
     pub async fn request_voice_verification_code(
         &mut self,
-        phone_number: &str,
+        phone_number: PhoneNumber,
         captcha: Option<&str>,
         challenge: Option<&str>,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
@@ -204,8 +206,8 @@ impl<Service: PushService> AccountManager<Service> {
             identity_key_private: Some(
                 identity_key_pair.private().to_bytes()?.as_slice().to_vec(),
             ),
-            number: Some(credentials.e164),
-            uuid: credentials.uuid.clone(),
+            number: Some(credentials.e164()),
+            uuid: credentials.uuid.as_ref().map(|u| u.to_string()),
             profile_key: self.profile_key.clone(),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(

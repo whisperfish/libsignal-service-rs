@@ -42,7 +42,7 @@ async fn main() -> Result<(), Error> {
     .unwrap();
     let credentials = Credentials {
         uuid: None,
-        e164: args.username.clone(),
+        phonenumber: args.username.clone(),
         password: Some(password),
         signaling_key: Some(signaling_key),
         device_id: None,
@@ -57,7 +57,7 @@ async fn main() -> Result<(), Error> {
         AccountManager::new(signal_context, push_service, None);
     account_manager
         // You probably want to generate a reCAPTCHA though!
-        .request_sms_verification_code(&args.username, None, None)
+        .request_sms_verification_code(args.username, None, None)
         .await?;
 
     Ok(())
@@ -78,7 +78,7 @@ pub struct Args {
         help = "Your username or other identifier",
         default_value = "+14151231234"
     )]
-    pub username: String,
+    pub username: phonenumber::PhoneNumber,
     #[structopt(
         short = "p",
         long = "password",

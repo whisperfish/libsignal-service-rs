@@ -21,6 +21,7 @@ use aes_gcm::{
 use prost::Message;
 
 use chrono::prelude::*;
+use phonenumber::PhoneNumber;
 
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
@@ -352,10 +353,11 @@ pub trait PushService {
 
     fn build_verification_code_request_url(
         msg_type: &str,
-        phone_number: &str,
+        phone_number: PhoneNumber,
         captcha: Option<&str>,
         challenge: Option<&str>,
     ) -> String {
+        let phone_number = phone_number.format().mode(phonenumber::Mode::E164);
         if let Some(cl) = challenge {
             format!(
                 "/v1/accounts/{}/code/{}?challenge={}",
@@ -373,7 +375,7 @@ pub trait PushService {
 
     async fn request_sms_verification_code(
         &mut self,
-        phone_number: &str,
+        phone_number: PhoneNumber,
         captcha: Option<&str>,
         challenge: Option<&str>,
     ) -> Result<SmsVerificationCodeResponse, ServiceError> {
@@ -403,7 +405,7 @@ pub trait PushService {
 
     async fn request_voice_verification_code(
         &mut self,
-        phone_number: &str,
+        phone_number: PhoneNumber,
         captcha: Option<&str>,
         challenge: Option<&str>,
     ) -> Result<VoiceVerificationCodeResponse, ServiceError> {

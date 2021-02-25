@@ -21,7 +21,7 @@ use libsignal_service::{
 pub enum SecondaryDeviceProvisioning {
     Url(Url),
     NewDeviceRegistration {
-        phone_number: String,
+        phone_number: phonenumber::PhoneNumber,
         device_id: DeviceId,
         registration_id: u32,
         uuid: String,
@@ -101,13 +101,17 @@ where
                     message.number.ok_or(ProvisioningError::InvalidData {
                         reason: "missing phone number".into(),
                     })?;
+                let phone_number = phonenumber::parse(None, phone_number)
+                    .map_err(|e| ProvisioningError::InvalidData {
+                        reason: format!("invalid phone number ({})", e),
+                    })?;
 
                 // we need to authenticate with the phone number
                 // to confirm the new device
                 let mut push_service = AwcPushService::new(
                     service_configuration.clone(),
                     Some(Credentials {
-                        e164: phone_number.clone(),
+                        phonenumber: phone_number.clone(),
                         uuid: None,
                         password: Some(password.to_string()),
                         signaling_key: Some(*signaling_key),
