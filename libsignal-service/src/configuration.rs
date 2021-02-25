@@ -49,7 +49,7 @@ impl Credentials {
 
         match self.device_id {
             None | Some(DEFAULT_DEVICE_ID) => identifier,
-            Some(id) => identifier + "." + id.to_string().as_str(),
+            Some(id) => format!("{}.{}", identifier, id),
         }
     }
 }
