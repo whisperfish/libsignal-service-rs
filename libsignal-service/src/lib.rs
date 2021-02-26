@@ -43,4 +43,5 @@ pub mod prelude {
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
     };
+    pub use phonenumber::{parse, PhoneNumber};
 }
