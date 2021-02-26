@@ -43,5 +43,8 @@ pub mod prelude {
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
     };
-    pub use phonenumber::{parse as parse_phonenumber, country::Id as PhoneNumberCountryId, PhoneNumber, PhoneNumberParseError};
+    pub use phonenumber::{
+        country::Id as PhoneNumberCountryId, parse as parse_phonenumber,
+        PhoneNumber,
+    };
 }
