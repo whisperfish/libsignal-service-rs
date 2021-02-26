@@ -45,6 +45,6 @@ pub mod prelude {
     };
     pub use phonenumber::{
         country::Id as PhoneNumberCountryId, parse as parse_phonenumber,
-        PhoneNumber,
+        ParseError as PhoneNumberParseError, PhoneNumber,
     };
 }
