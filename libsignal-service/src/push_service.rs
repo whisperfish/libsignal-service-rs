@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::{
-    configuration::{Credentials, Endpoint},
+    configuration::{Endpoint, ServiceCredentials},
     envelope::*,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
@@ -18,10 +18,10 @@ use aes_gcm::{
     aead::{generic_array::GenericArray, Aead},
     Aes256Gcm, NewAead,
 };
-use prost::Message;
 
 use chrono::prelude::*;
 use phonenumber::PhoneNumber;
+use prost::Message as ProtobufMessage;
 
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
@@ -137,6 +137,12 @@ pub struct ProfileKey(pub Vec<u8>);
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyStatus {
     pub count: u32,
+}
+
+#[derive(Clone)]
+pub struct HttpCredentials {
+    pub username: String,
+    pub password: Option<String>,
 }
 
 impl ProfileKey {
@@ -282,13 +288,10 @@ pub enum ServiceError {
 
     #[error("Error decoding JSON response: {reason}")]
     JsonDecodeError { reason: String },
-
     #[error("Error decoding protobuf frame: {0}")]
     ProtobufDecodeError(#[from] prost::DecodeError),
-
     #[error("Error encoding protobuf frame: {0}")]
     ProtobufEncodeError(#[from] prost::EncodeError),
-
     #[error(transparent)]
     BincodeError(#[from] bincode::Error),
 
@@ -326,6 +329,9 @@ pub enum ServiceError {
 
     #[error(transparent)]
     CredentialsCacheError(#[from] crate::gv2::CredentialsCacheError),
+
+    #[error("groups v2 (zero-knowledge) error")]
+    GroupsV2Error,
 }
 
 #[async_trait::async_trait(?Send)]
@@ -337,7 +343,7 @@ pub trait PushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials: Option<(String, String)>,
+        credentials_override: Option<HttpCredentials>,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
@@ -364,10 +370,10 @@ pub trait PushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials: Option<(String, String)>,
+        credentials_override: Option<HttpCredentials>,
     ) -> Result<T, ServiceError>
     where
-        T: Default + prost::Message;
+        T: Default + ProtobufMessage;
 
     async fn put_protobuf<D, S>(
         &mut self,
@@ -376,8 +382,8 @@ pub trait PushService {
         value: S,
     ) -> Result<D, ServiceError>
     where
-        D: Default + prost::Message,
-        S: Sized + prost::Message;
+        D: Default + ProtobufMessage,
+        S: Sized + ProtobufMessage;
 
     /// Downloads larger files in streaming fashion, e.g. attachments.
     async fn get_from_cdn(
@@ -779,7 +785,7 @@ pub trait PushService {
     async fn ws(
         &mut self,
         path: &str,
-        credentials: Option<Credentials>,
+        credentials: Option<ServiceCredentials>,
     ) -> Result<
         (
             Self::WebSocket,

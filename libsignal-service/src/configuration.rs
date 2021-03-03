@@ -6,7 +6,7 @@ use zkgroup::ServerPublicParams;
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    push_service::{ServiceError, DEFAULT_DEVICE_ID},
+    push_service::{HttpCredentials, ServiceError, DEFAULT_DEVICE_ID},
     sealed_session_cipher::{CertificateValidator, SealedSessionError},
 };
 
@@ -24,7 +24,7 @@ pub struct ServiceConfiguration {
 pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 
 #[derive(Clone)]
-pub struct Credentials {
+pub struct ServiceCredentials {
     pub uuid: Option<uuid::Uuid>,
     pub phonenumber: phonenumber::PhoneNumber,
     pub password: Option<String>,
@@ -32,13 +32,12 @@ pub struct Credentials {
     pub device_id: Option<i32>,
 }
 
-impl Credentials {
-    /// Kind-of equivalent with `PushServiceSocket::getAuthorizationHeader`
-    ///
-    /// None when `self.password == None`
-    pub fn authorization(&self) -> Option<(String, String)> {
-        let identifier = self.login();
-        Some((identifier, self.password.as_ref()?.clone()))
+impl ServiceCredentials {
+    pub fn authorization(&self) -> HttpCredentials {
+        HttpCredentials {
+            username: self.login(),
+            password: self.password.clone(),
+        }
     }
 
     pub fn e164(&self) -> String {

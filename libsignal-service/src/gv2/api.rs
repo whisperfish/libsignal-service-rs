@@ -6,6 +6,7 @@ use std::{
 use crate::{
     configuration::Endpoint,
     prelude::{PushService, ServiceError},
+    push_service::HttpCredentials,
 };
 
 use rand::RngCore;
@@ -58,7 +59,7 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
         &mut self,
         uuid: Uuid,
         group_secret_params: GroupSecretParams,
-    ) -> Result<(String, String), ServiceError> {
+    ) -> Result<HttpCredentials, ServiceError> {
         let today = Self::current_time_days();
         let mut cached_credentials = self.credentials_cache.read()?;
         let auth_credential_response = if let Some(auth_credential_response) =
@@ -112,7 +113,7 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
         group_secret_params: GroupSecretParams,
         credential_response: AuthCredentialResponse,
         today: u32,
-    ) -> Result<(String, String), ServiceError> {
+    ) -> Result<HttpCredentials, ServiceError> {
         let auth_credential = self
             .server_public_params
             .receive_auth_credential(
@@ -120,7 +121,10 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
                 today,
                 &credential_response,
             )
-            .unwrap();
+            .map_err(|e| {
+                log::error!("zero-knowledge group error: {:?}", e);
+                ServiceError::GroupsV2Error
+            })?;
 
         let mut random_bytes = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut random_bytes);
@@ -139,15 +143,16 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
             &group_secret_params.get_public_params(),
         )?);
 
-        let password =
-            hex::encode(bincode::serialize(&auth_credential_presentation)?);
+        let password = Some(hex::encode(bincode::serialize(
+            &auth_credential_presentation,
+        )?));
 
-        Ok((username, password))
+        Ok(HttpCredentials { username, password })
     }
 
     pub async fn get_group(
         &mut self,
-        credentials: (String, String),
+        credentials: HttpCredentials,
     ) -> Result<crate::proto::Group, ServiceError> {
         self.push_service
             .get_protobuf(Endpoint::Storage, "/v1/groups/", Some(credentials))

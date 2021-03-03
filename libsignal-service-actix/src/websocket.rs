@@ -9,7 +9,7 @@ use futures::{channel::mpsc::*, prelude::*};
 use url::Url;
 
 use libsignal_service::{
-    configuration::Credentials,
+    configuration::ServiceCredentials,
     messagepipe::*,
     push_service::{self, ServiceError},
 };
@@ -130,7 +130,7 @@ impl AwcWebSocket {
         client: &mut awc::Client,
         base_url: impl std::borrow::Borrow<Url>,
         path: &str,
-        credentials: Option<&Credentials>,
+        credentials: Option<&ServiceCredentials>,
     ) -> Result<(Self, <Self as WebSocketService>::Stream), AwcWebSocketError>
     {
         let mut url = base_url.borrow().join(path).expect("valid url");

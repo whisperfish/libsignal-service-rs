@@ -40,7 +40,7 @@ async fn main() -> Result<(), Error> {
         &mut signaling_key,
     )
     .unwrap();
-    let credentials = Credentials {
+    let credentials = ServiceCredentials {
         uuid: None,
         phonenumber: args.username.clone(),
         password: Some(password),

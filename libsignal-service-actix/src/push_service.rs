@@ -1,13 +1,17 @@
 use std::{sync::Arc, time::Duration};
 
-use actix_http::http::HeaderValue;
+use actix_http::{
+    client::{ConnectError, SendRequestError},
+    http::{HeaderValue, Method},
+};
 use awc::{
-    error::PayloadError, http::StatusCode, Client, ClientResponse, Connector,
+    error::PayloadError, http::StatusCode, Client, ClientRequest,
+    ClientResponse, Connector,
 };
 use bytes::Bytes;
 use futures::prelude::*;
 use libsignal_service::{
-    configuration::*, messagepipe::WebSocketService, prelude::prost,
+    configuration::*, messagepipe::WebSocketService, prelude::ProtobufMessage,
     push_service::*,
 };
 use serde::{Deserialize, Serialize};
@@ -17,8 +21,96 @@ use crate::websocket::AwcWebSocket;
 #[derive(Clone)]
 pub struct AwcPushService {
     cfg: ServiceConfiguration,
-    credentials: Option<(String, String)>,
+    credentials: Option<HttpCredentials>,
     client: awc::Client,
+}
+
+impl AwcPushService {
+    /// Creates a new AwcPushService
+    pub fn new(
+        cfg: ServiceConfiguration,
+        credentials: Option<ServiceCredentials>,
+        user_agent: &str,
+    ) -> Self {
+        let client = get_client(&cfg, user_agent);
+        Self {
+            cfg,
+            credentials: credentials.map(|c| c.authorization()),
+            client,
+        }
+    }
+
+    fn request(
+        &self,
+        method: Method,
+        endpoint: Endpoint,
+        path: impl AsRef<str>,
+        credentials_override: Option<HttpCredentials>,
+    ) -> Result<ClientRequest, ServiceError> {
+        let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
+        log::debug!("HTTP request {} {}", method, url);
+        let mut builder = self.client.request(method, url.as_str());
+        if let Some(http_credentials) =
+            credentials_override.as_ref().or(self.credentials.as_ref())
+        {
+            builder = builder.basic_auth(
+                &http_credentials.username,
+                http_credentials.password.as_deref(),
+            );
+        }
+        Ok(builder)
+    }
+
+    async fn from_response<S>(
+        response: &mut ClientResponse<S>,
+    ) -> Result<(), ServiceError>
+    where
+        S: Stream<Item = Result<Bytes, PayloadError>> + Unpin,
+    {
+        match response.status() {
+            StatusCode::OK => Ok(()),
+            StatusCode::NO_CONTENT => Ok(()),
+            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
+                Err(ServiceError::Unauthorized)
+            }
+            StatusCode::PAYLOAD_TOO_LARGE => {
+                // This is 413 and means rate limit exceeded for Signal.
+                Err(ServiceError::RateLimitExceeded)
+            }
+            StatusCode::CONFLICT => {
+                let mismatched_devices =
+                    response.json().await.map_err(|e| {
+                        log::error!(
+                            "Failed to decode HTTP 409 response: {}",
+                            e
+                        );
+                        ServiceError::UnhandledResponseCode {
+                            http_code: StatusCode::CONFLICT.as_u16(),
+                        }
+                    })?;
+                Err(ServiceError::MismatchedDevicesException(
+                    mismatched_devices,
+                ))
+            }
+            StatusCode::GONE => {
+                let stale_devices = response.json().await.map_err(|e| {
+                    log::error!("Failed to decode HTTP 410 response: {}", e);
+                    ServiceError::UnhandledResponseCode {
+                        http_code: StatusCode::GONE.as_u16(),
+                    }
+                })?;
+                Err(ServiceError::StaleDevices(stale_devices))
+            }
+            // XXX: fill in rest from PushServiceSocket
+            code => {
+                let contents = response.body().await;
+                log::trace!("Unhandled response with body: {:?}", contents);
+                Err(ServiceError::UnhandledResponseCode {
+                    http_code: code.as_u16(),
+                })
+            }
+        }
+    }
 }
 
 #[async_trait::async_trait(?Send)]
@@ -31,32 +123,26 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
-        credentials: Option<(String, String)>,
+        credentials: Option<HttpCredentials>,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
-        let url = self.cfg.base_url(endpoint).join(path)?;
-
-        log::debug!("AwcPushService::get({:?})", url);
         use awc::error::{ConnectError, SendRequestError};
-        let mut request = self.client.get(url.as_str());
-        if let Some((ident, pass)) =
-            credentials.as_ref().or(self.credentials.as_ref())
-        {
-            request = request.basic_auth(ident, Some(pass));
-        }
-
-        let mut response = request.send().await.map_err(|e| match e {
-            SendRequestError::Connect(ConnectError::Timeout) => {
-                ServiceError::Timeout {
-                    reason: e.to_string(),
+        let mut response = self
+            .request(Method::GET, endpoint, path, credentials)?
+            .send()
+            .await
+            .map_err(|e| match e {
+                SendRequestError::Connect(ConnectError::Timeout) => {
+                    ServiceError::Timeout {
+                        reason: e.to_string(),
+                    }
                 }
-            }
-            _ => ServiceError::SendError {
-                reason: e.to_string(),
-            },
-        })?;
+                _ => ServiceError::SendError {
+                    reason: e.to_string(),
+                },
+            })?;
 
         log::debug!("AwcPushService::get response: {:?}", response);
 
@@ -99,25 +185,20 @@ impl PushService for AwcPushService {
     where
         for<'de> T: Deserialize<'de>,
     {
-        let url = self.cfg.base_url(endpoint).join(path)?;
-
-        log::debug!("AwcPushService::delete({:?})", url);
-        use awc::error::{ConnectError, SendRequestError};
-        let mut request = self.client.delete(url.as_str());
-        if let Some((ident, pass)) = &self.credentials {
-            request = request.basic_auth(ident, Some(pass));
-        }
-
-        let mut response = request.send().await.map_err(|e| match e {
-            SendRequestError::Connect(ConnectError::Timeout) => {
-                ServiceError::Timeout {
-                    reason: e.to_string(),
+        let mut response = self
+            .request(Method::DELETE, endpoint, path, None)?
+            .send()
+            .await
+            .map_err(|e| match e {
+                SendRequestError::Connect(ConnectError::Timeout) => {
+                    ServiceError::Timeout {
+                        reason: e.to_string(),
+                    }
                 }
-            }
-            _ => ServiceError::SendError {
-                reason: e.to_string(),
-            },
-        })?;
+                _ => ServiceError::SendError {
+                    reason: e.to_string(),
+                },
+            })?;
 
         log::debug!("AwcPushService::delete response: {:?}", response);
 
@@ -164,19 +245,13 @@ impl PushService for AwcPushService {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
-        let url = self.cfg.base_url(endpoint).join(path)?;
-
-        log::debug!("AwcPushService::put({:?})", url);
-        let mut request = self.client.put(url.as_str());
-        if let Some((ident, pass)) = &self.credentials {
-            request = request.basic_auth(ident, Some(pass));
-        }
-
-        let mut response = request.send_json(&value).await.map_err(|e| {
-            ServiceError::SendError {
+        let mut response = self
+            .request(Method::PUT, endpoint, path, None)?
+            .send_json(&value)
+            .await
+            .map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         log::debug!("AwcPushService::put response: {:?}", response);
 
@@ -222,23 +297,16 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
-        credentials: Option<(String, String)>,
+        credentials: Option<HttpCredentials>,
     ) -> Result<T, ServiceError>
     where
-        T: Default + prost::Message,
+        T: Default + ProtobufMessage,
     {
-        let url = self.cfg.base_url(endpoint).join(path)?;
-        log::debug!("AwcPushService::get_protobuf({:?})", url);
-
-        let mut request = self.client.get(url.as_str());
-        if let Some((ident, pass)) =
-            credentials.as_ref().or(self.credentials.as_ref())
-        {
-            request = request.basic_auth(ident, Some(&pass));
-        };
-
-        let mut response =
-            request.send().await.map_err(|e| ServiceError::SendError {
+        let mut response = self
+            .request(Method::GET, endpoint, path, credentials)?
+            .send()
+            .await
+            .map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
             })?;
 
@@ -249,7 +317,7 @@ impl PushService for AwcPushService {
                 .map_err(|e| ServiceError::ResponseError {
                     reason: e.to_string(),
                 })?;
-        Ok(prost::Message::decode(text)?)
+        Ok(T::decode(text)?)
     }
 
     async fn put_protobuf<D, S>(
@@ -259,21 +327,14 @@ impl PushService for AwcPushService {
         value: S,
     ) -> Result<D, ServiceError>
     where
-        D: Default + prost::Message,
-        S: Sized + prost::Message,
+        D: Default + ProtobufMessage,
+        S: Sized + ProtobufMessage,
     {
-        let url = self.cfg.base_url(endpoint).join(path)?;
-        log::debug!("AwcPushService::put_protobuf({:?})", url);
-
         let mut buf = vec![];
         value.encode(&mut buf)?;
 
-        let mut request = self.client.put(url.as_str());
-        if let Some((ident, pass)) = self.credentials.as_ref() {
-            request = request.basic_auth(ident, Some(pass));
-        }
-
-        let mut response = request
+        let mut response = self
+            .request(Method::PUT, endpoint, path, None)?
             .content_type(HeaderValue::from_static("application/x-protobuf"))
             .send_body(buf)
             .await
@@ -288,7 +349,7 @@ impl PushService for AwcPushService {
                 .map_err(|e| ServiceError::ResponseError {
                     reason: e.to_string(),
                 })?;
-        Ok(prost::Message::decode(text)?)
+        Ok(D::decode(text)?)
     }
 
     async fn get_from_cdn(
@@ -296,17 +357,11 @@ impl PushService for AwcPushService {
         cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
-        use futures::stream::TryStreamExt;
-        let url = self.cfg.base_url(Endpoint::Cdn(cdn_id)).join(path)?;
-
-        log::debug!("AwcPushService::get_stream({:?})", url);
-        let mut request = self.client.get(url.as_str());
-        if let Some((ident, pass)) = self.credentials.as_ref() {
-            request = request.basic_auth(ident, Some(pass));
-        }
-
-        let mut response =
-            request.send().await.map_err(|e| ServiceError::SendError {
+        let mut response = self
+            .request(Method::GET, Endpoint::Cdn(cdn_id), path, None)?
+            .send()
+            .await
+            .map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
             })?;
 
@@ -336,13 +391,8 @@ impl PushService for AwcPushService {
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError> {
-        let url = self.cfg.base_url(Endpoint::Cdn(0)).join(path)?;
-
-        log::debug!("AwcPushService::post_to_cdn({:?})", url);
-        let mut request = self.client.post(url.as_str());
-        if let Some((ident, pass)) = self.credentials.as_ref() {
-            request = request.basic_auth(ident, Some(pass));
-        }
+        let request =
+            self.request(Method::POST, Endpoint::Cdn(0), path, None)?;
 
         let mut form = mpart_async::client::MultipartRequest::default();
 
@@ -408,7 +458,7 @@ impl PushService for AwcPushService {
     async fn ws(
         &mut self,
         path: &str,
-        credentials: Option<Credentials>,
+        credentials: Option<ServiceCredentials>,
     ) -> Result<
         (
             Self::WebSocket,
@@ -453,71 +503,4 @@ fn get_client(cfg: &ServiceConfiguration, user_agent: &str) -> Client {
         .timeout(Duration::from_secs(65)); // as in Signal-Android
 
     client.finish()
-}
-
-impl AwcPushService {
-    /// Creates a new AwcPushService
-    pub fn new(
-        cfg: ServiceConfiguration,
-        credentials: Option<Credentials>,
-        user_agent: &str,
-    ) -> Self {
-        let client = get_client(&cfg, user_agent);
-        Self {
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
-        }
-    }
-
-    async fn from_response<S>(
-        response: &mut ClientResponse<S>,
-    ) -> Result<(), ServiceError>
-    where
-        S: Stream<Item = Result<Bytes, PayloadError>> + Unpin,
-    {
-        match response.status() {
-            StatusCode::OK => Ok(()),
-            StatusCode::NO_CONTENT => Ok(()),
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                Err(ServiceError::Unauthorized)
-            }
-            StatusCode::PAYLOAD_TOO_LARGE => {
-                // This is 413 and means rate limit exceeded for Signal.
-                Err(ServiceError::RateLimitExceeded)
-            }
-            StatusCode::CONFLICT => {
-                let mismatched_devices =
-                    response.json().await.map_err(|e| {
-                        log::error!(
-                            "Failed to decode HTTP 409 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: StatusCode::CONFLICT.as_u16(),
-                        }
-                    })?;
-                Err(ServiceError::MismatchedDevicesException(
-                    mismatched_devices,
-                ))
-            }
-            StatusCode::GONE => {
-                let stale_devices = response.json().await.map_err(|e| {
-                    log::error!("Failed to decode HTTP 410 response: {}", e);
-                    ServiceError::UnhandledResponseCode {
-                        http_code: StatusCode::GONE.as_u16(),
-                    }
-                })?;
-                Err(ServiceError::StaleDevices(stale_devices))
-            }
-            // XXX: fill in rest from PushServiceSocket
-            code => {
-                let contents = response.body().await;
-                log::trace!("Unhandled response with body: {:?}", contents);
-                Err(ServiceError::UnhandledResponseCode {
-                    http_code: code.as_u16(),
-                })
-            }
-        }
-    }
 }
