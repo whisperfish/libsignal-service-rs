@@ -140,7 +140,6 @@ impl GroupOperations {
             log::warn!("bad encrypted blob length");
             GroupAttributeBlob::default()
         } else {
-            use group_attribute_blob::Content;
             self.group_secret_params
                 .decrypt_blob(bytes)
                 .map_err(|_| GroupDecryptionError::ZkGroupError)

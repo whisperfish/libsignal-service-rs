@@ -27,26 +27,56 @@ pub enum CredentialsCacheError {
 }
 
 pub trait CredentialsCache {
-    fn clear(&self) -> Result<(), CredentialsCacheError>;
-    fn read(
+    fn clear(&mut self) -> Result<(), CredentialsCacheError>;
+
+    fn get(
         &self,
-    ) -> Result<HashMap<i64, AuthCredentialResponse>, CredentialsCacheError>;
+        key: &i64,
+    ) -> Result<Option<&AuthCredentialResponse>, CredentialsCacheError>;
+
     fn write(
-        &self,
-        value: &HashMap<i64, AuthCredentialResponse>,
+        &mut self,
+        map: HashMap<i64, AuthCredentialResponse>,
     ) -> Result<(), CredentialsCacheError>;
 }
 
-pub struct GroupsV2Api<S: PushService, C: CredentialsCache> {
+#[derive(Default)]
+pub struct InMemoryCredentialsCache {
+    map: HashMap<i64, AuthCredentialResponse>,
+}
+
+impl CredentialsCache for InMemoryCredentialsCache {
+    fn clear(&mut self) -> Result<(), CredentialsCacheError> {
+        self.map.clear();
+        Ok(())
+    }
+
+    fn get(
+        &self,
+        key: &i64,
+    ) -> Result<Option<&AuthCredentialResponse>, CredentialsCacheError> {
+        Ok(self.map.get(key))
+    }
+
+    fn write(
+        &mut self,
+        mut map: HashMap<i64, AuthCredentialResponse>,
+    ) -> Result<(), CredentialsCacheError> {
+        std::mem::swap(&mut self.map, &mut map);
+        Ok(())
+    }
+}
+
+pub struct GroupsV2Api<'a, S: PushService, C: CredentialsCache> {
     push_service: S,
-    credentials_cache: C,
+    credentials_cache: &'a mut C,
     server_public_params: ServerPublicParams,
 }
 
-impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
+impl<'a, S: PushService, C: CredentialsCache> GroupsV2Api<'a, S, C> {
     pub fn new(
         push_service: S,
-        credentials_cache: C,
+        credentials_cache: &'a mut C,
         server_public_params: ServerPublicParams,
     ) -> Self {
         Self {
@@ -62,16 +92,14 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
         group_secret_params: GroupSecretParams,
     ) -> Result<HttpCredentials, ServiceError> {
         let today = Self::current_time_days();
-        let mut cached_credentials = self.credentials_cache.read()?;
         let auth_credential_response = if let Some(auth_credential_response) =
-            cached_credentials.remove(&today)
+            self.credentials_cache.get(&today)?
         {
             auth_credential_response
         } else {
-            let mut new_credentials =
-                self.get_authorization(today).await?.parse();
-            self.credentials_cache.write(&new_credentials)?;
-            new_credentials.remove(&today).ok_or_else(|| {
+            let credentials_map = self.get_authorization(today).await?.parse();
+            self.credentials_cache.write(credentials_map)?;
+            self.credentials_cache.get(&today)?.ok_or_else(|| {
                 ServiceError::ResponseError {
                     reason:
                         "credentials received did not contain requested day"
@@ -112,7 +140,7 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
         &self,
         uuid: Uuid,
         group_secret_params: GroupSecretParams,
-        credential_response: AuthCredentialResponse,
+        credential_response: &AuthCredentialResponse,
         today: u32,
     ) -> Result<HttpCredentials, ServiceError> {
         let auth_credential = self
@@ -120,7 +148,7 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
             .receive_auth_credential(
                 *uuid.as_bytes(),
                 today,
-                &credential_response,
+                credential_response,
             )
             .map_err(|e| {
                 log::error!("zero-knowledge group error: {:?}", e);
