@@ -6,6 +6,7 @@ use std::{
 use crate::{
     configuration::Endpoint,
     prelude::{PushService, ServiceError},
+    proto::DecryptedGroup,
     push_service::HttpCredentials,
 };
 
@@ -15,7 +16,7 @@ use zkgroup::{
     auth::AuthCredentialResponse, groups::GroupSecretParams, ServerPublicParams,
 };
 
-use super::models::CredentialResponse;
+use super::{models::CredentialResponse, operations::GroupOperations};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CredentialsCacheError {
@@ -152,10 +153,15 @@ impl<S: PushService, C: CredentialsCache> GroupsV2Api<S, C> {
 
     pub async fn get_group(
         &mut self,
+        group_secret_params: GroupSecretParams,
         credentials: HttpCredentials,
-    ) -> Result<crate::proto::Group, ServiceError> {
-        self.push_service
-            .get_protobuf(Endpoint::Storage, "/v1/groups/", Some(credentials))
-            .await
+    ) -> Result<DecryptedGroup, ServiceError> {
+        let encrypted_group = self.push_service.get_group(credentials).await?;
+        let decrypted_group = GroupOperations::decrypt_group(
+            group_secret_params,
+            encrypted_group,
+        )?;
+
+        Ok(decrypted_group)
     }
 }

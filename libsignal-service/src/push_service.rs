@@ -3,6 +3,7 @@ use std::time::Duration;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
+    gv2::GroupDecryptionError,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     proto::{
@@ -332,6 +333,9 @@ pub enum ServiceError {
 
     #[error("groups v2 (zero-knowledge) error")]
     GroupsV2Error,
+
+    #[error(transparent)]
+    GroupsV2DecryptionError(#[from] GroupDecryptionError),
 }
 
 #[async_trait::async_trait(?Send)]
@@ -401,6 +405,18 @@ pub trait PushService {
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError>;
+
+    async fn ws(
+        &mut self,
+        path: &str,
+        credentials: Option<ServiceCredentials>,
+    ) -> Result<
+        (
+            Self::WebSocket,
+            <Self::WebSocket as WebSocketService>::Stream,
+        ),
+        ServiceError,
+    >;
 
     fn build_verification_code_request_url(
         msg_type: &str,
@@ -782,15 +798,11 @@ pub trait PushService {
         Ok(pre_keys)
     }
 
-    async fn ws(
+    async fn get_group(
         &mut self,
-        path: &str,
-        credentials: Option<ServiceCredentials>,
-    ) -> Result<
-        (
-            Self::WebSocket,
-            <Self::WebSocket as WebSocketService>::Stream,
-        ),
-        ServiceError,
-    >;
+        credentials: HttpCredentials,
+    ) -> Result<crate::proto::Group, ServiceError> {
+        self.get_protobuf(Endpoint::Storage, "/v1/groups/", Some(credentials))
+            .await
+    }
 }
