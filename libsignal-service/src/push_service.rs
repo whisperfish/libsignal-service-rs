@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
-    gv2::GroupDecryptionError,
+    groups_v2::GroupDecryptionError,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     proto::{
@@ -331,7 +331,7 @@ pub enum ServiceError {
     ),
 
     #[error(transparent)]
-    CredentialsCacheError(#[from] crate::gv2::CredentialsCacheError),
+    CredentialsCacheError(#[from] crate::groups_v2::CredentialsCacheError),
 
     #[error("groups v2 (zero-knowledge) error")]
     GroupsV2Error,

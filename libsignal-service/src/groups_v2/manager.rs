@@ -11,12 +11,42 @@ use crate::{
 };
 
 use rand::RngCore;
+use serde::Deserialize;
 use uuid::Uuid;
 use zkgroup::{
     auth::AuthCredentialResponse, groups::GroupSecretParams, ServerPublicParams,
 };
 
-use super::{models::CredentialResponse, operations::GroupOperations};
+use super::operations::GroupOperations;
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporalCredential {
+    credential: String,
+    redemption_time: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialResponse {
+    credentials: Vec<TemporalCredential>,
+}
+
+impl CredentialResponse {
+    pub fn parse(
+        self,
+    ) -> Result<HashMap<i64, AuthCredentialResponse>, ServiceError> {
+        Ok(self
+            .credentials
+            .into_iter()
+            .map(|c| {
+                let bytes = base64::decode(c.credential)?;
+                let data = bincode::deserialize(&bytes)?;
+                Ok((c.redemption_time, data))
+            })
+            .collect::<Result<_, ServiceError>>()?)
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum CredentialsCacheError {
@@ -26,14 +56,20 @@ pub enum CredentialsCacheError {
     WriteError(String),
 }
 
+/// Global cache for groups v2 credentials, as demonstrated in the libsignal-service
+/// java library of Signal-Android.
+///
+/// A basic in-memory implementation is provided with `InMemoryCredentialsCache`.
 pub trait CredentialsCache {
     fn clear(&mut self) -> Result<(), CredentialsCacheError>;
 
+    /// Get an entry of the cache, key usually represents the day number since EPOCH.
     fn get(
         &self,
         key: &i64,
     ) -> Result<Option<&AuthCredentialResponse>, CredentialsCacheError>;
 
+    /// Overwrite the entire contents of the cache with new data.
     fn write(
         &mut self,
         map: HashMap<i64, AuthCredentialResponse>,
@@ -67,13 +103,13 @@ impl CredentialsCache for InMemoryCredentialsCache {
     }
 }
 
-pub struct GroupsV2Api<'a, S: PushService, C: CredentialsCache> {
+pub struct GroupsManager<'a, S: PushService, C: CredentialsCache> {
     push_service: S,
     credentials_cache: &'a mut C,
     server_public_params: ServerPublicParams,
 }
 
-impl<'a, S: PushService, C: CredentialsCache> GroupsV2Api<'a, S, C> {
+impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
     pub fn new(
         push_service: S,
         credentials_cache: &'a mut C,

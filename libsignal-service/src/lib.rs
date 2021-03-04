@@ -7,7 +7,7 @@ pub mod configuration;
 pub mod content;
 mod digeststream;
 pub mod envelope;
-pub mod gv2;
+pub mod groups_v2;
 pub mod messagepipe;
 pub mod models;
 pub mod pre_keys;

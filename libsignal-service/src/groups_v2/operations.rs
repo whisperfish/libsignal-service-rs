@@ -93,6 +93,7 @@ impl GroupOperations {
     ) -> Result<DecryptedPendingMember, GroupDecryptionError> {
         let inner_member =
             member.member.ok_or(GroupDecryptionError::WrongBlob)?;
+        // "Unknown" UUID with zeroes in case of errors, see: UuidUtil.java:16
         let uuid = self.decrypt_uuid(&inner_member.user_id).unwrap_or_default();
         let added_by = self.decrypt_uuid(&member.added_by_user_id)?;
 
