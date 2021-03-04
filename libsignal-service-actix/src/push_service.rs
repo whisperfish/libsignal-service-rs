@@ -330,8 +330,9 @@ impl PushService for AwcPushService {
         D: Default + ProtobufMessage,
         S: Sized + ProtobufMessage,
     {
-        let mut buf = vec![];
-        value.encode(&mut buf)?;
+        // see: https://github.com/danburkert/prost/pull/378
+        let mut buf = Vec::with_capacity(value.encoded_len());
+        value.encode(&mut buf).expect("infallible operation");
 
         let mut response = self
             .request(Method::PUT, endpoint, path, None)?

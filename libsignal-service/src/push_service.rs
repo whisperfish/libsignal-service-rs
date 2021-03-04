@@ -291,8 +291,6 @@ pub enum ServiceError {
     JsonDecodeError { reason: String },
     #[error("Error decoding protobuf frame: {0}")]
     ProtobufDecodeError(#[from] prost::DecodeError),
-    #[error("Error encoding protobuf frame: {0}")]
-    ProtobufEncodeError(#[from] prost::EncodeError),
     #[error("error encoding or decoding bincode: {0}")]
     BincodeError(#[from] bincode::Error),
     #[error("error decoding base64 string: {0}")]
