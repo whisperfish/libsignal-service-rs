@@ -33,11 +33,11 @@ pub struct ServiceCredentials {
 }
 
 impl ServiceCredentials {
-    pub fn authorization(&self) -> HttpCredentials {
-        HttpCredentials {
+    pub fn authorization(&self) -> Option<HttpCredentials> {
+        self.password.as_ref().map(|password| HttpCredentials {
             username: self.login(),
-            password: self.password.clone(),
-        }
+            password: password.clone(),
+        })
     }
 
     pub fn e164(&self) -> String {

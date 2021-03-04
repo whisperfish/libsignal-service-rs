@@ -143,7 +143,7 @@ pub struct PreKeyStatus {
 #[derive(Clone)]
 pub struct HttpCredentials {
     pub username: String,
-    pub password: Option<String>,
+    pub password: String,
 }
 
 impl ProfileKey {

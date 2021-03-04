@@ -35,7 +35,7 @@ impl AwcPushService {
         let client = get_client(&cfg, user_agent);
         Self {
             cfg,
-            credentials: credentials.map(|c| c.authorization()),
+            credentials: credentials.and_then(|c| c.authorization()),
             client,
         }
     }
@@ -55,7 +55,7 @@ impl AwcPushService {
         {
             builder = builder.basic_auth(
                 &http_credentials.username,
-                http_credentials.password.as_deref(),
+                Some(&http_credentials.password),
             );
         }
         Ok(builder)

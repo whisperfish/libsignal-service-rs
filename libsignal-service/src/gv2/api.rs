@@ -172,9 +172,8 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsV2Api<'a, S, C> {
             &group_secret_params.get_public_params(),
         )?);
 
-        let password = Some(hex::encode(bincode::serialize(
-            &auth_credential_presentation,
-        )?));
+        let password =
+            hex::encode(bincode::serialize(&auth_credential_presentation)?);
 
         Ok(HttpCredentials { username, password })
     }
