@@ -96,9 +96,9 @@ impl CredentialsCache for InMemoryCredentialsCache {
 
     fn write(
         &mut self,
-        mut map: HashMap<i64, AuthCredentialResponse>,
+        map: HashMap<i64, AuthCredentialResponse>,
     ) -> Result<(), CredentialsCacheError> {
-        std::mem::swap(&mut self.map, &mut map);
+        self.map = map;
         Ok(())
     }
 }
