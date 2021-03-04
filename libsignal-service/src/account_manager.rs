@@ -1,4 +1,4 @@
-use crate::configuration::Credentials;
+use crate::configuration::ServiceCredentials;
 use crate::pre_keys::{PreKeyEntity, PreKeyState};
 use crate::provisioning::*;
 use crate::push_service::{
@@ -179,7 +179,7 @@ impl<Service: PushService> AccountManager<Service> {
         &mut self,
         url: url::Url,
         store_context: StoreContext,
-        credentials: Credentials,
+        credentials: ServiceCredentials,
     ) -> Result<(), LinkError> {
         let query: HashMap<_, _> = url.query_pairs().collect();
         let ephemeral_id = query.get("uuid").ok_or(LinkError::InvalidUuid)?;

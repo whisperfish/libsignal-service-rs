@@ -10,7 +10,7 @@ use libsignal_protocol::{
 };
 use libsignal_service::{
     configuration::ServiceConfiguration,
-    messagepipe::Credentials,
+    messagepipe::ServiceCredentials,
     prelude::PushService,
     provisioning::{ProvisioningError, ProvisioningPipe, ProvisioningStep},
     push_service::{ConfirmDeviceMessage, DeviceId},
@@ -108,9 +108,10 @@ where
 
                 // we need to authenticate with the phone number
                 // to confirm the new device
+                // TODO: we should now be able to override credentials?
                 let mut push_service = AwcPushService::new(
                     service_configuration.clone(),
-                    Some(Credentials {
+                    Some(ServiceCredentials {
                         phonenumber: phone_number.clone(),
                         uuid: None,
                         password: Some(password.to_string()),

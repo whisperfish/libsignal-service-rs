@@ -7,10 +7,11 @@ pub mod configuration;
 pub mod content;
 mod digeststream;
 pub mod envelope;
+pub mod groups_v2;
 pub mod messagepipe;
 pub mod models;
 pub mod pre_keys;
-mod proto;
+pub mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
@@ -36,11 +37,17 @@ pub mod prelude {
     pub use super::ServiceAddress;
     pub use crate::{
         cipher::ServiceCipher,
-        configuration::{Credentials, ServiceConfiguration, SignalingKey},
+        configuration::{
+            ServiceConfiguration, ServiceCredentials, SignalingKey,
+        },
         content::Content,
         envelope::Envelope,
         push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
     };
+    pub use phonenumber;
+    pub use prost::Message as ProtobufMessage;
+    pub use uuid::{Error as UuidError, Uuid};
+    pub use zkgroup::groups::{GroupMasterKey, GroupSecretParams};
 }

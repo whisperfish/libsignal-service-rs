@@ -1,6 +1,6 @@
 use crate::{
-    configuration::Credentials, envelope::Envelope, messagepipe::MessagePipe,
-    push_service::*,
+    configuration::ServiceCredentials, envelope::Envelope,
+    messagepipe::MessagePipe, push_service::*,
 };
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
@@ -43,7 +43,7 @@ impl<Service: PushService> MessageReceiver<Service> {
 
     pub async fn create_message_pipe(
         &mut self,
-        credentials: Credentials,
+        credentials: ServiceCredentials,
     ) -> Result<MessagePipe<Service::WebSocket>, MessageReceiverError> {
         let (ws, stream) = self
             .service
