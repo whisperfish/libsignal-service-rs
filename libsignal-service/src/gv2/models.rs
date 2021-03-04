@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use serde::Deserialize;
 use zkgroup::auth::AuthCredentialResponse;
 
+use crate::prelude::ServiceError;
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemporalCredential {
@@ -17,14 +19,17 @@ pub struct CredentialResponse {
 }
 
 impl CredentialResponse {
-    pub fn parse(self) -> HashMap<i64, AuthCredentialResponse> {
-        self.credentials
+    pub fn parse(
+        self,
+    ) -> Result<HashMap<i64, AuthCredentialResponse>, ServiceError> {
+        Ok(self
+            .credentials
             .into_iter()
             .map(|c| {
-                let bytes = base64::decode(c.credential).unwrap();
-                let data = bincode::deserialize(&bytes).unwrap();
-                (c.redemption_time, data)
+                let bytes = base64::decode(c.credential)?;
+                let data = bincode::deserialize(&bytes)?;
+                Ok((c.redemption_time, data))
             })
-            .collect()
+            .collect::<Result<_, ServiceError>>()?)
     }
 }

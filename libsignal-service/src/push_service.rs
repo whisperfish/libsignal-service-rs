@@ -293,8 +293,10 @@ pub enum ServiceError {
     ProtobufDecodeError(#[from] prost::DecodeError),
     #[error("Error encoding protobuf frame: {0}")]
     ProtobufEncodeError(#[from] prost::EncodeError),
-    #[error(transparent)]
+    #[error("error encoding or decoding bincode: {0}")]
     BincodeError(#[from] bincode::Error),
+    #[error("error decoding base64 string: {0}")]
+    Base64DecodeError(#[from] base64::DecodeError),
 
     #[error("Rate limit exceeded")]
     RateLimitExceeded,

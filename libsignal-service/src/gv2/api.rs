@@ -97,7 +97,8 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsV2Api<'a, S, C> {
         {
             auth_credential_response
         } else {
-            let credentials_map = self.get_authorization(today).await?.parse();
+            let credentials_map =
+                self.get_authorization(today).await?.parse()?;
             self.credentials_cache.write(credentials_map)?;
             self.credentials_cache.get(&today)?.ok_or_else(|| {
                 ServiceError::ResponseError {
