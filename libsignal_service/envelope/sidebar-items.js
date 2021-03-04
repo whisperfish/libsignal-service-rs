@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["EnvelopeParseError",""]],"struct":[["Envelope",""],["EnvelopeEntity",""]]});
+initSidebarItems({"enum":[["EnvelopeParseError",""]],"struct":[["EnvelopeEntity",""]]});

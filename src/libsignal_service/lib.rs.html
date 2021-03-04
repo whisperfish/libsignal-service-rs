@@ -47,6 +47,13 @@
 <span id="44">44</span>
 <span id="45">45</span>
 <span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">recursion_limit</span> <span class="op">=</span> <span class="string">&quot;256&quot;</span>]</span>
 
@@ -57,10 +64,11 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">content</span>;
 <span class="kw">mod</span> <span class="ident">digeststream</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">envelope</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">groups_v2</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">messagepipe</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">models</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">pre_keys</span>;
-<span class="kw">mod</span> <span class="ident">proto</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">proto</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">provisioning</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">push_service</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">receiver</span>;
@@ -86,13 +94,19 @@
     <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">super</span>::<span class="ident">ServiceAddress</span>;
     <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{
         <span class="ident">cipher</span>::<span class="ident">ServiceCipher</span>,
-        <span class="ident">configuration</span>::{<span class="ident">Credentials</span>, <span class="ident">ServiceConfiguration</span>, <span class="ident">SignalingKey</span>},
+        <span class="ident">configuration</span>::{
+            <span class="ident">ServiceConfiguration</span>, <span class="ident">ServiceCredentials</span>, <span class="ident">SignalingKey</span>,
+        },
         <span class="ident">content</span>::<span class="ident">Content</span>,
         <span class="ident">envelope</span>::<span class="ident">Envelope</span>,
         <span class="ident">push_service</span>::{<span class="ident">PushService</span>, <span class="ident">ServiceError</span>},
         <span class="ident">receiver</span>::<span class="ident">MessageReceiver</span>,
         <span class="ident">sender</span>::{<span class="ident">MessageSender</span>, <span class="ident">MessageSenderError</span>},
     };
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">phonenumber</span>;
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span> <span class="kw">as</span> <span class="ident">ProtobufMessage</span>;
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">uuid</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">UuidError</span>, <span class="ident">Uuid</span>};
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zkgroup</span>::<span class="ident">groups</span>::{<span class="ident">GroupMasterKey</span>, <span class="ident">GroupSecretParams</span>};
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "libsignal_service";</script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

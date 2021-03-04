@@ -200,7 +200,7 @@
 <span class="kw">use</span> <span class="ident">url</span>::<span class="ident">Url</span>;
 
 <span class="kw">use</span> <span class="ident">libsignal_service</span>::{
-    <span class="ident">configuration</span>::<span class="ident">Credentials</span>,
+    <span class="ident">configuration</span>::<span class="ident">ServiceCredentials</span>,
     <span class="ident">messagepipe</span>::<span class="kw-2">*</span>,
     <span class="ident">push_service</span>::{<span class="self">self</span>, <span class="ident">ServiceError</span>},
 };
@@ -321,7 +321,7 @@
         <span class="ident">client</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">awc</span>::<span class="ident">Client</span>,
         <span class="ident">base_url</span>: <span class="kw">impl</span> <span class="ident">std</span>::<span class="ident">borrow</span>::<span class="ident">Borrow</span><span class="op">&lt;</span><span class="ident">Url</span><span class="op">&gt;</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">Credentials</span><span class="op">&gt;</span>,
+        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">ServiceCredentials</span><span class="op">&gt;</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="self">Self</span>, <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">WebSocketService</span><span class="op">&gt;</span>::<span class="ident">Stream</span>), <span class="ident">AwcWebSocketError</span><span class="op">&gt;</span>
     {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">url</span> <span class="op">=</span> <span class="ident">base_url</span>.<span class="ident">borrow</span>().<span class="ident">join</span>(<span class="ident">path</span>).<span class="ident">expect</span>(<span class="string">&quot;valid url&quot;</span>);

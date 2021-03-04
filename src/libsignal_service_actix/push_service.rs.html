@@ -460,413 +460,116 @@
 <span id="457">457</span>
 <span id="458">458</span>
 <span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
+<span class="kw">use</span> <span class="ident">actix_http</span>::{
+    <span class="ident">client</span>::{<span class="ident">ConnectError</span>, <span class="ident">SendRequestError</span>},
+    <span class="ident">http</span>::{<span class="ident">HeaderValue</span>, <span class="ident">Method</span>},
+};
 <span class="kw">use</span> <span class="ident">awc</span>::{
-    <span class="ident">error</span>::<span class="ident">PayloadError</span>, <span class="ident">http</span>::<span class="ident">StatusCode</span>, <span class="ident">Client</span>, <span class="ident">ClientResponse</span>, <span class="ident">Connector</span>,
+    <span class="ident">error</span>::<span class="ident">PayloadError</span>, <span class="ident">http</span>::<span class="ident">StatusCode</span>, <span class="ident">Client</span>, <span class="ident">ClientRequest</span>,
+    <span class="ident">ClientResponse</span>, <span class="ident">Connector</span>,
 };
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Bytes</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libsignal_service</span>::{
-    <span class="ident">configuration</span>::<span class="kw-2">*</span>, <span class="ident">messagepipe</span>::<span class="ident">WebSocketService</span>, <span class="ident">push_service</span>::<span class="kw-2">*</span>,
+    <span class="ident">configuration</span>::<span class="kw-2">*</span>, <span class="ident">messagepipe</span>::<span class="ident">WebSocketService</span>, <span class="ident">prelude</span>::<span class="ident">ProtobufMessage</span>,
+    <span class="ident">push_service</span>::<span class="kw-2">*</span>,
 };
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
-<span class="kw">use</span> <span class="ident">url</span>::<span class="ident">Url</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">websocket</span>::<span class="ident">AwcWebSocket</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AwcPushService</span> {
     <span class="ident">cfg</span>: <span class="ident">ServiceConfiguration</span>,
-    <span class="ident">base_url</span>: <span class="ident">Url</span>,
+    <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
     <span class="ident">client</span>: <span class="ident">awc</span>::<span class="ident">Client</span>,
-}
-
-<span class="attribute">#[<span class="ident">async_trait</span>::<span class="ident">async_trait</span>(<span class="question-mark">?</span><span class="ident">Send</span>)]</span>
-<span class="kw">impl</span> <span class="ident">PushService</span> <span class="kw">for</span> <span class="ident">AwcPushService</span> {
-    <span class="comment">// This is in principle known at compile time, but long to write out.</span>
-    <span class="kw">type</span> <span class="ident">ByteStream</span> <span class="op">=</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">futures</span>::<span class="ident">io</span>::<span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span><span class="op">&gt;</span>;
-    <span class="kw">type</span> <span class="ident">WebSocket</span> <span class="op">=</span> <span class="ident">AwcWebSocket</span>;
-
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
-    {
-        <span class="comment">// In principle, we should be using http::uri::Uri,</span>
-        <span class="comment">// but that doesn&#39;t seem like an owned type where we can do this kind of</span>
-        <span class="comment">// constructions on.</span>
-        <span class="comment">// https://docs.rs/http/0.2.1/http/uri/struct.Uri.html</span>
-        <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">base_url</span>.<span class="ident">join</span>(<span class="ident">path</span>).<span class="ident">expect</span>(<span class="string">&quot;valid url&quot;</span>);
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::get({:?})&quot;</span>, <span class="ident">url</span>);
-        <span class="kw">use</span> <span class="ident">awc</span>::<span class="ident">error</span>::{<span class="ident">ConnectError</span>, <span class="ident">SendRequestError</span>};
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">url</span>.<span class="ident">as_str</span>()).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(
-            <span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
-                <span class="ident">SendRequestError</span>::<span class="ident">Connect</span>(<span class="ident">ConnectError</span>::<span class="ident">Timeout</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="ident">ServiceError</span>::<span class="ident">Timeout</span> {
-                        <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                    }
-                }
-                <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                },
-            },
-        )<span class="question-mark">?</span>;
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::get response: {:?}&quot;</span>, <span class="ident">response</span>);
-
-        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="comment">// In order to debug the output, we collect the whole response.</span>
-        <span class="comment">// The actix-web api is meant to used as a streaming deserializer,</span>
-        <span class="comment">// so we have this little awkward switch.</span>
-        <span class="comment">//</span>
-        <span class="comment">// This is also the reason we depend directly on serde_json, however</span>
-        <span class="comment">// actix already imports that anyway.</span>
-        <span class="kw">if</span> <span class="ident">log</span>::<span class="macro">log_enabled</span><span class="macro">!</span>(<span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Debug</span>) {
-            <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                }
-            })<span class="question-mark">?</span>;
-            <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;GET response: {:?}&quot;</span>, <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>));
-            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                }
-            })
-        } <span class="kw">else</span> {
-            <span class="ident">response</span>
-                .<span class="ident">json</span>()
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                })
-        }
-    }
-
-    <span class="doccomment">/// Deletes a resource through the HTTP DELETE verb.</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">delete</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
-    {
-        <span class="comment">// In principle, we should be using http::uri::Uri,</span>
-        <span class="comment">// but that doesn&#39;t seem like an owned type where we can do this kind of</span>
-        <span class="comment">// constructions on.</span>
-        <span class="comment">// https://docs.rs/http/0.2.1/http/uri/struct.Uri.html</span>
-        <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">base_url</span>.<span class="ident">join</span>(<span class="ident">path</span>).<span class="ident">expect</span>(<span class="string">&quot;valid url&quot;</span>);
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::delete({:?})&quot;</span>, <span class="ident">url</span>);
-        <span class="kw">use</span> <span class="ident">awc</span>::<span class="ident">error</span>::{<span class="ident">ConnectError</span>, <span class="ident">SendRequestError</span>};
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span>
-            <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">delete</span>(<span class="ident">url</span>.<span class="ident">as_str</span>()).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(
-                <span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
-                    <span class="ident">SendRequestError</span>::<span class="ident">Connect</span>(<span class="ident">ConnectError</span>::<span class="ident">Timeout</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="ident">ServiceError</span>::<span class="ident">Timeout</span> {
-                            <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                        }
-                    }
-                    <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
-                        <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                    },
-                },
-            )<span class="question-mark">?</span>;
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::delete response: {:?}&quot;</span>, <span class="ident">response</span>);
-
-        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="comment">// In order to debug the output, we collect the whole response.</span>
-        <span class="comment">// The actix-web api is meant to used as a streaming deserializer,</span>
-        <span class="comment">// so we have this little awkward switch.</span>
-        <span class="comment">//</span>
-        <span class="comment">// This is also the reason we depend directly on serde_json, however</span>
-        <span class="comment">// actix already imports that anyway.</span>
-        <span class="kw">if</span> <span class="ident">log</span>::<span class="macro">log_enabled</span><span class="macro">!</span>(<span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Debug</span>) {
-            <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                }
-            })<span class="question-mark">?</span>;
-            <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(
-                <span class="string">&quot;DELETE response: {:?}&quot;</span>,
-                <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>)
-            );
-            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                }
-            })
-        } <span class="kw">else</span> {
-            <span class="ident">response</span>
-                .<span class="ident">json</span>()
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                })
-        }
-    }
-
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">put</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">S</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">value</span>: <span class="ident">S</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">D</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
-        <span class="ident">S</span>: <span class="ident">Serialize</span>,
-    {
-        <span class="comment">// In principle, we should be using http::uri::Uri,</span>
-        <span class="comment">// but that doesn&#39;t seem like an owned type where we can do this kind of</span>
-        <span class="comment">// constructions on.</span>
-        <span class="comment">// https://docs.rs/http/0.2.1/http/uri/struct.Uri.html</span>
-        <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">base_url</span>.<span class="ident">join</span>(<span class="ident">path</span>).<span class="ident">expect</span>(<span class="string">&quot;valid url&quot;</span>);
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::put({:?})&quot;</span>, <span class="ident">url</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">client</span>
-            .<span class="ident">put</span>(<span class="ident">url</span>.<span class="ident">as_str</span>())
-            .<span class="ident">send_json</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
-                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-            })<span class="question-mark">?</span>;
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::put response: {:?}&quot;</span>, <span class="ident">response</span>);
-
-        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="comment">// In order to debug the output, we collect the whole response.</span>
-        <span class="comment">// The actix-web api is meant to used as a streaming deserializer,</span>
-        <span class="comment">// so we have this little awkward switch.</span>
-        <span class="comment">//</span>
-        <span class="comment">// This is also the reason we depend directly on serde_json, however</span>
-        <span class="comment">// actix already imports that anyway.</span>
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">log</span>::<span class="macro">log_enabled</span><span class="macro">!</span>(<span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Debug</span>) {
-            <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                }
-            })<span class="question-mark">?</span>;
-            <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;PUT response: {:?}&quot;</span>, <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>));
-            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                }
-            })
-        } <span class="kw">else</span> {
-            <span class="ident">response</span>
-                .<span class="ident">json</span>()
-                .<span class="kw">await</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                })
-        };
-
-        <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_err</span>()
-            <span class="op">&amp;&amp;</span> <span class="ident">response</span>.<span class="ident">status</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">awc</span>::<span class="ident">http</span>::<span class="ident">StatusCode</span>::<span class="ident">NO_CONTENT</span>
-        {
-            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="string">b&quot;null&quot;</span>).<span class="ident">or</span>(<span class="ident">result</span>)
-        } <span class="kw">else</span> {
-            <span class="ident">result</span>
-        }
-    }
-
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_from_cdn</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">cdn_id</span>: <span class="ident">u32</span>,
-        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">TryStreamExt</span>;
-
-        <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="ident">Url</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">cdn_urls</span>[<span class="kw-2">&amp;</span><span class="ident">cdn_id</span>])
-            .<span class="ident">expect</span>(<span class="string">&quot;valid cdn base url&quot;</span>)
-            .<span class="ident">join</span>(<span class="ident">path</span>)
-            .<span class="ident">expect</span>(<span class="string">&quot;valid CDN path&quot;</span>);
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::get_stream({:?})&quot;</span>, <span class="ident">url</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span>
-            <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">get</span>(<span class="ident">url</span>.<span class="ident">as_str</span>()).<span class="ident">send</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-                }
-            })<span class="question-mark">?</span>;
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::get_stream response: {:?}&quot;</span>, <span class="ident">response</span>);
-
-        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(<span class="ident">Box</span>::<span class="ident">new</span>(
-            <span class="ident">response</span>
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                    <span class="kw">use</span> <span class="ident">awc</span>::<span class="ident">error</span>::<span class="ident">PayloadError</span>;
-                    <span class="kw">match</span> <span class="ident">e</span> {
-                        <span class="ident">PayloadError</span>::<span class="ident">Io</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">e</span>,
-                        <span class="ident">other</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span>::<span class="ident">new</span>(
-                            <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">Other</span>,
-                            <span class="ident">other</span>,
-                        ),
-                    }
-                })
-                .<span class="ident">into_async_read</span>(),
-        ))
-    }
-
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">post_to_cdn0</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">value</span>: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)],
-        <span class="ident">file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> <span class="kw-2">mut</span> <span class="ident">C</span>)<span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="ident">Url</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">cdn_urls</span>[<span class="kw-2">&amp;</span><span class="number">0</span>])
-            .<span class="ident">expect</span>(<span class="string">&quot;valid cdn base url&quot;</span>)
-            .<span class="ident">join</span>(<span class="ident">path</span>)
-            .<span class="ident">expect</span>(<span class="string">&quot;valid CDN path&quot;</span>);
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::post_to_cdn({:?})&quot;</span>, <span class="ident">url</span>);
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">post</span>(<span class="ident">url</span>.<span class="ident">as_str</span>());
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">form</span> <span class="op">=</span> <span class="ident">mpart_async</span>::<span class="ident">client</span>::<span class="ident">MultipartRequest</span>::<span class="ident">default</span>();
-
-        <span class="comment">// mpart-async has a peculiar ordering of the form items,</span>
-        <span class="comment">// and Amazon S3 expects them in a very specific order (i.e., the file contents should</span>
-        <span class="comment">// go last.</span>
-        <span class="comment">//</span>
-        <span class="comment">// mpart-async uses a VecDeque internally for ordering the fields in the order given.</span>
-        <span class="comment">//</span>
-        <span class="comment">// https://github.com/cetra3/mpart-async/issues/16</span>
-
-        <span class="kw">for</span> <span class="kw-2">&amp;</span>(<span class="ident">k</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">value</span> {
-            <span class="ident">form</span>.<span class="ident">add_field</span>(<span class="ident">k</span>, <span class="ident">v</span>);
-        }
-
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">filename</span>, <span class="ident">file</span>)) <span class="op">=</span> <span class="ident">file</span> {
-            <span class="comment">// XXX Actix doesn&#39;t cope with none-&#39;static lifetimes</span>
-            <span class="comment">// https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html</span>
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-            <span class="ident">file</span>.<span class="ident">read_to_end</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;infallible Read instance&quot;</span>);
-            <span class="ident">form</span>.<span class="ident">add_stream</span>(
-                <span class="string">&quot;file&quot;</span>,
-                <span class="kw-2">&amp;</span><span class="ident">filename</span>,
-                <span class="string">&quot;application/octet-stream&quot;</span>,
-                <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">Bytes</span>::<span class="ident">from</span>(<span class="ident">buf</span>)).<span class="ident">into_stream</span>(),
-            );
-        }
-
-        <span class="kw">let</span> <span class="ident">content_type</span> <span class="op">=</span>
-            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;multipart/form-data; boundary={}&quot;</span>, <span class="ident">form</span>.<span class="ident">get_boundary</span>());
-
-        <span class="comment">// XXX Amazon S3 needs the Content-Length, but we don&#39;t know it without depleting the whole</span>
-        <span class="comment">// stream.  Sadly, Content-Length != contents.len(), but should include the whole form.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">body_contents</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-        <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">StreamExt</span>;
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">b</span>) <span class="op">=</span> <span class="ident">form</span>.<span class="ident">next</span>().<span class="kw">await</span> {
-            <span class="comment">// Unwrap, because no error type was used above</span>
-            <span class="ident">body_contents</span>.<span class="ident">extend</span>(<span class="ident">b</span>.<span class="ident">unwrap</span>());
-        }
-        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(
-            <span class="string">&quot;Sending PUT with Content-Type={} and length {}&quot;</span>,
-            <span class="ident">content_type</span>,
-            <span class="ident">body_contents</span>.<span class="ident">len</span>()
-        );
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">client</span>
-            .<span class="ident">content_type</span>(<span class="kw-2">&amp;</span><span class="ident">content_type</span>)
-            .<span class="ident">content_length</span>(<span class="ident">body_contents</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>)
-            .<span class="ident">send_body</span>(<span class="ident">body_contents</span>)
-            .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
-                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
-            })<span class="question-mark">?</span>;
-
-        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::put response: {:?}&quot;</span>, <span class="ident">response</span>);
-
-        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">ws</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Credentials</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>
-        (
-            <span class="self">Self</span>::<span class="ident">WebSocket</span>,
-            <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">WebSocket</span> <span class="kw">as</span> <span class="ident">WebSocketService</span><span class="op">&gt;</span>::<span class="ident">Stream</span>,
-        ),
-        <span class="ident">ServiceError</span>,
-    <span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">AwcWebSocket</span>::<span class="ident">with_client</span>(
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">client</span>,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">base_url</span>,
-            <span class="ident">path</span>,
-            <span class="ident">credentials</span>.<span class="ident">as_ref</span>(),
-        )
-        .<span class="kw">await</span><span class="question-mark">?</span>)
-    }
-}
-
-<span class="doccomment">/// Creates a `awc::Client` with usable default settings:</span>
-<span class="doccomment">/// Creates a default `awc::Client`.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Creates a `awc::Client` with usable default settings:</span>
-<span class="doccomment">/// * certificate authority from the `ServiceConfiguration`</span>
-<span class="doccomment">/// * 10s timeout on TCP connection</span>
-<span class="doccomment">/// * 65s timeout on HTTP request</span>
-<span class="doccomment">/// * provided user-agent</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_client</span>(
-    <span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ServiceConfiguration</span>,
-    <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Credentials</span><span class="op">&gt;</span>,
-    <span class="ident">user_agent</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Client</span> {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ssl_config</span> <span class="op">=</span> <span class="ident">rustls</span>::<span class="ident">ClientConfig</span>::<span class="ident">new</span>();
-    <span class="ident">ssl_config</span>.<span class="ident">alpn_protocols</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="string">b&quot;http/1.1&quot;</span>.<span class="ident">to_vec</span>()];
-    <span class="ident">ssl_config</span>
-        .<span class="ident">root_store</span>
-        .<span class="ident">add_pem_file</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Cursor</span>::<span class="ident">new</span>(
-            <span class="ident">cfg</span>.<span class="ident">certificate_authority</span>.<span class="ident">clone</span>(),
-        ))
-        .<span class="ident">unwrap</span>();
-    <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">Connector</span>::<span class="ident">new</span>()
-        .<span class="ident">rustls</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">ssl_config</span>))
-        .<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">10</span>)) <span class="comment">// https://github.com/actix/actix-web/issues/1047</span>
-        .<span class="ident">finish</span>();
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">awc</span>::<span class="ident">ClientBuilder</span>::<span class="ident">new</span>()
-        .<span class="ident">connector</span>(<span class="ident">connector</span>)
-        .<span class="ident">header</span>(<span class="string">&quot;X-Signal-Agent&quot;</span>, <span class="ident">user_agent</span>)
-        .<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">65</span>)); <span class="comment">// as in Signal-Android</span>
-
-    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">credentials</span>) <span class="op">=</span> <span class="ident">credentials</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">ident</span>, <span class="ident">pass</span>)) <span class="op">=</span> <span class="ident">credentials</span>.<span class="ident">authorization</span>() {
-            <span class="ident">client</span> <span class="op">=</span> <span class="ident">client</span>.<span class="ident">basic_auth</span>(<span class="ident">ident</span>, <span class="prelude-val">Some</span>(<span class="ident">pass</span>));
-        }
-    };
-
-    <span class="ident">client</span>.<span class="ident">finish</span>()
 }
 
 <span class="kw">impl</span> <span class="ident">AwcPushService</span> {
     <span class="doccomment">/// Creates a new AwcPushService</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Panics on invalid service url.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">cfg</span>: <span class="ident">ServiceConfiguration</span>,
-        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Credentials</span><span class="op">&gt;</span>,
+        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ServiceCredentials</span><span class="op">&gt;</span>,
         <span class="ident">user_agent</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">base_url</span> <span class="op">=</span>
-            <span class="ident">Url</span>::<span class="ident">parse</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>.<span class="ident">service_urls</span>[<span class="number">0</span>]).<span class="ident">expect</span>(<span class="string">&quot;valid service url&quot;</span>);
-
-        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">get_client</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>, <span class="ident">credentials</span>, <span class="ident">user_agent</span>);
-
+        <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">get_client</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>, <span class="ident">user_agent</span>);
         <span class="self">Self</span> {
             <span class="ident">cfg</span>,
-            <span class="ident">base_url</span>,
+            <span class="ident">credentials</span>: <span class="ident">credentials</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">authorization</span>()),
             <span class="ident">client</span>,
         }
+    }
+
+    <span class="kw">fn</span> <span class="ident">request</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">method</span>: <span class="ident">Method</span>,
+        <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
+        <span class="ident">path</span>: <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span>,
+        <span class="ident">credentials_override</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ClientRequest</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">base_url</span>(<span class="ident">endpoint</span>).<span class="ident">join</span>(<span class="ident">path</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;HTTP request {} {}&quot;</span>, <span class="ident">method</span>, <span class="ident">url</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">request</span>(<span class="ident">method</span>, <span class="ident">url</span>.<span class="ident">as_str</span>());
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">http_credentials</span>) <span class="op">=</span>
+            <span class="ident">credentials_override</span>.<span class="ident">as_ref</span>().<span class="ident">or</span>(<span class="self">self</span>.<span class="ident">credentials</span>.<span class="ident">as_ref</span>())
+        {
+            <span class="ident">builder</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">basic_auth</span>(
+                <span class="kw-2">&amp;</span><span class="ident">http_credentials</span>.<span class="ident">username</span>,
+                <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">http_credentials</span>.<span class="ident">password</span>),
+            );
+        }
+        <span class="prelude-val">Ok</span>(<span class="ident">builder</span>)
     }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">from_response</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(
@@ -919,6 +622,399 @@
             }
         }
     }
+}
+
+<span class="attribute">#[<span class="ident">async_trait</span>::<span class="ident">async_trait</span>(<span class="question-mark">?</span><span class="ident">Send</span>)]</span>
+<span class="kw">impl</span> <span class="ident">PushService</span> <span class="kw">for</span> <span class="ident">AwcPushService</span> {
+    <span class="comment">// This is in principle known at compile time, but long to write out.</span>
+    <span class="kw">type</span> <span class="ident">ByteStream</span> <span class="op">=</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">futures</span>::<span class="ident">io</span>::<span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">WebSocket</span> <span class="op">=</span> <span class="ident">AwcWebSocket</span>;
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_json</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
+    {
+        <span class="kw">use</span> <span class="ident">awc</span>::<span class="ident">error</span>::{<span class="ident">ConnectError</span>, <span class="ident">SendRequestError</span>};
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="ident">credentials</span>)<span class="question-mark">?</span>
+            .<span class="ident">send</span>()
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
+                <span class="ident">SendRequestError</span>::<span class="ident">Connect</span>(<span class="ident">ConnectError</span>::<span class="ident">Timeout</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">ServiceError</span>::<span class="ident">Timeout</span> {
+                        <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                    }
+                }
+                <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                },
+            })<span class="question-mark">?</span>;
+
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::get response: {:?}&quot;</span>, <span class="ident">response</span>);
+
+        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// In order to debug the output, we collect the whole response.</span>
+        <span class="comment">// The actix-web api is meant to used as a streaming deserializer,</span>
+        <span class="comment">// so we have this little awkward switch.</span>
+        <span class="comment">//</span>
+        <span class="comment">// This is also the reason we depend directly on serde_json, however</span>
+        <span class="comment">// actix already imports that anyway.</span>
+        <span class="kw">if</span> <span class="ident">log</span>::<span class="macro">log_enabled</span><span class="macro">!</span>(<span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Debug</span>) {
+            <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                }
+            })<span class="question-mark">?</span>;
+            <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;GET response: {:?}&quot;</span>, <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>));
+            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                }
+            })
+        } <span class="kw">else</span> {
+            <span class="ident">response</span>
+                .<span class="ident">json</span>()
+                .<span class="kw">await</span>
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                })
+        }
+    }
+
+    <span class="doccomment">/// Deletes a resource through the HTTP DELETE verb.</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">delete_json</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
+    {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">DELETE</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>
+            .<span class="ident">send</span>()
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
+                <span class="ident">SendRequestError</span>::<span class="ident">Connect</span>(<span class="ident">ConnectError</span>::<span class="ident">Timeout</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">ServiceError</span>::<span class="ident">Timeout</span> {
+                        <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                    }
+                }
+                <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                },
+            })<span class="question-mark">?</span>;
+
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::delete response: {:?}&quot;</span>, <span class="ident">response</span>);
+
+        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// In order to debug the output, we collect the whole response.</span>
+        <span class="comment">// The actix-web api is meant to used as a streaming deserializer,</span>
+        <span class="comment">// so we have this little awkward switch.</span>
+        <span class="comment">//</span>
+        <span class="comment">// This is also the reason we depend directly on serde_json, however</span>
+        <span class="comment">// actix already imports that anyway.</span>
+        <span class="kw">if</span> <span class="ident">log</span>::<span class="macro">log_enabled</span><span class="macro">!</span>(<span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Debug</span>) {
+            <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                }
+            })<span class="question-mark">?</span>;
+            <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(
+                <span class="string">&quot;DELETE response: {:?}&quot;</span>,
+                <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>)
+            );
+            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                }
+            })
+        } <span class="kw">else</span> {
+            <span class="ident">response</span>
+                .<span class="ident">json</span>()
+                .<span class="kw">await</span>
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                })
+        }
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">put_json</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">S</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+        <span class="ident">value</span>: <span class="ident">S</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">D</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
+        <span class="ident">S</span>: <span class="ident">Serialize</span>,
+    {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">PUT</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>
+            .<span class="ident">send_json</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>)
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+            })<span class="question-mark">?</span>;
+
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::put response: {:?}&quot;</span>, <span class="ident">response</span>);
+
+        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="comment">// In order to debug the output, we collect the whole response.</span>
+        <span class="comment">// The actix-web api is meant to used as a streaming deserializer,</span>
+        <span class="comment">// so we have this little awkward switch.</span>
+        <span class="comment">//</span>
+        <span class="comment">// This is also the reason we depend directly on serde_json, however</span>
+        <span class="comment">// actix already imports that anyway.</span>
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">log</span>::<span class="macro">log_enabled</span><span class="macro">!</span>(<span class="ident">log</span>::<span class="ident">Level</span>::<span class="ident">Debug</span>) {
+            <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span> <span class="ident">response</span>.<span class="ident">body</span>().<span class="kw">await</span>.<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                }
+            })<span class="question-mark">?</span>;
+            <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;PUT response: {:?}&quot;</span>, <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>));
+            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">text</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                }
+            })
+        } <span class="kw">else</span> {
+            <span class="ident">response</span>
+                .<span class="ident">json</span>()
+                .<span class="kw">await</span>
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">JsonDecodeError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                })
+        };
+
+        <span class="kw">if</span> <span class="ident">result</span>.<span class="ident">is_err</span>()
+            <span class="op">&amp;&amp;</span> <span class="ident">response</span>.<span class="ident">status</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">awc</span>::<span class="ident">http</span>::<span class="ident">StatusCode</span>::<span class="ident">NO_CONTENT</span>
+        {
+            <span class="ident">serde_json</span>::<span class="ident">from_slice</span>(<span class="string">b&quot;null&quot;</span>).<span class="ident">or</span>(<span class="ident">result</span>)
+        } <span class="kw">else</span> {
+            <span class="ident">result</span>
+        }
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_protobuf</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">T</span>: <span class="ident">Default</span> <span class="op">+</span> <span class="ident">ProtobufMessage</span>,
+    {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="ident">credentials</span>)<span class="question-mark">?</span>
+            .<span class="ident">send</span>()
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+            })<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span>
+            <span class="ident">response</span>
+                .<span class="ident">body</span>()
+                .<span class="kw">await</span>
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">ResponseError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                })<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="ident">T</span>::<span class="ident">decode</span>(<span class="ident">text</span>)<span class="question-mark">?</span>)
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">put_protobuf</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">S</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+        <span class="ident">value</span>: <span class="ident">S</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">D</span>: <span class="ident">Default</span> <span class="op">+</span> <span class="ident">ProtobufMessage</span>,
+        <span class="ident">S</span>: <span class="ident">Sized</span> <span class="op">+</span> <span class="ident">ProtobufMessage</span>,
+    {
+        <span class="comment">// see: https://github.com/danburkert/prost/pull/378</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="ident">value</span>.<span class="ident">encoded_len</span>());
+        <span class="ident">value</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>).<span class="ident">expect</span>(<span class="string">&quot;infallible operation&quot;</span>);
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">PUT</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>
+            .<span class="ident">content_type</span>(<span class="ident">HeaderValue</span>::<span class="ident">from_static</span>(<span class="string">&quot;application/x-protobuf&quot;</span>))
+            .<span class="ident">send_body</span>(<span class="ident">buf</span>)
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+            })<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="ident">text</span> <span class="op">=</span>
+            <span class="ident">response</span>
+                .<span class="ident">body</span>()
+                .<span class="kw">await</span>
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">ResponseError</span> {
+                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                })<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="ident">D</span>::<span class="ident">decode</span>(<span class="ident">text</span>)<span class="question-mark">?</span>)
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_from_cdn</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">cdn_id</span>: <span class="ident">u32</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">Endpoint</span>::<span class="ident">Cdn</span>(<span class="ident">cdn_id</span>), <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>
+            .<span class="ident">send</span>()
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+            })<span class="question-mark">?</span>;
+
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::get_stream response: {:?}&quot;</span>, <span class="ident">response</span>);
+
+        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(<span class="ident">Box</span>::<span class="ident">new</span>(
+            <span class="ident">response</span>
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
+                    <span class="kw">use</span> <span class="ident">awc</span>::<span class="ident">error</span>::<span class="ident">PayloadError</span>;
+                    <span class="kw">match</span> <span class="ident">e</span> {
+                        <span class="ident">PayloadError</span>::<span class="ident">Io</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">e</span>,
+                        <span class="ident">other</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Error</span>::<span class="ident">new</span>(
+                            <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">ErrorKind</span>::<span class="ident">Other</span>,
+                            <span class="ident">other</span>,
+                        ),
+                    }
+                })
+                .<span class="ident">into_async_read</span>(),
+        ))
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">post_to_cdn0</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span><span class="op">&gt;</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+        <span class="ident">value</span>: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)],
+        <span class="ident">file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> <span class="kw-2">mut</span> <span class="ident">C</span>)<span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span>
+            <span class="self">self</span>.<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">POST</span>, <span class="ident">Endpoint</span>::<span class="ident">Cdn</span>(<span class="number">0</span>), <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">form</span> <span class="op">=</span> <span class="ident">mpart_async</span>::<span class="ident">client</span>::<span class="ident">MultipartRequest</span>::<span class="ident">default</span>();
+
+        <span class="comment">// mpart-async has a peculiar ordering of the form items,</span>
+        <span class="comment">// and Amazon S3 expects them in a very specific order (i.e., the file contents should</span>
+        <span class="comment">// go last.</span>
+        <span class="comment">//</span>
+        <span class="comment">// mpart-async uses a VecDeque internally for ordering the fields in the order given.</span>
+        <span class="comment">//</span>
+        <span class="comment">// https://github.com/cetra3/mpart-async/issues/16</span>
+
+        <span class="kw">for</span> <span class="kw-2">&amp;</span>(<span class="ident">k</span>, <span class="ident">v</span>) <span class="kw">in</span> <span class="ident">value</span> {
+            <span class="ident">form</span>.<span class="ident">add_field</span>(<span class="ident">k</span>, <span class="ident">v</span>);
+        }
+
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">filename</span>, <span class="ident">file</span>)) <span class="op">=</span> <span class="ident">file</span> {
+            <span class="comment">// XXX Actix doesn&#39;t cope with none-&#39;static lifetimes</span>
+            <span class="comment">// https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+            <span class="ident">file</span>.<span class="ident">read_to_end</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>)
+                .<span class="ident">expect</span>(<span class="string">&quot;infallible Read instance&quot;</span>);
+            <span class="ident">form</span>.<span class="ident">add_stream</span>(
+                <span class="string">&quot;file&quot;</span>,
+                <span class="kw-2">&amp;</span><span class="ident">filename</span>,
+                <span class="string">&quot;application/octet-stream&quot;</span>,
+                <span class="ident">futures</span>::<span class="ident">future</span>::<span class="ident">ok</span>::<span class="op">&lt;</span><span class="kw">_</span>, ()<span class="op">&gt;</span>(<span class="ident">Bytes</span>::<span class="ident">from</span>(<span class="ident">buf</span>)).<span class="ident">into_stream</span>(),
+            );
+        }
+
+        <span class="kw">let</span> <span class="ident">content_type</span> <span class="op">=</span>
+            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;multipart/form-data; boundary={}&quot;</span>, <span class="ident">form</span>.<span class="ident">get_boundary</span>());
+
+        <span class="comment">// XXX Amazon S3 needs the Content-Length, but we don&#39;t know it without depleting the whole</span>
+        <span class="comment">// stream.  Sadly, Content-Length != contents.len(), but should include the whole form.</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">body_contents</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+        <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">stream</span>::<span class="ident">StreamExt</span>;
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">b</span>) <span class="op">=</span> <span class="ident">form</span>.<span class="ident">next</span>().<span class="kw">await</span> {
+            <span class="comment">// Unwrap, because no error type was used above</span>
+            <span class="ident">body_contents</span>.<span class="ident">extend</span>(<span class="ident">b</span>.<span class="ident">unwrap</span>());
+        }
+        <span class="ident">log</span>::<span class="macro">trace</span><span class="macro">!</span>(
+            <span class="string">&quot;Sending PUT with Content-Type={} and length {}&quot;</span>,
+            <span class="ident">content_type</span>,
+            <span class="ident">body_contents</span>.<span class="ident">len</span>()
+        );
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="ident">request</span>
+            .<span class="ident">content_type</span>(<span class="kw-2">&amp;</span><span class="ident">content_type</span>)
+            .<span class="ident">content_length</span>(<span class="ident">body_contents</span>.<span class="ident">len</span>() <span class="kw">as</span> <span class="ident">u64</span>)
+            .<span class="ident">send_body</span>(<span class="ident">body_contents</span>)
+            .<span class="kw">await</span>
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
+                <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+            })<span class="question-mark">?</span>;
+
+        <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;AwcPushService::put response: {:?}&quot;</span>, <span class="ident">response</span>);
+
+        <span class="self">Self</span>::<span class="ident">from_response</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">response</span>).<span class="kw">await</span><span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">ws</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ServiceCredentials</span><span class="op">&gt;</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>
+        (
+            <span class="self">Self</span>::<span class="ident">WebSocket</span>,
+            <span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">WebSocket</span> <span class="kw">as</span> <span class="ident">WebSocketService</span><span class="op">&gt;</span>::<span class="ident">Stream</span>,
+        ),
+        <span class="ident">ServiceError</span>,
+    <span class="op">&gt;</span> {
+        <span class="prelude-val">Ok</span>(<span class="ident">AwcWebSocket</span>::<span class="ident">with_client</span>(
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">client</span>,
+            <span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">base_url</span>(<span class="ident">Endpoint</span>::<span class="ident">Service</span>),
+            <span class="ident">path</span>,
+            <span class="ident">credentials</span>.<span class="ident">as_ref</span>(),
+        )
+        .<span class="kw">await</span><span class="question-mark">?</span>)
+    }
+}
+
+<span class="doccomment">/// Creates a `awc::Client` with usable default settings:</span>
+<span class="doccomment">/// Creates a default `awc::Client`.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Creates a `awc::Client` with usable default settings:</span>
+<span class="doccomment">/// * certificate authority from the `ServiceConfiguration`</span>
+<span class="doccomment">/// * 10s timeout on TCP connection</span>
+<span class="doccomment">/// * 65s timeout on HTTP request</span>
+<span class="doccomment">/// * provided user-agent</span>
+<span class="kw">fn</span> <span class="ident">get_client</span>(<span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ServiceConfiguration</span>, <span class="ident">user_agent</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Client</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ssl_config</span> <span class="op">=</span> <span class="ident">rustls</span>::<span class="ident">ClientConfig</span>::<span class="ident">new</span>();
+    <span class="ident">ssl_config</span>.<span class="ident">alpn_protocols</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="string">b&quot;http/1.1&quot;</span>.<span class="ident">to_vec</span>()];
+    <span class="ident">ssl_config</span>
+        .<span class="ident">root_store</span>
+        .<span class="ident">add_pem_file</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std</span>::<span class="ident">io</span>::<span class="ident">Cursor</span>::<span class="ident">new</span>(
+            <span class="ident">cfg</span>.<span class="ident">certificate_authority</span>.<span class="ident">clone</span>(),
+        ))
+        .<span class="ident">unwrap</span>();
+    <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">Connector</span>::<span class="ident">new</span>()
+        .<span class="ident">rustls</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">ssl_config</span>))
+        .<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">10</span>)) <span class="comment">// https://github.com/actix/actix-web/issues/1047</span>
+        .<span class="ident">finish</span>();
+    <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">awc</span>::<span class="ident">ClientBuilder</span>::<span class="ident">new</span>()
+        .<span class="ident">connector</span>(<span class="ident">connector</span>)
+        .<span class="ident">header</span>(<span class="string">&quot;X-Signal-Agent&quot;</span>, <span class="ident">user_agent</span>)
+        .<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">65</span>)); <span class="comment">// as in Signal-Android</span>
+
+    <span class="ident">client</span>.<span class="ident">finish</span>()
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "libsignal_service_actix";</script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["ProvisioningError",""],["ProvisioningStep",""],["ProvisioningVersion",""]],"struct":[["ProvisionEnvelope",""],["ProvisionMessage",""],["ProvisioningCipher",""],["ProvisioningPipe",""]]});
+initSidebarItems({"enum":[["ProvisioningError",""],["ProvisioningStep",""]],"struct":[["ProvisioningCipher",""],["ProvisioningPipe",""]]});

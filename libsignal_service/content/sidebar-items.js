@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["AttachmentPointerFlags",""],["ContentBody",""],["DataMessageFlags",""],["GroupType",""]],"mod":[["sync_message","Nested message and enum types in `SyncMessage`."]],"struct":[["AttachmentPointer",""],["CallMessage",""],["Content",""],["DataMessage",""],["GroupContext",""],["GroupContextV2",""],["Metadata",""],["Reaction",""],["ReceiptMessage",""],["SyncMessage",""],["TypingMessage",""]]});
+initSidebarItems({"enum":[["ContentBody",""]],"struct":[["Content",""],["Metadata",""]]});

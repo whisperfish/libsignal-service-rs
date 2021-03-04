@@ -323,7 +323,7 @@
 <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">configuration</span>::<span class="ident">Credentials</span>,
+    <span class="ident">configuration</span>::<span class="ident">ServiceCredentials</span>,
     <span class="ident">proto</span>::{
         <span class="ident">web_socket_message</span>, <span class="ident">Envelope</span>, <span class="ident">WebSocketMessage</span>,
         <span class="ident">WebSocketRequestMessage</span>, <span class="ident">WebSocketResponseMessage</span>,
@@ -349,7 +349,7 @@
     <span class="ident">ws</span>: <span class="ident">WS</span>,
     <span class="attribute">#[<span class="ident">pin</span>]</span>
     <span class="ident">stream</span>: <span class="ident">WS</span>::<span class="ident">Stream</span>,
-    <span class="ident">credentials</span>: <span class="ident">Credentials</span>,
+    <span class="ident">credentials</span>: <span class="ident">ServiceCredentials</span>,
     <span class="ident">requests</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">u64</span>, <span class="ident">oneshot</span>::<span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WebSocketResponseMessage</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
@@ -357,7 +357,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_socket</span>(
         <span class="ident">ws</span>: <span class="ident">WS</span>,
         <span class="ident">stream</span>: <span class="ident">WS</span>::<span class="ident">Stream</span>,
-        <span class="ident">credentials</span>: <span class="ident">Credentials</span>,
+        <span class="ident">credentials</span>: <span class="ident">ServiceCredentials</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">MessagePipe</span> {
             <span class="ident">ws</span>,

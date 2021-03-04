@@ -161,6 +161,7 @@
 <span id="158">158</span>
 <span id="159">159</span>
 <span id="160">160</span>
+<span id="161">161</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">pin_mut</span>, <span class="ident">prelude</span>::<span class="ident">Sink</span>, <span class="ident">SinkExt</span>, <span class="ident">StreamExt</span>};
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::<span class="ident">Debug</span>;
@@ -174,7 +175,7 @@
 };
 <span class="kw">use</span> <span class="ident">libsignal_service</span>::{
     <span class="ident">configuration</span>::<span class="ident">ServiceConfiguration</span>,
-    <span class="ident">messagepipe</span>::<span class="ident">Credentials</span>,
+    <span class="ident">messagepipe</span>::<span class="ident">ServiceCredentials</span>,
     <span class="ident">prelude</span>::<span class="ident">PushService</span>,
     <span class="ident">provisioning</span>::{<span class="ident">ProvisioningError</span>, <span class="ident">ProvisioningPipe</span>, <span class="ident">ProvisioningStep</span>},
     <span class="ident">push_service</span>::{<span class="ident">ConfirmDeviceMessage</span>, <span class="ident">DeviceId</span>},
@@ -272,9 +273,10 @@
 
                 <span class="comment">// we need to authenticate with the phone number</span>
                 <span class="comment">// to confirm the new device</span>
+                <span class="comment">// TODO: we should now be able to override credentials?</span>
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">push_service</span> <span class="op">=</span> <span class="ident">AwcPushService</span>::<span class="ident">new</span>(
                     <span class="ident">service_configuration</span>.<span class="ident">clone</span>(),
-                    <span class="prelude-val">Some</span>(<span class="ident">Credentials</span> {
+                    <span class="prelude-val">Some</span>(<span class="ident">ServiceCredentials</span> {
                         <span class="ident">phonenumber</span>: <span class="ident">phone_number</span>.<span class="ident">clone</span>(),
                         <span class="ident">uuid</span>: <span class="prelude-val">None</span>,
                         <span class="ident">password</span>: <span class="prelude-val">Some</span>(<span class="ident">password</span>.<span class="ident">to_string</span>()),

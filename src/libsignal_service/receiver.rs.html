@@ -57,8 +57,8 @@
 <span id="54">54</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">configuration</span>::<span class="ident">Credentials</span>, <span class="ident">envelope</span>::<span class="ident">Envelope</span>, <span class="ident">messagepipe</span>::<span class="ident">MessagePipe</span>,
-    <span class="ident">push_service</span>::<span class="kw-2">*</span>,
+    <span class="ident">configuration</span>::<span class="ident">ServiceCredentials</span>, <span class="ident">envelope</span>::<span class="ident">Envelope</span>,
+    <span class="ident">messagepipe</span>::<span class="ident">MessagePipe</span>, <span class="ident">push_service</span>::<span class="kw-2">*</span>,
 };
 
 <span class="doccomment">/// Equivalent of Java&#39;s `SignalServiceMessageReceiver`.</span>
@@ -101,7 +101,7 @@
 
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">create_message_pipe</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">credentials</span>: <span class="ident">Credentials</span>,
+        <span class="ident">credentials</span>: <span class="ident">ServiceCredentials</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MessagePipe</span><span class="op">&lt;</span><span class="ident">Service</span>::<span class="ident">WebSocket</span><span class="op">&gt;</span>, <span class="ident">MessageReceiverError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">ws</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">service</span>

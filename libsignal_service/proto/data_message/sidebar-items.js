@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Flags",""],["ProtocolVersion",""]],"mod":[["body_range","Nested message and enum types in `BodyRange`."],["contact","Nested message and enum types in `Contact`."],["quote","Nested message and enum types in `Quote`."]],"struct":[["BodyRange",""],["Contact",""],["Delete",""],["Preview",""],["Quote",""],["Reaction",""],["Sticker",""]]});
