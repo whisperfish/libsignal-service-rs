@@ -164,7 +164,7 @@ impl UnidentifiedSenderMessage {
         context: &Context,
         serialized: &[u8],
     ) -> Result<Self, SealedSessionError> {
-        let version = (serialized[0] & 0xFF) >> 4;
+        let version = serialized[0] >> 4;
         if version > Self::CIPHERTEXT_VERSION {
             return Err(SealedSessionError::InvalidMetadataVersionError(
                 version,
@@ -200,9 +200,7 @@ impl UnidentifiedSenderMessage {
     fn into_bytes(self) -> Result<Vec<u8>, SealedSessionError> {
         use prost::Message;
         let mut buf = vec![];
-        buf.push(
-            (Self::CIPHERTEXT_VERSION << 4 | Self::CIPHERTEXT_VERSION) & 0xFF,
-        );
+        buf.push(Self::CIPHERTEXT_VERSION << 4 | Self::CIPHERTEXT_VERSION);
         crate::proto::UnidentifiedSenderMessage {
             ephemeral_public: Some(
                 self.ephemeral.to_bytes()?.as_slice().to_vec(),

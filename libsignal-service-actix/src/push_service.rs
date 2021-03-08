@@ -50,8 +50,9 @@ impl AwcPushService {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
         log::debug!("HTTP request {} {}", method, url);
         let mut builder = self.client.request(method, url.as_str());
-        if let Some(http_credentials) =
-            credentials_override.as_ref().or(self.credentials.as_ref())
+        if let Some(http_credentials) = credentials_override
+            .as_ref()
+            .or_else(|| self.credentials.as_ref())
         {
             builder = builder.basic_auth(
                 &http_credentials.username,

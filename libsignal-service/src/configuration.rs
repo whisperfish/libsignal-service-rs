@@ -54,7 +54,6 @@ impl ServiceCredentials {
             } else {
                 self.e164()
             }
-            .to_owned()
         };
 
         match self.device_id {
@@ -165,7 +164,7 @@ impl ServiceConfiguration {
         )?))
     }
 
-    pub fn base_url<'a>(&'a self, endpoint: Endpoint) -> &'a Url {
+    pub fn base_url(&self, endpoint: Endpoint) -> &Url {
         match endpoint {
             Endpoint::Service => &self.service_url,
             Endpoint::Storage => &self.storage_url,
