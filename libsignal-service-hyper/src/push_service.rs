@@ -86,8 +86,9 @@ impl HyperPushService {
             .method(method)
             .uri(url.as_str())
             .header(USER_AGENT, self.user_agent);
-        if let Some(http_credentials) =
-            credentials_override.as_ref().or(self.credentials.as_ref())
+        if let Some(http_credentials) = credentials_override
+            .as_ref()
+            .or_else(|| self.credentials.as_ref())
         {
             builder
                 .headers_mut()
@@ -204,7 +205,7 @@ impl HyperPushService {
             }
         })?;
 
-        M::decode(body).map_err(|e| ServiceError::ProtobufDecodeError(e))
+        M::decode(body).map_err(ServiceError::ProtobufDecodeError)
     }
 
     async fn text(

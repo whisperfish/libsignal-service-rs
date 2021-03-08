@@ -84,7 +84,7 @@ where
 
     let mut ka_interval = tokio::time::interval_at(
         Instant::now(),
-        push_service::KEEPALIVE_TIMEOUT_SECONDS.into(),
+        push_service::KEEPALIVE_TIMEOUT_SECONDS,
     );
 
     loop {
