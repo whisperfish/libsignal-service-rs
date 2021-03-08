@@ -8,6 +8,7 @@ use bytes::Bytes;
 use futures::{channel::mpsc::*, prelude::*};
 use hyper::StatusCode;
 use tokio::time::Instant;
+use tokio_rustls::rustls;
 use url::Url;
 
 use libsignal_service::{

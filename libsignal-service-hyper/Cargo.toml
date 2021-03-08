@@ -10,29 +10,31 @@ edition = "2018"
 libsignal-service = { path = "../libsignal-service" }
 libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
 
-hyper = { version = "0.14", features = [ "client", "runtime", "stream" ] }
+async-trait = "0.1"
+base64 = "0.13"
+bytes = "1.0"
+futures = "0.3"
+log = "0.4.8"
+mpart-async = "0.5.0"
+serde = "1.0"
+serde_json = "1.0"
+thiserror = "1.0"
+url = "2.1"
+
+hyper = { version = "0.14", features = [ "client", "stream" ] }
 hyper-rustls = "0.22"
 hyper-timeout = "0.4"
 headers = "0.3"
+
+# for websocket support
+async-tungstenite = { version = "0.13", features = [ "tokio-rustls" ] }
+
 tokio = { version = "1.0", features = [ "macros" ] }
 tokio-rustls = "0.22"
-async-tungstenite = { version = "0.13", features = [ "tokio-rustls" ] }
-serde = "1.0"
-mpart-async = "0.5.0"
-serde_json = "1.0"
-futures = "0.3"
-bytes = "1.0"
-rustls = "0.19"
-url = "2.1"
-log = "0.4.8"
-
-thiserror = "1.0"
-async-trait = "0.1"
-base64 = "0.13"
 
 [dev-dependencies]
 env_logger = "0.8"
-image = { version = "0.23", default-features = false, features = ["png"] }
+image = { version = "0.23", default-features = false, features = [ "png" ] }
 opener = "0.4"
 qrcode = "0.12"
 rand = "0.7"

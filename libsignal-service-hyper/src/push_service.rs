@@ -15,6 +15,7 @@ use libsignal_service::{
     push_service::*,
 };
 use serde::{Deserialize, Serialize};
+use tokio_rustls::rustls;
 
 use crate::websocket::TungsteniteWebSocket;
 
