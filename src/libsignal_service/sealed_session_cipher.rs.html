@@ -1045,8 +1045,6 @@
 <span id="1042">1042</span>
 <span id="1043">1043</span>
 <span id="1044">1044</span>
-<span id="1045">1045</span>
-<span id="1046">1046</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">phonenumber</span>::<span class="ident">PhoneNumber</span>;
 <span class="kw">use</span> <span class="ident">uuid</span>::<span class="ident">Uuid</span>;
@@ -1214,7 +1212,7 @@
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>,
         <span class="ident">serialized</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> (<span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">&amp;</span> <span class="number">0xFF</span>) <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
+        <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
         <span class="kw">if</span> <span class="ident">version</span> <span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidMetadataVersionError</span>(
                 <span class="ident">version</span>,
@@ -1250,9 +1248,7 @@
     <span class="kw">fn</span> <span class="ident">into_bytes</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
         <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-        <span class="ident">buf</span>.<span class="ident">push</span>(
-            (<span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span> <span class="op">|</span> <span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span>) <span class="op">&amp;</span> <span class="number">0xFF</span>,
-        );
+        <span class="ident">buf</span>.<span class="ident">push</span>(<span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span> <span class="op">|</span> <span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span>);
         <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">UnidentifiedSenderMessage</span> {
             <span class="ident">ephemeral_public</span>: <span class="prelude-val">Some</span>(
                 <span class="self">self</span>.<span class="ident">ephemeral</span>.<span class="ident">to_bytes</span>()<span class="question-mark">?</span>.<span class="ident">as_slice</span>().<span class="ident">to_vec</span>(),
