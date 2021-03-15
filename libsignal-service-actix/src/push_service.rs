@@ -26,20 +26,6 @@ pub struct AwcPushService {
 }
 
 impl AwcPushService {
-    /// Creates a new AwcPushService
-    pub fn new(
-        cfg: ServiceConfiguration,
-        credentials: Option<ServiceCredentials>,
-        user_agent: &str,
-    ) -> Self {
-        let client = get_client(&cfg, user_agent);
-        Self {
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
-        }
-    }
-
     fn request(
         &self,
         method: Method,
@@ -119,6 +105,20 @@ impl PushService for AwcPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = AwcWebSocket;
+
+    fn new(
+        cfg: impl Into<ServiceConfiguration>,
+        credentials: Option<ServiceCredentials>,
+        user_agent: &'static str,
+    ) -> Self {
+        let cfg = cfg.into();
+        let client = get_client(&cfg, user_agent);
+        Self {
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+        }
+    }
 
     async fn get_json<T>(
         &mut self,
@@ -240,6 +240,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        credentials_override: Option<HttpCredentials>,
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -247,7 +248,7 @@ impl PushService for AwcPushService {
         S: Serialize,
     {
         let mut response = self
-            .request(Method::PUT, endpoint, path, None)?
+            .request(Method::PUT, endpoint, path, credentials_override)?
             .send_json(&value)
             .await
             .map_err(|e| ServiceError::SendError {

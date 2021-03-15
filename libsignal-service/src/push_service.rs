@@ -1,17 +1,14 @@
 use std::time::Duration;
 
 use crate::{
-    configuration::{Endpoint, ServiceCredentials},
+    configuration::{Endpoint, ServiceConfiguration, ServiceCredentials},
     envelope::*,
     groups_v2::GroupDecryptionError,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
-    proto::{
-        attachment_pointer::AttachmentIdentifier, AttachmentPointer,
-        ProvisionEnvelope,
-    },
+    proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
-    utils::{serde_base64, serde_optional_base64},
+    utils::serde_base64,
     ServiceAddress,
 };
 
@@ -21,7 +18,6 @@ use aes_gcm::{
 };
 
 use chrono::prelude::*;
-use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
 
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
@@ -66,18 +62,6 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: i32 = 1;
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum SmsVerificationCodeResponse {
-    CaptchaRequired,
-    SmsSent,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum VoiceVerificationCodeResponse {
-    CaptchaRequired,
-    CallIssued,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
@@ -93,35 +77,6 @@ pub struct DeviceInfo {
     pub created: DateTime<Utc>,
     #[serde(with = "chrono::serde::ts_milliseconds")]
     pub last_seen: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConfirmDeviceMessage {
-    #[serde(with = "serde_base64")]
-    pub signaling_key: Vec<u8>,
-    pub supports_sms: bool,
-    pub fetches_messages: bool,
-    pub registration_id: u32,
-    pub name: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConfirmCodeMessage {
-    #[serde(with = "serde_base64")]
-    pub signaling_key: Vec<u8>,
-    pub supports_sms: bool,
-    pub registration_id: u32,
-    pub voice: bool,
-    pub video: bool,
-    pub fetches_messages: bool,
-    pub pin: Option<String>,
-    #[serde(with = "serde_optional_base64")]
-    pub unidentified_access_key: Option<Vec<u8>>,
-    pub unrestricted_unidentified_access: bool,
-    pub discoverable_by_phone_number: bool,
-    pub capabilities: DeviceCapabilities,
 }
 
 #[derive(Debug, Serialize, Default)]
@@ -154,54 +109,6 @@ impl ProfileKey {
         let buf = [0u8; 16];
         cipher.encrypt(nonce, &buf[..]).unwrap()
     }
-}
-
-impl ConfirmCodeMessage {
-    pub fn new(
-        signaling_key: Vec<u8>,
-        registration_id: u32,
-        unidentified_access_key: Vec<u8>,
-    ) -> Self {
-        Self {
-            signaling_key,
-            supports_sms: false,
-            registration_id,
-            voice: false,
-            video: false,
-            fetches_messages: true,
-            pin: None,
-            unidentified_access_key: Some(unidentified_access_key),
-            unrestricted_unidentified_access: false,
-            discoverable_by_phone_number: true,
-            capabilities: DeviceCapabilities::default(),
-        }
-    }
-
-    pub fn new_without_unidentified_access(
-        signaling_key: Vec<u8>,
-        registration_id: u32,
-    ) -> Self {
-        Self {
-            signaling_key,
-            supports_sms: false,
-            registration_id,
-            voice: false,
-            video: false,
-            fetches_messages: true,
-            pin: None,
-            unidentified_access_key: None,
-            unrestricted_unidentified_access: false,
-            discoverable_by_phone_number: true,
-            capabilities: DeviceCapabilities::default(),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConfirmCodeResponse {
-    pub uuid: String,
-    pub storage_capable: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -343,6 +250,12 @@ pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
+    fn new(
+        cfg: impl Into<ServiceConfiguration>,
+        credentials: Option<ServiceCredentials>,
+        user_agent: &'static str,
+    ) -> Self;
+
     async fn get_json<T>(
         &mut self,
         service: Endpoint,
@@ -364,6 +277,7 @@ pub trait PushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        credentials_override: Option<HttpCredentials>,
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -418,92 +332,6 @@ pub trait PushService {
         ServiceError,
     >;
 
-    fn build_verification_code_request_url(
-        msg_type: &str,
-        phone_number: PhoneNumber,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> String {
-        let phone_number = phone_number.format().mode(phonenumber::Mode::E164);
-        if let Some(cl) = challenge {
-            format!(
-                "/v1/accounts/{}/code/{}?challenge={}",
-                msg_type, phone_number, cl
-            )
-        } else if let Some(cc) = captcha {
-            format!(
-                "/v1/accounts/{}/code/{}?captcha={}",
-                msg_type, phone_number, cc
-            )
-        } else {
-            format!("/v1/accounts/{}/code/{}", msg_type, phone_number)
-        }
-    }
-
-    async fn request_sms_verification_code(
-        &mut self,
-        phone_number: PhoneNumber,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> Result<SmsVerificationCodeResponse, ServiceError> {
-        let res = match self
-            .get_json(
-                Endpoint::Service,
-                Self::build_verification_code_request_url(
-                    "sms",
-                    phone_number,
-                    captcha,
-                    challenge,
-                )
-                .as_ref(),
-                None,
-            )
-            .await
-        {
-            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
-            r => r,
-        };
-        match res {
-            Ok(_) => Ok(SmsVerificationCodeResponse::SmsSent),
-            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(SmsVerificationCodeResponse::CaptchaRequired)
-            }
-            Err(e) => Err(e),
-        }
-    }
-
-    async fn request_voice_verification_code(
-        &mut self,
-        phone_number: PhoneNumber,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
-        let res = match self
-            .get_json(
-                Endpoint::Service,
-                Self::build_verification_code_request_url(
-                    "voice",
-                    phone_number,
-                    captcha,
-                    challenge,
-                )
-                .as_ref(),
-                None,
-            )
-            .await
-        {
-            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
-            r => r,
-        };
-        match res {
-            Ok(_) => Ok(VoiceVerificationCodeResponse::CallIssued),
-            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(VoiceVerificationCodeResponse::CaptchaRequired)
-            }
-            Err(e) => Err(e),
-        }
-    }
-
     /// Fetches a list of all devices tied to the authenticated account.
     ///
     /// This list include the device that sends the request.
@@ -525,70 +353,6 @@ pub trait PushService {
             .await
     }
 
-    async fn send_provisioning_message(
-        &mut self,
-        destination: &str,
-        env: ProvisionEnvelope,
-    ) -> Result<(), ServiceError> {
-        #[derive(serde::Serialize)]
-        struct ProvisioningMessage {
-            body: String,
-        }
-
-        let mut body = Vec::with_capacity(env.encoded_len());
-        env.encode(&mut body).expect("infallible encode");
-
-        self.put_json(
-            Endpoint::Service,
-            &format!("/v1/provisioning/{}", destination),
-            &ProvisioningMessage {
-                body: base64::encode(body),
-            },
-        )
-        .await
-    }
-
-    async fn new_device_provisioning_code(
-        &mut self,
-    ) -> Result<String, ServiceError> {
-        #[derive(serde::Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        struct DeviceCode {
-            verification_code: String,
-        }
-
-        let dc: DeviceCode = self
-            .get_json(Endpoint::Service, "/v1/devices/provisioning/code", None)
-            .await?;
-        Ok(dc.verification_code)
-    }
-
-    async fn confirm_verification_code(
-        &mut self,
-        confirm_code: u32,
-        confirm_verification_message: ConfirmCodeMessage,
-    ) -> Result<ConfirmCodeResponse, ServiceError> {
-        self.put_json(
-            Endpoint::Service,
-            &format!("/v1/accounts/code/{}", confirm_code),
-            confirm_verification_message,
-        )
-        .await
-    }
-
-    async fn confirm_device(
-        &mut self,
-        confirm_code: u32,
-        confirm_code_message: ConfirmDeviceMessage,
-    ) -> Result<DeviceId, ServiceError> {
-        self.put_json(
-            Endpoint::Service,
-            &format!("/v1/devices/{}", confirm_code),
-            confirm_code_message,
-        )
-        .await
-    }
-
     async fn get_pre_key_status(
         &mut self,
     ) -> Result<PreKeyStatus, ServiceError> {
@@ -600,7 +364,7 @@ pub trait PushService {
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         match self
-            .put_json(Endpoint::Service, "/v2/keys/", pre_key_state)
+            .put_json(Endpoint::Service, "/v2/keys/", None, pre_key_state)
             .await
         {
             Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
@@ -640,7 +404,8 @@ pub trait PushService {
         messages: OutgoingPushMessages<'a>,
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
-        self.put_json(Endpoint::Service, &path, messages).await
+        self.put_json(Endpoint::Service, &path, None, messages)
+            .await
     }
 
     /// Request AttachmentV2UploadAttributes

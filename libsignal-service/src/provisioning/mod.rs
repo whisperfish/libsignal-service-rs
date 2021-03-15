@@ -1,21 +1,50 @@
-use futures::{pin_mut, prelude::Sink, SinkExt, StreamExt};
-use std::fmt::Debug;
-use url::Url;
+mod cipher;
+mod manager;
+mod pipe;
 
-use crate::push_service::AwcPushService;
+pub use cipher::ProvisioningCipher;
+use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
+pub use manager::{
+    ConfirmCodeMessage, ConfirmDeviceMessage, ProvisioningManager,
+};
+
+use pipe::{ProvisioningPipe, ProvisioningStep};
+
+pub use crate::proto::{
+    ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
+};
+use crate::{
+    configuration::{ServiceConfiguration, SignalingKey},
+    prelude::{PushService, ServiceError},
+    USER_AGENT,
+};
+
 use libsignal_protocol::{
     generate_registration_id,
     keys::{PrivateKey, PublicKey},
     Context,
 };
-use libsignal_service::{
-    configuration::ServiceConfiguration,
-    messagepipe::ServiceCredentials,
-    prelude::PushService,
-    provisioning::{ProvisioningError, ProvisioningPipe, ProvisioningStep},
-    push_service::{ConfirmDeviceMessage, DeviceId},
-    USER_AGENT,
-};
+use url::Url;
+
+#[derive(thiserror::Error, Debug)]
+pub enum ProvisioningError {
+    #[error("Invalid provisioning data: {reason}")]
+    InvalidData { reason: String },
+    #[error("Protobuf decoding error: {0}")]
+    DecodeError(#[from] prost::DecodeError),
+    #[error("Websocket error: {reason}")]
+    WsError { reason: String },
+    #[error("Websocket closing: {reason}")]
+    WsClosing { reason: String },
+    #[error("Service error: {0}")]
+    ServiceError(#[from] ServiceError),
+    #[error("libsignal-protocol error: {0}")]
+    ProtocolError(#[from] libsignal_protocol::Error),
+    #[error("ProvisioningCipher in encrypt-only mode")]
+    EncryptOnlyProvisioningCipher,
+}
+
+use crate::push_service::DeviceId;
 
 #[derive(Debug)]
 pub enum SecondaryDeviceProvisioning {
@@ -31,27 +60,23 @@ pub enum SecondaryDeviceProvisioning {
     },
 }
 
-pub async fn provision_secondary_device<S>(
+pub async fn provision_secondary_device<P: PushService>(
     ctx: &Context,
-    service_configuration: &ServiceConfiguration,
-    signaling_key: &[u8; 52],
-    password: &str,
+    cfg: impl Into<ServiceConfiguration>,
+    signaling_key: SignalingKey,
+    password: String,
     device_name: &str,
-    mut tx: S,
-) -> Result<(), ProvisioningError>
-where
-    S: Sink<SecondaryDeviceProvisioning> + Unpin,
-    <S as Sink<SecondaryDeviceProvisioning>>::Error: Debug,
-{
+    mut tx: Sender<SecondaryDeviceProvisioning>,
+) -> Result<(), ProvisioningError> {
     assert_eq!(
         password.len(),
         24,
         "the password needs to be a 24 characters ASCII string"
     );
 
-    let mut push_service =
-        AwcPushService::new(service_configuration.clone(), None, USER_AGENT);
-
+    // open a websocket without authentication, to receive a tsurl://
+    let cfg = cfg.into();
+    let mut push_service = P::new(cfg.clone(), None, USER_AGENT);
     let (ws, stream) =
         push_service.ws("/v1/websocket/provisioning/", None).await?;
 
@@ -101,27 +126,20 @@ where
                     message.number.ok_or(ProvisioningError::InvalidData {
                         reason: "missing phone number".into(),
                     })?;
+
                 let phone_number = phonenumber::parse(None, phone_number)
                     .map_err(|e| ProvisioningError::InvalidData {
                         reason: format!("invalid phone number ({})", e),
                     })?;
 
-                // we need to authenticate with the phone number
-                // to confirm the new device
-                // TODO: we should now be able to override credentials?
-                let mut push_service = AwcPushService::new(
-                    service_configuration.clone(),
-                    Some(ServiceCredentials {
-                        phonenumber: phone_number.clone(),
-                        uuid: None,
-                        password: Some(password.to_string()),
-                        signaling_key: Some(*signaling_key),
-                        device_id: None,
-                    }),
-                    USER_AGENT,
-                );
+                let mut provisioning_manager: ProvisioningManager<P> =
+                    ProvisioningManager::new(
+                        cfg.clone(),
+                        phone_number.clone(),
+                        password.to_string(),
+                    );
 
-                let device_id = push_service
+                let device_id = provisioning_manager
                     .confirm_device(
                         message
                             .provisioning_code
@@ -153,7 +171,7 @@ where
                 .await
                 .expect("failed to send provisioning message in rx channel");
             }
-            Err(e) => return Err(e),
+            Err(e) => return Err(e.into()),
         }
     }
 

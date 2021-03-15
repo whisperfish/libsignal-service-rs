@@ -1,16 +1,16 @@
 use failure::Error;
 use futures::{channel::mpsc::channel, future, StreamExt};
 use image::Luma;
-use libsignal_service::configuration::SignalServers;
+use libsignal_service::{
+    configuration::SignalServers,
+    provisioning::{provision_secondary_device, SecondaryDeviceProvisioning},
+};
 use log::LevelFilter;
 use qrcode::QrCode;
 use rand::{distributions::Alphanumeric, Rng, RngCore};
 use structopt::StructOpt;
 
 use libsignal_protocol::{crypto::DefaultCrypto, Context};
-use libsignal_service_actix::provisioning::{
-    provision_secondary_device, SecondaryDeviceProvisioning,
-};
 
 #[derive(Debug, StructOpt)]
 struct Args {
@@ -53,7 +53,7 @@ async fn main() -> Result<(), Error> {
         provision_secondary_device(
             &signal_context,
             &service_configuration,
-            &signaling_key,
+            signaling_key,
             password,
             &args.device_name,
             tx,

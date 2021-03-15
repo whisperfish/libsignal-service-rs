@@ -1,9 +1,9 @@
-use crate::configuration::ServiceCredentials;
-use crate::pre_keys::{PreKeyEntity, PreKeyState};
-use crate::provisioning::*;
-use crate::push_service::{
-    ConfirmDeviceMessage, DeviceId, PushService, ServiceError,
-    SmsVerificationCodeResponse, VoiceVerificationCodeResponse,
+use crate::{
+    configuration::{Endpoint, ServiceCredentials},
+    pre_keys::{PreKeyEntity, PreKeyState},
+    proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
+    provisioning::{ProvisioningCipher, ProvisioningError},
+    push_service::{PushService, ServiceError},
 };
 
 use std::collections::HashMap;
@@ -12,8 +12,6 @@ use std::time::SystemTime;
 
 use libsignal_protocol::keys::PublicKey;
 use libsignal_protocol::{Context, StoreContext};
-
-use phonenumber::PhoneNumber;
 
 pub struct AccountManager<Service> {
     context: Context,
@@ -49,41 +47,6 @@ impl<Service: PushService> AccountManager<Service> {
             service,
             profile_key,
         }
-    }
-
-    pub async fn request_sms_verification_code(
-        &mut self,
-        phone_number: PhoneNumber,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> Result<SmsVerificationCodeResponse, ServiceError> {
-        Ok(self
-            .service
-            .request_sms_verification_code(phone_number, captcha, challenge)
-            .await?)
-    }
-
-    pub async fn request_voice_verification_code(
-        &mut self,
-        phone_number: PhoneNumber,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
-        Ok(self
-            .service
-            .request_voice_verification_code(phone_number, captcha, challenge)
-            .await?)
-    }
-
-    pub async fn confirm_device(
-        &mut self,
-        confirmation_code: u32,
-        confirm_device_message: ConfirmDeviceMessage,
-    ) -> Result<DeviceId, ServiceError> {
-        Ok(self
-            .service
-            .confirm_device(confirmation_code, confirm_device_message)
-            .await?)
     }
 
     /// Checks the availability of pre-keys, and updates them as necessary.
@@ -162,6 +125,49 @@ impl<Service: PushService> AccountManager<Service> {
         ))
     }
 
+    async fn new_device_provisioning_code(
+        &mut self,
+    ) -> Result<String, ServiceError> {
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct DeviceCode {
+            verification_code: String,
+        }
+
+        let dc: DeviceCode = self
+            .service
+            .get_json(Endpoint::Service, "/v1/devices/provisioning/code", None)
+            .await?;
+        Ok(dc.verification_code)
+    }
+
+    async fn send_provisioning_message(
+        &mut self,
+        destination: &str,
+        env: ProvisionEnvelope,
+    ) -> Result<(), ServiceError> {
+        use prost::Message;
+
+        #[derive(serde::Serialize)]
+        struct ProvisioningMessage {
+            body: String,
+        }
+
+        let mut body = Vec::with_capacity(env.encoded_len());
+        env.encode(&mut body).expect("infallible encode");
+
+        self.service
+            .put_json(
+                Endpoint::Service,
+                &format!("/v1/provisioning/{}", destination),
+                None,
+                &ProvisioningMessage {
+                    body: base64::encode(body),
+                },
+            )
+            .await
+    }
+
     /// Link a new device, given a tsurl.
     ///
     /// Equivalent of Java's `AccountManager::addDevice()`
@@ -196,8 +202,7 @@ impl<Service: PushService> AccountManager<Service> {
             log::warn!("No local UUID set");
         }
 
-        let provisioning_code =
-            self.service.new_device_provisioning_code().await?;
+        let provisioning_code = self.new_device_provisioning_code().await?;
 
         let msg = ProvisionMessage {
             identity_key_public: Some(
@@ -222,8 +227,7 @@ impl<Service: PushService> AccountManager<Service> {
             ProvisioningCipher::from_public(self.context.clone(), pub_key);
 
         let encrypted = cipher.encrypt(msg)?;
-        self.service
-            .send_provisioning_message(ephemeral_id, encrypted)
+        self.send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
     }
