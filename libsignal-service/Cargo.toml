@@ -8,7 +8,7 @@ readme = "../README.md"
 
 [dependencies]
 libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
-zkgroup = { git = "https://github.com/signalapp/zkgroup" }
+zkgroup = { git = "https://github.com/signalapp/zkgroup", branch = "optional-jni", default-features = false, features = ["u64_backend"]}
 async-trait = "0.1.30"
 url = { version = "2.1.1", features = ["serde"] }
 base64 = "0.13"
