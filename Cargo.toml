@@ -4,3 +4,6 @@ members = [
     "libsignal-service-actix",
     "libsignal-service-hyper",
 ]
+
+[patch."https://github.com/signalapp/zkgroup"]
+zkgroup = { git = "https://github.com/rubdos/zkgroup", branch = "optional-jni" }
