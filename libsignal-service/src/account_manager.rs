@@ -1,5 +1,7 @@
 use crate::configuration::ServiceCredentials;
 use crate::pre_keys::{PreKeyEntity, PreKeyState};
+use crate::profile_cipher::{ProfileCipher, ProfileCipherError};
+use crate::profile_name::ProfileName;
 use crate::provisioning::*;
 use crate::push_service::{
     ConfirmDeviceMessage, DeviceId, PushService, ServiceError,
@@ -15,10 +17,20 @@ use libsignal_protocol::{Context, StoreContext};
 
 use phonenumber::PhoneNumber;
 
+use zkgroup::profiles::ProfileKey;
+
 pub struct AccountManager<Service> {
     context: Context,
     service: Service,
-    profile_key: Option<Vec<u8>>,
+    profile_key: Option<[u8; 32]>,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ProfileManagerError {
+    #[error(transparent)]
+    ServiceError(#[from] ServiceError),
+    #[error(transparent)]
+    ProfileCipherError(#[from] ProfileCipherError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -42,7 +54,7 @@ impl<Service: PushService> AccountManager<Service> {
     pub fn new(
         context: Context,
         service: Service,
-        profile_key: Option<Vec<u8>>,
+        profile_key: Option<[u8; 32]>,
     ) -> Self {
         Self {
             context,
@@ -208,7 +220,7 @@ impl<Service: PushService> AccountManager<Service> {
             ),
             number: Some(credentials.e164()),
             uuid: credentials.uuid.as_ref().map(|u| u.to_string()),
-            profile_key: self.profile_key.clone(),
+            profile_key: self.profile_key.as_ref().map(|x| x.to_vec()),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(
                 ProvisioningVersion::TabletSupport,
@@ -226,5 +238,87 @@ impl<Service: PushService> AccountManager<Service> {
             .send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
+    }
+
+    /// Upload a profile
+    ///
+    /// Panics if no `profile_key` was set.
+    ///
+    /// Convenience method for
+    /// ```ignore
+    /// manager.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(uuid, name, about, about_emoji, None)
+    /// ```
+    pub async fn upload_versioned_profile_without_avatar<S: AsRef<str>>(
+        &mut self,
+        uuid: uuid::Uuid,
+        name: ProfileName<S>,
+        about: Option<String>,
+        about_emoji: Option<String>,
+    ) -> Result<(), ProfileManagerError> {
+        self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(
+            uuid,
+            name,
+            about,
+            about_emoji,
+            None,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Upload a profile
+    ///
+    /// Panics if no `profile_key` was set.
+    ///
+    /// Returns the avatar url path.
+    pub async fn upload_versioned_profile<
+        's,
+        C: std::io::Read + Send + 's,
+        S: AsRef<str>,
+    >(
+        &mut self,
+        uuid: uuid::Uuid,
+        name: ProfileName<S>,
+        about: Option<String>,
+        about_emoji: Option<String>,
+        avatar: Option<&'s mut C>,
+    ) -> Result<Option<String>, ProfileManagerError> {
+        let profile_key = self
+            .profile_key
+            .clone()
+            .expect("set profile key in AccountManager");
+        let profile_key = ProfileKey::create(profile_key);
+        let profile_cipher = ProfileCipher::from(profile_key);
+
+        // Profile encryption
+        let name = profile_cipher.encrypt_name(name.as_ref())?;
+        let about = about.unwrap_or_default();
+        let about = profile_cipher.encrypt_about(about)?;
+        let about_emoji = about_emoji.unwrap_or_default();
+        let about_emoji = profile_cipher.encrypt_emoji(about_emoji)?;
+
+        // If avatar -> upload
+        if let Some(_avatar) = avatar {
+            // FIXME ProfileCipherOutputStream.java
+            // It's just AES GCM, but a bit of work to decently implement it with a stream.
+            unimplemented!("Setting avatar requires ProfileCipherStream")
+        }
+
+        let profile_key = profile_cipher.into_inner();
+        let commitment = profile_key.get_commitment(*uuid.as_bytes());
+        let profile_key_version =
+            profile_key.get_profile_key_version(*uuid.as_bytes());
+
+        Ok(self
+            .service
+            .write_profile(
+                &profile_key_version,
+                &name,
+                &about,
+                &about_emoji,
+                &commitment,
+                None, // FIXME avatar
+            )
+            .await?)
     }
 }
