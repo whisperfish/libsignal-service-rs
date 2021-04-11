@@ -129,6 +129,7 @@ pub struct ConfirmCodeMessage {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
     pub uuid: bool,
+    #[serde(rename = "gv2-3")]
     pub gv2: bool,
     pub storage: bool,
 }
