@@ -3,6 +3,9 @@
 mod account_manager;
 pub mod attachment_cipher;
 pub mod cipher;
+pub mod profile_cipher;
+pub mod sealed_session_cipher;
+
 pub mod configuration;
 pub mod content;
 mod digeststream;
@@ -16,7 +19,6 @@ pub mod proto;
 pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
-pub mod sealed_session_cipher;
 pub mod sender;
 pub mod service_address;
 pub mod utils;
