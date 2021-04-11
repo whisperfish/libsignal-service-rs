@@ -11,6 +11,7 @@ pub mod groups_v2;
 pub mod messagepipe;
 pub mod models;
 pub mod pre_keys;
+pub mod profile_name;
 pub mod proto;
 pub mod provisioning;
 pub mod push_service;
