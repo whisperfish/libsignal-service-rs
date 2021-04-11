@@ -1,4 +1,3 @@
-use crate::configuration::ServiceCredentials;
 use crate::pre_keys::{PreKeyEntity, PreKeyState};
 use crate::profile_cipher::{ProfileCipher, ProfileCipherError};
 use crate::profile_name::ProfileName;
@@ -6,6 +5,10 @@ use crate::provisioning::*;
 use crate::push_service::{
     ConfirmDeviceMessage, DeviceId, PushService, ServiceError,
     SmsVerificationCodeResponse, VoiceVerificationCodeResponse,
+};
+use crate::{
+    configuration::ServiceCredentials,
+    push_service::{AccountAttributes, DeviceCapabilities},
 };
 
 use std::collections::HashMap;
@@ -320,5 +323,41 @@ impl<Service: PushService> AccountManager<Service> {
                 None, // FIXME avatar
             )
             .await?)
+    }
+
+    /// Set profile attributes
+    ///
+    /// Signal Android does not allow unsetting voice/video.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn set_account_attributes(
+        &mut self,
+        signaling_key: Option<Vec<u8>>,
+        registration_id: u32,
+        voice: bool,
+        video: bool,
+        fetches_messages: bool,
+        pin: Option<String>,
+        registration_lock: Option<String>,
+        unidentified_access_key: Option<Vec<u8>>,
+        unrestricted_unidentified_access: bool,
+        discoverable_by_phone_number: bool,
+        capabilities: DeviceCapabilities,
+    ) -> Result<(), ServiceError> {
+        let attribs = AccountAttributes {
+            signaling_key,
+            registration_id,
+            voice,
+            video,
+            fetches_messages,
+            pin,
+            registration_lock,
+            unidentified_access_key,
+            unrestricted_unidentified_access,
+            discoverable_by_phone_number,
+
+            capabilities,
+        };
+        self.service.set_account_attributes(attribs).await?;
+        Ok(())
     }
 }

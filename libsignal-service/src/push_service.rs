@@ -125,13 +125,33 @@ pub struct ConfirmCodeMessage {
     pub capabilities: DeviceCapabilities,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountAttributes {
+    #[serde(with = "serde_optional_base64")]
+    pub signaling_key: Option<Vec<u8>>,
+    pub registration_id: u32,
+    pub voice: bool,
+    pub video: bool,
+    pub fetches_messages: bool,
+    pub pin: Option<String>,
+    pub registration_lock: Option<String>,
+    #[serde(with = "serde_optional_base64")]
+    pub unidentified_access_key: Option<Vec<u8>>,
+    pub unrestricted_unidentified_access: bool,
+    pub discoverable_by_phone_number: bool,
+    pub capabilities: DeviceCapabilities,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
     pub uuid: bool,
     #[serde(rename = "gv2-3")]
     pub gv2: bool,
     pub storage: bool,
+    #[serde(rename = "gv1-migration")]
+    pub gv1_migration: bool,
 }
 
 pub struct ProfileKey(pub Vec<u8>);
@@ -806,6 +826,24 @@ pub trait PushService {
     ) -> Result<crate::proto::Group, ServiceError> {
         self.get_protobuf(Endpoint::Storage, "/v1/groups/", Some(credentials))
             .await
+    }
+
+    async fn set_account_attributes(
+        &mut self,
+        attributes: AccountAttributes,
+    ) -> Result<(), ServiceError> {
+        assert!(
+            attributes.pin.is_none() || attributes.registration_lock.is_none(),
+            "only one of PIN and registration lock can be set."
+        );
+
+        match self
+            .put_json(Endpoint::Service, "/v1/accounts/attributes/", attributes)
+            .await
+        {
+            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
+            r => r,
+        }
     }
 
     /// Writes a profile and returns the avatar URL, if one was provided.
