@@ -5,6 +5,13 @@ pub struct ProfileName<S> {
 }
 
 impl<S: AsRef<str>> ProfileName<S> {
+    pub fn as_ref(&self) -> ProfileName<&str> {
+        ProfileName {
+            given_name: self.given_name.as_ref(),
+            family_name: self.family_name.as_ref().map(|x| x.as_ref()),
+        }
+    }
+
     pub fn serialize(&self) -> Vec<u8> {
         if let Some(family_name) = self.family_name.as_ref() {
             self.given_name
@@ -18,6 +25,10 @@ impl<S: AsRef<str>> ProfileName<S> {
         } else {
             self.given_name.as_ref().as_bytes().into()
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.given_name.as_ref() == "" && self.family_name.is_none()
     }
 }
 
@@ -42,6 +53,13 @@ impl ProfileName<String> {
 }
 
 impl<'de> ProfileName<&'de str> {
+    pub fn empty() -> Self {
+        ProfileName {
+            given_name: "",
+            family_name: None,
+        }
+    }
+
     /// Zero-copy deserialization of a ProfileName.
     pub fn deserialize<'inp: 'de>(
         data: &'inp [u8],
