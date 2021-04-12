@@ -54,12 +54,18 @@
 <span id="51">51</span>
 <span id="52">52</span>
 <span id="53">53</span>
+<span id="54">54</span>
+<span id="55">55</span>
+<span id="56">56</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">recursion_limit</span> <span class="op">=</span> <span class="string">&quot;256&quot;</span>]</span>
 
 <span class="kw">mod</span> <span class="ident">account_manager</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">attachment_cipher</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">cipher</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">profile_cipher</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">sealed_session_cipher</span>;
+
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">configuration</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">content</span>;
 <span class="kw">mod</span> <span class="ident">digeststream</span>;
@@ -68,11 +74,11 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">messagepipe</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">models</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">pre_keys</span>;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">profile_name</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">proto</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">provisioning</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">push_service</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">receiver</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">sealed_session_cipher</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">sender</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">service_address</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
@@ -109,4 +115,5 @@
     <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zkgroup</span>::<span class="ident">groups</span>::{<span class="ident">GroupMasterKey</span>, <span class="ident">GroupSecretParams</span>};
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "libsignal_service";</script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
+</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_service"></div>
+    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>

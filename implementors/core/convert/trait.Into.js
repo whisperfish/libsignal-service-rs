@@ -1,3 +1,3 @@
 (function() {var implementors = {};
-implementors["libsignal_service"] = [{"text":"impl Into&lt;ServiceConfiguration&gt; for SignalServers","synthetic":false,"types":[]}];
+implementors["libsignal_service"] = [{"text":"impl <a class=\"trait\" href=\"https://doc.rust-lang.org/nightly/core/convert/trait.Into.html\" title=\"trait core::convert::Into\">Into</a>&lt;<a class=\"struct\" href=\"libsignal_service/configuration/struct.ServiceConfiguration.html\" title=\"struct libsignal_service::configuration::ServiceConfiguration\">ServiceConfiguration</a>&gt; for <a class=\"enum\" href=\"libsignal_service/configuration/enum.SignalServers.html\" title=\"enum libsignal_service::configuration::SignalServers\">SignalServers</a>","synthetic":false,"types":["libsignal_service::configuration::SignalServers"]}];
 if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
