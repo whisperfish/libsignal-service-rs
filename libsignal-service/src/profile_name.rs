@@ -33,13 +33,6 @@ impl<S: AsRef<str>> ProfileName<S> {
 }
 
 impl ProfileName<String> {
-    pub fn as_ref(&self) -> ProfileName<&str> {
-        ProfileName {
-            given_name: &self.given_name,
-            family_name: self.family_name.as_deref(),
-        }
-    }
-
     /// Copying deserialization of a ProfileName.
     pub fn deserialize(
         data: &[u8],
