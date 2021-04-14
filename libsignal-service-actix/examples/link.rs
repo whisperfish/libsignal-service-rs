@@ -1,16 +1,18 @@
 use failure::Error;
 use futures::{channel::mpsc::channel, future, StreamExt};
 use image::Luma;
-use libsignal_service::{
-    configuration::SignalServers,
-    provisioning::{provision_secondary_device, SecondaryDeviceProvisioning},
-};
+use libsignal_service::configuration::SignalServers;
 use log::LevelFilter;
 use qrcode::QrCode;
 use rand::{distributions::Alphanumeric, Rng, RngCore};
 use structopt::StructOpt;
 
-use libsignal_protocol::{crypto::DefaultCrypto, Context};
+use libsignal_protocol::Context;
+
+use libsignal_service::{
+    provisioning::LinkingManager, provisioning::SecondaryDeviceProvisioning,
+};
+use libsignal_service_actix::prelude::AwcPushService;
 
 #[derive(Debug, StructOpt)]
 struct Args {
@@ -34,7 +36,7 @@ async fn main() -> Result<(), Error> {
     // generate a random 16 bytes password
     let mut rng = rand::rngs::OsRng::default();
     let password: Vec<u8> = rng.sample_iter(&Alphanumeric).take(24).collect();
-    let password = std::str::from_utf8(&password)?;
+    let password = String::from_utf8(password)?;
 
     // generate a 52 bytes signaling key
     let mut signaling_key = [0u8; 52];
@@ -44,17 +46,17 @@ async fn main() -> Result<(), Error> {
         base64::encode(&signaling_key.to_vec())
     );
 
-    let signal_context = Context::new(DefaultCrypto::default()).unwrap();
-    let service_configuration = args.servers.into();
+    let signal_context = Context::default();
+
+    let mut provision_manager: LinkingManager<AwcPushService> =
+        LinkingManager::new(args.servers, password);
 
     let (tx, mut rx) = channel(1);
 
     let (fut1, fut2) = future::join(
-        provision_secondary_device(
+        provision_manager.provision_secondary_device(
             &signal_context,
-            &service_configuration,
             signaling_key,
-            password,
             &args.device_name,
             tx,
         ),

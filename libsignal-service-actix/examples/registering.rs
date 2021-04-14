@@ -20,7 +20,6 @@
 use failure::Error;
 use libsignal_service::{configuration::*, provisioning::ProvisioningManager};
 use libsignal_service_actix::prelude::AwcPushService;
-use std::io;
 use structopt::StructOpt;
 
 #[actix_rt::main]
