@@ -1,6 +1,7 @@
 //! Everything needed to support [Signal Groups v2](https://signal.org/blog/new-groups/)
 mod manager;
 mod operations;
+pub mod state;
 pub mod utils;
 
 pub use manager::{
