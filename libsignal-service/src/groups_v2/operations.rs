@@ -134,24 +134,23 @@ impl GroupOperations {
         })
     }
 
-    fn decrypt_blob(&self, bytes: &[u8]) -> GroupAttributeBlob {
+    fn decrypt_blob(
+        &self,
+        bytes: &[u8],
+    ) -> Result<GroupAttributeBlob, GroupDecryptionError> {
         if bytes.is_empty() {
-            GroupAttributeBlob::default()
+            // XXX should this be an error?
+            Ok(GroupAttributeBlob::default())
         } else if bytes.len() < 29 {
             log::warn!("bad encrypted blob length");
-            GroupAttributeBlob::default()
+            Err(GroupDecryptionError::WrongBlob)
         } else {
-            self.group_secret_params
+            let decrypted = self
+                .group_secret_params
                 .decrypt_blob(bytes)
-                .map_err(|_| GroupDecryptionError::ZkGroupError)
-                .and_then(|b| {
-                    GroupAttributeBlob::decode(Bytes::copy_from_slice(&b[4..]))
-                        .map_err(GroupDecryptionError::ProtobufDecodeError)
-                })
-                .unwrap_or_else(|e| {
-                    log::warn!("bad encrypted blob: {}", e);
-                    GroupAttributeBlob::default()
-                })
+                .map_err(|_| GroupDecryptionError::ZkGroupError)?;
+            GroupAttributeBlob::decode(Bytes::copy_from_slice(&decrypted[4..]))
+                .map_err(GroupDecryptionError::ProtobufDecodeError)
         }
     }
 
@@ -160,7 +159,7 @@ impl GroupOperations {
         ciphertext: &[u8],
     ) -> Result<String, GroupDecryptionError> {
         use group_attribute_blob::Content;
-        match self.decrypt_blob(&ciphertext).content {
+        match self.decrypt_blob(&ciphertext)?.content {
             Some(Content::Title(title)) => Ok(title),
             _ => Ok("".into()), // TODO: return an error here?
         }
@@ -171,7 +170,7 @@ impl GroupOperations {
         ciphertext: &[u8],
     ) -> Result<Option<DecryptedTimer>, GroupDecryptionError> {
         use group_attribute_blob::Content;
-        match self.decrypt_blob(ciphertext).content {
+        match self.decrypt_blob(ciphertext)?.content {
             Some(Content::DisappearingMessagesDuration(duration)) => {
                 Ok(Some(DecryptedTimer { duration }))
             }
