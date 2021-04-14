@@ -199,8 +199,8 @@ impl UnidentifiedSenderMessage {
 
     fn into_bytes(self) -> Result<Vec<u8>, SealedSessionError> {
         use prost::Message;
-        let mut buf = vec![];
-        buf.push(Self::CIPHERTEXT_VERSION << 4 | Self::CIPHERTEXT_VERSION);
+        let mut buf =
+            vec![Self::CIPHERTEXT_VERSION << 4 | Self::CIPHERTEXT_VERSION];
         crate::proto::UnidentifiedSenderMessage {
             ephemeral_public: Some(
                 self.ephemeral.to_bytes()?.as_slice().to_vec(),
@@ -294,12 +294,12 @@ impl SealedSessionCipher {
             &content.into_bytes()?,
         )?;
 
-        Ok(UnidentifiedSenderMessage {
+        UnidentifiedSenderMessage {
             ephemeral: ephemeral.public(),
             encrypted_static: static_key_ciphertext,
             encrypted_message: message_bytes,
         }
-        .into_bytes()?)
+        .into_bytes()
     }
 
     pub fn decrypt(

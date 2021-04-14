@@ -73,7 +73,7 @@ fn pad_plaintext(
     let len = brackets
         .iter()
         .find(|x| **x >= bytes.len())
-        .ok_or_else(|| ProfileCipherError::InputTooLong)?;
+        .ok_or(ProfileCipherError::InputTooLong)?;
     let len: usize = *len;
 
     bytes.resize(len, 0);
