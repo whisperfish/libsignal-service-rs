@@ -1247,8 +1247,8 @@
 
     <span class="kw">fn</span> <span class="ident">into_bytes</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
         <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-        <span class="ident">buf</span>.<span class="ident">push</span>(<span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span> <span class="op">|</span> <span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span>
+            <span class="macro">vec</span><span class="macro">!</span>[<span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span> <span class="op">|</span> <span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span>];
         <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">UnidentifiedSenderMessage</span> {
             <span class="ident">ephemeral_public</span>: <span class="prelude-val">Some</span>(
                 <span class="self">self</span>.<span class="ident">ephemeral</span>.<span class="ident">to_bytes</span>()<span class="question-mark">?</span>.<span class="ident">as_slice</span>().<span class="ident">to_vec</span>(),
@@ -1342,12 +1342,12 @@
             <span class="kw-2">&amp;</span><span class="ident">content</span>.<span class="ident">into_bytes</span>()<span class="question-mark">?</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(<span class="ident">UnidentifiedSenderMessage</span> {
+        <span class="ident">UnidentifiedSenderMessage</span> {
             <span class="ident">ephemeral</span>: <span class="ident">ephemeral</span>.<span class="ident">public</span>(),
             <span class="ident">encrypted_static</span>: <span class="ident">static_key_ciphertext</span>,
             <span class="ident">encrypted_message</span>: <span class="ident">message_bytes</span>,
         }
-        .<span class="ident">into_bytes</span>()<span class="question-mark">?</span>)
+        .<span class="ident">into_bytes</span>()
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">decrypt</span>(

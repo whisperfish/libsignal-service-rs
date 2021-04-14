@@ -286,10 +286,10 @@ MIID7zCCAtegAwIBAgIJAIm6LatK5PNiMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYDVQQGEwJVUzETMBEG
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">ServiceConfiguration</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SignalServers</span> {
-    <span class="kw">fn</span> <span class="ident">into</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ServiceConfiguration</span> {
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">SignalServers</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ServiceConfiguration</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">val</span>: <span class="ident">SignalServers</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="comment">// base configuration from https://github.com/signalapp/Signal-Desktop/blob/development/config/default.json</span>
-        <span class="kw">match</span> <span class="self">self</span> {
+        <span class="kw">match</span> <span class="ident">val</span> {
             <span class="comment">// configuration with the Signal API staging endpoints</span>
             <span class="comment">// see: https://github.com/signalapp/Signal-Desktop/blob/master/config/default.json</span>
             <span class="ident">SignalServers</span>::<span class="ident">Staging</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ServiceConfiguration</span> {
