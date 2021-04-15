@@ -69,16 +69,3 @@ pub struct Args {
     )]
     pub password: Option<String>,
 }
-
-// impl Args {
-//     pub fn get_password(&self) -> Result<String, Error> {
-//         if let Some(ref pw) = self.password {
-//             return Ok(pw.clone());
-//         }
-
-//         let mut line = String::new();
-//         io::stdin().read_line(&mut line)?;
-
-//         Ok(line.trim().to_string())
-//     }
-// }
