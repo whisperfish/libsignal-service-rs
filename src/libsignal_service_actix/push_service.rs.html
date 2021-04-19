@@ -508,7 +508,6 @@
 <span id="505">505</span>
 <span id="506">506</span>
 <span id="507">507</span>
-<span id="508">508</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
@@ -568,7 +567,7 @@
         {
             <span class="ident">builder</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">basic_auth</span>(
                 <span class="kw-2">&amp;</span><span class="ident">http_credentials</span>.<span class="ident">username</span>,
-                <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">http_credentials</span>.<span class="ident">password</span>),
+                <span class="kw-2">&amp;</span><span class="ident">http_credentials</span>.<span class="ident">password</span>,
             );
         }
         <span class="prelude-val">Ok</span>(<span class="ident">builder</span>)
@@ -1009,8 +1008,7 @@
         .<span class="ident">unwrap</span>();
     <span class="kw">let</span> <span class="ident">connector</span> <span class="op">=</span> <span class="ident">Connector</span>::<span class="ident">new</span>()
         .<span class="ident">rustls</span>(<span class="ident">Arc</span>::<span class="ident">new</span>(<span class="ident">ssl_config</span>))
-        .<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">10</span>)) <span class="comment">// https://github.com/actix/actix-web/issues/1047</span>
-        .<span class="ident">finish</span>();
+        .<span class="ident">timeout</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">10</span>)); <span class="comment">// https://github.com/actix/actix-web/issues/1047</span>
     <span class="kw">let</span> <span class="ident">client</span> <span class="op">=</span> <span class="ident">awc</span>::<span class="ident">ClientBuilder</span>::<span class="ident">new</span>()
         .<span class="ident">connector</span>(<span class="ident">connector</span>)
         .<span class="ident">header</span>(<span class="string">&quot;X-Signal-Agent&quot;</span>, <span class="ident">user_agent</span>)
