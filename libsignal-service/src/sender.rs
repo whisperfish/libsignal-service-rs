@@ -324,7 +324,7 @@ where
                         Some(&recipient),
                         Some(message.clone()),
                         timestamp,
-                    )?;
+                    );
                 self.try_send_message(
                     (&self.cipher.local_address).clone(),
                     None,
@@ -392,23 +392,21 @@ where
                         }
                         _ => None,
                     };
-                    match self.create_multi_device_sent_transcript_content(
-                        recipient,
-                        Some(message.clone()),
+                    let sync_message = self
+                        .create_multi_device_sent_transcript_content(
+                            recipient,
+                            Some(message.clone()),
+                            timestamp,
+                        );
+
+                    self.try_send_message(
+                        self.cipher.local_address.clone(),
+                        unidentified_access,
+                        &sync_message,
                         timestamp,
-                    ) {
-                        Ok(sync_message) => {
-                            self.try_send_message(
-                                self.cipher.local_address.clone(),
-                                unidentified_access,
-                                &sync_message,
-                                timestamp,
-                                false,
-                            )
-                            .await
-                        }
-                        Err(e) => Err(e),
-                    }
+                        false,
+                    )
+                    .await
                 }
                 result => result,
             };
@@ -737,8 +735,8 @@ where
         recipient: Option<&ServiceAddress>,
         data_message: Option<crate::proto::DataMessage>,
         timestamp: u64,
-    ) -> Result<ContentBody, MessageSenderError> {
-        Ok(ContentBody::SynchronizeMessage(SyncMessage {
+    ) -> ContentBody {
+        ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
                 destination_uuid: recipient
                     .and_then(|r| r.uuid)
@@ -749,6 +747,6 @@ where
                 ..Default::default()
             }),
             ..Default::default()
-        }))
+        })
     }
 }

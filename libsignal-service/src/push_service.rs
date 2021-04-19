@@ -8,7 +8,7 @@ use crate::{
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
-    utils::serde_base64,
+    utils::{serde_base64, serde_optional_base64},
     ServiceAddress,
 };
 
@@ -22,6 +22,7 @@ use prost::Message as ProtobufMessage;
 
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
+use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 /**
 Since we can't use format!() with constants, the URLs here are just for reference purposes
@@ -79,12 +80,33 @@ pub struct DeviceInfo {
     pub last_seen: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AccountAttributes {
+    #[serde(with = "serde_optional_base64")]
+    pub signaling_key: Option<Vec<u8>>,
+    pub registration_id: u32,
+    pub voice: bool,
+    pub video: bool,
+    pub fetches_messages: bool,
+    pub pin: Option<String>,
+    pub registration_lock: Option<String>,
+    #[serde(with = "serde_optional_base64")]
+    pub unidentified_access_key: Option<Vec<u8>>,
+    pub unrestricted_unidentified_access: bool,
+    pub discoverable_by_phone_number: bool,
+    pub capabilities: DeviceCapabilities,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
     pub uuid: bool,
+    #[serde(rename = "gv2-3")]
     pub gv2: bool,
     pub storage: bool,
+    #[serde(rename = "gv1-migration")]
+    pub gv1_migration: bool,
 }
 
 pub struct ProfileKey(pub Vec<u8>);
@@ -569,5 +591,101 @@ pub trait PushService {
     ) -> Result<crate::proto::Group, ServiceError> {
         self.get_protobuf(Endpoint::Storage, "/v1/groups/", Some(credentials))
             .await
+    }
+
+    async fn set_account_attributes(
+        &mut self,
+        attributes: AccountAttributes,
+    ) -> Result<(), ServiceError> {
+        assert!(
+            attributes.pin.is_none() || attributes.registration_lock.is_none(),
+            "only one of PIN and registration lock can be set."
+        );
+
+        match self
+            .put_json(
+                Endpoint::Service,
+                "/v1/accounts/attributes/",
+                None,
+                attributes,
+            )
+            .await
+        {
+            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
+            r => r,
+        }
+    }
+
+    /// Writes a profile and returns the avatar URL, if one was provided.
+    ///
+    /// The name, about and emoji fields are encrypted with an [`ProfileCipher`].
+    /// See [`AccountManager`] for a convenience method.
+    ///
+    /// Java equivalent: `writeProfile`
+    async fn write_profile(
+        &mut self,
+        version: &ProfileKeyVersion,
+        name: &[u8],
+        about: &[u8],
+        emoji: &[u8],
+        commitment: &ProfileKeyCommitment,
+        // FIXME cfr also account manager
+        avatar: Option<()>,
+    ) -> Result<Option<String>, ServiceError> {
+        #[derive(Debug, Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct SignalServiceProfileWrite<'s> {
+            /// Hex-encoded
+            version: &'s str,
+            #[serde(with = "serde_base64")]
+            name: &'s [u8],
+            #[serde(with = "serde_base64")]
+            about: &'s [u8],
+            #[serde(with = "serde_base64")]
+            about_emoji: &'s [u8],
+            avatar: bool,
+            #[serde(with = "serde_base64")]
+            commitment: &'s [u8],
+        }
+
+        // Bincode is transparent and will return a hex-encoded string.
+        let version = bincode::serialize(version)?;
+        let version = std::str::from_utf8(&version)
+            .expect("profile_key_version is hex encoded string");
+        let commitment = bincode::serialize(commitment)?;
+
+        let command = SignalServiceProfileWrite {
+            version,
+            name,
+            about,
+            about_emoji: emoji,
+            avatar: avatar.is_some(),
+            commitment: &commitment,
+        };
+
+        // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
+        let response: Result<String, _> = self
+            .put_json(Endpoint::Service, "/v1/profile", None, command)
+            .await;
+        match (response, avatar) {
+            (Ok(_url), Some(_avatar)) => {
+                // FIXME
+                unreachable!("Uploading avatar unimplemented");
+            }
+            // FIXME cleanup when #54883 is stable and MSRV:
+            // or-patterns syntax is experimental
+            // see issue #54883 <https://github.com/rust-lang/rust/issues/54883> for more information
+            (Err(ServiceError::JsonDecodeError { .. }), None) => {
+                // OWS sends an empty string when there's no attachment
+                Ok(None)
+            }
+            (Err(e), _) => Err(e),
+            (Ok(_resp), None) => {
+                log::warn!(
+                    "No avatar supplied but got avatar upload URL. Ignoring"
+                );
+                Ok(None)
+            }
+        }
     }
 }

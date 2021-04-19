@@ -36,15 +36,14 @@ impl CredentialResponse {
     pub fn parse(
         self,
     ) -> Result<HashMap<i64, AuthCredentialResponse>, ServiceError> {
-        Ok(self
-            .credentials
+        self.credentials
             .into_iter()
             .map(|c| {
                 let bytes = base64::decode(c.credential)?;
                 let data = bincode::deserialize(&bytes)?;
                 Ok((c.redemption_time, data))
             })
-            .collect::<Result<_, ServiceError>>()?)
+            .collect::<Result<_, ServiceError>>()
     }
 }
 

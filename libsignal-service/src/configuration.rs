@@ -107,10 +107,10 @@ impl ToString for SignalServers {
     }
 }
 
-impl Into<ServiceConfiguration> for SignalServers {
-    fn into(self) -> ServiceConfiguration {
+impl From<SignalServers> for ServiceConfiguration {
+    fn from(val: SignalServers) -> Self {
         // base configuration from https://github.com/signalapp/Signal-Desktop/blob/development/config/default.json
-        match self {
+        match val {
             // configuration with the Signal API staging endpoints
             // see: https://github.com/signalapp/Signal-Desktop/blob/master/config/default.json
             SignalServers::Staging => ServiceConfiguration {
