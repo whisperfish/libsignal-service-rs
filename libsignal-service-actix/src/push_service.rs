@@ -56,7 +56,7 @@ impl AwcPushService {
         {
             builder = builder.basic_auth(
                 &http_credentials.username,
-                Some(&http_credentials.password),
+                &http_credentials.password,
             );
         }
         Ok(builder)
@@ -497,8 +497,7 @@ fn get_client(cfg: &ServiceConfiguration, user_agent: &str) -> Client {
         .unwrap();
     let connector = Connector::new()
         .rustls(Arc::new(ssl_config))
-        .timeout(Duration::from_secs(10)) // https://github.com/actix/actix-web/issues/1047
-        .finish();
+        .timeout(Duration::from_secs(10)); // https://github.com/actix/actix-web/issues/1047
     let client = awc::ClientBuilder::new()
         .connector(connector)
         .header("X-Signal-Agent", user_agent)
