@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["prelude",""],["provisioning",""],["push_service",""],["websocket",""]]});
+initSidebarItems({"mod":[["prelude",""],["push_service",""],["websocket",""]]});
