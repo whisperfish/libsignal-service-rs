@@ -18,46 +18,32 @@
 //! ```
 
 use failure::Error;
-use libsignal_protocol::Context;
-use libsignal_service::{configuration::*, AccountManager};
-use libsignal_service_actix::push_service::AwcPushService;
-use std::io;
+use libsignal_service::{
+    configuration::*, provisioning::ProvisioningManager, USER_AGENT,
+};
+use libsignal_service_actix::prelude::AwcPushService;
 use structopt::StructOpt;
 
 #[actix_rt::main]
 async fn main() -> Result<(), Error> {
+    env_logger::init();
+
     let args = Args::from_args();
 
     // Only used with MessageSender and MessageReceiver
-    let password = args.get_password()?;
+    // let password = args.get_password()?;
 
-    let config: ServiceConfiguration = SignalServers::Staging.into();
+    let mut provision_manager: ProvisioningManager<AwcPushService> =
+        ProvisioningManager::new(
+            args.servers,
+            USER_AGENT.into(),
+            args.username,
+            args.password.unwrap(),
+        );
 
-    let mut signaling_key = [0u8; 52];
-    base64::decode_config_slice(
-        args.signaling_key,
-        base64::STANDARD,
-        &mut signaling_key,
-    )
-    .unwrap();
-    let credentials = ServiceCredentials {
-        uuid: None,
-        phonenumber: args.username.clone(),
-        password: Some(password),
-        signaling_key: Some(signaling_key),
-        device_id: None,
-    };
-
-    let signal_context = Context::default();
-
-    let push_service =
-        AwcPushService::new(config, Some(credentials), &args.user_agent);
-
-    let mut account_manager =
-        AccountManager::new(signal_context, push_service, None);
-    account_manager
+    provision_manager
         // You probably want to generate a reCAPTCHA though!
-        .request_sms_verification_code(args.username, None, None)
+        .request_sms_verification_code(None, None)
         .await?;
 
     Ok(())
@@ -67,8 +53,8 @@ async fn main() -> Result<(), Error> {
 pub struct Args {
     #[structopt(
         short = "s",
-        long = "server",
-        help = "The server to connect to",
+        long = "servers",
+        help = "The servers to connect to",
         default_value = "staging"
     )]
     pub servers: SignalServers,
@@ -85,28 +71,4 @@ pub struct Args {
         help = "The password to use. Read from stdin if not provided"
     )]
     pub password: Option<String>,
-    #[structopt(
-        long = "user-agent",
-        help = "The user agent to use when contacting servers",
-        default_value = "libsignal_service::USER_AGENT"
-    )]
-    pub user_agent: String,
-    #[structopt(
-        long = "signaling-key",
-        help = "The key used to encrypt and authenticate messages in transit, base64 encoded."
-    )]
-    pub signaling_key: String,
-}
-
-impl Args {
-    pub fn get_password(&self) -> Result<String, Error> {
-        if let Some(ref pw) = self.password {
-            return Ok(pw.clone());
-        }
-
-        let mut line = String::new();
-        io::stdin().read_line(&mut line)?;
-
-        Ok(line.trim().to_string())
-    }
 }

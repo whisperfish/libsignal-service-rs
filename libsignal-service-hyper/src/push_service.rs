@@ -22,7 +22,7 @@ use crate::websocket::TungsteniteWebSocket;
 #[derive(Clone)]
 pub struct HyperPushService {
     cfg: ServiceConfiguration,
-    user_agent: &'static str,
+    user_agent: String,
     credentials: Option<HttpCredentials>,
     client: Client<TimeoutConnector<HttpsConnector<HttpConnector>>>,
 }
@@ -34,33 +34,6 @@ struct RequestBody {
 }
 
 impl HyperPushService {
-    pub fn new(
-        cfg: ServiceConfiguration,
-        credentials: Option<ServiceCredentials>,
-        user_agent: &'static str,
-    ) -> Self {
-        let tls_config = Self::tls_config(&cfg);
-
-        let http = HttpConnector::new();
-        let https = HttpsConnector::from((http, tls_config));
-
-        // as in Signal-Android
-        let mut timeout_connector = TimeoutConnector::new(https);
-        timeout_connector.set_connect_timeout(Some(Duration::from_secs(10)));
-        timeout_connector.set_read_timeout(Some(Duration::from_secs(65)));
-        timeout_connector.set_write_timeout(Some(Duration::from_secs(65)));
-
-        let client: Client<_, hyper::Body> =
-            Client::builder().build(timeout_connector);
-
-        Self {
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
-            user_agent,
-        }
-    }
-
     fn tls_config(cfg: &ServiceConfiguration) -> rustls::ClientConfig {
         let mut tls_config = rustls::ClientConfig::new();
         tls_config.alpn_protocols = vec![b"http/1.1".to_vec()];
@@ -86,7 +59,7 @@ impl HyperPushService {
         let mut builder = Request::builder()
             .method(method)
             .uri(url.as_str())
-            .header(USER_AGENT, self.user_agent);
+            .header(USER_AGENT, &self.user_agent);
         if let Some(http_credentials) = credentials_override
             .as_ref()
             .or_else(|| self.credentials.as_ref())
@@ -236,6 +209,34 @@ impl PushService for HyperPushService {
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = TungsteniteWebSocket;
 
+    fn new(
+        cfg: impl Into<ServiceConfiguration>,
+        credentials: Option<ServiceCredentials>,
+        user_agent: String,
+    ) -> Self {
+        let cfg = cfg.into();
+        let tls_config = Self::tls_config(&cfg);
+
+        let http = HttpConnector::new();
+        let https = HttpsConnector::from((http, tls_config));
+
+        // as in Signal-Android
+        let mut timeout_connector = TimeoutConnector::new(https);
+        timeout_connector.set_connect_timeout(Some(Duration::from_secs(10)));
+        timeout_connector.set_read_timeout(Some(Duration::from_secs(65)));
+        timeout_connector.set_write_timeout(Some(Duration::from_secs(65)));
+
+        let client: Client<_, hyper::Body> =
+            Client::builder().build(timeout_connector);
+
+        Self {
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+            user_agent,
+        }
+    }
+
     async fn get_json<T>(
         &mut self,
         service: Endpoint,
@@ -271,6 +272,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        credentials_override: Option<HttpCredentials>,
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -288,7 +290,7 @@ impl PushService for HyperPushService {
                 Method::PUT,
                 service,
                 path,
-                None,
+                credentials_override,
                 Some(RequestBody {
                     contents: json,
                     content_type: "application/json".into(),

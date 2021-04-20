@@ -26,20 +26,6 @@ pub struct AwcPushService {
 }
 
 impl AwcPushService {
-    /// Creates a new AwcPushService
-    pub fn new(
-        cfg: ServiceConfiguration,
-        credentials: Option<ServiceCredentials>,
-        user_agent: &str,
-    ) -> Self {
-        let client = get_client(&cfg, user_agent);
-        Self {
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
-        }
-    }
-
     fn request(
         &self,
         method: Method,
@@ -119,6 +105,20 @@ impl PushService for AwcPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = AwcWebSocket;
+
+    fn new(
+        cfg: impl Into<ServiceConfiguration>,
+        credentials: Option<ServiceCredentials>,
+        user_agent: String,
+    ) -> Self {
+        let cfg = cfg.into();
+        let client = get_client(&cfg, user_agent);
+        Self {
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+        }
+    }
 
     async fn get_json<T>(
         &mut self,
@@ -240,6 +240,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        credentials_override: Option<HttpCredentials>,
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -247,7 +248,7 @@ impl PushService for AwcPushService {
         S: Serialize,
     {
         let mut response = self
-            .request(Method::PUT, endpoint, path, None)?
+            .request(Method::PUT, endpoint, path, credentials_override)?
             .send_json(&value)
             .await
             .map_err(|e| ServiceError::SendError {
@@ -486,7 +487,7 @@ impl PushService for AwcPushService {
 /// * 10s timeout on TCP connection
 /// * 65s timeout on HTTP request
 /// * provided user-agent
-fn get_client(cfg: &ServiceConfiguration, user_agent: &str) -> Client {
+fn get_client(cfg: &ServiceConfiguration, user_agent: String) -> Client {
     let mut ssl_config = rustls::ClientConfig::new();
     ssl_config.alpn_protocols = vec![b"http/1.1".to_vec()];
     ssl_config
