@@ -22,7 +22,7 @@ use crate::websocket::TungsteniteWebSocket;
 #[derive(Clone)]
 pub struct HyperPushService {
     cfg: ServiceConfiguration,
-    user_agent: &'static str,
+    user_agent: String,
     credentials: Option<HttpCredentials>,
     client: Client<TimeoutConnector<HttpsConnector<HttpConnector>>>,
 }
@@ -59,7 +59,7 @@ impl HyperPushService {
         let mut builder = Request::builder()
             .method(method)
             .uri(url.as_str())
-            .header(USER_AGENT, self.user_agent);
+            .header(USER_AGENT, &self.user_agent);
         if let Some(http_credentials) = credentials_override
             .as_ref()
             .or_else(|| self.credentials.as_ref())
@@ -212,7 +212,7 @@ impl PushService for HyperPushService {
     fn new(
         cfg: impl Into<ServiceConfiguration>,
         credentials: Option<ServiceCredentials>,
-        user_agent: &'static str,
+        user_agent: String,
     ) -> Self {
         let cfg = cfg.into();
         let tls_config = Self::tls_config(&cfg);

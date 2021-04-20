@@ -275,7 +275,7 @@ pub trait PushService {
     fn new(
         cfg: impl Into<ServiceConfiguration>,
         credentials: Option<ServiceCredentials>,
-        user_agent: &'static str,
+        user_agent: String,
     ) -> Self;
 
     async fn get_json<T>(

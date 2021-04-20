@@ -109,7 +109,7 @@ impl PushService for AwcPushService {
     fn new(
         cfg: impl Into<ServiceConfiguration>,
         credentials: Option<ServiceCredentials>,
-        user_agent: &'static str,
+        user_agent: String,
     ) -> Self {
         let cfg = cfg.into();
         let client = get_client(&cfg, user_agent);
@@ -487,7 +487,7 @@ impl PushService for AwcPushService {
 /// * 10s timeout on TCP connection
 /// * 65s timeout on HTTP request
 /// * provided user-agent
-fn get_client(cfg: &ServiceConfiguration, user_agent: &str) -> Client {
+fn get_client(cfg: &ServiceConfiguration, user_agent: String) -> Client {
     let mut ssl_config = rustls::ClientConfig::new();
     ssl_config.alpn_protocols = vec![b"http/1.1".to_vec()];
     ssl_config

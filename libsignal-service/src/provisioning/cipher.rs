@@ -22,15 +22,15 @@ use crate::{
 
 #[derive(Debug)]
 enum CipherMode {
-    Decrypt(KeyPair),
-    Encrypt(PublicKey),
+    DecryptAndEncrypt(KeyPair),
+    EncryptOnly(PublicKey),
 }
 
 impl CipherMode {
     fn public(&self) -> PublicKey {
         match self {
-            CipherMode::Decrypt(pair) => pair.public(),
-            CipherMode::Encrypt(pub_key) => pub_key.clone(),
+            CipherMode::DecryptAndEncrypt(pair) => pair.public(),
+            CipherMode::EncryptOnly(pub_key) => pub_key.clone(),
         }
     }
 }
@@ -48,21 +48,21 @@ impl ProvisioningCipher {
         let key_pair = libsignal_protocol::generate_key_pair(&ctx)?;
         Ok(Self {
             ctx,
-            key_material: CipherMode::Decrypt(key_pair),
+            key_material: CipherMode::DecryptAndEncrypt(key_pair),
         })
     }
 
     pub fn from_public(ctx: Context, key: PublicKey) -> Self {
         Self {
             ctx,
-            key_material: CipherMode::Encrypt(key),
+            key_material: CipherMode::EncryptOnly(key),
         }
     }
 
     pub fn from_key_pair(ctx: Context, key_pair: KeyPair) -> Self {
         Self {
             ctx,
-            key_material: CipherMode::Decrypt(key_pair),
+            key_material: CipherMode::DecryptAndEncrypt(key_pair),
         }
     }
 
@@ -127,8 +127,8 @@ impl ProvisioningCipher {
         provision_envelope: ProvisionEnvelope,
     ) -> Result<ProvisionMessage, ProvisioningError> {
         let key_pair = match self.key_material {
-            CipherMode::Decrypt(ref key_pair) => key_pair,
-            CipherMode::Encrypt(_) => {
+            CipherMode::DecryptAndEncrypt(ref key_pair) => key_pair,
+            CipherMode::EncryptOnly(_) => {
                 return Err(ProvisioningError::EncryptOnlyProvisioningCipher);
             }
         };

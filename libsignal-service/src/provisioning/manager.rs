@@ -23,7 +23,6 @@ use crate::{
     messagepipe::ServiceCredentials,
     push_service::{DeviceCapabilities, DeviceId, PushService, ServiceError},
     utils::{serde_base64, serde_optional_base64},
-    USER_AGENT,
 };
 
 /// Message received after confirming the SMS/voice code on registration.
@@ -137,6 +136,7 @@ pub enum SecondaryDeviceProvisioning {
 impl<P: PushService> ProvisioningManager<P> {
     pub fn new(
         cfg: impl Into<ServiceConfiguration>,
+        user_agent: String,
         phone_number: PhoneNumber,
         password: String,
     ) -> Self {
@@ -151,7 +151,7 @@ impl<P: PushService> ProvisioningManager<P> {
                     signaling_key: None,
                     device_id: None,
                 }),
-                USER_AGENT,
+                user_agent,
             ),
         }
     }
@@ -270,20 +270,23 @@ impl<P: PushService> ProvisioningManager<P> {
 
 #[derive(Clone)]
 pub struct LinkingManager<P: PushService> {
-    push_service: P,
     cfg: ServiceConfiguration,
+    user_agent: String,
     password: String,
+    push_service: P,
 }
 
 impl<P: PushService> LinkingManager<P> {
     pub fn new(
         cfg: impl Into<ServiceConfiguration> + Clone,
+        user_agent: String,
         password: String,
     ) -> Self {
         Self {
-            password: password.clone(),
             cfg: cfg.clone().into(),
-            push_service: P::new(cfg, None, USER_AGENT),
+            user_agent: user_agent.clone(),
+            password: password.clone(),
+            push_service: P::new(cfg, None, user_agent),
         }
     }
 
@@ -359,6 +362,7 @@ impl<P: PushService> LinkingManager<P> {
                     let mut provisioning_manager: ProvisioningManager<P> =
                         ProvisioningManager::new(
                             self.cfg.clone(),
+                            self.user_agent.clone(),
                             phone_number.clone(),
                             self.password.to_string(),
                         );

@@ -11,6 +11,7 @@ use libsignal_protocol::Context;
 
 use libsignal_service::{
     provisioning::LinkingManager, provisioning::SecondaryDeviceProvisioning,
+    USER_AGENT,
 };
 use libsignal_service_actix::prelude::AwcPushService;
 
@@ -49,7 +50,7 @@ async fn main() -> Result<(), Error> {
     let signal_context = Context::default();
 
     let mut provision_manager: LinkingManager<AwcPushService> =
-        LinkingManager::new(args.servers, password);
+        LinkingManager::new(args.servers, USER_AGENT.into(), password);
 
     let (tx, mut rx) = channel(1);
 

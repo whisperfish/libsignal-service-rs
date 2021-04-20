@@ -18,7 +18,9 @@
 //! ```
 
 use failure::Error;
-use libsignal_service::{configuration::*, provisioning::ProvisioningManager};
+use libsignal_service::{
+    configuration::*, provisioning::ProvisioningManager, USER_AGENT,
+};
 use libsignal_service_actix::prelude::AwcPushService;
 use structopt::StructOpt;
 
@@ -34,6 +36,7 @@ async fn main() -> Result<(), Error> {
     let mut provision_manager: ProvisioningManager<AwcPushService> =
         ProvisioningManager::new(
             args.servers,
+            USER_AGENT.into(),
             args.username,
             args.password.unwrap(),
         );
