@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 libsignal-service = { path = "../libsignal-service" }
-libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", version = "0.1.0", tag = "v0.4.0"}
 
 async-trait = "0.1"
 base64 = "0.13"
