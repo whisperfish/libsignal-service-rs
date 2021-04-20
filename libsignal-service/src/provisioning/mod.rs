@@ -26,7 +26,7 @@ pub enum ProvisioningError {
     #[error("Service error: {0}")]
     ServiceError(#[from] ServiceError),
     #[error("libsignal-protocol error: {0}")]
-    ProtocolError(#[from] libsignal_protocol::Error),
+    ProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
     #[error("ProvisioningCipher in encrypt-only mode")]
     EncryptOnlyProvisioningCipher,
 }

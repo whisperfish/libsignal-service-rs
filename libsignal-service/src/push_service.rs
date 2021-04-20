@@ -20,7 +20,9 @@ use aes_gcm::{
 use chrono::prelude::*;
 use prost::Message as ProtobufMessage;
 
-use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
+use libsignal_protocol::{
+    error::SignalProtocolError, Context, IdentityKey, PreKeyBundle, PublicKey,
+};
 use serde::{Deserialize, Serialize};
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
@@ -150,10 +152,32 @@ pub struct WhoAmIResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyResponseItem {
-    pub device_id: i32,
+    pub device_id: u32,
     pub registration_id: u32,
-    pub signed_pre_key: Option<SignedPreKeyEntity>,
+    pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
+}
+
+impl PreKeyResponseItem {
+    fn into_bundle(
+        self,
+        identity: IdentityKey,
+    ) -> Result<PreKeyBundle, SignalProtocolError> {
+        PreKeyBundle::new(
+            self.registration_id,
+            self.device_id,
+            self.pre_key
+                .map(|pk| -> Result<_, SignalProtocolError> {
+                    Ok((pk.key_id, PublicKey::deserialize(&pk.public_key)?))
+                })
+                .transpose()?,
+            // pre_key: Option<(u32, PublicKey)>,
+            self.signed_pre_key.key_id,
+            PublicKey::deserialize(&self.signed_pre_key.public_key)?,
+            self.signed_pre_key.signature,
+            identity,
+        )
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -244,7 +268,7 @@ pub enum ServiceError {
     MacError,
 
     #[error("Protocol error: {0}")]
-    SignalProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
+    SignalProtocolError(#[from] SignalProtocolError),
 
     #[error("{0:?}")]
     MismatchedDevicesException(MismatchedDevices),
@@ -506,28 +530,9 @@ pub trait PushService {
             self.get_json(Endpoint::Service, &path, None).await?;
         assert!(!pre_key_response.devices.is_empty());
 
+        let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         let device = pre_key_response.devices.remove(0);
-        let mut bundle = PreKeyBundle::builder()
-            .identity_key(&PublicKey::decode_point(
-                &context,
-                &pre_key_response.identity_key,
-            )?)
-            .device_id(device.device_id)
-            .registration_id(device.registration_id);
-        if let Some(signed_pre_key) = device.signed_pre_key {
-            bundle = bundle.signed_pre_key(
-                signed_pre_key.key_id,
-                &PublicKey::decode_point(&context, &signed_pre_key.public_key)?,
-            );
-            bundle = bundle.signature(&signed_pre_key.signature);
-        }
-        if let Some(pre_key) = device.pre_key {
-            bundle = bundle.pre_key(
-                pre_key.key_id,
-                &PublicKey::decode_point(context, &pre_key.public_key)?,
-            );
-        }
-        Ok(bundle.build()?)
+        Ok(device.into_bundle(identity)?)
     }
 
     async fn get_pre_keys(
@@ -556,31 +561,9 @@ pub trait PushService {
         let pre_key_response: PreKeyResponse =
             self.get_json(Endpoint::Service, &path, None).await?;
         let mut pre_keys = vec![];
+        let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         for device in pre_key_response.devices {
-            let mut bundle = PreKeyBundle::builder()
-                .identity_key(&PublicKey::decode_point(
-                    &context,
-                    &pre_key_response.identity_key,
-                )?)
-                .device_id(device.device_id)
-                .registration_id(device.registration_id);
-            if let Some(signed_pre_key) = device.signed_pre_key {
-                bundle = bundle.signed_pre_key(
-                    signed_pre_key.key_id,
-                    &PublicKey::decode_point(
-                        &context,
-                        &signed_pre_key.public_key,
-                    )?,
-                );
-                bundle = bundle.signature(&signed_pre_key.signature);
-            }
-            if let Some(pre_key) = device.pre_key {
-                bundle = bundle.pre_key(
-                    pre_key.key_id,
-                    &PublicKey::decode_point(context, &pre_key.public_key)?,
-                );
-            }
-            pre_keys.push(bundle.build()?)
+            pre_keys.push(device.into_bundle(identity.clone())?);
         }
         Ok(pre_keys)
     }

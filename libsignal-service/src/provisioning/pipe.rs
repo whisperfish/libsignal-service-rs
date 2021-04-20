@@ -48,7 +48,9 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
         Ok(ProvisioningPipe {
             ws,
             stream,
-            provisioning_cipher: ProvisioningCipher::new(ctx.clone())?,
+            provisioning_cipher: ProvisioningCipher::generate(
+                &mut rand::thread_rng(),
+            )?,
         })
     }
 
@@ -150,9 +152,10 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
                             .append_pair("uuid", &uuid.uuid.unwrap())
                             .append_pair(
                                 "pub_key",
-                                &format!(
-                                    "{}",
-                                    self.provisioning_cipher.public_key()
+                                &base64::encode(
+                                    self.provisioning_cipher
+                                        .public_key()
+                                        .serialize(),
                                 ),
                             );
 

@@ -40,7 +40,7 @@ pub enum LinkError {
     #[error("TsUrl has an invalid pub_key field")]
     InvalidPublicKey,
     #[error("Protocol error {0}")]
-    ProtocolError(#[from] libsignal_protocol::Error),
+    ProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
     #[error(transparent)]
     ProvisioningError(#[from] ProvisioningError),
 }
@@ -228,8 +228,7 @@ impl<Service: PushService> AccountManager<Service> {
             user_agent: None,
         };
 
-        let cipher =
-            ProvisioningCipher::from_public(self.context.clone(), pub_key);
+        let cipher = ProvisioningCipher::from_public(pub_key);
 
         let encrypted = cipher.encrypt(msg)?;
         self.send_provisioning_message(ephemeral_id, encrypted)

@@ -1,3 +1,5 @@
+use std::fmt::{self, Debug};
+
 use aes::Aes256;
 use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 use bytes::Bytes;
@@ -6,10 +8,7 @@ use prost::Message;
 use rand::Rng;
 use sha2::Sha256;
 
-use libsignal_protocol::{
-    keys::{KeyPair, PublicKey},
-    Context,
-};
+use libsignal_protocol::{KeyPair, PublicKey};
 
 pub use crate::proto::{
     ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
@@ -20,17 +19,31 @@ use crate::{
     provisioning::ProvisioningError,
 };
 
-#[derive(Debug)]
 enum CipherMode {
     DecryptAndEncrypt(KeyPair),
     EncryptOnly(PublicKey),
 }
 
-impl CipherMode {
-    fn public(&self) -> PublicKey {
+impl Debug for CipherMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
-            CipherMode::DecryptAndEncrypt(pair) => pair.public(),
-            CipherMode::EncryptOnly(pub_key) => pub_key.clone(),
+            CipherMode::DecryptAndEncrypt(key_pair) => f
+                .debug_tuple("CipherMode::DecryptAndEncrypt")
+                .field(&key_pair.public_key)
+                .finish(),
+            CipherMode::EncryptOnly(public) => f
+                .debug_tuple("CipherMode::EncryptOnly")
+                .field(&public)
+                .finish(),
+        }
+    }
+}
+
+impl CipherMode {
+    fn public(&self) -> &PublicKey {
+        match self {
+            CipherMode::DecryptAndEncrypt(pair) => &pair.public_key,
+            CipherMode::EncryptOnly(pub_key) => &pub_key,
         }
     }
 }
@@ -39,34 +52,34 @@ const VERSION: u8 = 1;
 
 #[derive(Debug)]
 pub struct ProvisioningCipher {
-    ctx: Context,
     key_material: CipherMode,
 }
 
 impl ProvisioningCipher {
-    pub fn new(ctx: Context) -> Result<Self, ProvisioningError> {
-        let key_pair = libsignal_protocol::generate_key_pair(&ctx)?;
+    /// Generate a random key pair
+    pub fn generate<R>(rng: &mut R) -> Result<Self, ProvisioningError>
+    where
+        R: rand::Rng + rand::CryptoRng,
+    {
+        let key_pair = libsignal_protocol::KeyPair::generate(rng);
         Ok(Self {
-            ctx,
             key_material: CipherMode::DecryptAndEncrypt(key_pair),
         })
     }
 
-    pub fn from_public(ctx: Context, key: PublicKey) -> Self {
+    pub fn from_public(key: PublicKey) -> Self {
         Self {
-            ctx,
             key_material: CipherMode::EncryptOnly(key),
         }
     }
 
-    pub fn from_key_pair(ctx: Context, key_pair: KeyPair) -> Self {
+    pub fn from_key_pair(key_pair: KeyPair) -> Self {
         Self {
-            ctx,
             key_material: CipherMode::DecryptAndEncrypt(key_pair),
         }
     }
 
-    pub fn public_key(&self) -> PublicKey {
+    pub fn public_key(&self) -> &PublicKey {
         self.key_material.public()
     }
 
@@ -81,17 +94,14 @@ impl ProvisioningCipher {
         };
 
         let mut rng = rand::thread_rng();
-        let our_key_pair = libsignal_protocol::generate_key_pair(&self.ctx)?;
-        let agreement = self
-            .public_key()
-            .calculate_agreement(&our_key_pair.private())?;
-        let hkdf = libsignal_protocol::create_hkdf(&self.ctx, 3)?;
+        let our_key_pair = libsignal_protocol::KeyPair::generate(&mut rng);
+        let agreement = our_key_pair.calculate_agreement(self.public_key())?;
+        let hkdf = libsignal_protocol::HKDF::new(3)?;
 
         let shared_secrets = hkdf.derive_secrets(
-            64,
             &agreement,
-            &[],
             b"TextSecure Provisioning Message",
+            64,
         )?;
 
         let aes_key = &shared_secrets[0..32];
@@ -115,9 +125,7 @@ impl ProvisioningCipher {
             .collect();
 
         Ok(ProvisionEnvelope {
-            public_key: Some(
-                our_key_pair.public().to_bytes()?.as_slice().to_vec(),
-            ),
+            public_key: Some(our_key_pair.public_key.serialize().into()),
             body: Some(body),
         })
     }
@@ -132,8 +140,7 @@ impl ProvisioningCipher {
                 return Err(ProvisioningError::EncryptOnlyProvisioningCipher);
             }
         };
-        let master_ephemeral = PublicKey::decode_point(
-            &self.ctx,
+        let master_ephemeral = PublicKey::deserialize(
             &provision_envelope.public_key.expect("no public key"),
         )?;
         let body = provision_envelope
@@ -152,15 +159,13 @@ impl ProvisioningCipher {
         debug_assert_eq!(iv.len(), IV_LENGTH);
         debug_assert_eq!(mac.len(), 32);
 
-        let agreement =
-            master_ephemeral.calculate_agreement(&key_pair.private())?;
-        let hkdf = libsignal_protocol::create_hkdf(&self.ctx, 3)?;
+        let agreement = key_pair.calculate_agreement(&master_ephemeral)?;
+        let hkdf = libsignal_protocol::HKDF::new(3)?;
 
         let shared_secrets = hkdf.derive_secrets(
-            64,
             &agreement,
-            &[],
             b"TextSecure Provisioning Message",
+            64,
         )?;
 
         let parts1 = &shared_secrets[0..32];
@@ -198,10 +203,10 @@ mod tests {
 
     #[test]
     fn encrypt_provisioning_roundtrip() {
-        let ctx = Context::default();
-        let cipher = ProvisioningCipher::new(ctx.clone()).unwrap();
+        let mut rng = rand::thread_rng();
+        let cipher = ProvisioningCipher::generate(&mut rng).unwrap();
         let encrypt_cipher =
-            ProvisioningCipher::from_public(ctx.clone(), cipher.public_key());
+            ProvisioningCipher::from_public(cipher.public_key());
 
         assert_eq!(
             cipher.public_key(),

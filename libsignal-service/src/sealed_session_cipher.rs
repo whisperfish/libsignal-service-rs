@@ -8,10 +8,10 @@ use aes_ctr::{
 
 use hmac::{Hmac, Mac, NewMac};
 use libsignal_protocol::{
-    keys::{PrivateKey, PublicKey},
+    error::SignalProtocolError,
     messages::{CiphertextType, PreKeySignalMessage, SignalMessage},
     Address as ProtocolAddress, Context, Deserializable, Serializable,
-    SessionCipher, StoreContext,
+    SessionCipher, StoreContext, {PrivateKey, PublicKey},
 };
 use log::error;
 use sha2::Sha256;
@@ -42,7 +42,7 @@ pub enum SealedSessionError {
     EncodeError(#[from] prost::EncodeError),
 
     #[error("Protocol error {0}")]
-    ProtocolError(#[from] libsignal_protocol::Error),
+    ProtocolError(#[from] SignalProtocolError),
 
     #[error("recipient not trusted")]
     NoSessionWithRecipient,
