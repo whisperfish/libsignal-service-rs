@@ -61,7 +61,7 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 **/
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
-pub const DEFAULT_DEVICE_ID: i32 = 1;
+pub const DEFAULT_DEVICE_ID: u32 = 1;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -244,7 +244,7 @@ pub enum ServiceError {
     MacError,
 
     #[error("Protocol error: {0}")]
-    SignalProtocolError(#[from] libsignal_protocol::Error),
+    SignalProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
 
     #[error("{0:?}")]
     MismatchedDevicesException(MismatchedDevices),
@@ -534,7 +534,7 @@ pub trait PushService {
         &mut self,
         context: &Context,
         destination: &ServiceAddress,
-        device_id: i32,
+        device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
         let path = match (device_id, destination.relay.as_ref()) {
             (1, None) => format!("/v2/keys/{}/*", destination.identifier()),

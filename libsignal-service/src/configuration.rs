@@ -29,7 +29,7 @@ pub struct ServiceCredentials {
     pub phonenumber: phonenumber::PhoneNumber,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
-    pub device_id: Option<i32>,
+    pub device_id: Option<u32>,
 }
 
 impl ServiceCredentials {

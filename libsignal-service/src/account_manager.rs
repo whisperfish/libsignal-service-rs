@@ -14,13 +14,11 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::time::SystemTime;
 
-use libsignal_protocol::keys::PublicKey;
-use libsignal_protocol::{Context, StoreContext};
+use libsignal_protocol::PublicKey;
 
 use zkgroup::profiles::ProfileKey;
 
 pub struct AccountManager<Service> {
-    context: Context,
     service: Service,
     profile_key: Option<[u8; 32]>,
 }
@@ -51,13 +49,8 @@ const PRE_KEY_MINIMUM: u32 = 10;
 const PRE_KEY_BATCH_SIZE: u32 = 100;
 
 impl<Service: PushService> AccountManager<Service> {
-    pub fn new(
-        context: Context,
-        service: Service,
-        profile_key: Option<[u8; 32]>,
-    ) -> Self {
+    pub fn new(service: Service, profile_key: Option<[u8; 32]>) -> Self {
         Self {
-            context,
             service,
             profile_key,
         }
@@ -96,13 +89,11 @@ impl<Service: PushService> AccountManager<Service> {
         }
 
         let pre_keys = libsignal_protocol::generate_pre_keys(
-            &self.context,
             pre_keys_offset_id,
             PRE_KEY_BATCH_SIZE,
         )?;
         let identity_key_pair = store_context.identity_key_pair()?;
         let signed_pre_key = libsignal_protocol::generate_signed_pre_key(
-            &self.context,
             &identity_key_pair,
             next_signed_pre_key_id,
             SystemTime::now(),
@@ -207,7 +198,7 @@ impl<Service: PushService> AccountManager<Service> {
             query.get("pub_key").ok_or(LinkError::InvalidPublicKey)?;
         let pub_key = base64::decode(&**pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
-        let pub_key = PublicKey::decode_point(&self.context, &pub_key)
+        let pub_key = PublicKey::deserialize(&pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
 
         let identity_key_pair = store_context.identity_key_pair()?;

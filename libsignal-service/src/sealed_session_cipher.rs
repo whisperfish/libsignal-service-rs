@@ -102,7 +102,7 @@ pub struct UnidentifiedSenderMessageContent {
 pub struct SenderCertificate {
     signer: ServerCertificate,
     key: PublicKey,
-    sender_device_id: i32,
+    sender_device_id: u32,
     sender_uuid: Option<uuid::Uuid>,
     sender_e164: Option<phonenumber::PhoneNumber>,
     expiration: u64,
@@ -140,7 +140,7 @@ pub struct CertificateValidator {
 pub(crate) struct DecryptionResult {
     pub sender_uuid: Option<Uuid>,
     pub sender_e164: Option<PhoneNumber>,
-    pub device_id: i32,
+    pub device_id: u32,
     pub padded_message: Vec<u8>,
     pub version: u32,
 }
@@ -600,7 +600,7 @@ impl SenderCertificate {
                             )?,
                             sender_e164,
                             sender_uuid,
-                            sender_device_id: sender_device_id as i32,
+                            sender_device_id,
                             expiration: expires,
                             certificate,
                             signature,

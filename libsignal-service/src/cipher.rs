@@ -99,11 +99,11 @@ impl ServiceCipher {
                 let sender = get_preferred_protocol_address(
                     &self.store_context,
                     envelope.source_address(),
-                    envelope.source_device() as i32,
+                    envelope.source_device(),
                 )?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device() as i32,
+                    sender_device: envelope.source_device(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
@@ -130,11 +130,11 @@ impl ServiceCipher {
                 let sender = get_preferred_protocol_address(
                     &self.store_context,
                     envelope.source_address(),
-                    envelope.source_device() as i32,
+                    envelope.source_device(),
                 )?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device() as i32,
+                    sender_device: envelope.source_device(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
@@ -293,8 +293,8 @@ fn strip_padding(
 pub fn get_preferred_protocol_address(
     store_context: &StoreContext,
     address: ServiceAddress,
-    device_id: i32,
-) -> Result<ProtocolAddress, libsignal_protocol::Error> {
+    device_id: u32,
+) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
     if let Some(ref uuid) = address.uuid {
         let address = ProtocolAddress::new(uuid.to_string(), device_id as i32);
         if store_context.contains_session(&address)? {

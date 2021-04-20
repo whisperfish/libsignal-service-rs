@@ -69,7 +69,7 @@ pub struct AttachmentSpec {
 pub struct MessageSender<Service> {
     service: Service,
     cipher: ServiceCipher,
-    device_id: i32,
+    device_id: u32,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -86,7 +86,7 @@ pub enum MessageSenderError {
     #[error("{0}")]
     ServiceError(#[from] ServiceError),
     #[error("protocol error: {0}")]
-    ProtocolError(#[from] libsignal_protocol::Error),
+    ProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
 
@@ -119,7 +119,7 @@ where
     pub fn new(
         service: Service,
         cipher: ServiceCipher,
-        device_id: i32,
+        device_id: u32,
     ) -> Self {
         MessageSender {
             service,
@@ -680,7 +680,7 @@ where
         &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&UnidentifiedAccess>,
-        device_id: i32,
+        device_id: u32,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
@@ -702,7 +702,7 @@ where
                 .await?;
             for pre_key_bundle in pre_keys {
                 if recipient.matches(&self.cipher.local_address)
-                    && self.device_id == pre_key_bundle.device_id()
+                    && self.device_id == pre_key_bundle.device_id()?
                 {
                     trace!("not establishing a session with myself!");
                     continue;
@@ -711,7 +711,7 @@ where
                 let pre_key_address = get_preferred_protocol_address(
                     &self.cipher.store_context,
                     recipient.clone(),
-                    pre_key_bundle.device_id(),
+                    pre_key_bundle.device_id()?,
                 )?;
                 let session_builder = SessionBuilder::new(
                     &self.cipher.context,
