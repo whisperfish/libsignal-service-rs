@@ -18,7 +18,10 @@ use libsignal_protocol::{
 use crate::{
     configuration::{Endpoint, ServiceConfiguration, SignalingKey},
     messagepipe::ServiceCredentials,
-    push_service::{DeviceCapabilities, DeviceId, PushService, ServiceError},
+    push_service::{
+        DeviceCapabilities, DeviceId, HttpAuthOverride, PushService,
+        ServiceError,
+    },
     utils::{serde_base64, serde_optional_base64},
 };
 
@@ -160,7 +163,7 @@ impl<P: PushService> ProvisioningManager<P> {
                     "sms", captcha, challenge,
                 )
                 .as_ref(),
-                None,
+                HttpAuthOverride::NoOverride,
             )
             .await
         {
@@ -189,7 +192,7 @@ impl<P: PushService> ProvisioningManager<P> {
                     "voice", captcha, challenge,
                 )
                 .as_ref(),
-                None,
+                HttpAuthOverride::NoOverride,
             )
             .await
         {
@@ -214,7 +217,7 @@ impl<P: PushService> ProvisioningManager<P> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/accounts/code/{}", confirm_code),
-                None,
+                HttpAuthOverride::NoOverride,
                 confirm_verification_message,
             )
             .await
@@ -229,7 +232,7 @@ impl<P: PushService> ProvisioningManager<P> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/devices/{}", confirm_code),
-                None,
+                HttpAuthOverride::NoOverride,
                 confirm_code_message,
             )
             .await

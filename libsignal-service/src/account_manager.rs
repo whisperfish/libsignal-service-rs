@@ -6,7 +6,8 @@ use crate::{
     proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
     provisioning::{ProvisioningCipher, ProvisioningError},
     push_service::{
-        AccountAttributes, DeviceCapabilities, PushService, ServiceError,
+        AccountAttributes, DeviceCapabilities, HttpAuthOverride, PushService,
+        ServiceError,
     },
 };
 
@@ -16,7 +17,6 @@ use std::time::SystemTime;
 
 use libsignal_protocol::keys::PublicKey;
 use libsignal_protocol::{Context, StoreContext};
-
 use zkgroup::profiles::ProfileKey;
 
 pub struct AccountManager<Service> {
@@ -150,7 +150,11 @@ impl<Service: PushService> AccountManager<Service> {
 
         let dc: DeviceCode = self
             .service
-            .get_json(Endpoint::Service, "/v1/devices/provisioning/code", None)
+            .get_json(
+                Endpoint::Service,
+                "/v1/devices/provisioning/code",
+                HttpAuthOverride::NoOverride,
+            )
             .await?;
         Ok(dc.verification_code)
     }
@@ -174,7 +178,7 @@ impl<Service: PushService> AccountManager<Service> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/provisioning/{}", destination),
-                None,
+                HttpAuthOverride::NoOverride,
                 &ProvisioningMessage {
                     body: base64::encode(body),
                 },
