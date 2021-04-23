@@ -110,7 +110,7 @@ pub struct DeviceCapabilities {
     pub gv1_migration: bool,
 }
 
-pub struct ProfileKey(pub Vec<u8>);
+pub struct ProfileKey(pub [u8; 32]);
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
