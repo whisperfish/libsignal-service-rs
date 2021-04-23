@@ -454,6 +454,7 @@
 <span id="451">451</span>
 <span id="452">452</span>
 <span id="453">453</span>
+<span id="454">454</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">io</span>::<span class="ident">Read</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
@@ -674,7 +675,8 @@
         <span class="kw">let</span> <span class="ident">cfg</span> <span class="op">=</span> <span class="ident">cfg</span>.<span class="ident">into</span>();
         <span class="kw">let</span> <span class="ident">tls_config</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">tls_config</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>);
 
-        <span class="kw">let</span> <span class="ident">http</span> <span class="op">=</span> <span class="ident">HttpConnector</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">http</span> <span class="op">=</span> <span class="ident">HttpConnector</span>::<span class="ident">new</span>();
+        <span class="ident">http</span>.<span class="ident">enforce_http</span>(<span class="bool-val">false</span>);
         <span class="kw">let</span> <span class="ident">https</span> <span class="op">=</span> <span class="ident">HttpsConnector</span>::<span class="ident">from</span>((<span class="ident">http</span>, <span class="ident">tls_config</span>));
 
         <span class="comment">// as in Signal-Android</span>
