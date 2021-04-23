@@ -22,6 +22,7 @@ use prost::Message as ProtobufMessage;
 
 use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 /**
@@ -144,7 +145,7 @@ pub struct PreKeyResponse {
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct WhoAmIResponse {
-    pub uuid: String,
+    pub uuid: Uuid,
 }
 
 #[derive(Debug, Deserialize)]

@@ -2,6 +2,7 @@ use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
 use phonenumber::PhoneNumber;
 use serde::{Deserialize, Serialize};
 use url::Url;
+use uuid::Uuid;
 
 use super::{
     pipe::{ProvisioningPipe, ProvisioningStep},
@@ -99,7 +100,7 @@ impl ConfirmCodeMessage {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmCodeResponse {
-    pub uuid: String,
+    pub uuid: Uuid,
     pub storage_capable: bool,
 }
 
@@ -126,7 +127,7 @@ pub enum SecondaryDeviceProvisioning {
         phone_number: phonenumber::PhoneNumber,
         device_id: DeviceId,
         registration_id: u32,
-        uuid: String,
+        uuid: Uuid,
         private_key: PrivateKey,
         public_key: PublicKey,
         profile_key: Vec<u8>,
@@ -317,9 +318,17 @@ impl<P: PushService> LinkingManager<P> {
                         .expect("failed to send provisioning Url in channel");
                 }
                 Ok(ProvisioningStep::Message(message)) => {
-                    let uuid =
-                        message.uuid.ok_or(ProvisioningError::InvalidData {
+                    let uuid = message
+                        .uuid
+                        .ok_or(ProvisioningError::InvalidData {
                             reason: "missing client UUID".into(),
+                        })
+                        .and_then(|ref s| {
+                            Uuid::parse_str(s).map_err(|e| {
+                                ProvisioningError::InvalidData {
+                                    reason: format!("invalid UUID: {}", e),
+                                }
+                            })
                         })?;
 
                     let public_key = PublicKey::decode_point(
