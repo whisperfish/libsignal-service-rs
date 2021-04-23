@@ -12,15 +12,14 @@ use crate::{
     ServiceAddress,
 };
 
+use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
+
 use aes_gcm::{
     aead::{generic_array::GenericArray, Aead},
     Aes256Gcm, NewAead,
 };
-
 use chrono::prelude::*;
 use prost::Message as ProtobufMessage;
-
-use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};

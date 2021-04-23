@@ -1,33 +1,75 @@
+use crate::{proto::Verified, ParseServiceAddressError, ServiceAddress};
+
+use bytes::Bytes;
+use thiserror::Error;
+
 /// Attachment represents an attachment received from a peer
-///
-/// Source: `textsecure/textsecure.go`
+#[derive(Debug)]
 pub struct Attachment<R> {
+    pub content_type: String,
     pub reader: R,
-    pub mime_type: String,
 }
 
-/// Group holds group metadata
-///
-/// Source: `textsecure/groups.go`
-pub struct Group {
-    pub id: Vec<u8>,
-    pub hex_id: String,
-    pub flags: u32,
+/// Mirror of the protobuf ContactDetails message
+/// but with stronger types (e.g. `ServiceAddress` instead of optional uuid and string phone numbers)
+/// and some helper functions
+#[derive(Debug)]
+pub struct Contact {
+    pub address: ServiceAddress,
     pub name: String,
-    pub members: Vec<String>,
-    pub avatar: Option<Vec<u8>>,
+    pub color: Option<String>,
+    pub verified: Verified,
+    pub profile_key: Vec<u8>,
+    pub blocked: bool,
+    pub expire_timer: u32,
+    pub inbox_position: u32,
+    pub archived: bool,
+    pub avatar: Option<Attachment<Bytes>>,
 }
 
-/// Message represents a message received from the peer.
-///
-/// It can optionally include attachments and be sent to a group.
-///
-/// Source: `textsecure/textsecure.go`
-pub struct Message {
-    pub source: String,
-    pub message: String,
-    pub attachments: Vec<Attachment<u8>>,
-    pub group: Option<Group>,
-    pub timestamp: u64,
-    pub flags: u32,
+#[derive(Error, Debug)]
+pub enum ParseContactError {
+    #[error(transparent)]
+    ProtobufError(#[from] prost::DecodeError),
+    #[error(transparent)]
+    ServiceAddress(#[from] ParseServiceAddressError),
+    #[error("missing profile key")]
+    MissingProfileKey,
+    #[error("missing avatar content-type")]
+    MissingAvatarContentType,
+}
+
+impl Contact {
+    pub fn from_proto(
+        contact_details: crate::proto::ContactDetails,
+        avatar_data: Option<Bytes>,
+    ) -> Result<Self, ParseContactError> {
+        Ok(Self {
+            address: ServiceAddress::parse(
+                contact_details.number.as_deref(),
+                contact_details.uuid.as_deref(),
+            )?,
+            name: contact_details.name().into(),
+            color: contact_details.color.clone(),
+            verified: contact_details.verified.clone().unwrap_or_default(),
+            profile_key: contact_details.profile_key().to_vec(),
+            blocked: contact_details.blocked(),
+            expire_timer: contact_details.expire_timer(),
+            inbox_position: contact_details.inbox_position(),
+            archived: contact_details.archived(),
+            avatar: contact_details.avatar.and_then(|avatar| {
+                if let (Some(content_type), Some(avatar_data)) =
+                    (avatar.content_type, avatar_data)
+                {
+                    Some(Attachment {
+                        content_type,
+                        reader: avatar_data,
+                    })
+                } else {
+                    log::warn!("missing avatar content-type, skipping.");
+                    None
+                }
+            }),
+        })
+    }
 }
