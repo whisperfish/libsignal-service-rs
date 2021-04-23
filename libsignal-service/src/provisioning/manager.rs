@@ -2,14 +2,11 @@ use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
 use phonenumber::PhoneNumber;
 use serde::{Deserialize, Serialize};
 use url::Url;
+use uuid::Uuid;
 
 use super::{
     pipe::{ProvisioningPipe, ProvisioningStep},
     ProvisioningError,
-};
-
-pub use crate::proto::{
-    ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
 };
 
 use libsignal_protocol::{
@@ -99,20 +96,14 @@ impl ConfirmCodeMessage {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmCodeResponse {
-    pub uuid: String,
+    pub uuid: Uuid,
     pub storage_capable: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum SmsVerificationCodeResponse {
+pub enum VerificationCodeResponse {
     CaptchaRequired,
-    SmsSent,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum VoiceVerificationCodeResponse {
-    CaptchaRequired,
-    CallIssued,
+    Issued,
 }
 
 #[derive(Clone)]
@@ -126,7 +117,7 @@ pub enum SecondaryDeviceProvisioning {
         phone_number: phonenumber::PhoneNumber,
         device_id: DeviceId,
         registration_id: u32,
-        uuid: String,
+        uuid: Uuid,
         private_key: PrivateKey,
         public_key: PublicKey,
         profile_key: Vec<u8>,
@@ -160,7 +151,7 @@ impl<P: PushService> ProvisioningManager<P> {
         &mut self,
         captcha: Option<&str>,
         challenge: Option<&str>,
-    ) -> Result<SmsVerificationCodeResponse, ServiceError> {
+    ) -> Result<VerificationCodeResponse, ServiceError> {
         let res = match self
             .push_service
             .get_json(
@@ -177,9 +168,9 @@ impl<P: PushService> ProvisioningManager<P> {
             r => r,
         };
         match res {
-            Ok(_) => Ok(SmsVerificationCodeResponse::SmsSent),
+            Ok(_) => Ok(VerificationCodeResponse::Issued),
             Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(SmsVerificationCodeResponse::CaptchaRequired)
+                Ok(VerificationCodeResponse::CaptchaRequired)
             }
             Err(e) => Err(e),
         }
@@ -189,7 +180,7 @@ impl<P: PushService> ProvisioningManager<P> {
         &mut self,
         captcha: Option<&str>,
         challenge: Option<&str>,
-    ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
+    ) -> Result<VerificationCodeResponse, ServiceError> {
         let res = match self
             .push_service
             .get_json(
@@ -206,9 +197,9 @@ impl<P: PushService> ProvisioningManager<P> {
             r => r,
         };
         match res {
-            Ok(_) => Ok(VoiceVerificationCodeResponse::CallIssued),
+            Ok(_) => Ok(VerificationCodeResponse::Issued),
             Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(VoiceVerificationCodeResponse::CaptchaRequired)
+                Ok(VerificationCodeResponse::CaptchaRequired)
             }
             Err(e) => Err(e),
         }
@@ -285,7 +276,7 @@ impl<P: PushService> LinkingManager<P> {
         Self {
             cfg: cfg.clone().into(),
             user_agent: user_agent.clone(),
-            password: password.clone(),
+            password,
             push_service: P::new(cfg, None, user_agent),
         }
     }
@@ -317,9 +308,17 @@ impl<P: PushService> LinkingManager<P> {
                         .expect("failed to send provisioning Url in channel");
                 }
                 Ok(ProvisioningStep::Message(message)) => {
-                    let uuid =
-                        message.uuid.ok_or(ProvisioningError::InvalidData {
+                    let uuid = message
+                        .uuid
+                        .ok_or(ProvisioningError::InvalidData {
                             reason: "missing client UUID".into(),
+                        })
+                        .and_then(|ref s| {
+                            Uuid::parse_str(s).map_err(|e| {
+                                ProvisioningError::InvalidData {
+                                    reason: format!("invalid UUID: {}", e),
+                                }
+                            })
                         })?;
 
                     let public_key = PublicKey::decode_point(
@@ -403,7 +402,7 @@ impl<P: PushService> LinkingManager<P> {
                         "failed to send provisioning message in rx channel",
                     );
                 }
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(e),
             }
         }
 
