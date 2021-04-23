@@ -276,7 +276,7 @@ impl<P: PushService> LinkingManager<P> {
         Self {
             cfg: cfg.clone().into(),
             user_agent: user_agent.clone(),
-            password: password.clone(),
+            password,
             push_service: P::new(cfg, None, user_agent),
         }
     }
@@ -402,7 +402,7 @@ impl<P: PushService> LinkingManager<P> {
                         "failed to send provisioning message in rx channel",
                     );
                 }
-                Err(e) => return Err(e.into()),
+                Err(e) => return Err(e),
             }
         }
 
