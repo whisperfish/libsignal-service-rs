@@ -9,10 +9,6 @@ use super::{
     ProvisioningError,
 };
 
-pub use crate::proto::{
-    ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
-};
-
 use libsignal_protocol::{
     generate_registration_id,
     keys::{PrivateKey, PublicKey},
@@ -105,15 +101,9 @@ pub struct ConfirmCodeResponse {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum SmsVerificationCodeResponse {
+pub enum VerificationCodeResponse {
     CaptchaRequired,
-    SmsSent,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum VoiceVerificationCodeResponse {
-    CaptchaRequired,
-    CallIssued,
+    Issued,
 }
 
 #[derive(Clone)]
@@ -161,7 +151,7 @@ impl<P: PushService> ProvisioningManager<P> {
         &mut self,
         captcha: Option<&str>,
         challenge: Option<&str>,
-    ) -> Result<SmsVerificationCodeResponse, ServiceError> {
+    ) -> Result<VerificationCodeResponse, ServiceError> {
         let res = match self
             .push_service
             .get_json(
@@ -178,9 +168,9 @@ impl<P: PushService> ProvisioningManager<P> {
             r => r,
         };
         match res {
-            Ok(_) => Ok(SmsVerificationCodeResponse::SmsSent),
+            Ok(_) => Ok(VerificationCodeResponse::Issued),
             Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(SmsVerificationCodeResponse::CaptchaRequired)
+                Ok(VerificationCodeResponse::CaptchaRequired)
             }
             Err(e) => Err(e),
         }
@@ -190,7 +180,7 @@ impl<P: PushService> ProvisioningManager<P> {
         &mut self,
         captcha: Option<&str>,
         challenge: Option<&str>,
-    ) -> Result<VoiceVerificationCodeResponse, ServiceError> {
+    ) -> Result<VerificationCodeResponse, ServiceError> {
         let res = match self
             .push_service
             .get_json(
@@ -207,9 +197,9 @@ impl<P: PushService> ProvisioningManager<P> {
             r => r,
         };
         match res {
-            Ok(_) => Ok(VoiceVerificationCodeResponse::CallIssued),
+            Ok(_) => Ok(VerificationCodeResponse::Issued),
             Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(VoiceVerificationCodeResponse::CaptchaRequired)
+                Ok(VerificationCodeResponse::CaptchaRequired)
             }
             Err(e) => Err(e),
         }
