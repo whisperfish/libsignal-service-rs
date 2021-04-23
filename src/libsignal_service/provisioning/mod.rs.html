@@ -33,6 +33,7 @@
 <span id="30">30</span>
 <span id="31">31</span>
 <span id="32">32</span>
+<span id="33">33</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">mod</span> <span class="ident">cipher</span>;
 <span class="kw">mod</span> <span class="ident">manager</span>;
@@ -41,10 +42,11 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">cipher</span>::<span class="ident">ProvisioningCipher</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">manager</span>::{
     <span class="ident">ConfirmCodeMessage</span>, <span class="ident">ConfirmDeviceMessage</span>, <span class="ident">LinkingManager</span>,
-    <span class="ident">ProvisioningManager</span>, <span class="ident">SecondaryDeviceProvisioning</span>,
+    <span class="ident">ProvisioningManager</span>, <span class="ident">SecondaryDeviceProvisioning</span>, <span class="ident">VerificationCodeResponse</span>,
 };
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">prelude</span>::<span class="ident">ServiceError</span>;
+
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::{
     <span class="ident">ProvisionEnvelope</span>, <span class="ident">ProvisionMessage</span>, <span class="ident">ProvisioningVersion</span>,
 };

@@ -692,6 +692,7 @@
 <span id="689">689</span>
 <span id="690">690</span>
 <span id="691">691</span>
+<span id="692">692</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::<span class="ident">Duration</span>;
 
@@ -717,6 +718,7 @@
 
 <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">keys</span>::<span class="ident">PublicKey</span>, <span class="ident">Context</span>, <span class="ident">PreKeyBundle</span>};
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
+<span class="kw">use</span> <span class="ident">uuid</span>::<span class="ident">Uuid</span>;
 <span class="kw">use</span> <span class="ident">zkgroup</span>::<span class="ident">profiles</span>::{<span class="ident">ProfileKeyCommitment</span>, <span class="ident">ProfileKeyVersion</span>};
 
 <span class="doccomment">/**
@@ -804,7 +806,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub</span> <span class="ident">gv1_migration</span>: <span class="ident">bool</span>,
 }
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ProfileKey</span>(<span class="kw">pub</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>);
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ProfileKey</span>(<span class="kw">pub</span> [<span class="ident">u8</span>; <span class="number">32</span>]);
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
@@ -839,7 +841,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>, <span class="ident">Default</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WhoAmIResponse</span> {
-    <span class="kw">pub</span> <span class="ident">uuid</span>: <span class="ident">String</span>,
+    <span class="kw">pub</span> <span class="ident">uuid</span>: <span class="ident">Uuid</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>)]</span>
