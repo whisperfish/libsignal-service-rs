@@ -217,7 +217,8 @@ impl PushService for HyperPushService {
         let cfg = cfg.into();
         let tls_config = Self::tls_config(&cfg);
 
-        let http = HttpConnector::new();
+        let mut http = HttpConnector::new();
+        http.enforce_http(false);
         let https = HttpsConnector::from((http, tls_config));
 
         // as in Signal-Android
