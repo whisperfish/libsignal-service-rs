@@ -23,7 +23,7 @@ use crate::websocket::TungsteniteWebSocket;
 pub struct HyperPushService {
     cfg: ServiceConfiguration,
     user_agent: String,
-    credentials: Option<HttpCredentials>,
+    credentials: Option<HttpAuth>,
     client: Client<TimeoutConnector<HttpsConnector<HttpConnector>>>,
 }
 
@@ -51,7 +51,7 @@ impl HyperPushService {
         method: Method,
         endpoint: Endpoint,
         path: impl AsRef<str>,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
         body: Option<RequestBody>,
     ) -> Result<Response<Body>, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
@@ -60,18 +60,26 @@ impl HyperPushService {
             .method(method)
             .uri(url.as_str())
             .header(USER_AGENT, &self.user_agent);
-        if let Some(http_credentials) = credentials_override
-            .as_ref()
-            .or_else(|| self.credentials.as_ref())
-        {
-            builder
-                .headers_mut()
-                .unwrap()
-                .typed_insert(Authorization::basic(
-                    &http_credentials.username,
-                    &http_credentials.password,
-                ));
-        }
+
+        match credentials_override {
+            HttpAuthOverride::NoOverride => {
+                if let Some(HttpAuth { username, password }) =
+                    self.credentials.as_ref()
+                {
+                    builder
+                        .headers_mut()
+                        .unwrap()
+                        .typed_insert(Authorization::basic(username, password));
+                }
+            }
+            HttpAuthOverride::Identified(HttpAuth { username, password }) => {
+                builder
+                    .headers_mut()
+                    .unwrap()
+                    .typed_insert(Authorization::basic(&username, &password));
+            }
+            HttpAuthOverride::Unidentified => (),
+        };
 
         let request = if let Some(RequestBody {
             contents,
@@ -242,7 +250,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
@@ -263,7 +271,13 @@ impl PushService for HyperPushService {
         for<'de> T: Deserialize<'de>,
     {
         let mut response = self
-            .request(Method::DELETE, service, path, None, None)
+            .request(
+                Method::DELETE,
+                service,
+                path,
+                HttpAuthOverride::NoOverride,
+                None,
+            )
             .await?;
 
         Self::json(&mut response).await
@@ -273,7 +287,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -306,7 +320,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         T: Default + libsignal_service::prelude::ProtobufMessage,
@@ -336,7 +350,7 @@ impl PushService for HyperPushService {
                 Method::PUT,
                 service,
                 path,
-                None,
+                HttpAuthOverride::NoOverride,
                 Some(RequestBody {
                     contents: protobuf,
                     content_type: "application/x-protobuf".into(),
@@ -353,7 +367,13 @@ impl PushService for HyperPushService {
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
         let response = self
-            .request(Method::GET, Endpoint::Cdn(cdn_id), path, None, None)
+            .request(
+                Method::GET,
+                Endpoint::Cdn(cdn_id),
+                path,
+                HttpAuthOverride::Unidentified, // CDN requests are always without authentication
+                None,
+            )
             .await?;
 
         Ok(Box::new(
@@ -419,7 +439,7 @@ impl PushService for HyperPushService {
                 Method::POST,
                 Endpoint::Cdn(0),
                 path,
-                None,
+                HttpAuthOverride::NoOverride,
                 Some(RequestBody {
                     contents: body_contents,
                     content_type,

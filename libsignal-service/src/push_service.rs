@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceConfiguration, ServiceCredentials},
@@ -119,9 +119,22 @@ pub struct PreKeyStatus {
 }
 
 #[derive(Clone)]
-pub struct HttpCredentials {
+pub struct HttpAuth {
     pub username: String,
     pub password: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum HttpAuthOverride {
+    NoOverride,
+    Unidentified,
+    Identified(HttpAuth),
+}
+
+impl fmt::Debug for HttpAuth {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "HTTP auth with username {}", self.username)
+    }
 }
 
 impl ProfileKey {
@@ -283,7 +296,7 @@ pub trait PushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
@@ -300,7 +313,7 @@ pub trait PushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -311,7 +324,7 @@ pub trait PushService {
         &mut self,
         service: Endpoint,
         path: &str,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         T: Default + ProtobufMessage;
@@ -365,7 +378,11 @@ pub trait PushService {
         }
 
         let devices: DeviceInfoList = self
-            .get_json(Endpoint::Service, "/v1/devices/", None)
+            .get_json(
+                Endpoint::Service,
+                "/v1/devices/",
+                HttpAuthOverride::NoOverride,
+            )
             .await?;
 
         Ok(devices.devices)
@@ -379,7 +396,12 @@ pub trait PushService {
     async fn get_pre_key_status(
         &mut self,
     ) -> Result<PreKeyStatus, ServiceError> {
-        self.get_json(Endpoint::Service, "/v2/keys/", None).await
+        self.get_json(
+            Endpoint::Service,
+            "/v2/keys/",
+            HttpAuthOverride::NoOverride,
+        )
+        .await
     }
 
     async fn register_pre_keys(
@@ -387,7 +409,12 @@ pub trait PushService {
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         match self
-            .put_json(Endpoint::Service, "/v2/keys/", None, pre_key_state)
+            .put_json(
+                Endpoint::Service,
+                "/v2/keys/",
+                HttpAuthOverride::NoOverride,
+                pre_key_state,
+            )
             .await
         {
             Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
@@ -427,8 +454,13 @@ pub trait PushService {
         messages: OutgoingPushMessages<'a>,
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
-        self.put_json(Endpoint::Service, &path, None, messages)
-            .await
+        self.put_json(
+            Endpoint::Service,
+            &path,
+            HttpAuthOverride::NoOverride,
+            messages,
+        )
+        .await
     }
 
     /// Request AttachmentV2UploadAttributes
@@ -437,8 +469,12 @@ pub trait PushService {
     async fn get_attachment_v2_upload_attributes(
         &mut self,
     ) -> Result<AttachmentV2UploadAttributes, ServiceError> {
-        self.get_json(Endpoint::Service, "/v2/attachments/form/upload", None)
-            .await
+        self.get_json(
+            Endpoint::Service,
+            "/v2/attachments/form/upload",
+            HttpAuthOverride::NoOverride,
+        )
+        .await
     }
 
     /// Upload attachment to CDN
@@ -475,15 +511,23 @@ pub trait PushService {
         &mut self,
     ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
         let entity_list: EnvelopeEntityList = self
-            .get_json(Endpoint::Service, "/v1/messages/", None)
+            .get_json(
+                Endpoint::Service,
+                "/v1/messages/",
+                HttpAuthOverride::NoOverride,
+            )
             .await?;
         Ok(entity_list.messages)
     }
 
     /// Method used to check our own UUID
     async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
-        self.get_json(Endpoint::Service, "/v1/accounts/whoami", None)
-            .await
+        self.get_json(
+            Endpoint::Service,
+            "/v1/accounts/whoami",
+            HttpAuthOverride::NoOverride,
+        )
+        .await
     }
 
     async fn get_pre_key(
@@ -503,8 +547,9 @@ pub trait PushService {
             format!("/v2/keys/{}/{}", destination.identifier(), device_id)
         };
 
-        let mut pre_key_response: PreKeyResponse =
-            self.get_json(Endpoint::Service, &path, None).await?;
+        let mut pre_key_response: PreKeyResponse = self
+            .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
+            .await?;
         assert!(!pre_key_response.devices.is_empty());
 
         let device = pre_key_response.devices.remove(0);
@@ -554,8 +599,9 @@ pub trait PushService {
                 relay
             ),
         };
-        let pre_key_response: PreKeyResponse =
-            self.get_json(Endpoint::Service, &path, None).await?;
+        let pre_key_response: PreKeyResponse = self
+            .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
+            .await?;
         let mut pre_keys = vec![];
         for device in pre_key_response.devices {
             let mut bundle = PreKeyBundle::builder()
@@ -588,10 +634,14 @@ pub trait PushService {
 
     async fn get_group(
         &mut self,
-        credentials: HttpCredentials,
+        credentials: HttpAuth,
     ) -> Result<crate::proto::Group, ServiceError> {
-        self.get_protobuf(Endpoint::Storage, "/v1/groups/", Some(credentials))
-            .await
+        self.get_protobuf(
+            Endpoint::Storage,
+            "/v1/groups/",
+            HttpAuthOverride::Identified(credentials),
+        )
+        .await
     }
 
     async fn set_account_attributes(
@@ -607,7 +657,7 @@ pub trait PushService {
             .put_json(
                 Endpoint::Service,
                 "/v1/accounts/attributes/",
-                None,
+                HttpAuthOverride::NoOverride,
                 attributes,
             )
             .await
@@ -666,7 +716,12 @@ pub trait PushService {
 
         // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
         let response: Result<String, _> = self
-            .put_json(Endpoint::Service, "/v1/profile", None, command)
+            .put_json(
+                Endpoint::Service,
+                "/v1/profile",
+                HttpAuthOverride::NoOverride,
+                command,
+            )
             .await;
         match (response, avatar) {
             (Ok(_url), Some(_avatar)) => {
