@@ -47,6 +47,13 @@ pub enum LinkError {
     ProvisioningError(#[from] ProvisioningError),
 }
 
+#[derive(Debug, Default)]
+pub struct Profile {
+    pub name: Option<ProfileName<String>>,
+    pub about: Option<String>,
+    pub about_emoji: Option<String>,
+}
+
 const PRE_KEY_MINIMUM: u32 = 10;
 const PRE_KEY_BATCH_SIZE: u32 = 100;
 
@@ -274,6 +281,38 @@ impl<Service: PushService> AccountManager<Service> {
         )
         .await?;
         Ok(())
+    }
+
+    pub async fn retrieve_profile(
+        &mut self,
+        uuid: uuid::Uuid,
+    ) -> Result<Profile, ServiceError> {
+        let profile_key =
+            self.profile_key.expect("set profile key in AccountManager");
+        let profile_key = ProfileKey::create(profile_key);
+        let profile_cipher = ProfileCipher::from(profile_key);
+
+        let encrypted_profile = self
+            .service
+            .retrieve_profile_by_id(&uuid.to_string())
+            .await?;
+
+        // Profile decryption
+        let name = encrypted_profile
+            .name
+            .and_then(|data| profile_cipher.decrypt_name(data).ok()?);
+        let about = encrypted_profile
+            .about
+            .and_then(|data| profile_cipher.decrypt_about(data).ok());
+        let about_emoji = encrypted_profile
+            .about_emoji
+            .and_then(|data| profile_cipher.decrypt_emoji(data).ok());
+
+        Ok(Profile {
+            name,
+            about,
+            about_emoji,
+        })
     }
 
     /// Upload a profile
