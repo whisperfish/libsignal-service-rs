@@ -509,6 +509,27 @@
 <span id="506">506</span>
 <span id="507">507</span>
 <span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">sync</span>::<span class="ident">Arc</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
@@ -533,7 +554,7 @@
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AwcPushService</span> {
     <span class="ident">cfg</span>: <span class="ident">ServiceConfiguration</span>,
-    <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+    <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpAuth</span><span class="op">&gt;</span>,
     <span class="ident">client</span>: <span class="ident">awc</span>::<span class="ident">Client</span>,
 }
 
@@ -543,20 +564,27 @@
         <span class="ident">method</span>: <span class="ident">Method</span>,
         <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
         <span class="ident">path</span>: <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span>,
-        <span class="ident">credentials_override</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+        <span class="ident">credentials_override</span>: <span class="ident">HttpAuthOverride</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ClientRequest</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">url</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cfg</span>.<span class="ident">base_url</span>(<span class="ident">endpoint</span>).<span class="ident">join</span>(<span class="ident">path</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
         <span class="ident">log</span>::<span class="macro">debug</span><span class="macro">!</span>(<span class="string">&quot;HTTP request {} {}&quot;</span>, <span class="ident">method</span>, <span class="ident">url</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">client</span>.<span class="ident">request</span>(<span class="ident">method</span>, <span class="ident">url</span>.<span class="ident">as_str</span>());
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">http_credentials</span>) <span class="op">=</span> <span class="ident">credentials_override</span>
-            .<span class="ident">as_ref</span>()
-            .<span class="ident">or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">credentials</span>.<span class="ident">as_ref</span>())
-        {
-            <span class="ident">builder</span> <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">basic_auth</span>(
-                <span class="kw-2">&amp;</span><span class="ident">http_credentials</span>.<span class="ident">username</span>,
-                <span class="kw-2">&amp;</span><span class="ident">http_credentials</span>.<span class="ident">password</span>,
-            );
-        }
+        <span class="ident">builder</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">credentials_override</span> {
+            <span class="ident">HttpAuthOverride</span>::<span class="ident">NoOverride</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">credentials</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">credentials</span>.<span class="ident">as_ref</span>() {
+                    <span class="ident">builder</span>.<span class="ident">basic_auth</span>(
+                        <span class="kw-2">&amp;</span><span class="ident">credentials</span>.<span class="ident">username</span>,
+                        <span class="kw-2">&amp;</span><span class="ident">credentials</span>.<span class="ident">password</span>,
+                    )
+                } <span class="kw">else</span> {
+                    <span class="ident">builder</span>
+                }
+            }
+            <span class="ident">HttpAuthOverride</span>::<span class="ident">Identified</span>(<span class="ident">HttpAuth</span> { <span class="ident">username</span>, <span class="ident">password</span> }) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="ident">builder</span>.<span class="ident">basic_auth</span>(<span class="ident">username</span>, <span class="ident">password</span>)
+            }
+            <span class="ident">HttpAuthOverride</span>::<span class="ident">Unidentified</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">builder</span>,
+        };
         <span class="prelude-val">Ok</span>(<span class="ident">builder</span>)
     }
 
@@ -636,14 +664,14 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+        <span class="ident">credentials_override</span>: <span class="ident">HttpAuthOverride</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
     {
         <span class="kw">use</span> <span class="ident">awc</span>::<span class="ident">error</span>::{<span class="ident">ConnectError</span>, <span class="ident">SendRequestError</span>};
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="ident">credentials</span>)<span class="question-mark">?</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="ident">credentials_override</span>)<span class="question-mark">?</span>
             .<span class="ident">send</span>()
             .<span class="kw">await</span>
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
@@ -699,7 +727,12 @@
         <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span> <span class="ident">T</span>: <span class="ident">Deserialize</span><span class="op">&lt;</span><span class="lifetime">&#39;de</span><span class="op">&gt;</span>,
     {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">DELETE</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>
+            .<span class="ident">request</span>(
+                <span class="ident">Method</span>::<span class="ident">DELETE</span>,
+                <span class="ident">endpoint</span>,
+                <span class="ident">path</span>,
+                <span class="ident">HttpAuthOverride</span>::<span class="ident">NoOverride</span>,
+            )<span class="question-mark">?</span>
             .<span class="ident">send</span>()
             .<span class="kw">await</span>
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">e</span> {
@@ -752,7 +785,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">credentials_override</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+        <span class="ident">credentials_override</span>: <span class="ident">HttpAuthOverride</span>,
         <span class="ident">value</span>: <span class="ident">S</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">D</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
@@ -811,13 +844,13 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">endpoint</span>: <span class="ident">Endpoint</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span>,
+        <span class="ident">credentials_override</span>: <span class="ident">HttpAuthOverride</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">T</span>: <span class="ident">Default</span> <span class="op">+</span> <span class="ident">ProtobufMessage</span>,
     {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="ident">credentials</span>)<span class="question-mark">?</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="ident">credentials_override</span>)<span class="question-mark">?</span>
             .<span class="ident">send</span>()
             .<span class="kw">await</span>
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
@@ -849,7 +882,7 @@
         <span class="ident">value</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buf</span>).<span class="ident">expect</span>(<span class="string">&quot;infallible operation&quot;</span>);
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">PUT</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>
+            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">PUT</span>, <span class="ident">endpoint</span>, <span class="ident">path</span>, <span class="ident">HttpAuthOverride</span>::<span class="ident">NoOverride</span>)<span class="question-mark">?</span>
             .<span class="ident">content_type</span>(<span class="ident">HeaderValue</span>::<span class="ident">from_static</span>(<span class="string">&quot;application/x-protobuf&quot;</span>))
             .<span class="ident">send_body</span>(<span class="ident">buf</span>)
             .<span class="kw">await</span>
@@ -873,7 +906,12 @@
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>::<span class="ident">ByteStream</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">response</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">GET</span>, <span class="ident">Endpoint</span>::<span class="ident">Cdn</span>(<span class="ident">cdn_id</span>), <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>
+            .<span class="ident">request</span>(
+                <span class="ident">Method</span>::<span class="ident">GET</span>,
+                <span class="ident">Endpoint</span>::<span class="ident">Cdn</span>(<span class="ident">cdn_id</span>),
+                <span class="ident">path</span>,
+                <span class="ident">HttpAuthOverride</span>::<span class="ident">Unidentified</span>,
+            )<span class="question-mark">?</span>
             .<span class="ident">send</span>()
             .<span class="kw">await</span>
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">ServiceError</span>::<span class="ident">SendError</span> {
@@ -906,8 +944,12 @@
         <span class="ident">value</span>: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="ident">str</span>)],
         <span class="ident">file</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="kw-2">&amp;</span><span class="ident">str</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> <span class="kw-2">mut</span> <span class="ident">C</span>)<span class="op">&gt;</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span>
-            <span class="self">self</span>.<span class="ident">request</span>(<span class="ident">Method</span>::<span class="ident">POST</span>, <span class="ident">Endpoint</span>::<span class="ident">Cdn</span>(<span class="number">0</span>), <span class="ident">path</span>, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">request</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">request</span>(
+            <span class="ident">Method</span>::<span class="ident">POST</span>,
+            <span class="ident">Endpoint</span>::<span class="ident">Cdn</span>(<span class="number">0</span>),
+            <span class="ident">path</span>,
+            <span class="ident">HttpAuthOverride</span>::<span class="ident">NoOverride</span>,
+        )<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">form</span> <span class="op">=</span> <span class="ident">mpart_async</span>::<span class="ident">client</span>::<span class="ident">MultipartRequest</span>::<span class="ident">default</span>();
 

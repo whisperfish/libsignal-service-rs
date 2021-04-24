@@ -185,7 +185,7 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">envelope</span>::{<span class="ident">CIPHER_KEY_SIZE</span>, <span class="ident">MAC_KEY_SIZE</span>},
-    <span class="ident">push_service</span>::{<span class="ident">HttpCredentials</span>, <span class="ident">ServiceError</span>, <span class="ident">DEFAULT_DEVICE_ID</span>},
+    <span class="ident">push_service</span>::{<span class="ident">HttpAuth</span>, <span class="ident">ServiceError</span>, <span class="ident">DEFAULT_DEVICE_ID</span>},
     <span class="ident">sealed_session_cipher</span>::{<span class="ident">CertificateValidator</span>, <span class="ident">SealedSessionError</span>},
 };
 
@@ -212,8 +212,8 @@
 }
 
 <span class="kw">impl</span> <span class="ident">ServiceCredentials</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">authorization</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpCredentials</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">password</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">password</span><span class="op">|</span> <span class="ident">HttpCredentials</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">authorization</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">HttpAuth</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">password</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">password</span><span class="op">|</span> <span class="ident">HttpAuth</span> {
             <span class="ident">username</span>: <span class="self">self</span>.<span class="ident">login</span>(),
             <span class="ident">password</span>: <span class="ident">password</span>.<span class="ident">clone</span>(),
         })
