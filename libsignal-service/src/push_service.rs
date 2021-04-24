@@ -112,16 +112,6 @@ pub struct DeviceCapabilities {
 
 pub struct ProfileKey(pub [u8; 32]);
 
-impl ProfileKey {
-    pub fn derive_access_key(&self) -> Vec<u8> {
-        let key = GenericArray::from_slice(&self.0);
-        let cipher = Aes256Gcm::new(key);
-        let nonce = GenericArray::from_slice(&[0u8; 12]);
-        let buf = [0u8; 16];
-        cipher.encrypt(nonce, &buf[..]).unwrap()
-    }
-}
-
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyStatus {
@@ -144,6 +134,16 @@ pub enum HttpAuthOverride {
 impl fmt::Debug for HttpAuth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "HTTP auth with username {}", self.username)
+    }
+}
+
+impl ProfileKey {
+    pub fn derive_access_key(&self) -> Vec<u8> {
+        let key = GenericArray::from_slice(&self.0);
+        let cipher = Aes256Gcm::new(key);
+        let nonce = GenericArray::from_slice(&[0u8; 12]);
+        let buf = [0u8; 16];
+        cipher.encrypt(nonce, &buf[..]).unwrap()
     }
 }
 
