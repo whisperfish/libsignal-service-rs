@@ -286,7 +286,7 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn retrieve_profile(
         &mut self,
         uuid: uuid::Uuid,
-    ) -> Result<Profile, ServiceError> {
+    ) -> Result<Profile, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
         let profile_key = ProfileKey::create(profile_key);
@@ -300,13 +300,17 @@ impl<Service: PushService> AccountManager<Service> {
         // Profile decryption
         let name = encrypted_profile
             .name
-            .and_then(|data| profile_cipher.decrypt_name(data).ok()?);
+            .map(|data| profile_cipher.decrypt_name(data))
+            .transpose()?
+            .flatten();
         let about = encrypted_profile
             .about
-            .and_then(|data| profile_cipher.decrypt_about(data).ok());
+            .map(|data| profile_cipher.decrypt_about(data))
+            .transpose()?;
         let about_emoji = encrypted_profile
             .about_emoji
-            .and_then(|data| profile_cipher.decrypt_emoji(data).ok());
+            .map(|data| profile_cipher.decrypt_emoji(data))
+            .transpose()?;
 
         Ok(Profile {
             name,
