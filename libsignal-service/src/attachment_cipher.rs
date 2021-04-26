@@ -125,8 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn attachment_encrypt_decrypt_bad_key() -> Result<(), AttachmentCipherError>
-    {
+    fn attachment_encrypt_decrypt_bad_key() {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
         rand::thread_rng().fill_bytes(&mut key);
@@ -142,7 +141,6 @@ mod tests {
             AttachmentCipherError::MacError
         );
         assert_ne!(&buf, &plaintext);
-        Ok(())
     }
 
     #[test]

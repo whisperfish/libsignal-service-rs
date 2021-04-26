@@ -201,7 +201,7 @@ mod tests {
         let ctx = Context::default();
         let cipher = ProvisioningCipher::new(ctx.clone()).unwrap();
         let encrypt_cipher =
-            ProvisioningCipher::from_public(ctx.clone(), cipher.public_key());
+            ProvisioningCipher::from_public(ctx, cipher.public_key());
 
         assert_eq!(
             cipher.public_key(),
