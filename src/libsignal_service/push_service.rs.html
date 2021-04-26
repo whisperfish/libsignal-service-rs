@@ -770,7 +770,6 @@
 <span id="767">767</span>
 <span id="768">768</span>
 <span id="769">769</span>
-<span id="770">770</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
@@ -786,15 +785,14 @@
     <span class="ident">ServiceAddress</span>,
 };
 
+<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">keys</span>::<span class="ident">PublicKey</span>, <span class="ident">Context</span>, <span class="ident">PreKeyBundle</span>};
+
 <span class="kw">use</span> <span class="ident">aes_gcm</span>::{
     <span class="ident">aead</span>::{<span class="ident">generic_array</span>::<span class="ident">GenericArray</span>, <span class="ident">Aead</span>},
     <span class="ident">Aes256Gcm</span>, <span class="ident">NewAead</span>,
 };
-
 <span class="kw">use</span> <span class="ident">chrono</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span> <span class="kw">as</span> <span class="ident">ProtobufMessage</span>;
-
-<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">keys</span>::<span class="ident">PublicKey</span>, <span class="ident">Context</span>, <span class="ident">PreKeyBundle</span>};
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">uuid</span>::<span class="ident">Uuid</span>;
 <span class="kw">use</span> <span class="ident">zkgroup</span>::<span class="ident">profiles</span>::{<span class="ident">ProfileKeyCommitment</span>, <span class="ident">ProfileKeyVersion</span>};
