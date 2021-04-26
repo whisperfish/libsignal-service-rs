@@ -12,18 +12,15 @@ use crate::{
     ServiceAddress,
 };
 
-use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
-
 use aes_gcm::{
     aead::{generic_array::GenericArray, Aead},
     Aes256Gcm, NewAead,
 };
 use chrono::prelude::*;
-use prost::Message as ProtobufMessage;
-
 use libsignal_protocol::{
     error::SignalProtocolError, Context, IdentityKey, PreKeyBundle, PublicKey,
 };
+use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
@@ -70,7 +67,7 @@ pub const DEFAULT_DEVICE_ID: u32 = 1;
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
-    pub device_id: i32,
+    pub device_id: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -198,8 +195,8 @@ impl PreKeyResponseItem {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MismatchedDevices {
-    pub missing_devices: Vec<i32>,
-    pub extra_devices: Vec<i32>,
+    pub missing_devices: Vec<u32>,
+    pub extra_devices: Vec<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -580,9 +577,8 @@ pub trait PushService {
 
     async fn get_pre_key(
         &mut self,
-        context: &Context,
         destination: &ServiceAddress,
-        device_id: i32,
+        device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
         let path = if let Some(ref relay) = destination.relay {
             format!(
@@ -607,7 +603,6 @@ pub trait PushService {
 
     async fn get_pre_keys(
         &mut self,
-        context: &Context,
         destination: &ServiceAddress,
         device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
-use libsignal_protocol::{keys::PublicKey, Context};
+use libsignal_protocol::{Context, PublicKey};
 use url::Url;
 use zkgroup::ServerPublicParams;
 
@@ -155,10 +155,8 @@ impl From<SignalServers> for ServiceConfiguration {
 impl ServiceConfiguration {
     pub fn credentials_validator(
         &self,
-        context: &Context,
     ) -> Result<CertificateValidator, ServiceError> {
-        Ok(CertificateValidator::new(PublicKey::decode_point(
-            context,
+        Ok(CertificateValidator::new(PublicKey::deserialize(
             &base64::decode(&self.unidentified_sender_trust_root)
                 .map_err(|_| SealedSessionError::InvalidCertificate)?,
         )?))

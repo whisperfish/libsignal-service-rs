@@ -8,7 +8,11 @@ use crate::proto::{
 };
 
 use chrono::prelude::*;
-use libsignal_protocol::SessionBuilder;
+use libsignal_protocol::{
+    process_prekey_bundle, Context, IdentityKeyStore, PreKeyStore,
+    ProtocolAddress, SessionRecord, SessionStore, SignalProtocolError,
+    SignedPreKeyStore,
+};
 use log::{info, trace};
 
 use crate::{
@@ -22,7 +26,7 @@ pub use crate::proto::{ContactDetails, GroupDetails};
 #[serde(rename_all = "camelCase")]
 pub struct OutgoingPushMessage {
     pub r#type: u32,
-    pub destination_device_id: i32,
+    pub destination_device_id: u32,
     pub destination_registration_id: u32,
     pub content: String,
 }
@@ -66,9 +70,16 @@ pub struct AttachmentSpec {
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
-pub struct MessageSender<Service> {
+pub struct MessageSender<Service, S, I, SP, P>
+where
+    S: SessionStore + Clone,
+    I: IdentityKeyStore + Clone,
+    SP: SignedPreKeyStore + Clone,
+    P: PreKeyStore + Clone,
+{
     service: Service,
-    cipher: ServiceCipher,
+    context: Context,
+    cipher: ServiceCipher<S, I, SP, P>,
     device_id: u32,
 }
 
@@ -86,7 +97,7 @@ pub enum MessageSenderError {
     #[error("{0}")]
     ServiceError(#[from] ServiceError),
     #[error("protocol error: {0}")]
-    ProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
+    ProtocolError(#[from] SignalProtocolError),
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
 
@@ -112,17 +123,23 @@ pub enum MessageSenderError {
     IdentityFailure { recipient: ServiceAddress },
 }
 
-impl<Service> MessageSender<Service>
+impl<Service, S, I, SP, P> MessageSender<Service, S, I, SP, P>
 where
     Service: PushService + Clone,
+    S: SessionStore + Clone,
+    I: IdentityKeyStore + Clone,
+    SP: SignedPreKeyStore + Clone,
+    P: PreKeyStore + Clone,
 {
     pub fn new(
         service: Service,
-        cipher: ServiceCipher,
+        context: Context,
+        cipher: ServiceCipher<S, I, SP, P>,
         device_id: u32,
     ) -> Self {
         MessageSender {
             service,
+            context,
             cipher,
             device_id,
         }
@@ -338,15 +355,16 @@ where
         }
 
         if end_session {
-            log::debug!("ending session with {}", recipient);
-            if let Some(ref uuid) = recipient.uuid {
-                self.cipher
-                    .store_context
-                    .delete_all_sessions(&uuid.to_string())?;
-            }
-            if let Some(e164) = recipient.e164() {
-                self.cipher.store_context.delete_all_sessions(&e164)?;
-            }
+            // log::debug!("ending session with {}", recipient);
+            // if let Some(ref uuid) = recipient.uuid {
+            //     self.cipher
+            //         .store_context
+            //         .delete_all_sessions(&uuid.to_string())?;
+            // }
+            // if let Some(e164) = recipient.e164() {
+            //     self.cipher.store_context.delete_all_sessions(&e164)?;
+            // }
+            log::warn!("deleting all sessions: unimplemented following the switch to the Rust version of libsignal-protocol");
         }
 
         result
@@ -461,21 +479,11 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
-                        if let Some(ref uuid) = recipient.uuid {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
-                                    uuid.to_string(),
-                                    *extra_device_id,
-                                ),
-                            )?;
+                        if let Some(_uuid) = recipient.uuid {
+                            unimplemented!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
                         }
-                        if let Some(e164) = recipient.e164() {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
-                                    &e164,
-                                    *extra_device_id,
-                                ),
-                            )?;
+                        if let Some(_e164) = recipient.e164() {
+                            unimplemented!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
                         }
                     }
 
@@ -484,23 +492,27 @@ where
                             "creating session with missing device {}",
                             missing_device_id
                         );
+                        let remote_address = ProtocolAddress::new(
+                            recipient.identifier(),
+                            *missing_device_id,
+                        );
                         let pre_key = self
                             .service
-                            .get_pre_key(
-                                &self.cipher.context,
-                                &recipient,
-                                *missing_device_id,
-                            )
+                            .get_pre_key(&recipient, *missing_device_id)
                             .await?;
-                        SessionBuilder::new(
-                            &self.cipher.context,
-                            &self.cipher.store_context,
-                            &libsignal_protocol::Address::new(
-                                &recipient.identifier(),
-                                *missing_device_id,
-                            ),
+
+                        // FIXME: what
+                        let mut csprng = rand::rngs::OsRng;
+
+                        process_prekey_bundle(
+                            &remote_address,
+                            &mut self.cipher.session_store,
+                            &mut self.cipher.identity_key_store,
+                            &pre_key,
+                            &mut csprng,
+                            None,
                         )
-                        .process_pre_key_bundle(&pre_key)
+                        .await
                         .map_err(|e| {
                             log::error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
@@ -517,20 +529,19 @@ where
                             extra_device_id
                         );
                         if let Some(ref uuid) = recipient.uuid {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
-                                    uuid.to_string(),
-                                    *extra_device_id,
-                                ),
-                            )?;
+                            log::warn!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
+                            // self.cipher.store_context.delete_session(
+                            //     &ProtocolAddress::new(
+                            //         uuid.to_string(),
+                            //         *extra_device_id,
+                            //     ),
+                            // )?;
                         }
                         if let Some(e164) = recipient.e164() {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
-                                    e164,
-                                    *extra_device_id,
-                                ),
-                            )?;
+                            log::warn!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
+                            // self.cipher.store_context.delete_session(
+                            // &ProtocolAddress::new(e164, *extra_device_id),
+                            // )?;
                         }
                     }
                 }
@@ -636,28 +647,37 @@ where
 
         // XXX maybe refactor this in a method, this is probably something we need on every call to
         // get_sub_device_sessions.
+        // FIXME: re-implement sub device sessions
         let mut sub_device_sessions = Vec::new();
-        if let Some(uuid) = &recipient.uuid {
-            sub_device_sessions.extend(
-                self.cipher
-                    .store_context
-                    .get_sub_device_sessions(&uuid.to_string())?,
-            );
-        }
-        if let Some(e164) = &recipient.e164() {
-            sub_device_sessions.extend(
-                self.cipher.store_context.get_sub_device_sessions(&e164)?,
-            );
-        }
+        // if let Some(uuid) = &recipient.uuid {
+        //     sub_device_sessions.extend(
+        //         self.cipher
+        //             .session_store
+        //             .get_sub_device_sessions(&uuid.to_string())?,
+        //     );
+        // }
+        // if let Some(e164) = &recipient.e164() {
+        //     sub_device_sessions.extend(
+        //         self.cipher.store_context.get_sub_device_sessions(&e164)?,
+        //     );
+        // }
 
         for device_id in sub_device_sessions {
             trace!("sending message to device {}", device_id);
             let ppa = get_preferred_protocol_address(
-                &self.cipher.store_context,
-                recipient.clone(),
+                None,
+                &self.cipher.session_store,
+                recipient,
                 device_id,
-            )?;
-            if self.cipher.store_context.contains_session(&ppa)? {
+            )
+            .await?;
+            if self
+                .cipher
+                .session_store
+                .load_session(&ppa, None)
+                .await?
+                .is_some()
+            {
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
@@ -684,22 +704,24 @@ where
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
-            &self.cipher.store_context,
-            recipient.clone(),
+            None,
+            &self.cipher.session_store,
+            recipient,
             device_id,
-        )?;
+        )
+        .await?;
         log::trace!("encrypting message for {:?}", recipient_address);
 
         if !self
             .cipher
-            .store_context
-            .contains_session(&recipient_address)?
+            .session_store
+            .load_session(&recipient_address, None)
+            .await?
+            .is_some()
         {
             info!("establishing new session with {:?}", recipient_address);
-            let pre_keys = self
-                .service
-                .get_pre_keys(&self.cipher.context, recipient, device_id)
-                .await?;
+            let pre_keys =
+                self.service.get_pre_keys(&recipient, device_id).await?;
             for pre_key_bundle in pre_keys {
                 if recipient.matches(&self.cipher.local_address)
                     && self.device_id == pre_key_bundle.device_id()?
@@ -709,24 +731,32 @@ where
                 }
 
                 let pre_key_address = get_preferred_protocol_address(
-                    &self.cipher.store_context,
-                    recipient.clone(),
+                    None,
+                    &self.cipher.session_store,
+                    recipient,
                     pre_key_bundle.device_id()?,
-                )?;
-                let session_builder = SessionBuilder::new(
-                    &self.cipher.context,
-                    &self.cipher.store_context,
+                )
+                .await?;
+
+                // FIXME: what
+                let mut csprng = rand::rngs::OsRng;
+
+                process_prekey_bundle(
                     &pre_key_address,
-                );
-                session_builder.process_pre_key_bundle(&pre_key_bundle)?;
+                    &mut self.cipher.session_store,
+                    &mut self.cipher.identity_key_store,
+                    &pre_key_bundle,
+                    &mut csprng,
+                    None,
+                )
+                .await?;
             }
         }
 
-        let message = self.cipher.encrypt(
-            &recipient_address,
-            unidentified_access,
-            content,
-        )?;
+        let message = self
+            .cipher
+            .encrypt(&recipient_address, unidentified_access, content)
+            .await?;
         Ok(message)
     }
 

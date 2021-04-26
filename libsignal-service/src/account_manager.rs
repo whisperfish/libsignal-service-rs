@@ -12,14 +12,17 @@ use crate::{
 };
 
 use std::collections::HashMap;
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
-use libsignal_protocol::PublicKey;
-
+use libsignal_protocol::{
+    Context, IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PublicKey,
+    SignedPreKeyRecord, SignedPreKeyStore,
+};
 use zkgroup::profiles::ProfileKey;
 
 pub struct AccountManager<Service> {
+    context: Context,
     service: Service,
     profile_key: Option<[u8; 32]>,
 }
@@ -55,10 +58,16 @@ pub struct Profile {
 
 const PRE_KEY_MINIMUM: u32 = 10;
 const PRE_KEY_BATCH_SIZE: u32 = 100;
+const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
 impl<Service: PushService> AccountManager<Service> {
-    pub fn new(service: Service, profile_key: Option<[u8; 32]>) -> Self {
+    pub fn new(
+        context: Context,
+        service: Service,
+        profile_key: Option<[u8; 32]>,
+    ) -> Self {
         Self {
+            context,
             service,
             profile_key,
         }
@@ -72,11 +81,19 @@ impl<Service: PushService> AccountManager<Service> {
     /// Equivalent to Java's RefreshPreKeysJob
     ///
     /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
-    pub async fn update_pre_key_bundle(
+    pub async fn update_pre_key_bundle<
+        I: IdentityKeyStore,
+        P: PreKeyStore,
+        S: SignedPreKeyStore,
+        R: rand::Rng + rand::CryptoRng,
+    >(
         &mut self,
-        store_context: StoreContext,
+        identity_store: &I,
+        prekey_store: &mut P,
+        signed_prekey_store: &mut S,
+        csprng: &mut R,
         pre_keys_offset_id: u32,
-        next_signed_pre_key_id: u32,
+        signed_pre_key_id: u32,
         use_last_resort_key: bool,
     ) -> Result<(u32, u32), ServiceError> {
         let prekey_count = match self.service.get_pre_key_status().await {
@@ -93,32 +110,54 @@ impl<Service: PushService> AccountManager<Service> {
 
         if prekey_count >= PRE_KEY_MINIMUM {
             log::info!("Available keys sufficient");
-            return Ok((pre_keys_offset_id, next_signed_pre_key_id));
+            return Ok((pre_keys_offset_id, signed_pre_key_id));
         }
-
-        let pre_keys = libsignal_protocol::generate_pre_keys(
-            pre_keys_offset_id,
-            PRE_KEY_BATCH_SIZE,
-        )?;
-        let identity_key_pair = store_context.identity_key_pair()?;
-        let signed_pre_key = libsignal_protocol::generate_signed_pre_key(
-            &identity_key_pair,
-            next_signed_pre_key_id,
-            SystemTime::now(),
-        )?;
-
-        store_context.store_signed_pre_key(&signed_pre_key)?;
 
         let mut pre_key_entities = vec![];
-        for pre_key in pre_keys {
-            store_context.store_pre_key(&pre_key)?;
-            pre_key_entities.push(PreKeyEntity::try_from(pre_key)?);
+        for i in 0..PRE_KEY_BATCH_SIZE {
+            let key_pair = KeyPair::generate(csprng);
+            let pre_key_id =
+                ((pre_keys_offset_id + i) % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1;
+            let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
+            prekey_store
+                .save_pre_key(pre_key_id, &pre_key_record, None)
+                .await?;
+
+            pre_key_entities.push(PreKeyEntity::try_from(pre_key_record)?);
         }
+
+        // Generate and store the next signed prekey
+        let identity_key_pair =
+            identity_store.get_identity_key_pair(None).await?;
+        let signed_pre_key_pair = KeyPair::generate(csprng);
+        let signed_pre_key_public = signed_pre_key_pair.public_key;
+        let signed_pre_key_signature = identity_key_pair
+            .private_key()
+            .calculate_signature(&signed_pre_key_public.serialize(), csprng)?;
+
+        let unix_time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("clock went backwards before UNIX EPOCH");
+
+        let signed_prekey_record = SignedPreKeyRecord::new(
+            signed_pre_key_id + 1,
+            unix_time.as_secs(),
+            &signed_pre_key_pair,
+            &signed_pre_key_signature,
+        );
+
+        signed_prekey_store
+            .save_signed_pre_key(
+                signed_pre_key_id + 1,
+                &signed_prekey_record,
+                None,
+            )
+            .await?;
 
         let pre_key_state = PreKeyState {
             pre_keys: pre_key_entities,
-            signed_pre_key: signed_pre_key.into(),
-            identity_key: identity_key_pair.public(),
+            signed_pre_key: signed_prekey_record.try_into()?,
+            identity_key: identity_key_pair.public_key().clone(),
             last_resort_key: if use_last_resort_key {
                 Some(PreKeyEntity {
                     key_id: 0x7fffffff,
@@ -134,7 +173,7 @@ impl<Service: PushService> AccountManager<Service> {
         log::trace!("Successfully refreshed prekeys");
         Ok((
             pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
-            next_signed_pre_key_id + 1,
+            signed_pre_key_id + 1,
         ))
     }
 
@@ -201,7 +240,7 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn link_device(
         &mut self,
         url: url::Url,
-        store_context: StoreContext,
+        identity_store: &dyn IdentityKeyStore,
         credentials: ServiceCredentials,
     ) -> Result<(), LinkError> {
         let query: HashMap<_, _> = url.query_pairs().collect();
@@ -213,7 +252,8 @@ impl<Service: PushService> AccountManager<Service> {
         let pub_key = PublicKey::deserialize(&pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
 
-        let identity_key_pair = store_context.identity_key_pair()?;
+        let identity_key_pair =
+            identity_store.get_identity_key_pair(None).await?;
 
         if credentials.uuid.is_none() {
             log::warn!("No local UUID set");
@@ -223,10 +263,10 @@ impl<Service: PushService> AccountManager<Service> {
 
         let msg = ProvisionMessage {
             identity_key_public: Some(
-                identity_key_pair.public().to_bytes()?.as_slice().to_vec(),
+                identity_key_pair.public_key().serialize().to_vec(),
             ),
             identity_key_private: Some(
-                identity_key_pair.private().to_bytes()?.as_slice().to_vec(),
+                identity_key_pair.private_key().serialize().to_vec(),
             ),
             number: Some(credentials.e164()),
             uuid: credentials.uuid.as_ref().map(|u| u.to_string()),

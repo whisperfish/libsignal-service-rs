@@ -57,4 +57,13 @@ pub mod prelude {
     pub use prost::Message as ProtobufMessage;
     pub use uuid::{Error as UuidError, Uuid};
     pub use zkgroup::groups::{GroupMasterKey, GroupSecretParams};
+
+    pub mod protocol {
+        pub use libsignal_protocol::{
+            Context, Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore,
+            KeyPair, PreKeyRecord, PreKeyStore, PrivateKey, ProtocolAddress,
+            PublicKey, SessionRecord, SessionStore, SignalProtocolError,
+            SignedPreKeyRecord, SignedPreKeyStore,
+        };
+    }
 }
