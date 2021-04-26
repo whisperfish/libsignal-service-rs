@@ -45,6 +45,10 @@ pub mod prelude {
         },
         content::Content,
         envelope::Envelope,
+        proto::{
+            attachment_pointer::AttachmentIdentifier, sync_message::Contacts,
+            AttachmentPointer,
+        },
         push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
