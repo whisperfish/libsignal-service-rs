@@ -70,12 +70,21 @@ impl<Service: PushService> MessageReceiver<Service> {
         if let Some(ref blob) = contacts.blob {
             use futures::io::AsyncReadExt;
 
+            const MAX_DOWNLOAD_RETRIES: u8 = 3;
+            let mut retries = 0;
+
             let mut stream = loop {
                 let r = self.service.get_attachment(&blob).await;
                 match r {
                     Ok(stream) => break stream,
                     Err(ServiceError::Timeout { .. }) => {
-                        log::warn!("get_attachment timed out, retrying")
+                        log::warn!("get_attachment timed out, retrying");
+                        retries += 1;
+                        if retries >= MAX_DOWNLOAD_RETRIES {
+                            return Err(ServiceError::Timeout {
+                                reason: "too many retries".into(),
+                            });
+                        }
                     }
                     Err(e) => return Err(e.into()),
                 }
