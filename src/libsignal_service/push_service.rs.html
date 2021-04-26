@@ -748,6 +748,29 @@
 <span id="745">745</span>
 <span id="746">746</span>
 <span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">fmt</span>, <span class="ident">time</span>::<span class="ident">Duration</span>};
 
@@ -932,6 +955,17 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">StaleDevices</span> {
     <span class="kw">pub</span> <span class="ident">stale_devices</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>)]</span>
+<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SignalServiceProfile</span> {
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_optional_base64&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_optional_base64&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">about</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_optional_base64&quot;</span>)]</span>
+    <span class="kw">pub</span> <span class="ident">about_emoji</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>, <span class="ident">Default</span>)]</span>
@@ -1276,6 +1310,18 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         <span class="self">self</span>.<span class="ident">get_json</span>(
             <span class="ident">Endpoint</span>::<span class="ident">Service</span>,
             <span class="string">&quot;/v1/accounts/whoami&quot;</span>,
+            <span class="ident">HttpAuthOverride</span>::<span class="ident">NoOverride</span>,
+        )
+        .<span class="kw">await</span>
+    }
+
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">retrieve_profile_by_id</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+        <span class="ident">id</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignalServiceProfile</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">get_json</span>(
+            <span class="ident">Endpoint</span>::<span class="ident">Service</span>,
+            <span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v1/profile/{}&quot;</span>, <span class="ident">id</span>),
             <span class="ident">HttpAuthOverride</span>::<span class="ident">NoOverride</span>,
         )
         .<span class="kw">await</span>
