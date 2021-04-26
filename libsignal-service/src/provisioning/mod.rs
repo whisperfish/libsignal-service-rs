@@ -5,10 +5,11 @@ mod pipe;
 pub use cipher::ProvisioningCipher;
 pub use manager::{
     ConfirmCodeMessage, ConfirmDeviceMessage, LinkingManager,
-    ProvisioningManager, SecondaryDeviceProvisioning,
+    ProvisioningManager, SecondaryDeviceProvisioning, VerificationCodeResponse,
 };
 
 use crate::prelude::ServiceError;
+
 pub use crate::proto::{
     ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
 };

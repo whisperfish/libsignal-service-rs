@@ -21,7 +21,7 @@ use crate::websocket::AwcWebSocket;
 #[derive(Clone)]
 pub struct AwcPushService {
     cfg: ServiceConfiguration,
-    credentials: Option<HttpCredentials>,
+    credentials: Option<HttpAuth>,
     client: awc::Client,
 }
 
@@ -31,20 +31,27 @@ impl AwcPushService {
         method: Method,
         endpoint: Endpoint,
         path: impl AsRef<str>,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
     ) -> Result<ClientRequest, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
         log::debug!("HTTP request {} {}", method, url);
         let mut builder = self.client.request(method, url.as_str());
-        if let Some(http_credentials) = credentials_override
-            .as_ref()
-            .or_else(|| self.credentials.as_ref())
-        {
-            builder = builder.basic_auth(
-                &http_credentials.username,
-                &http_credentials.password,
-            );
-        }
+        builder = match credentials_override {
+            HttpAuthOverride::NoOverride => {
+                if let Some(credentials) = self.credentials.as_ref() {
+                    builder.basic_auth(
+                        &credentials.username,
+                        &credentials.password,
+                    )
+                } else {
+                    builder
+                }
+            }
+            HttpAuthOverride::Identified(HttpAuth { username, password }) => {
+                builder.basic_auth(username, password)
+            }
+            HttpAuthOverride::Unidentified => builder,
+        };
         Ok(builder)
     }
 
@@ -124,14 +131,14 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
-        credentials: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
         use awc::error::{ConnectError, SendRequestError};
         let mut response = self
-            .request(Method::GET, endpoint, path, credentials)?
+            .request(Method::GET, endpoint, path, credentials_override)?
             .send()
             .await
             .map_err(|e| match e {
@@ -187,7 +194,12 @@ impl PushService for AwcPushService {
         for<'de> T: Deserialize<'de>,
     {
         let mut response = self
-            .request(Method::DELETE, endpoint, path, None)?
+            .request(
+                Method::DELETE,
+                endpoint,
+                path,
+                HttpAuthOverride::NoOverride,
+            )?
             .send()
             .await
             .map_err(|e| match e {
@@ -240,7 +252,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
-        credentials_override: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -299,13 +311,13 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
-        credentials: Option<HttpCredentials>,
+        credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         T: Default + ProtobufMessage,
     {
         let mut response = self
-            .request(Method::GET, endpoint, path, credentials)?
+            .request(Method::GET, endpoint, path, credentials_override)?
             .send()
             .await
             .map_err(|e| ServiceError::SendError {
@@ -337,7 +349,7 @@ impl PushService for AwcPushService {
         value.encode(&mut buf).expect("infallible operation");
 
         let mut response = self
-            .request(Method::PUT, endpoint, path, None)?
+            .request(Method::PUT, endpoint, path, HttpAuthOverride::NoOverride)?
             .content_type(HeaderValue::from_static("application/x-protobuf"))
             .send_body(buf)
             .await
@@ -361,7 +373,12 @@ impl PushService for AwcPushService {
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError> {
         let mut response = self
-            .request(Method::GET, Endpoint::Cdn(cdn_id), path, None)?
+            .request(
+                Method::GET,
+                Endpoint::Cdn(cdn_id),
+                path,
+                HttpAuthOverride::Unidentified,
+            )?
             .send()
             .await
             .map_err(|e| ServiceError::SendError {
@@ -394,8 +411,12 @@ impl PushService for AwcPushService {
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError> {
-        let request =
-            self.request(Method::POST, Endpoint::Cdn(0), path, None)?;
+        let request = self.request(
+            Method::POST,
+            Endpoint::Cdn(0),
+            path,
+            HttpAuthOverride::NoOverride,
+        )?;
 
         let mut form = mpart_async::client::MultipartRequest::default();
 

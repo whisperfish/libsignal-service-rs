@@ -7,7 +7,7 @@ use crate::{
     configuration::Endpoint,
     prelude::{PushService, ServiceError},
     proto::DecryptedGroup,
-    push_service::HttpCredentials,
+    push_service::{HttpAuth, HttpAuthOverride},
 };
 
 use rand::RngCore;
@@ -125,7 +125,7 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
         &mut self,
         uuid: Uuid,
         group_secret_params: GroupSecretParams,
-    ) -> Result<HttpCredentials, ServiceError> {
+    ) -> Result<HttpAuth, ServiceError> {
         let today = Self::current_time_days();
         let auth_credential_response = if let Some(auth_credential_response) =
             self.credentials_cache.get(&today)?
@@ -162,7 +162,7 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
             format!("/v1/certificate/group/{}/{}", today, today_plus_7_days);
 
         self.push_service
-            .get_json(Endpoint::Service, &path, None)
+            .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
             .await
     }
 
@@ -178,7 +178,7 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
         group_secret_params: GroupSecretParams,
         credential_response: &AuthCredentialResponse,
         today: u32,
-    ) -> Result<HttpCredentials, ServiceError> {
+    ) -> Result<HttpAuth, ServiceError> {
         let auth_credential = self
             .server_public_params
             .receive_auth_credential(
@@ -211,13 +211,13 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
         let password =
             hex::encode(bincode::serialize(&auth_credential_presentation)?);
 
-        Ok(HttpCredentials { username, password })
+        Ok(HttpAuth { username, password })
     }
 
     pub async fn get_group(
         &mut self,
         group_secret_params: GroupSecretParams,
-        credentials: HttpCredentials,
+        credentials: HttpAuth,
     ) -> Result<DecryptedGroup, ServiceError> {
         let encrypted_group = self.push_service.get_group(credentials).await?;
         let decrypted_group = GroupOperations::decrypt_group(

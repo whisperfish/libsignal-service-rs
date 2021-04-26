@@ -75,3 +75,23 @@ impl ServiceAddress {
             || (self.uuid.is_some() && self.uuid == other.uuid)
     }
 }
+
+impl From<Uuid> for ServiceAddress {
+    fn from(uuid: Uuid) -> Self {
+        ServiceAddress {
+            uuid: Some(uuid),
+            phonenumber: None,
+            relay: None,
+        }
+    }
+}
+
+impl From<PhoneNumber> for ServiceAddress {
+    fn from(phone_number: PhoneNumber) -> Self {
+        ServiceAddress {
+            uuid: None,
+            phonenumber: Some(phone_number),
+            relay: None,
+        }
+    }
+}

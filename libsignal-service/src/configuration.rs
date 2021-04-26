@@ -6,7 +6,7 @@ use zkgroup::ServerPublicParams;
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    push_service::{HttpCredentials, ServiceError, DEFAULT_DEVICE_ID},
+    push_service::{HttpAuth, ServiceError, DEFAULT_DEVICE_ID},
     sealed_session_cipher::{CertificateValidator, SealedSessionError},
 };
 
@@ -33,8 +33,8 @@ pub struct ServiceCredentials {
 }
 
 impl ServiceCredentials {
-    pub fn authorization(&self) -> Option<HttpCredentials> {
-        self.password.as_ref().map(|password| HttpCredentials {
+    pub fn authorization(&self) -> Option<HttpAuth> {
+        self.password.as_ref().map(|password| HttpAuth {
             username: self.login(),
             password: password.clone(),
         })
