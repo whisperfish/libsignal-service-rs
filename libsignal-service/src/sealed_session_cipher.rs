@@ -758,7 +758,7 @@ mod tests {
         )?;
 
         let bob_cipher = SealedSessionCipher::new(
-            ctx.clone(),
+            ctx,
             bob_store_context,
             bob_address(),
             certificate_validator,
@@ -858,7 +858,7 @@ mod tests {
         )?;
 
         let bob_cipher = SealedSessionCipher::new(
-            ctx.clone(),
+            ctx,
             bob_store_context,
             bob_address(),
             certificate_validator,
@@ -901,7 +901,7 @@ mod tests {
         )?;
 
         let bob_cipher = SealedSessionCipher::new(
-            ctx.clone(),
+            ctx,
             bob_store_context,
             bob_address(),
             certificate_validator,
@@ -998,13 +998,13 @@ mod tests {
             .as_slice()
             .to_vec();
 
-        Ok(SenderCertificate::try_from(
+        SenderCertificate::try_from(
             &context,
             crate::proto::SenderCertificate {
                 certificate: Some(sender_certificate_bytes),
                 signature: Some(sender_certificate_signature),
             },
-        )?)
+        )
     }
 
     fn initialize_session(

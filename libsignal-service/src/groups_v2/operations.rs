@@ -155,27 +155,24 @@ impl GroupOperations {
         }
     }
 
-    fn decrypt_title(
-        &self,
-        ciphertext: &[u8],
-    ) -> Result<String, GroupDecryptionError> {
+    fn decrypt_title(&self, ciphertext: &[u8]) -> String {
         use group_attribute_blob::Content;
         match self.decrypt_blob(&ciphertext).content {
-            Some(Content::Title(title)) => Ok(title),
-            _ => Ok("".into()), // TODO: return an error here?
+            Some(Content::Title(title)) => title,
+            _ => "".into(), // TODO: return an error here?
         }
     }
 
     fn decrypt_disappearing_message_timer(
         &self,
         ciphertext: &[u8],
-    ) -> Result<Option<DecryptedTimer>, GroupDecryptionError> {
+    ) -> Option<DecryptedTimer> {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
             Some(Content::DisappearingMessagesDuration(duration)) => {
-                Ok(Some(DecryptedTimer { duration }))
+                Some(DecryptedTimer { duration })
             }
-            _ => Ok(None),
+            _ => None,
         }
     }
 
@@ -186,11 +183,11 @@ impl GroupOperations {
         let group_operations = Self {
             group_secret_params,
         };
-        let title = group_operations.decrypt_title(&group.title)?;
+        let title = group_operations.decrypt_title(&group.title);
         let disappearing_messages_timer = group_operations
             .decrypt_disappearing_message_timer(
                 &group.disappearing_messages_timer,
-            )?;
+            );
         let members = group
             .members
             .into_iter()
