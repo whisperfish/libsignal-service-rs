@@ -1806,7 +1806,7 @@
         )<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
-            <span class="ident">ctx</span>.<span class="ident">clone</span>(),
+            <span class="ident">ctx</span>,
             <span class="ident">bob_store_context</span>,
             <span class="ident">bob_address</span>(),
             <span class="ident">certificate_validator</span>,
@@ -1906,7 +1906,7 @@
         )<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
-            <span class="ident">ctx</span>.<span class="ident">clone</span>(),
+            <span class="ident">ctx</span>,
             <span class="ident">bob_store_context</span>,
             <span class="ident">bob_address</span>(),
             <span class="ident">certificate_validator</span>,
@@ -1949,7 +1949,7 @@
         )<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
-            <span class="ident">ctx</span>.<span class="ident">clone</span>(),
+            <span class="ident">ctx</span>,
             <span class="ident">bob_store_context</span>,
             <span class="ident">bob_address</span>(),
             <span class="ident">certificate_validator</span>,
@@ -2046,13 +2046,13 @@
             .<span class="ident">as_slice</span>()
             .<span class="ident">to_vec</span>();
 
-        <span class="prelude-val">Ok</span>(<span class="ident">SenderCertificate</span>::<span class="ident">try_from</span>(
+        <span class="ident">SenderCertificate</span>::<span class="ident">try_from</span>(
             <span class="kw-2">&amp;</span><span class="ident">context</span>,
             <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">SenderCertificate</span> {
                 <span class="ident">certificate</span>: <span class="prelude-val">Some</span>(<span class="ident">sender_certificate_bytes</span>),
                 <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="ident">sender_certificate_signature</span>),
             },
-        )<span class="question-mark">?</span>)
+        )
     }
 
     <span class="kw">fn</span> <span class="ident">initialize_session</span>(
