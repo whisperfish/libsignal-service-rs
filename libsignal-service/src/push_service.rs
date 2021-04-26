@@ -183,6 +183,17 @@ pub struct StaleDevices {
     pub stale_devices: Vec<i32>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignalServiceProfile {
+    #[serde(with = "serde_optional_base64")]
+    pub name: Option<Vec<u8>>,
+    #[serde(with = "serde_optional_base64")]
+    pub about: Option<Vec<u8>>,
+    #[serde(with = "serde_optional_base64")]
+    pub about_emoji: Option<Vec<u8>>,
+}
+
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CdnUploadAttributes {
@@ -525,6 +536,18 @@ pub trait PushService {
         self.get_json(
             Endpoint::Service,
             "/v1/accounts/whoami",
+            HttpAuthOverride::NoOverride,
+        )
+        .await
+    }
+
+    async fn retrieve_profile_by_id(
+        &mut self,
+        id: &str,
+    ) -> Result<SignalServiceProfile, ServiceError> {
+        self.get_json(
+            Endpoint::Service,
+            &format!("/v1/profile/{}", id),
             HttpAuthOverride::NoOverride,
         )
         .await

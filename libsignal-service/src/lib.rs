@@ -23,7 +23,7 @@ pub mod sender;
 pub mod service_address;
 pub mod utils;
 
-pub use crate::account_manager::AccountManager;
+pub use crate::account_manager::{AccountManager, Profile};
 pub use crate::service_address::*;
 
 pub const USER_AGENT: &str =
