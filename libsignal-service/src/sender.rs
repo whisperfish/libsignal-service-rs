@@ -1,14 +1,5 @@
 use std::time::SystemTime;
 
-use crate::proto::{
-    attachment_pointer::AttachmentIdentifier,
-    attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
-    AttachmentPointer, SyncMessage,
-};
-use crate::{
-    cipher::get_preferred_protocol_address, session_store::SessionStoreExt,
-};
-
 use chrono::prelude::*;
 use libsignal_protocol::{
     process_prekey_bundle, IdentityKeyStore, ProtocolAddress,
@@ -18,8 +9,17 @@ use log::{info, trace};
 use rand::{CryptoRng, Rng};
 
 use crate::{
-    cipher::ServiceCipher, content::ContentBody, push_service::*,
-    sealed_session_cipher::UnidentifiedAccess, ServiceAddress,
+    cipher::{get_preferred_protocol_address, ServiceCipher},
+    content::ContentBody,
+    proto::{
+        attachment_pointer::AttachmentIdentifier,
+        attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
+        AttachmentPointer, SyncMessage,
+    },
+    push_service::*,
+    sealed_session_cipher::UnidentifiedAccess,
+    session_store::SessionStoreExt,
+    ServiceAddress,
 };
 
 pub use crate::proto::{ContactDetails, GroupDetails};
@@ -363,7 +363,6 @@ where
             if let Some(e164) = recipient.e164() {
                 self.session_store.delete_all_sessions(&e164)?;
             }
-            log::warn!("deleting all sessions: unimplemented following the switch to the Rust version of libsignal-protocol");
         }
 
         result
