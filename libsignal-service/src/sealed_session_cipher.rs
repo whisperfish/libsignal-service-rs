@@ -457,7 +457,6 @@ impl SealedSessionCipher {
             sender_certificate,
         } = message;
         let sender = crate::cipher::get_preferred_protocol_address(
-            None,
             self.session_store.as_ref(),
             &sender_certificate.address(),
             sender_certificate.sender_device_id,
@@ -681,7 +680,8 @@ impl CertificateValidator {
         validation_time: u64,
     ) -> Result<(), SealedSessionError> {
         let server_certificate = &certificate.signer;
-        self.trust_root
+        if !self
+            .trust_root
             .verify_signature(
                 &server_certificate.certificate,
                 &server_certificate.signature,
@@ -689,15 +689,21 @@ impl CertificateValidator {
             .map_err(|e| {
                 error!("failed to verify server certificate: {}", e);
                 SealedSessionError::InvalidCertificate
-            })?;
+            })?
+        {
+            return Err(SealedSessionError::InvalidCertificate);
+        }
 
-        server_certificate
+        if !server_certificate
             .key
             .verify_signature(&certificate.certificate, &certificate.signature)
             .map_err(|e| {
                 error!("failed to verify certificate: {}", e);
                 SealedSessionError::InvalidCertificate
-            })?;
+            })?
+        {
+            return Err(SealedSessionError::InvalidCertificate);
+        }
 
         if validation_time > certificate.expiration {
             error!("certificate is expired");

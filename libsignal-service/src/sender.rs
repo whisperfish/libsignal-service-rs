@@ -652,7 +652,6 @@ where
         for device_id in sub_device_sessions {
             trace!("sending message to device {}", device_id);
             let ppa = get_preferred_protocol_address(
-                None,
                 self.session_store.as_mut_session_store(),
                 recipient,
                 device_id,
@@ -685,7 +684,6 @@ where
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
-            None,
             self.session_store.as_mut_session_store(),
             recipient,
             device_id,
@@ -711,7 +709,6 @@ where
                 }
 
                 let pre_key_address = get_preferred_protocol_address(
-                    None,
                     self.session_store.as_mut_session_store(),
                     recipient,
                     pre_key_bundle.device_id()?,

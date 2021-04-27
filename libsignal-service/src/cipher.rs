@@ -102,7 +102,6 @@ impl ServiceCipher {
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
-                    None,
                     self.session_store.as_ref(),
                     &envelope.source_address(),
                     envelope.source_device(),
@@ -148,7 +147,6 @@ impl ServiceCipher {
             }
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
-                    None,
                     self.session_store.as_ref(),
                     &envelope.source_address(),
                     envelope.source_device(),
@@ -336,28 +334,19 @@ fn strip_padding(
 
 /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
 pub async fn get_preferred_protocol_address(
-    context: Context,
     session_store: &dyn SessionStore,
     address: &ServiceAddress,
     device_id: u32,
 ) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
     if let Some(ref uuid) = address.uuid {
         let address = ProtocolAddress::new(uuid.to_string(), device_id);
-        if session_store
-            .load_session(&address, context)
-            .await?
-            .is_some()
-        {
+        if session_store.load_session(&address, None).await?.is_some() {
             return Ok(address);
         }
     }
     if let Some(e164) = address.e164() {
         let address = ProtocolAddress::new(e164, device_id);
-        if session_store
-            .load_session(&address, context)
-            .await?
-            .is_some()
-        {
+        if session_store.load_session(&address, None).await?.is_some() {
             return Ok(address);
         }
         if cfg!(feature = "prefer-e164") {
