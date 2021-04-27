@@ -328,6 +328,7 @@ where
     ) -> Result<DecryptionResult, SealedSessionError> {
         let our_identity =
             self.identity_key_store.get_identity_key_pair(None).await?;
+
         let wrapper = UnidentifiedSenderMessage::from_bytes(ciphertext)?;
 
         let ephemeral_salt = [
@@ -380,8 +381,12 @@ where
         salt: &[u8],
     ) -> Result<EphemeralKeys, SealedSessionError> {
         let ephemeral_secret = private_key.calculate_agreement(public_key)?;
-        let ephemeral_derived =
-            HKDF::new(3)?.derive_secrets(&ephemeral_secret, salt, 96)?;
+        let ephemeral_derived = HKDF::new(3)?.derive_salted_secrets(
+            &ephemeral_secret,
+            salt,
+            &[],
+            96,
+        )?;
         let ephemeral_keys = EphemeralKeys {
             chain_key: ephemeral_derived[0..32].into(),
             cipher_key: ephemeral_derived[32..64].into(),
@@ -397,8 +402,12 @@ where
         salt: &[u8],
     ) -> Result<StaticKeys, SealedSessionError> {
         let static_secret = private_key.calculate_agreement(public_key)?;
-        let static_derived =
-            HKDF::new(3)?.derive_secrets(&static_secret, salt, 96)?;
+        let static_derived = HKDF::new(3)?.derive_salted_secrets(
+            &static_secret,
+            salt,
+            &[],
+            96,
+        )?;
         Ok(StaticKeys {
             cipher_key: static_derived[32..64].into(),
             mac_key: static_derived[64..96].into(),
