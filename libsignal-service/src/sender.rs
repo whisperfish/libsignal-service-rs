@@ -1,17 +1,18 @@
 use std::time::SystemTime;
 
-use crate::cipher::get_preferred_protocol_address;
 use crate::proto::{
     attachment_pointer::AttachmentIdentifier,
     attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
     AttachmentPointer, SyncMessage,
 };
+use crate::{
+    cipher::get_preferred_protocol_address, session_store::SessionStoreExt,
+};
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, Context, IdentityKeyStore, PreKeyStore,
-    ProtocolAddress, SessionRecord, SessionStore, SignalProtocolError,
-    SignedPreKeyStore,
+    process_prekey_bundle, IdentityKeyStore, ProtocolAddress,
+    SignalProtocolError,
 };
 use log::{info, trace};
 
@@ -69,17 +70,12 @@ pub struct AttachmentSpec {
 }
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
-#[derive(Clone)]
-pub struct MessageSender<Service, S, I, SP, P>
-where
-    S: SessionStore + Clone,
-    I: IdentityKeyStore + Clone,
-    SP: SignedPreKeyStore + Clone,
-    P: PreKeyStore + Clone,
-{
+pub struct MessageSender<Service> {
     service: Service,
-    context: Context,
-    cipher: ServiceCipher<S, I, SP, P>,
+    cipher: ServiceCipher,
+    session_store: Box<dyn SessionStoreExt>,
+    identity_key_store: Box<dyn IdentityKeyStore>,
+    local_address: ServiceAddress,
     device_id: u32,
 }
 
@@ -123,24 +119,24 @@ pub enum MessageSenderError {
     IdentityFailure { recipient: ServiceAddress },
 }
 
-impl<Service, S, I, SP, P> MessageSender<Service, S, I, SP, P>
+impl<Service> MessageSender<Service>
 where
     Service: PushService + Clone,
-    S: SessionStore + Clone,
-    I: IdentityKeyStore + Clone,
-    SP: SignedPreKeyStore + Clone,
-    P: PreKeyStore + Clone,
 {
     pub fn new(
         service: Service,
-        context: Context,
-        cipher: ServiceCipher<S, I, SP, P>,
+        cipher: ServiceCipher,
+        session_store: impl SessionStoreExt + 'static,
+        identity_key_store: impl IdentityKeyStore + 'static,
+        local_address: ServiceAddress,
         device_id: u32,
     ) -> Self {
         MessageSender {
             service,
-            context,
             cipher,
+            session_store: Box::new(session_store),
+            identity_key_store: Box::new(identity_key_store),
+            local_address,
             device_id,
         }
     }
@@ -343,7 +339,7 @@ where
                         timestamp,
                     );
                 self.try_send_message(
-                    (&self.cipher.local_address).clone(),
+                    (&self.local_address).clone(),
                     None,
                     &sync_message,
                     timestamp,
@@ -355,15 +351,13 @@ where
         }
 
         if end_session {
-            // log::debug!("ending session with {}", recipient);
-            // if let Some(ref uuid) = recipient.uuid {
-            //     self.cipher
-            //         .store_context
-            //         .delete_all_sessions(&uuid.to_string())?;
-            // }
-            // if let Some(e164) = recipient.e164() {
-            //     self.cipher.store_context.delete_all_sessions(&e164)?;
-            // }
+            log::debug!("ending session with {}", recipient);
+            if let Some(ref uuid) = recipient.uuid {
+                self.session_store.delete_all_sessions(&uuid.to_string())?;
+            }
+            if let Some(e164) = recipient.e164() {
+                self.session_store.delete_all_sessions(&e164)?;
+            }
             log::warn!("deleting all sessions: unimplemented following the switch to the Rust version of libsignal-protocol");
         }
 
@@ -418,7 +412,7 @@ where
                         );
 
                     self.try_send_message(
-                        self.cipher.local_address.clone(),
+                        self.local_address.clone(),
                         unidentified_access,
                         &sync_message,
                         timestamp,
@@ -506,8 +500,8 @@ where
 
                         process_prekey_bundle(
                             &remote_address,
-                            &mut self.cipher.session_store,
-                            &mut self.cipher.identity_key_store,
+                            self.session_store.as_mut_session_store(),
+                            self.identity_key_store.as_mut(),
                             &pre_key,
                             &mut csprng,
                             None,
@@ -529,19 +523,17 @@ where
                             extra_device_id
                         );
                         if let Some(ref uuid) = recipient.uuid {
-                            log::warn!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
-                            // self.cipher.store_context.delete_session(
-                            //     &ProtocolAddress::new(
-                            //         uuid.to_string(),
-                            //         *extra_device_id,
-                            //     ),
-                            // )?;
+                            self.session_store.delete_session(
+                                &ProtocolAddress::new(
+                                    uuid.to_string(),
+                                    *extra_device_id,
+                                ),
+                            )?;
                         }
                         if let Some(e164) = recipient.e164() {
-                            log::warn!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
-                            // self.cipher.store_context.delete_session(
-                            // &ProtocolAddress::new(e164, *extra_device_id),
-                            // )?;
+                            self.session_store.delete_session(
+                                &ProtocolAddress::new(e164, *extra_device_id),
+                            )?;
                         }
                     }
                 }
@@ -631,7 +623,7 @@ where
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
 
-        let myself = recipient.matches(&self.cipher.local_address);
+        let myself = recipient.matches(&self.local_address);
         if !myself || unidentified_access.is_some() {
             trace!("sending message to default device");
             messages.push(
@@ -645,39 +637,28 @@ where
             );
         }
 
-        // XXX maybe refactor this in a method, this is probably something we need on every call to
-        // get_sub_device_sessions.
-        // FIXME: re-implement sub device sessions
         let mut sub_device_sessions = Vec::new();
-        // if let Some(uuid) = &recipient.uuid {
-        //     sub_device_sessions.extend(
-        //         self.cipher
-        //             .session_store
-        //             .get_sub_device_sessions(&uuid.to_string())?,
-        //     );
-        // }
-        // if let Some(e164) = &recipient.e164() {
-        //     sub_device_sessions.extend(
-        //         self.cipher.store_context.get_sub_device_sessions(&e164)?,
-        //     );
-        // }
+        if let Some(uuid) = &recipient.uuid {
+            sub_device_sessions.extend(
+                self.session_store
+                    .get_sub_device_sessions(&uuid.to_string())?,
+            );
+        }
+        if let Some(e164) = &recipient.e164() {
+            sub_device_sessions
+                .extend(self.session_store.get_sub_device_sessions(&e164)?);
+        }
 
         for device_id in sub_device_sessions {
             trace!("sending message to device {}", device_id);
             let ppa = get_preferred_protocol_address(
                 None,
-                &self.cipher.session_store,
+                self.session_store.as_mut_session_store(),
                 recipient,
                 device_id,
             )
             .await?;
-            if self
-                .cipher
-                .session_store
-                .load_session(&ppa, None)
-                .await?
-                .is_some()
-            {
+            if self.session_store.load_session(&ppa, None).await?.is_some() {
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
@@ -705,7 +686,7 @@ where
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
             None,
-            &self.cipher.session_store,
+            self.session_store.as_mut_session_store(),
             recipient,
             device_id,
         )
@@ -713,7 +694,6 @@ where
         log::trace!("encrypting message for {:?}", recipient_address);
 
         if !self
-            .cipher
             .session_store
             .load_session(&recipient_address, None)
             .await?
@@ -723,7 +703,7 @@ where
             let pre_keys =
                 self.service.get_pre_keys(&recipient, device_id).await?;
             for pre_key_bundle in pre_keys {
-                if recipient.matches(&self.cipher.local_address)
+                if recipient.matches(&self.local_address)
                     && self.device_id == pre_key_bundle.device_id()?
                 {
                     trace!("not establishing a session with myself!");
@@ -732,7 +712,7 @@ where
 
                 let pre_key_address = get_preferred_protocol_address(
                     None,
-                    &self.cipher.session_store,
+                    self.session_store.as_mut_session_store(),
                     recipient,
                     pre_key_bundle.device_id()?,
                 )
@@ -743,8 +723,8 @@ where
 
                 process_prekey_bundle(
                     &pre_key_address,
-                    &mut self.cipher.session_store,
-                    &mut self.cipher.identity_key_store,
+                    self.session_store.as_mut_session_store(),
+                    self.identity_key_store.as_mut(),
                     &pre_key_bundle,
                     &mut csprng,
                     None,

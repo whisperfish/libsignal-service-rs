@@ -7,7 +7,7 @@ use aes_ctr::{
 use hmac::{Hmac, Mac, NewMac};
 use libsignal_protocol::{
     error::SignalProtocolError, message_decrypt_prekey, message_decrypt_signal,
-    message_encrypt, CiphertextMessageType, Context, IdentityKeyStore, KeyPair,
+    message_encrypt, CiphertextMessageType, IdentityKeyStore, KeyPair,
     PreKeySignalMessage, PreKeyStore, PrivateKey, ProtocolAddress, PublicKey,
     SessionStore, SignalMessage, SignedPreKeyStore, HKDF,
 };
@@ -64,20 +64,11 @@ pub enum MacError {
     BadMac,
 }
 
-#[derive(Clone)]
-pub(crate) struct SealedSessionCipher<S, I, SP, P>
-where
-    S: SessionStore,
-    I: IdentityKeyStore,
-    SP: SignedPreKeyStore,
-    P: PreKeyStore,
-{
-    context: Context,
-    session_store: S,
-    identity_key_store: I,
-    signed_pre_key_store: SP,
-    pre_key_store: P,
-    local_address: ServiceAddress,
+pub(crate) struct SealedSessionCipher {
+    session_store: Box<dyn SessionStore>,
+    identity_key_store: Box<dyn IdentityKeyStore>,
+    signed_pre_key_store: Box<dyn SignedPreKeyStore>,
+    pre_key_store: Box<dyn PreKeyStore>,
     certificate_validator: CertificateValidator,
 }
 
@@ -214,29 +205,19 @@ impl UnidentifiedSenderMessage {
     }
 }
 
-impl<S, I, SP, P> SealedSessionCipher<S, I, SP, P>
-where
-    S: SessionStore,
-    I: IdentityKeyStore,
-    SP: SignedPreKeyStore,
-    P: PreKeyStore,
-{
+impl SealedSessionCipher {
     pub(crate) fn new(
-        context: Context,
-        session_store: S,
-        identity_key_store: I,
-        signed_pre_key_store: SP,
-        pre_key_store: P,
-        local_address: ServiceAddress,
+        session_store: impl SessionStore + 'static,
+        identity_key_store: impl IdentityKeyStore + 'static,
+        signed_pre_key_store: impl SignedPreKeyStore + 'static,
+        pre_key_store: impl PreKeyStore + 'static,
         certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            context,
-            session_store,
-            identity_key_store,
-            signed_pre_key_store,
-            pre_key_store,
-            local_address,
+            session_store: Box::new(session_store),
+            identity_key_store: Box::new(identity_key_store),
+            signed_pre_key_store: Box::new(signed_pre_key_store),
+            pre_key_store: Box::new(pre_key_store),
             certificate_validator,
         }
     }
@@ -252,8 +233,8 @@ where
         let message = message_encrypt(
             padded_plaintext,
             destination,
-            &mut self.session_store,
-            &mut self.identity_key_store,
+            self.session_store.as_mut(),
+            self.identity_key_store.as_mut(),
             None,
         )
         .await?;
@@ -477,7 +458,7 @@ where
         } = message;
         let sender = crate::cipher::get_preferred_protocol_address(
             None,
-            &self.session_store,
+            self.session_store.as_ref(),
             &sender_certificate.address(),
             sender_certificate.sender_device_id,
         )
@@ -491,8 +472,8 @@ where
                 let msg = message_decrypt_signal(
                     &SignalMessage::try_from(&content[..])?,
                     &sender,
-                    &mut self.session_store,
-                    &mut self.identity_key_store,
+                    self.session_store.as_mut(),
+                    self.identity_key_store.as_mut(),
                     &mut csprng,
                     None,
                 )
@@ -503,10 +484,10 @@ where
                 let msg = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&content[..])?,
                     &sender,
-                    &mut self.session_store,
-                    &mut self.identity_key_store,
-                    &mut self.pre_key_store,
-                    &mut self.signed_pre_key_store,
+                    self.session_store.as_mut(),
+                    self.identity_key_store.as_mut(),
+                    self.pre_key_store.as_mut(),
+                    self.signed_pre_key_store.as_mut(),
                     &mut csprng,
                     None,
                 )
@@ -729,21 +710,17 @@ impl CertificateValidator {
 
 #[cfg(test)]
 mod tests {
-    use std::time::UNIX_EPOCH;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     use libsignal_protocol::{
-        self as sig,
-        crypto::DefaultCrypto,
-        keys::PreKey,
-        keys::{KeyPair, PublicKey},
-        stores::InMemoryPreKeyStore,
-        stores::InMemorySessionStore,
-        stores::{InMemoryIdentityKeyStore, InMemorySignedPreKeyStore},
-        Address as ProtocolAddress, Context, PreKeyBundle, Serializable,
-        SessionBuilder, StoreContext,
+        process_prekey_bundle, IdentityKeyPair, IdentityKeyStore,
+        InMemIdentityKeyStore, InMemPreKeyStore, InMemSessionStore,
+        InMemSignedPreKeyStore, KeyPair, PreKeyBundle, PreKeyRecord,
+        PreKeyStore, ProtocolAddress, PublicKey, SessionStore,
+        SignedPreKeyRecord, SignedPreKeyStore,
     };
 
-    use crate::ServiceAddress;
+    use crate::{provisioning::generate_registration_id, ServiceAddress};
 
     use super::{
         CertificateValidator, SealedSessionCipher, SealedSessionError,
@@ -768,43 +745,60 @@ mod tests {
         .unwrap()
     }
 
-    #[test]
-    fn test_encrypt_decrypt() -> anyhow::Result<()> {
-        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
-        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+    struct Stores {
+        identity_key_store: InMemIdentityKeyStore,
+        session_store: InMemSessionStore,
+        signed_prekey_store: InMemSignedPreKeyStore,
+        prekey_store: InMemPreKeyStore,
+    }
 
-        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+    #[tokio::test]
+    async fn test_encrypt_decrypt() -> anyhow::Result<()> {
+        let mut csprng = rand::thread_rng();
+
+        let (alice_stores, bob_stores) = create_stores(&mut csprng).await?;
+
+        let trust_root = KeyPair::generate(&mut csprng);
         let certificate_validator =
-            CertificateValidator::new(trust_root.public());
+            CertificateValidator::new(trust_root.public_key);
         let sender_certificate = create_certificate_for(
-            &ctx,
             &trust_root,
             alice_address(),
             1,
-            alice_store_context.identity_key_pair()?.public(),
+            *alice_stores
+                .identity_key_store
+                .get_identity_key_pair(None)
+                .await?
+                .public_key(),
             31337,
+            &mut csprng,
         )?;
 
-        let alice_cipher = SealedSessionCipher::new(
-            ctx.clone(),
-            alice_store_context,
-            alice_address(),
+        let mut alice_cipher = SealedSessionCipher::new(
+            alice_stores.session_store,
+            alice_stores.identity_key_store,
+            alice_stores.signed_prekey_store,
+            alice_stores.prekey_store,
             certificate_validator.clone(),
         );
-        let ciphertext = alice_cipher.encrypt(
-            &ProtocolAddress::new("+14152222222", 1),
-            sender_certificate,
-            "smert za smert".as_bytes(),
-        )?;
 
-        let bob_cipher = SealedSessionCipher::new(
-            ctx.clone(),
-            bob_store_context,
-            bob_address(),
+        let ciphertext = alice_cipher
+            .encrypt(
+                &ProtocolAddress::new("+14152222222".into(), 1),
+                sender_certificate,
+                "smert za smert".as_bytes(),
+            )
+            .await?;
+
+        let mut bob_cipher = SealedSessionCipher::new(
+            bob_stores.session_store,
+            bob_stores.identity_key_store,
+            bob_stores.signed_prekey_store,
+            bob_stores.prekey_store,
             certificate_validator,
         );
 
-        let plaintext = bob_cipher.decrypt(&ciphertext, 31335)?;
+        let plaintext = bob_cipher.decrypt(&ciphertext, 31335).await?;
 
         assert_eq!(
             String::from_utf8_lossy(&plaintext.padded_message),
@@ -817,49 +811,57 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn test_encrypt_decrypt_untrusted() -> anyhow::Result<()> {
-        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
-        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+    #[tokio::test]
+    async fn test_encrypt_decrypt_untrusted() -> anyhow::Result<()> {
+        let mut csprng = rand::thread_rng();
+        let (alice_stores, bob_stores) = create_stores(&mut csprng).await?;
 
-        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let trust_root = KeyPair::generate(&mut csprng);
         let certificate_validator =
-            CertificateValidator::new(trust_root.public());
+            CertificateValidator::new(trust_root.public_key);
 
-        let false_trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let false_trust_root = KeyPair::generate(&mut csprng);
         let false_certificate_validator =
-            CertificateValidator::new(false_trust_root.public());
+            CertificateValidator::new(false_trust_root.public_key);
 
         let sender_certificate = create_certificate_for(
-            &ctx,
             &trust_root,
             alice_address(),
             1,
-            alice_store_context.identity_key_pair()?.public(),
+            *alice_stores
+                .identity_key_store
+                .get_identity_key_pair(None)
+                .await?
+                .public_key(),
             31337,
+            &mut csprng,
         )?;
 
-        let alice_cipher = SealedSessionCipher::new(
-            ctx.clone(),
-            alice_store_context,
-            alice_address(),
+        let mut alice_cipher = SealedSessionCipher::new(
+            alice_stores.session_store,
+            alice_stores.identity_key_store,
+            alice_stores.signed_prekey_store,
+            alice_stores.prekey_store,
             certificate_validator,
         );
 
-        let ciphertext = alice_cipher.encrypt(
-            &ProtocolAddress::new("+14152222222", 1),
-            sender_certificate,
-            "и вот я".as_bytes(),
-        )?;
+        let ciphertext = alice_cipher
+            .encrypt(
+                &ProtocolAddress::new("+14152222222".into(), 1),
+                sender_certificate,
+                "и вот я".as_bytes(),
+            )
+            .await?;
 
-        let bob_cipher = SealedSessionCipher::new(
-            ctx,
-            bob_store_context,
-            bob_address(),
+        let mut bob_cipher = SealedSessionCipher::new(
+            bob_stores.session_store,
+            bob_stores.identity_key_store,
+            bob_stores.signed_prekey_store,
+            bob_stores.prekey_store,
             false_certificate_validator,
         );
 
-        let plaintext = bob_cipher.decrypt(&ciphertext, 31335);
+        let plaintext = bob_cipher.decrypt(&ciphertext, 31335).await;
 
         match plaintext {
             Err(SealedSessionError::InvalidCertificate) => Ok(()),
@@ -867,132 +869,146 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_encrypt_decrypt_expired() -> anyhow::Result<()> {
-        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
-        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+    #[tokio::test]
+    async fn test_encrypt_decrypt_expired() -> anyhow::Result<()> {
+        let mut csprng = rand::thread_rng();
+        let (alice_stores, bob_stores) = create_stores(&mut csprng).await?;
 
-        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
+        let trust_root = KeyPair::generate(&mut csprng);
         let certificate_validator =
-            CertificateValidator::new(trust_root.public());
+            CertificateValidator::new(trust_root.public_key);
         let sender_certificate = create_certificate_for(
-            &ctx,
             &trust_root,
             alice_address(),
             1,
-            alice_store_context.identity_key_pair()?.public(),
+            *alice_stores
+                .identity_key_store
+                .get_identity_key_pair(None)
+                .await?
+                .public_key(),
             31337,
+            &mut csprng,
         )?;
 
-        let alice_cipher = SealedSessionCipher::new(
-            ctx.clone(),
-            alice_store_context,
-            alice_address(),
+        let mut alice_cipher = SealedSessionCipher::new(
+            alice_stores.session_store,
+            alice_stores.identity_key_store,
+            alice_stores.signed_prekey_store,
+            alice_stores.prekey_store,
             certificate_validator.clone(),
         );
 
-        let ciphertext = alice_cipher.encrypt(
-            &ProtocolAddress::new("+14152222222", 1),
-            sender_certificate,
-            "smert za smert".as_bytes(),
-        )?;
+        let ciphertext = alice_cipher
+            .encrypt(
+                &ProtocolAddress::new("+14152222222".into(), 1),
+                sender_certificate,
+                "smert za smert".as_bytes(),
+            )
+            .await?;
 
-        let bob_cipher = SealedSessionCipher::new(
-            ctx.clone(),
-            bob_store_context,
-            bob_address(),
+        let mut bob_cipher = SealedSessionCipher::new(
+            bob_stores.session_store,
+            bob_stores.identity_key_store,
+            bob_stores.signed_prekey_store,
+            bob_stores.prekey_store,
             certificate_validator,
         );
 
-        match bob_cipher.decrypt(&ciphertext, 31338) {
+        match bob_cipher.decrypt(&ciphertext, 31338).await {
             Err(SealedSessionError::ExpiredCertificate) => Ok(()),
             _ => panic!("certificate is expired, we should not get decrypted data here!11!")
         }
     }
 
-    #[test]
-    fn test_encrypt_from_wrong_identity() -> anyhow::Result<()> {
-        let (ctx, alice_store_context, bob_store_context) = create_contexts()?;
-        initialize_session(&ctx, &bob_store_context, &alice_store_context)?;
+    #[tokio::test]
+    async fn test_encrypt_from_wrong_identity() -> anyhow::Result<()> {
+        let mut csprng = rand::thread_rng();
+        let (alice_stores, bob_stores) = create_stores(&mut csprng).await?;
 
-        let trust_root = libsignal_protocol::generate_key_pair(&ctx)?;
-        let random_key_pair = libsignal_protocol::generate_key_pair(&ctx)?;
+        let trust_root = KeyPair::generate(&mut csprng);
+        let random_key_pair = KeyPair::generate(&mut csprng);
         let certificate_validator =
-            CertificateValidator::new(trust_root.public());
+            CertificateValidator::new(trust_root.public_key);
         let sender_certificate = create_certificate_for(
-            &ctx,
             &random_key_pair,
             alice_address(),
             1,
-            alice_store_context.identity_key_pair()?.public(),
+            *alice_stores
+                .identity_key_store
+                .get_identity_key_pair(None)
+                .await?
+                .public_key(),
             31337,
+            &mut csprng,
         )?;
 
-        let alice_cipher = SealedSessionCipher::new(
-            ctx.clone(),
-            alice_store_context,
-            alice_address(),
+        let mut alice_cipher = SealedSessionCipher::new(
+            alice_stores.session_store,
+            alice_stores.identity_key_store,
+            alice_stores.signed_prekey_store,
+            alice_stores.prekey_store,
             certificate_validator.clone(),
         );
-        let ciphertext = alice_cipher.encrypt(
-            &ProtocolAddress::new("+14152222222", 1),
-            sender_certificate,
-            "smert za smert".as_bytes(),
-        )?;
 
-        let bob_cipher = SealedSessionCipher::new(
-            ctx.clone(),
-            bob_store_context,
-            bob_address(),
+        let ciphertext = alice_cipher
+            .encrypt(
+                &ProtocolAddress::new("+14152222222".into(), 1),
+                sender_certificate,
+                "smert za smert".as_bytes(),
+            )
+            .await?;
+
+        let mut bob_cipher = SealedSessionCipher::new(
+            bob_stores.session_store,
+            bob_stores.identity_key_store,
+            bob_stores.signed_prekey_store,
+            bob_stores.prekey_store,
             certificate_validator,
         );
 
-        match bob_cipher.decrypt(&ciphertext, 31335) {
+        match bob_cipher.decrypt(&ciphertext, 31335).await {
             Err(SealedSessionError::InvalidCertificate) => Ok(()),
             _ => panic!("the certificate is invalid here!11"),
         }
     }
 
-    fn create_contexts(
-    ) -> Result<(Context, StoreContext, StoreContext), SealedSessionError> {
-        let ctx = Context::new(DefaultCrypto::default())?;
-
-        let alice_identity = sig::generate_identity_key_pair(&ctx).unwrap();
-        let alice_store = sig::store_context(
-            &ctx,
-            InMemoryPreKeyStore::default(),
-            InMemorySignedPreKeyStore::default(),
-            InMemorySessionStore::default(),
-            InMemoryIdentityKeyStore::new(
-                sig::generate_registration_id(&ctx, 0).unwrap(),
-                &alice_identity,
+    async fn create_stores<R: rand::Rng + rand::CryptoRng>(
+        csprng: &mut R,
+    ) -> anyhow::Result<(Stores, Stores)> {
+        let mut alice_stores = Stores {
+            identity_key_store: InMemIdentityKeyStore::new(
+                IdentityKeyPair::generate(csprng),
+                generate_registration_id(csprng),
             ),
-        )?;
+            session_store: InMemSessionStore::new(),
+            signed_prekey_store: InMemSignedPreKeyStore::new(),
+            prekey_store: InMemPreKeyStore::new(),
+        };
 
-        let bob_identity = sig::generate_identity_key_pair(&ctx).unwrap();
-        let bob_store = sig::store_context(
-            &ctx,
-            InMemoryPreKeyStore::default(),
-            InMemorySignedPreKeyStore::default(),
-            InMemorySessionStore::default(),
-            InMemoryIdentityKeyStore::new(
-                sig::generate_registration_id(&ctx, 0).unwrap(),
-                &bob_identity,
+        let mut bob_stores = Stores {
+            identity_key_store: InMemIdentityKeyStore::new(
+                IdentityKeyPair::generate(csprng),
+                generate_registration_id(csprng),
             ),
-        )?;
+            session_store: InMemSessionStore::new(),
+            signed_prekey_store: InMemSignedPreKeyStore::new(),
+            prekey_store: InMemPreKeyStore::new(),
+        };
 
-        Ok((ctx, alice_store, bob_store))
+        initialize_session(&mut alice_stores, &mut bob_stores, csprng).await?;
+
+        Ok((alice_stores, bob_stores))
     }
 
-    fn create_certificate_for(
-        context: &Context,
+    fn create_certificate_for<R: rand::Rng + rand::CryptoRng>(
         trust_root: &KeyPair,
         addr: ServiceAddress,
         device_id: u32,
         identity_key: PublicKey,
         expires: u64,
+        csprng: &mut R,
     ) -> Result<SenderCertificate, SealedSessionError> {
-        let server_key = libsignal_protocol::generate_key_pair(&context)?;
+        let server_key = KeyPair::generate(csprng);
 
         let uuid = addr.uuid.as_ref().map(uuid::Uuid::to_string);
         let e164 = addr.e164();
@@ -1000,22 +1016,17 @@ mod tests {
         let mut server_certificate_bytes = vec![];
         crate::proto::server_certificate::Certificate {
             id: Some(1),
-            key: Some(server_key.public().serialize()?.as_slice().to_vec()),
+            key: Some(server_key.public_key.serialize().into_vec()),
         }
         .encode(&mut server_certificate_bytes)?;
 
-        let server_certificate_signature =
-            libsignal_protocol::calculate_signature(
-                &context,
-                &trust_root.private(),
-                &server_certificate_bytes,
-            )?
-            .as_slice()
-            .to_vec();
+        let server_certificate_signature = trust_root
+            .private_key
+            .calculate_signature(&server_certificate_bytes, csprng)?;
 
         let server_certificate = crate::proto::ServerCertificate {
             certificate: Some(server_certificate_bytes),
-            signature: Some(server_certificate_signature),
+            signature: Some(server_certificate_signature.into_vec()),
         };
 
         let mut sender_certificate_bytes = vec![];
@@ -1023,62 +1034,83 @@ mod tests {
             sender_uuid: uuid,
             sender_e164: e164,
             sender_device: Some(device_id),
-            identity_key: Some(identity_key.serialize()?.as_slice().to_vec()),
+            identity_key: Some(identity_key.serialize().into_vec()),
             expires: Some(expires),
             signer: Some(server_certificate),
         }
         .encode(&mut sender_certificate_bytes)?;
 
-        let sender_certificate_signature =
-            libsignal_protocol::calculate_signature(
-                &context,
-                &server_key.private(),
-                &sender_certificate_bytes,
-            )?
-            .as_slice()
-            .to_vec();
+        let sender_certificate_signature = server_key
+            .private_key
+            .calculate_signature(&sender_certificate_bytes, csprng)?;
 
         Ok(SenderCertificate::try_from(
-            &context,
             crate::proto::SenderCertificate {
                 certificate: Some(sender_certificate_bytes),
-                signature: Some(sender_certificate_signature),
+                signature: Some(sender_certificate_signature.into_vec()),
             },
         )?)
     }
 
-    fn initialize_session(
-        context: &Context,
-        bob_store_context: &StoreContext,
-        alice_store_context: &StoreContext,
+    async fn initialize_session<R: rand::Rng + rand::CryptoRng>(
+        alice_stores: &mut Stores,
+        bob_stores: &mut Stores,
+        csprng: &mut R,
     ) -> Result<(), SealedSessionError> {
-        let bob_pre_key = libsignal_protocol::generate_key_pair(&context)?;
-        let bob_identity_key = bob_store_context.identity_key_pair()?;
-        let bob_signed_pre_key = libsignal_protocol::generate_signed_pre_key(
-            &context,
-            &bob_identity_key,
+        let bob_pre_key = PreKeyRecord::new(1, &KeyPair::generate(csprng));
+        let bob_identity_key_pair = bob_stores
+            .identity_key_store
+            .get_identity_key_pair(None)
+            .await?;
+
+        // TODO: check
+        let signed_pre_key_pair = KeyPair::generate(csprng);
+        let signed_pre_key_signature = bob_identity_key_pair
+            .private_key()
+            .calculate_signature(
+                &signed_pre_key_pair.public_key.serialize(),
+                csprng,
+            )?
+            .into_vec();
+
+        let bob_signed_pre_key_record = SignedPreKeyRecord::new(
             2,
-            UNIX_EPOCH,
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            &signed_pre_key_pair,
+            &signed_pre_key_signature,
+        );
+
+        let bob_bundle = PreKeyBundle::new(
+            1,
+            1,
+            Some((1, bob_pre_key.public_key()?)),
+            2,
+            signed_pre_key_pair.public_key,
+            signed_pre_key_signature,
+            *bob_identity_key_pair.identity_key(),
         )?;
 
-        let bob_bundle = PreKeyBundle::builder()
-            .registration_id(1)
-            .device_id(1)
-            .pre_key(1, &bob_pre_key.public())
-            .signed_pre_key(2, &bob_signed_pre_key.key_pair().public())
-            .signature(&bob_signed_pre_key.signature())
-            .identity_key(&bob_identity_key.public())
-            .build()?;
+        process_prekey_bundle(
+            &ProtocolAddress::new("+14152222222".into(), 1),
+            &mut alice_stores.session_store,
+            &mut alice_stores.identity_key_store,
+            &bob_bundle,
+            csprng,
+            None,
+        )
+        .await?;
 
-        let alice_session_builder = SessionBuilder::new(
-            &context,
-            &alice_store_context,
-            &ProtocolAddress::new("+14152222222", 1),
-        );
-        alice_session_builder.process_pre_key_bundle(&bob_bundle)?;
-
-        bob_store_context.store_signed_pre_key(&bob_signed_pre_key)?;
-        bob_store_context.store_pre_key(&PreKey::new(1, &bob_pre_key)?)?;
+        bob_stores
+            .signed_prekey_store
+            .save_signed_pre_key(2, &bob_signed_pre_key_record, None)
+            .await?;
+        bob_stores
+            .prekey_store
+            .save_pre_key(1, &bob_pre_key, None)
+            .await?;
         Ok(())
     }
 }

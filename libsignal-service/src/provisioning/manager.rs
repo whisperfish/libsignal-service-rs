@@ -1,5 +1,5 @@
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
-use libsignal_protocol::{Context, PrivateKey, PublicKey};
+use libsignal_protocol::{PrivateKey, PublicKey};
 use phonenumber::PhoneNumber;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -281,7 +281,6 @@ impl<P: PushService> LinkingManager<P> {
 
     pub async fn provision_secondary_device<R: rand::Rng + rand::CryptoRng>(
         &mut self,
-        ctx: Context,
         csprng: &mut R,
         signaling_key: SignalingKey,
         device_name: &str,
@@ -296,8 +295,7 @@ impl<P: PushService> LinkingManager<P> {
         // see libsignal-protocol-c / signal_protocol_key_helper_generate_registration_id
         let registration_id = csprng.gen_range(1, 16380);
 
-        let provisioning_pipe =
-            ProvisioningPipe::from_socket(ws, stream, &ctx)?;
+        let provisioning_pipe = ProvisioningPipe::from_socket(ws, stream)?;
         let provision_stream = provisioning_pipe.stream();
         pin_mut!(provision_stream);
         while let Some(step) = provision_stream.next().await {

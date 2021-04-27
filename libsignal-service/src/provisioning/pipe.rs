@@ -8,8 +8,6 @@ use pin_project::pin_project;
 use prost::Message;
 use url::Url;
 
-use libsignal_protocol::Context;
-
 pub use crate::proto::{
     ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
 };
@@ -43,7 +41,6 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
     pub fn from_socket(
         ws: WS,
         stream: WS::Stream,
-        ctx: &Context,
     ) -> Result<Self, ProvisioningError> {
         Ok(ProvisioningPipe {
             ws,

@@ -18,7 +18,7 @@ use aes_gcm::{
 };
 use chrono::prelude::*;
 use libsignal_protocol::{
-    error::SignalProtocolError, Context, IdentityKey, PreKeyBundle, PublicKey,
+    error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
 };
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
@@ -202,7 +202,7 @@ pub struct MismatchedDevices {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
-    pub stale_devices: Vec<i32>,
+    pub stale_devices: Vec<u32>,
 }
 
 #[derive(Debug, Deserialize)]

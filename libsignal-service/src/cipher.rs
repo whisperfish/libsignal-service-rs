@@ -13,9 +13,9 @@ use crate::{
 use block_modes::block_padding::{Iso7816, Padding};
 use libsignal_protocol::{
     message_decrypt_prekey, message_decrypt_signal, message_encrypt,
-    CiphertextMessage, CiphertextMessageType, Context, IdentityKeyStore,
-    PreKeySignalMessage, PreKeyStore, ProtocolAddress, SessionStore,
-    SignalMessage, SignalProtocolError, SignedPreKeyStore,
+    CiphertextMessageType, Context, IdentityKeyStore, PreKeySignalMessage,
+    PreKeyStore, ProtocolAddress, SessionStore, SignalMessage,
+    SignalProtocolError, SignedPreKeyStore,
 };
 use prost::Message;
 
@@ -24,53 +24,32 @@ use std::convert::TryFrom;
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
-#[derive(Clone)]
-pub struct ServiceCipher<S, I, SP, P>
-where
-    S: SessionStore,
-    I: IdentityKeyStore,
-    SP: SignedPreKeyStore,
-    P: PreKeyStore,
-{
-    context: Context,
-    pub(crate) session_store: S,
-    pub(crate) identity_key_store: I,
-    pub(crate) signed_pre_key_store: SP,
-    pub(crate) pre_key_store: P,
-    pub(crate) local_address: ServiceAddress,
-    sealed_session_cipher: SealedSessionCipher<S, I, SP, P>,
+pub struct ServiceCipher {
+    session_store: Box<dyn SessionStore>,
+    identity_key_store: Box<dyn IdentityKeyStore>,
+    signed_pre_key_store: Box<dyn SignedPreKeyStore>,
+    pre_key_store: Box<dyn PreKeyStore>,
+    sealed_session_cipher: SealedSessionCipher,
 }
 
-impl<S, I, SP, P> ServiceCipher<S, I, SP, P>
-where
-    S: SessionStore + Clone,
-    I: IdentityKeyStore + Clone,
-    SP: SignedPreKeyStore + Clone,
-    P: PreKeyStore + Clone,
-{
-    pub fn from_context(
-        context: Context,
-        session_store: S,
-        identity_key_store: I,
-        signed_pre_key_store: SP,
-        pre_key_store: P,
-        local_address: ServiceAddress,
+impl ServiceCipher {
+    pub fn new(
+        session_store: impl SessionStore + Clone + 'static,
+        identity_key_store: impl IdentityKeyStore + Clone + 'static,
+        signed_pre_key_store: impl SignedPreKeyStore + Clone + 'static,
+        pre_key_store: impl PreKeyStore + Clone + 'static,
         certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            context: context.clone(),
-            session_store: session_store.clone(),
-            identity_key_store: identity_key_store.clone(),
-            signed_pre_key_store: signed_pre_key_store.clone(),
-            pre_key_store: pre_key_store.clone(),
-            local_address: local_address.clone(),
+            session_store: Box::new(session_store.clone()),
+            identity_key_store: Box::new(identity_key_store.clone()),
+            signed_pre_key_store: Box::new(signed_pre_key_store.clone()),
+            pre_key_store: Box::new(pre_key_store.clone()),
             sealed_session_cipher: SealedSessionCipher::new(
-                context,
                 session_store,
                 identity_key_store,
                 signed_pre_key_store,
                 pre_key_store,
-                local_address,
                 certificate_validator,
             ),
         }
@@ -124,7 +103,7 @@ where
             Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
                     None,
-                    &self.session_store,
+                    self.session_store.as_ref(),
                     &envelope.source_address(),
                     envelope.source_device(),
                 )
@@ -142,10 +121,10 @@ where
                 let mut data = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&ciphertext[..]).unwrap(),
                     &sender,
-                    &mut self.session_store,
-                    &mut self.identity_key_store,
-                    &mut self.pre_key_store,
-                    &mut self.signed_pre_key_store,
+                    self.session_store.as_mut(),
+                    self.identity_key_store.as_mut(),
+                    self.pre_key_store.as_mut(),
+                    self.signed_pre_key_store.as_mut(),
                     &mut csprng,
                     None,
                 )
@@ -170,7 +149,7 @@ where
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
                     None,
-                    &self.session_store,
+                    self.session_store.as_ref(),
                     &envelope.source_address(),
                     envelope.source_device(),
                 )
@@ -188,8 +167,8 @@ where
                 let mut data = message_decrypt_signal(
                     &SignalMessage::try_from(&ciphertext[..])?,
                     &sender,
-                    &mut self.session_store,
-                    &mut self.identity_key_store,
+                    self.session_store.as_mut(),
+                    self.identity_key_store.as_mut(),
                     &mut csprng,
                     None,
                 )
@@ -272,8 +251,8 @@ where
             let message = message_encrypt(
                 &padded_content,
                 &address,
-                &mut self.session_store,
-                &mut self.identity_key_store,
+                self.session_store.as_mut(),
+                self.identity_key_store.as_mut(),
                 None,
             )
             .await?;

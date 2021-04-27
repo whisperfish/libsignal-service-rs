@@ -31,3 +31,9 @@ pub enum ProvisioningError {
     #[error("ProvisioningCipher in encrypt-only mode")]
     EncryptOnlyProvisioningCipher,
 }
+
+pub fn generate_registration_id<R: rand::Rng + rand::CryptoRng>(
+    csprng: &mut R,
+) -> u32 {
+    csprng.gen_range(1, 16380)
+}

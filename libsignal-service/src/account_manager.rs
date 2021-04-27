@@ -16,13 +16,12 @@ use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
 use libsignal_protocol::{
-    Context, IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PublicKey,
+    IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PublicKey,
     SignedPreKeyRecord, SignedPreKeyStore,
 };
 use zkgroup::profiles::ProfileKey;
 
 pub struct AccountManager<Service> {
-    context: Context,
     service: Service,
     profile_key: Option<[u8; 32]>,
 }
@@ -61,13 +60,8 @@ const PRE_KEY_BATCH_SIZE: u32 = 100;
 const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
 impl<Service: PushService> AccountManager<Service> {
-    pub fn new(
-        context: Context,
-        service: Service,
-        profile_key: Option<[u8; 32]>,
-    ) -> Self {
+    pub fn new(service: Service, profile_key: Option<[u8; 32]>) -> Self {
         Self {
-            context,
             service,
             profile_key,
         }

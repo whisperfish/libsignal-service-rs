@@ -202,11 +202,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn encrypt_provisioning_roundtrip() {
+    fn encrypt_provisioning_roundtrip() -> anyhow::Result<()> {
         let mut rng = rand::thread_rng();
-        let cipher = ProvisioningCipher::generate(&mut rng).unwrap();
+        let cipher = ProvisioningCipher::generate(&mut rng)?;
         let encrypt_cipher =
-            ProvisioningCipher::from_public(cipher.public_key());
+            ProvisioningCipher::from_public(cipher.public_key().clone());
 
         assert_eq!(
             cipher.public_key(),
@@ -215,14 +215,16 @@ mod tests {
         );
 
         let msg = ProvisionMessage::default();
-        let encrypted = encrypt_cipher.encrypt(msg.clone()).unwrap();
+        let encrypted = encrypt_cipher.encrypt(msg.clone())?;
 
         assert!(matches!(
             encrypt_cipher.decrypt(encrypted.clone()),
             Err(ProvisioningError::EncryptOnlyProvisioningCipher)
         ));
 
-        let decrypted = cipher.decrypt(encrypted).expect("decryptability");
+        let decrypted = cipher.decrypt(encrypted)?;
         assert_eq!(msg, decrypted);
+
+        Ok(())
     }
 }

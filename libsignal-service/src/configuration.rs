@@ -1,6 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
-use libsignal_protocol::{Context, PublicKey};
+use libsignal_protocol::PublicKey;
 use url::Url;
 use zkgroup::ServerPublicParams;
 

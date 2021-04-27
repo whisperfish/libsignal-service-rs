@@ -21,6 +21,7 @@ pub mod push_service;
 pub mod receiver;
 pub mod sender;
 pub mod service_address;
+pub mod session_store;
 pub mod utils;
 
 pub use crate::account_manager::{AccountManager, Profile};
