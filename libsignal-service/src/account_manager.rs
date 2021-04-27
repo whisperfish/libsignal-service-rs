@@ -1,3 +1,13 @@
+use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
+use std::time::SystemTime;
+
+use libsignal_protocol::{
+    IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PublicKey,
+    SignalProtocolError, SignedPreKeyRecord, SignedPreKeyStore,
+};
+use zkgroup::profiles::ProfileKey;
+
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::{PreKeyEntity, PreKeyState},
@@ -10,16 +20,6 @@ use crate::{
         ServiceError,
     },
 };
-
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::time::SystemTime;
-
-use libsignal_protocol::{
-    IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PublicKey,
-    SignedPreKeyRecord, SignedPreKeyStore,
-};
-use zkgroup::profiles::ProfileKey;
 
 pub struct AccountManager<Service> {
     service: Service,
@@ -43,7 +43,7 @@ pub enum LinkError {
     #[error("TsUrl has an invalid pub_key field")]
     InvalidPublicKey,
     #[error("Protocol error {0}")]
-    ProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
+    ProtocolError(#[from] SignalProtocolError),
     #[error(transparent)]
     ProvisioningError(#[from] ProvisioningError),
 }
@@ -75,16 +75,11 @@ impl<Service: PushService> AccountManager<Service> {
     /// Equivalent to Java's RefreshPreKeysJob
     ///
     /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
-    pub async fn update_pre_key_bundle<
-        I: IdentityKeyStore,
-        P: PreKeyStore,
-        S: SignedPreKeyStore,
-        R: rand::Rng + rand::CryptoRng,
-    >(
+    pub async fn update_pre_key_bundle<R: rand::Rng + rand::CryptoRng>(
         &mut self,
-        identity_store: &I,
-        prekey_store: &mut P,
-        signed_prekey_store: &mut S,
+        identity_store: &dyn IdentityKeyStore,
+        pre_key_store: &mut dyn PreKeyStore,
+        signed_pre_key_store: &mut dyn SignedPreKeyStore,
         csprng: &mut R,
         pre_keys_offset_id: u32,
         signed_pre_key_id: u32,
@@ -113,7 +108,7 @@ impl<Service: PushService> AccountManager<Service> {
             let pre_key_id =
                 ((pre_keys_offset_id + i) % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1;
             let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-            prekey_store
+            pre_key_store
                 .save_pre_key(pre_key_id, &pre_key_record, None)
                 .await?;
 
@@ -131,7 +126,7 @@ impl<Service: PushService> AccountManager<Service> {
 
         let unix_time = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("clock went backwards before UNIX EPOCH");
+            .unwrap();
 
         let signed_prekey_record = SignedPreKeyRecord::new(
             signed_pre_key_id + 1,
@@ -140,7 +135,7 @@ impl<Service: PushService> AccountManager<Service> {
             &signed_pre_key_signature,
         );
 
-        signed_prekey_store
+        signed_pre_key_store
             .save_signed_pre_key(
                 signed_pre_key_id + 1,
                 &signed_prekey_record,
@@ -257,10 +252,10 @@ impl<Service: PushService> AccountManager<Service> {
 
         let msg = ProvisionMessage {
             identity_key_public: Some(
-                identity_key_pair.public_key().serialize().to_vec(),
+                identity_key_pair.public_key().serialize().into_vec(),
             ),
             identity_key_private: Some(
-                identity_key_pair.private_key().serialize().to_vec(),
+                identity_key_pair.private_key().serialize(),
             ),
             number: Some(credentials.e164()),
             uuid: credentials.uuid.as_ref().map(|u| u.to_string()),

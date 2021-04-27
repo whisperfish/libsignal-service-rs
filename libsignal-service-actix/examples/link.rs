@@ -1,19 +1,15 @@
 use failure::Error;
 use futures::{channel::mpsc::channel, future, StreamExt};
 use image::Luma;
-use libsignal_service::configuration::SignalServers;
+use libsignal_service::{
+    configuration::SignalServers, provisioning::LinkingManager,
+    provisioning::SecondaryDeviceProvisioning, USER_AGENT,
+};
+use libsignal_service_actix::prelude::AwcPushService;
 use log::LevelFilter;
 use qrcode::QrCode;
 use rand::{distributions::Alphanumeric, Rng, RngCore};
 use structopt::StructOpt;
-
-use libsignal_protocol::Context;
-
-use libsignal_service::{
-    provisioning::LinkingManager, provisioning::SecondaryDeviceProvisioning,
-    USER_AGENT,
-};
-use libsignal_service_actix::prelude::AwcPushService;
 
 #[derive(Debug, StructOpt)]
 struct Args {

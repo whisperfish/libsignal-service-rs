@@ -15,6 +15,7 @@ use libsignal_protocol::{
     SignalProtocolError,
 };
 use log::{info, trace};
+use rand::{CryptoRng, Rng};
 
 use crate::{
     cipher::ServiceCipher, content::ContentBody, push_service::*,
@@ -70,9 +71,10 @@ pub struct AttachmentSpec {
 }
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
-pub struct MessageSender<Service> {
+pub struct MessageSender<Service, R: Rng + CryptoRng + Clone> {
     service: Service,
-    cipher: ServiceCipher,
+    cipher: ServiceCipher<R>,
+    csprng: R,
     session_store: Box<dyn SessionStoreExt>,
     identity_key_store: Box<dyn IdentityKeyStore>,
     local_address: ServiceAddress,
@@ -119,13 +121,15 @@ pub enum MessageSenderError {
     IdentityFailure { recipient: ServiceAddress },
 }
 
-impl<Service> MessageSender<Service>
+impl<Service, R> MessageSender<Service, R>
 where
     Service: PushService + Clone,
+    R: Rng + CryptoRng + Clone,
 {
     pub fn new(
         service: Service,
-        cipher: ServiceCipher,
+        cipher: ServiceCipher<R>,
+        csprng: R,
         session_store: impl SessionStoreExt + 'static,
         identity_key_store: impl IdentityKeyStore + 'static,
         local_address: ServiceAddress,
@@ -134,6 +138,7 @@ where
         MessageSender {
             service,
             cipher,
+            csprng,
             session_store: Box::new(session_store),
             identity_key_store: Box::new(identity_key_store),
             local_address,
@@ -495,15 +500,12 @@ where
                             .get_pre_key(&recipient, *missing_device_id)
                             .await?;
 
-                        // FIXME: what
-                        let mut csprng = rand::rngs::OsRng;
-
                         process_prekey_bundle(
                             &remote_address,
                             self.session_store.as_mut_session_store(),
                             self.identity_key_store.as_mut(),
                             &pre_key,
-                            &mut csprng,
+                            &mut self.csprng,
                             None,
                         )
                         .await
@@ -715,15 +717,12 @@ where
                 )
                 .await?;
 
-                // FIXME: what
-                let mut csprng = rand::rngs::OsRng;
-
                 process_prekey_bundle(
                     &pre_key_address,
                     self.session_store.as_mut_session_store(),
                     self.identity_key_store.as_mut(),
                     &pre_key_bundle,
-                    &mut csprng,
+                    &mut self.csprng,
                     None,
                 )
                 .await?;

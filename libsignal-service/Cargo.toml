@@ -7,9 +7,8 @@ license = "GPLv3"
 readme = "../README.md"
 
 [dependencies]
-#libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", version = "0.1.0", tag = "v0.4.0"}
-libsignal-protocol = { path = "../../libsignal-client/rust/protocol", version = "0.1.0", tag = "v0.4.0"}
-zkgroup = { git = "https://github.com/signalapp/zkgroup" }
+libsignal-protocol = { git = "https://github.com/whisperfish/libsignal-client", branch = "make-error-sync" }
+zkgroup = { git = "https://github.com/signalapp/zkgroup", tag = "v0.7.2" }
 async-trait = "0.1.30"
 url = { version = "2.1.1", features = ["serde"] }
 base64 = "0.13"
@@ -36,13 +35,12 @@ rand = "0.7"
 uuid = { version = "0.8", features = [ "serde" ] }
 phonenumber = "0.3"
 
-tokio = { version = "1.0", features = [ "macros" ] }
-
 [build-dependencies]
 prost-build = "0.7"
 
 [dev-dependencies]
 anyhow = "1.0"
+tokio = { version = "1.0", features = [ "macros" ] }
 
 [features]
 prefer-e164 = []

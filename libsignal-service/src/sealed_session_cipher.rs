@@ -13,6 +13,7 @@ use libsignal_protocol::{
 };
 use log::error;
 use phonenumber::PhoneNumber;
+use rand::{CryptoRng, Rng};
 use sha2::Sha256;
 use uuid::Uuid;
 
@@ -64,12 +65,13 @@ pub enum MacError {
     BadMac,
 }
 
-pub(crate) struct SealedSessionCipher {
+pub(crate) struct SealedSessionCipher<R: Rng + CryptoRng> {
     session_store: Box<dyn SessionStore>,
     identity_key_store: Box<dyn IdentityKeyStore>,
     signed_pre_key_store: Box<dyn SignedPreKeyStore>,
     pre_key_store: Box<dyn PreKeyStore>,
     certificate_validator: CertificateValidator,
+    csprng: R,
 }
 
 #[derive(Clone)]
@@ -205,13 +207,14 @@ impl UnidentifiedSenderMessage {
     }
 }
 
-impl SealedSessionCipher {
+impl<R: Rng + CryptoRng> SealedSessionCipher<R> {
     pub(crate) fn new(
         session_store: impl SessionStore + 'static,
         identity_key_store: impl IdentityKeyStore + 'static,
         signed_pre_key_store: impl SignedPreKeyStore + 'static,
         pre_key_store: impl PreKeyStore + 'static,
         certificate_validator: CertificateValidator,
+        csprng: R,
     ) -> Self {
         Self {
             session_store: Box::new(session_store),
@@ -219,11 +222,13 @@ impl SealedSessionCipher {
             signed_pre_key_store: Box::new(signed_pre_key_store),
             pre_key_store: Box::new(pre_key_store),
             certificate_validator,
+            csprng,
         }
     }
 
     /// unused until we make progress on https://github.com/Michael-F-Bryan/libsignal-service-rs/issues/25
     /// messages from unidentified senders can only be sent via a unidentifiedPipe
+    #[allow(dead_code)]
     pub async fn encrypt(
         &mut self,
         destination: &ProtocolAddress,
@@ -247,10 +252,7 @@ impl SealedSessionCipher {
             .await?
             .ok_or(SealedSessionError::NoSessionWithRecipient)?;
 
-        // FIXME: what
-        let mut csprng = rand::rngs::OsRng;
-
-        let ephemeral = KeyPair::generate(&mut csprng);
+        let ephemeral = KeyPair::generate(&mut self.csprng);
         let ephemeral_salt = [
             b"UnidentifiedDelivery",
             their_identity.serialize().as_ref(),
@@ -463,9 +465,6 @@ impl SealedSessionCipher {
         )
         .await?;
 
-        // FIXME: what
-        let mut csprng = rand::rngs::OsRng;
-
         let msg = match r#type {
             CiphertextMessageType::Whisper => {
                 let msg = message_decrypt_signal(
@@ -473,7 +472,7 @@ impl SealedSessionCipher {
                     &sender,
                     self.session_store.as_mut(),
                     self.identity_key_store.as_mut(),
-                    &mut csprng,
+                    &mut self.csprng,
                     None,
                 )
                 .await?;
@@ -487,7 +486,7 @@ impl SealedSessionCipher {
                     self.identity_key_store.as_mut(),
                     self.pre_key_store.as_mut(),
                     self.signed_pre_key_store.as_mut(),
-                    &mut csprng,
+                    &mut self.csprng,
                     None,
                 )
                 .await?;
@@ -722,8 +721,8 @@ mod tests {
         process_prekey_bundle, IdentityKeyPair, IdentityKeyStore,
         InMemIdentityKeyStore, InMemPreKeyStore, InMemSessionStore,
         InMemSignedPreKeyStore, KeyPair, PreKeyBundle, PreKeyRecord,
-        PreKeyStore, ProtocolAddress, PublicKey, SessionStore,
-        SignedPreKeyRecord, SignedPreKeyStore,
+        PreKeyStore, ProtocolAddress, PublicKey, SignedPreKeyRecord,
+        SignedPreKeyStore,
     };
 
     use crate::{provisioning::generate_registration_id, ServiceAddress};
@@ -743,19 +742,11 @@ mod tests {
         .unwrap()
     }
 
-    fn bob_address() -> ServiceAddress {
-        ServiceAddress::parse(
-            Some("+14152222222"),
-            Some("e80f7bbe-5b94-471e-bd8c-2173654ea3d1"),
-        )
-        .unwrap()
-    }
-
     struct Stores {
         identity_key_store: InMemIdentityKeyStore,
         session_store: InMemSessionStore,
-        signed_prekey_store: InMemSignedPreKeyStore,
-        prekey_store: InMemPreKeyStore,
+        signed_pre_key_store: InMemSignedPreKeyStore,
+        pre_key_store: InMemPreKeyStore,
     }
 
     #[tokio::test]
@@ -783,9 +774,10 @@ mod tests {
         let mut alice_cipher = SealedSessionCipher::new(
             alice_stores.session_store,
             alice_stores.identity_key_store,
-            alice_stores.signed_prekey_store,
-            alice_stores.prekey_store,
+            alice_stores.signed_pre_key_store,
+            alice_stores.pre_key_store,
             certificate_validator.clone(),
+            csprng,
         );
 
         let ciphertext = alice_cipher
@@ -799,9 +791,10 @@ mod tests {
         let mut bob_cipher = SealedSessionCipher::new(
             bob_stores.session_store,
             bob_stores.identity_key_store,
-            bob_stores.signed_prekey_store,
-            bob_stores.prekey_store,
+            bob_stores.signed_pre_key_store,
+            bob_stores.pre_key_store,
             certificate_validator,
+            csprng,
         );
 
         let plaintext = bob_cipher.decrypt(&ciphertext, 31335).await?;
@@ -846,9 +839,10 @@ mod tests {
         let mut alice_cipher = SealedSessionCipher::new(
             alice_stores.session_store,
             alice_stores.identity_key_store,
-            alice_stores.signed_prekey_store,
-            alice_stores.prekey_store,
+            alice_stores.signed_pre_key_store,
+            alice_stores.pre_key_store,
             certificate_validator,
+            csprng,
         );
 
         let ciphertext = alice_cipher
@@ -862,9 +856,10 @@ mod tests {
         let mut bob_cipher = SealedSessionCipher::new(
             bob_stores.session_store,
             bob_stores.identity_key_store,
-            bob_stores.signed_prekey_store,
-            bob_stores.prekey_store,
+            bob_stores.signed_pre_key_store,
+            bob_stores.pre_key_store,
             false_certificate_validator,
+            csprng,
         );
 
         let plaintext = bob_cipher.decrypt(&ciphertext, 31335).await;
@@ -899,9 +894,10 @@ mod tests {
         let mut alice_cipher = SealedSessionCipher::new(
             alice_stores.session_store,
             alice_stores.identity_key_store,
-            alice_stores.signed_prekey_store,
-            alice_stores.prekey_store,
+            alice_stores.signed_pre_key_store,
+            alice_stores.pre_key_store,
             certificate_validator.clone(),
+            csprng,
         );
 
         let ciphertext = alice_cipher
@@ -915,9 +911,10 @@ mod tests {
         let mut bob_cipher = SealedSessionCipher::new(
             bob_stores.session_store,
             bob_stores.identity_key_store,
-            bob_stores.signed_prekey_store,
-            bob_stores.prekey_store,
+            bob_stores.signed_pre_key_store,
+            bob_stores.pre_key_store,
             certificate_validator,
+            csprng,
         );
 
         match bob_cipher.decrypt(&ciphertext, 31338).await {
@@ -951,9 +948,10 @@ mod tests {
         let mut alice_cipher = SealedSessionCipher::new(
             alice_stores.session_store,
             alice_stores.identity_key_store,
-            alice_stores.signed_prekey_store,
-            alice_stores.prekey_store,
+            alice_stores.signed_pre_key_store,
+            alice_stores.pre_key_store,
             certificate_validator.clone(),
+            csprng,
         );
 
         let ciphertext = alice_cipher
@@ -967,9 +965,10 @@ mod tests {
         let mut bob_cipher = SealedSessionCipher::new(
             bob_stores.session_store,
             bob_stores.identity_key_store,
-            bob_stores.signed_prekey_store,
-            bob_stores.prekey_store,
+            bob_stores.signed_pre_key_store,
+            bob_stores.pre_key_store,
             certificate_validator,
+            csprng,
         );
 
         match bob_cipher.decrypt(&ciphertext, 31335).await {
@@ -987,8 +986,8 @@ mod tests {
                 generate_registration_id(csprng),
             ),
             session_store: InMemSessionStore::new(),
-            signed_prekey_store: InMemSignedPreKeyStore::new(),
-            prekey_store: InMemPreKeyStore::new(),
+            signed_pre_key_store: InMemSignedPreKeyStore::new(),
+            pre_key_store: InMemPreKeyStore::new(),
         };
 
         let mut bob_stores = Stores {
@@ -997,8 +996,8 @@ mod tests {
                 generate_registration_id(csprng),
             ),
             session_store: InMemSessionStore::new(),
-            signed_prekey_store: InMemSignedPreKeyStore::new(),
-            prekey_store: InMemPreKeyStore::new(),
+            signed_pre_key_store: InMemSignedPreKeyStore::new(),
+            pre_key_store: InMemPreKeyStore::new(),
         };
 
         initialize_session(&mut alice_stores, &mut bob_stores, csprng).await?;
@@ -1110,11 +1109,11 @@ mod tests {
         .await?;
 
         bob_stores
-            .signed_prekey_store
+            .signed_pre_key_store
             .save_signed_pre_key(2, &bob_signed_pre_key_record, None)
             .await?;
         bob_stores
-            .prekey_store
+            .pre_key_store
             .save_pre_key(1, &bob_pre_key, None)
             .await?;
         Ok(())

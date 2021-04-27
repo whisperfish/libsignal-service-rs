@@ -4,12 +4,8 @@ version = "0.1.0"
 authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 libsignal-service = { path = "../libsignal-service" }
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", version = "0.1.0", tag = "v0.4.0"}
-
 
 awc = { version = "3.0.0-beta.5", features=["rustls"] }
 actix = "0.11.1"

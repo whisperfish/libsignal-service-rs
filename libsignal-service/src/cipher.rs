@@ -1,3 +1,15 @@
+use std::convert::TryFrom;
+
+use block_modes::block_padding::{Iso7816, Padding};
+use libsignal_protocol::{
+    message_decrypt_prekey, message_decrypt_signal, message_encrypt,
+    CiphertextMessageType, IdentityKeyStore, PreKeySignalMessage, PreKeyStore,
+    ProtocolAddress, SessionStore, SignalMessage, SignalProtocolError,
+    SignedPreKeyStore,
+};
+use prost::Message;
+use rand::{CryptoRng, Rng};
+
 use crate::{
     content::{Content, Metadata},
     envelope::Envelope,
@@ -10,47 +22,40 @@ use crate::{
     ServiceAddress,
 };
 
-use block_modes::block_padding::{Iso7816, Padding};
-use libsignal_protocol::{
-    message_decrypt_prekey, message_decrypt_signal, message_encrypt,
-    CiphertextMessageType, Context, IdentityKeyStore, PreKeySignalMessage,
-    PreKeyStore, ProtocolAddress, SessionStore, SignalMessage,
-    SignalProtocolError, SignedPreKeyStore,
-};
-use prost::Message;
-
-use std::convert::TryFrom;
-
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
-pub struct ServiceCipher {
+pub struct ServiceCipher<R: Rng + CryptoRng + Clone> {
     session_store: Box<dyn SessionStore>,
     identity_key_store: Box<dyn IdentityKeyStore>,
     signed_pre_key_store: Box<dyn SignedPreKeyStore>,
     pre_key_store: Box<dyn PreKeyStore>,
-    sealed_session_cipher: SealedSessionCipher,
+    csprng: R,
+    sealed_session_cipher: SealedSessionCipher<R>,
 }
 
-impl ServiceCipher {
+impl<R: Rng + CryptoRng + Clone> ServiceCipher<R> {
     pub fn new(
         session_store: impl SessionStore + Clone + 'static,
         identity_key_store: impl IdentityKeyStore + Clone + 'static,
         signed_pre_key_store: impl SignedPreKeyStore + Clone + 'static,
         pre_key_store: impl PreKeyStore + Clone + 'static,
         certificate_validator: CertificateValidator,
+        csprng: R,
     ) -> Self {
         Self {
             session_store: Box::new(session_store.clone()),
             identity_key_store: Box::new(identity_key_store.clone()),
             signed_pre_key_store: Box::new(signed_pre_key_store.clone()),
             pre_key_store: Box::new(pre_key_store.clone()),
+            csprng: csprng.clone(),
             sealed_session_cipher: SealedSessionCipher::new(
                 session_store,
                 identity_key_store,
                 signed_pre_key_store,
                 pre_key_store,
                 certificate_validator,
+                csprng,
             ),
         }
     }
@@ -114,9 +119,6 @@ impl ServiceCipher {
                     needs_receipt: false,
                 };
 
-                // FIXME: what
-                let mut csprng = rand::rngs::OsRng;
-
                 let mut data = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&ciphertext[..]).unwrap(),
                     &sender,
@@ -124,7 +126,7 @@ impl ServiceCipher {
                     self.identity_key_store.as_mut(),
                     self.pre_key_store.as_mut(),
                     self.signed_pre_key_store.as_mut(),
-                    &mut csprng,
+                    &mut self.csprng,
                     None,
                 )
                 .await?
@@ -159,15 +161,12 @@ impl ServiceCipher {
                     needs_receipt: false,
                 };
 
-                // FIXME: what
-                let mut csprng = rand::rngs::OsRng;
-
                 let mut data = message_decrypt_signal(
                     &SignalMessage::try_from(&ciphertext[..])?,
                     &sender,
                     self.session_store.as_mut(),
                     self.identity_key_store.as_mut(),
-                    &mut csprng,
+                    &mut self.csprng,
                     None,
                 )
                 .await?
