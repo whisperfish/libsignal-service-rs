@@ -477,11 +477,18 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
-                        if let Some(_uuid) = recipient.uuid {
-                            unimplemented!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
+                        if let Some(uuid) = recipient.uuid {
+                            self.session_store.delete_session(
+                                &ProtocolAddress::new(
+                                    uuid.to_string(),
+                                    *extra_device_id,
+                                ),
+                            )?;
                         }
-                        if let Some(_e164) = recipient.e164() {
-                            unimplemented!("deleting session: unimplemented following the switch to the Rust version of libsignal-protocol");
+                        if let Some(e164) = recipient.e164() {
+                            self.session_store.delete_session(
+                                &ProtocolAddress::new(e164, *extra_device_id),
+                            )?;
                         }
                     }
 

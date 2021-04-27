@@ -82,7 +82,7 @@ impl<Service: PushService> AccountManager<Service> {
         signed_pre_key_store: &mut dyn SignedPreKeyStore,
         csprng: &mut R,
         pre_keys_offset_id: u32,
-        signed_pre_key_id: u32,
+        next_signed_pre_key_id: u32,
         use_last_resort_key: bool,
     ) -> Result<(u32, u32), ServiceError> {
         let prekey_count = match self.service.get_pre_key_status().await {
@@ -99,7 +99,7 @@ impl<Service: PushService> AccountManager<Service> {
 
         if prekey_count >= PRE_KEY_MINIMUM {
             log::info!("Available keys sufficient");
-            return Ok((pre_keys_offset_id, signed_pre_key_id));
+            return Ok((pre_keys_offset_id, next_signed_pre_key_id));
         }
 
         let mut pre_key_entities = vec![];
@@ -129,15 +129,15 @@ impl<Service: PushService> AccountManager<Service> {
             .unwrap();
 
         let signed_prekey_record = SignedPreKeyRecord::new(
-            signed_pre_key_id + 1,
-            unix_time.as_secs(),
+            next_signed_pre_key_id,
+            unix_time.as_millis() as u64,
             &signed_pre_key_pair,
             &signed_pre_key_signature,
         );
 
         signed_pre_key_store
             .save_signed_pre_key(
-                signed_pre_key_id + 1,
+                next_signed_pre_key_id,
                 &signed_prekey_record,
                 None,
             )
@@ -162,7 +162,7 @@ impl<Service: PushService> AccountManager<Service> {
         log::trace!("Successfully refreshed prekeys");
         Ok((
             pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
-            signed_pre_key_id + 1,
+            next_signed_pre_key_id + 1,
         ))
     }
 

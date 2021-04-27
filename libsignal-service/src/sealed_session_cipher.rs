@@ -1083,7 +1083,7 @@ mod tests {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_secs(),
+                .as_millis() as u64,
             &signed_pre_key_pair,
             &signed_pre_key_signature,
         );
