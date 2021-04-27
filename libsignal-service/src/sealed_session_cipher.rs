@@ -1,4 +1,4 @@
-use crate::{push_service::ProfileKey, ServiceAddress};
+use std::convert::TryFrom;
 
 use aes_ctr::{
     cipher::stream::{NewStreamCipher, StreamCipher},
@@ -17,7 +17,7 @@ use rand::{CryptoRng, Rng};
 use sha2::Sha256;
 use uuid::Uuid;
 
-use std::convert::TryFrom;
+use crate::{push_service::ProfileKey, ServiceAddress};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SealedSessionError {
