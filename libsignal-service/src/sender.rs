@@ -2,8 +2,8 @@ use std::time::SystemTime;
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, IdentityKeyStore, ProtocolAddress,
-    SignalProtocolError,
+    process_prekey_bundle, IdentityKeyStore, PreKeyStore, ProtocolAddress,
+    SessionStore, SignalProtocolError, SignedPreKeyStore,
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
@@ -71,12 +71,12 @@ pub struct AttachmentSpec {
 }
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
-pub struct MessageSender<Service, R: Rng + CryptoRng + Clone> {
+pub struct MessageSender<Service, S, I, SP, P, R> {
     service: Service,
-    cipher: ServiceCipher<R>,
+    cipher: ServiceCipher<S, I, SP, P, R>,
     csprng: R,
-    session_store: Box<dyn SessionStoreExt>,
-    identity_key_store: Box<dyn IdentityKeyStore>,
+    session_store: S,
+    identity_key_store: I,
     local_address: ServiceAddress,
     device_id: u32,
 }
@@ -121,17 +121,21 @@ pub enum MessageSenderError {
     IdentityFailure { recipient: ServiceAddress },
 }
 
-impl<Service, R> MessageSender<Service, R>
+impl<Service, S, I, SP, P, R> MessageSender<Service, S, I, SP, P, R>
 where
     Service: PushService + Clone,
+    S: SessionStore + SessionStoreExt + Clone,
+    I: IdentityKeyStore + Clone,
+    SP: SignedPreKeyStore + Clone,
+    P: PreKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
     pub fn new(
         service: Service,
-        cipher: ServiceCipher<R>,
+        cipher: ServiceCipher<S, I, SP, P, R>,
         csprng: R,
-        session_store: impl SessionStoreExt + 'static,
-        identity_key_store: impl IdentityKeyStore + 'static,
+        session_store: S,
+        identity_key_store: I,
         local_address: ServiceAddress,
         device_id: u32,
     ) -> Self {
@@ -139,8 +143,8 @@ where
             service,
             cipher,
             csprng,
-            session_store: Box::new(session_store),
-            identity_key_store: Box::new(identity_key_store),
+            session_store,
+            identity_key_store,
             local_address,
             device_id,
         }
@@ -509,7 +513,7 @@ where
                         process_prekey_bundle(
                             &remote_address,
                             self.session_store.as_mut_session_store(),
-                            self.identity_key_store.as_mut(),
+                            &mut self.identity_key_store,
                             &pre_key,
                             &mut self.csprng,
                             None,
@@ -692,7 +696,7 @@ where
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
-            self.session_store.as_mut_session_store(),
+            &mut self.session_store,
             recipient,
             device_id,
         )
@@ -717,7 +721,7 @@ where
                 }
 
                 let pre_key_address = get_preferred_protocol_address(
-                    self.session_store.as_mut_session_store(),
+                    &mut self.session_store,
                     recipient,
                     pre_key_bundle.device_id()?,
                 )
@@ -725,8 +729,8 @@ where
 
                 process_prekey_bundle(
                     &pre_key_address,
-                    self.session_store.as_mut_session_store(),
-                    self.identity_key_store.as_mut(),
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
                     &pre_key_bundle,
                     &mut self.csprng,
                     None,

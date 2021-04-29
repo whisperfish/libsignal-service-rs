@@ -65,13 +65,13 @@ pub enum MacError {
     BadMac,
 }
 
-pub(crate) struct SealedSessionCipher<R: Rng + CryptoRng> {
-    session_store: Box<dyn SessionStore>,
-    identity_key_store: Box<dyn IdentityKeyStore>,
-    signed_pre_key_store: Box<dyn SignedPreKeyStore>,
-    pre_key_store: Box<dyn PreKeyStore>,
-    certificate_validator: CertificateValidator,
+pub(crate) struct SealedSessionCipher<S, I, SP, P, R> {
+    session_store: S,
+    identity_key_store: I,
+    signed_pre_key_store: SP,
+    pre_key_store: P,
     csprng: R,
+    certificate_validator: CertificateValidator,
 }
 
 #[derive(Clone)]
@@ -207,22 +207,29 @@ impl UnidentifiedSenderMessage {
     }
 }
 
-impl<R: Rng + CryptoRng> SealedSessionCipher<R> {
+impl<S, I, SP, P, R> SealedSessionCipher<S, I, SP, P, R>
+where
+    S: SessionStore,
+    I: IdentityKeyStore,
+    SP: SignedPreKeyStore,
+    P: PreKeyStore,
+    R: Rng + CryptoRng,
+{
     pub(crate) fn new(
-        session_store: impl SessionStore + 'static,
-        identity_key_store: impl IdentityKeyStore + 'static,
-        signed_pre_key_store: impl SignedPreKeyStore + 'static,
-        pre_key_store: impl PreKeyStore + 'static,
-        certificate_validator: CertificateValidator,
+        session_store: S,
+        identity_key_store: I,
+        signed_pre_key_store: SP,
+        pre_key_store: P,
         csprng: R,
+        certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            session_store: Box::new(session_store),
-            identity_key_store: Box::new(identity_key_store),
-            signed_pre_key_store: Box::new(signed_pre_key_store),
-            pre_key_store: Box::new(pre_key_store),
-            certificate_validator,
+            session_store,
+            identity_key_store,
+            signed_pre_key_store,
+            pre_key_store,
             csprng,
+            certificate_validator,
         }
     }
 
@@ -238,8 +245,8 @@ impl<R: Rng + CryptoRng> SealedSessionCipher<R> {
         let message = message_encrypt(
             padded_plaintext,
             destination,
-            self.session_store.as_mut(),
-            self.identity_key_store.as_mut(),
+            &mut self.session_store,
+            &mut self.identity_key_store,
             None,
         )
         .await?;
@@ -459,7 +466,7 @@ impl<R: Rng + CryptoRng> SealedSessionCipher<R> {
             sender_certificate,
         } = message;
         let sender = crate::cipher::get_preferred_protocol_address(
-            self.session_store.as_ref(),
+            &self.session_store,
             &sender_certificate.address(),
             sender_certificate.sender_device_id,
         )
@@ -470,8 +477,8 @@ impl<R: Rng + CryptoRng> SealedSessionCipher<R> {
                 let msg = message_decrypt_signal(
                     &SignalMessage::try_from(&content[..])?,
                     &sender,
-                    self.session_store.as_mut(),
-                    self.identity_key_store.as_mut(),
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
                     &mut self.csprng,
                     None,
                 )
@@ -482,10 +489,10 @@ impl<R: Rng + CryptoRng> SealedSessionCipher<R> {
                 let msg = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&content[..])?,
                     &sender,
-                    self.session_store.as_mut(),
-                    self.identity_key_store.as_mut(),
-                    self.pre_key_store.as_mut(),
-                    self.signed_pre_key_store.as_mut(),
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
+                    &mut self.pre_key_store,
+                    &mut self.signed_pre_key_store,
                     &mut self.csprng,
                     None,
                 )
@@ -776,8 +783,8 @@ mod tests {
             alice_stores.identity_key_store,
             alice_stores.signed_pre_key_store,
             alice_stores.pre_key_store,
-            certificate_validator.clone(),
             csprng,
+            certificate_validator.clone(),
         );
 
         let ciphertext = alice_cipher
@@ -793,8 +800,8 @@ mod tests {
             bob_stores.identity_key_store,
             bob_stores.signed_pre_key_store,
             bob_stores.pre_key_store,
-            certificate_validator,
             csprng,
+            certificate_validator,
         );
 
         let plaintext = bob_cipher.decrypt(&ciphertext, 31335).await?;
@@ -841,8 +848,8 @@ mod tests {
             alice_stores.identity_key_store,
             alice_stores.signed_pre_key_store,
             alice_stores.pre_key_store,
-            certificate_validator,
             csprng,
+            certificate_validator,
         );
 
         let ciphertext = alice_cipher
@@ -858,8 +865,8 @@ mod tests {
             bob_stores.identity_key_store,
             bob_stores.signed_pre_key_store,
             bob_stores.pre_key_store,
-            false_certificate_validator,
             csprng,
+            false_certificate_validator,
         );
 
         let plaintext = bob_cipher.decrypt(&ciphertext, 31335).await;
@@ -896,8 +903,8 @@ mod tests {
             alice_stores.identity_key_store,
             alice_stores.signed_pre_key_store,
             alice_stores.pre_key_store,
-            certificate_validator.clone(),
             csprng,
+            certificate_validator.clone(),
         );
 
         let ciphertext = alice_cipher
@@ -913,8 +920,8 @@ mod tests {
             bob_stores.identity_key_store,
             bob_stores.signed_pre_key_store,
             bob_stores.pre_key_store,
-            certificate_validator,
             csprng,
+            certificate_validator,
         );
 
         match bob_cipher.decrypt(&ciphertext, 31338).await {
@@ -950,8 +957,8 @@ mod tests {
             alice_stores.identity_key_store,
             alice_stores.signed_pre_key_store,
             alice_stores.pre_key_store,
-            certificate_validator.clone(),
             csprng,
+            certificate_validator.clone(),
         );
 
         let ciphertext = alice_cipher
@@ -967,8 +974,8 @@ mod tests {
             bob_stores.identity_key_store,
             bob_stores.signed_pre_key_store,
             bob_stores.pre_key_store,
-            certificate_validator,
             csprng,
+            certificate_validator,
         );
 
         match bob_cipher.decrypt(&ciphertext, 31335).await {

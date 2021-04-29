@@ -25,37 +25,44 @@ use crate::{
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
-pub struct ServiceCipher<R: Rng + CryptoRng + Clone> {
-    session_store: Box<dyn SessionStore>,
-    identity_key_store: Box<dyn IdentityKeyStore>,
-    signed_pre_key_store: Box<dyn SignedPreKeyStore>,
-    pre_key_store: Box<dyn PreKeyStore>,
+pub struct ServiceCipher<S, I, SP, P, R> {
+    session_store: S,
+    identity_key_store: I,
+    signed_pre_key_store: SP,
+    pre_key_store: P,
     csprng: R,
-    sealed_session_cipher: SealedSessionCipher<R>,
+    sealed_session_cipher: SealedSessionCipher<S, I, SP, P, R>,
 }
 
-impl<R: Rng + CryptoRng + Clone> ServiceCipher<R> {
+impl<S, I, SP, P, R> ServiceCipher<S, I, SP, P, R>
+where
+    S: SessionStore + Clone,
+    I: IdentityKeyStore + Clone,
+    SP: SignedPreKeyStore + Clone,
+    P: PreKeyStore + Clone,
+    R: Rng + CryptoRng + Clone,
+{
     pub fn new(
-        session_store: impl SessionStore + Clone + 'static,
-        identity_key_store: impl IdentityKeyStore + Clone + 'static,
-        signed_pre_key_store: impl SignedPreKeyStore + Clone + 'static,
-        pre_key_store: impl PreKeyStore + Clone + 'static,
-        certificate_validator: CertificateValidator,
+        session_store: S,
+        identity_key_store: I,
+        signed_pre_key_store: SP,
+        pre_key_store: P,
         csprng: R,
+        certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            session_store: Box::new(session_store.clone()),
-            identity_key_store: Box::new(identity_key_store.clone()),
-            signed_pre_key_store: Box::new(signed_pre_key_store.clone()),
-            pre_key_store: Box::new(pre_key_store.clone()),
+            session_store: session_store.clone(),
+            identity_key_store: identity_key_store.clone(),
+            signed_pre_key_store: signed_pre_key_store.clone(),
+            pre_key_store: pre_key_store.clone(),
             csprng: csprng.clone(),
             sealed_session_cipher: SealedSessionCipher::new(
                 session_store,
                 identity_key_store,
                 signed_pre_key_store,
                 pre_key_store,
-                certificate_validator,
                 csprng,
+                certificate_validator.clone(),
             ),
         }
     }
@@ -107,7 +114,7 @@ impl<R: Rng + CryptoRng + Clone> ServiceCipher<R> {
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
-                    self.session_store.as_ref(),
+                    &self.session_store,
                     &envelope.source_address(),
                     envelope.source_device(),
                 )
@@ -122,10 +129,10 @@ impl<R: Rng + CryptoRng + Clone> ServiceCipher<R> {
                 let mut data = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&ciphertext[..]).unwrap(),
                     &sender,
-                    self.session_store.as_mut(),
-                    self.identity_key_store.as_mut(),
-                    self.pre_key_store.as_mut(),
-                    self.signed_pre_key_store.as_mut(),
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
+                    &mut self.pre_key_store,
+                    &mut self.signed_pre_key_store,
                     &mut self.csprng,
                     None,
                 )
@@ -149,7 +156,7 @@ impl<R: Rng + CryptoRng + Clone> ServiceCipher<R> {
             }
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
-                    self.session_store.as_ref(),
+                    &self.session_store,
                     &envelope.source_address(),
                     envelope.source_device(),
                 )
@@ -164,8 +171,8 @@ impl<R: Rng + CryptoRng + Clone> ServiceCipher<R> {
                 let mut data = message_decrypt_signal(
                     &SignalMessage::try_from(&ciphertext[..])?,
                     &sender,
-                    self.session_store.as_mut(),
-                    self.identity_key_store.as_mut(),
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
                     &mut self.csprng,
                     None,
                 )
@@ -248,8 +255,8 @@ impl<R: Rng + CryptoRng + Clone> ServiceCipher<R> {
             let message = message_encrypt(
                 &padded_content,
                 &address,
-                self.session_store.as_mut(),
-                self.identity_key_store.as_mut(),
+                &mut self.session_store,
+                &mut self.identity_key_store,
                 None,
             )
             .await?;
