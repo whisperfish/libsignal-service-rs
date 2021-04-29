@@ -86,7 +86,7 @@ impl<Service: PushService> MessageReceiver<Service> {
                             });
                         }
                     }
-                    Err(e) => return Err(e.into()),
+                    Err(e) => return Err(e),
                 }
             };
 
