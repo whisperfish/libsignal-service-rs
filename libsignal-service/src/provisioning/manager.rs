@@ -1,4 +1,5 @@
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
+use libsignal_protocol::{PrivateKey, PublicKey};
 use phonenumber::PhoneNumber;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -7,12 +8,6 @@ use uuid::Uuid;
 use super::{
     pipe::{ProvisioningPipe, ProvisioningStep},
     ProvisioningError,
-};
-
-use libsignal_protocol::{
-    generate_registration_id,
-    keys::{PrivateKey, PublicKey},
-    Context,
 };
 
 use crate::{
@@ -284,9 +279,9 @@ impl<P: PushService> LinkingManager<P> {
         }
     }
 
-    pub async fn provision_secondary_device(
+    pub async fn provision_secondary_device<R: rand::Rng + rand::CryptoRng>(
         &mut self,
-        ctx: &Context,
+        csprng: &mut R,
         signaling_key: SignalingKey,
         device_name: &str,
         mut tx: Sender<SecondaryDeviceProvisioning>,
@@ -297,10 +292,10 @@ impl<P: PushService> LinkingManager<P> {
             .ws("/v1/websocket/provisioning/", None)
             .await?;
 
-        let registration_id = generate_registration_id(&ctx, 0)?;
+        // see libsignal-protocol-c / signal_protocol_key_helper_generate_registration_id
+        let registration_id = csprng.gen_range(1, 16380);
 
-        let provisioning_pipe =
-            ProvisioningPipe::from_socket(ws, stream, &ctx)?;
+        let provisioning_pipe = ProvisioningPipe::from_socket(ws, stream)?;
         let provision_stream = provisioning_pipe.stream();
         pin_mut!(provision_stream);
         while let Some(step) = provision_stream.next().await {
@@ -324,8 +319,7 @@ impl<P: PushService> LinkingManager<P> {
                             })
                         })?;
 
-                    let public_key = PublicKey::decode_point(
-                        &ctx,
+                    let public_key = PublicKey::deserialize(
                         &message.identity_key_public.ok_or(
                             ProvisioningError::InvalidData {
                                 reason: "missing public key".into(),
@@ -333,8 +327,7 @@ impl<P: PushService> LinkingManager<P> {
                         )?,
                     )?;
 
-                    let private_key = PrivateKey::decode_point(
-                        &ctx,
+                    let private_key = PrivateKey::deserialize(
                         &message.identity_key_private.ok_or(
                             ProvisioningError::InvalidData {
                                 reason: "missing public key".into(),

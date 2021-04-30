@@ -57,7 +57,7 @@ pub mod serde_optional_base64 {
 }
 
 pub mod serde_public_key {
-    use libsignal_protocol::keys::PublicKey;
+    use libsignal_protocol::PublicKey;
     use serde::Serializer;
 
     pub fn serialize<S>(
@@ -67,8 +67,7 @@ pub mod serde_public_key {
     where
         S: Serializer,
     {
-        use serde::ser::Error;
-        serializer
-            .serialize_str(&public_key.to_base64().map_err(S::Error::custom)?)
+        let public_key = public_key.serialize();
+        serializer.serialize_str(&base64::encode(&public_key))
     }
 }

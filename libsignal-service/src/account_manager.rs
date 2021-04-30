@@ -1,3 +1,13 @@
+use std::collections::HashMap;
+use std::convert::{TryFrom, TryInto};
+use std::time::SystemTime;
+
+use libsignal_protocol::{
+    IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PublicKey,
+    SignalProtocolError, SignedPreKeyRecord, SignedPreKeyStore,
+};
+use zkgroup::profiles::ProfileKey;
+
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::{PreKeyEntity, PreKeyState},
@@ -11,16 +21,7 @@ use crate::{
     },
 };
 
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::time::SystemTime;
-
-use libsignal_protocol::keys::PublicKey;
-use libsignal_protocol::{Context, StoreContext};
-use zkgroup::profiles::ProfileKey;
-
 pub struct AccountManager<Service> {
-    context: Context,
     service: Service,
     profile_key: Option<[u8; 32]>,
 }
@@ -42,7 +43,7 @@ pub enum LinkError {
     #[error("TsUrl has an invalid pub_key field")]
     InvalidPublicKey,
     #[error("Protocol error {0}")]
-    ProtocolError(#[from] libsignal_protocol::Error),
+    ProtocolError(#[from] SignalProtocolError),
     #[error(transparent)]
     ProvisioningError(#[from] ProvisioningError),
 }
@@ -56,15 +57,11 @@ pub struct Profile {
 
 const PRE_KEY_MINIMUM: u32 = 10;
 const PRE_KEY_BATCH_SIZE: u32 = 100;
+const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
 impl<Service: PushService> AccountManager<Service> {
-    pub fn new(
-        context: Context,
-        service: Service,
-        profile_key: Option<[u8; 32]>,
-    ) -> Self {
+    pub fn new(service: Service, profile_key: Option<[u8; 32]>) -> Self {
         Self {
-            context,
             service,
             profile_key,
         }
@@ -78,9 +75,13 @@ impl<Service: PushService> AccountManager<Service> {
     /// Equivalent to Java's RefreshPreKeysJob
     ///
     /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
-    pub async fn update_pre_key_bundle(
+    #[allow(clippy::clippy::too_many_arguments)]
+    pub async fn update_pre_key_bundle<R: rand::Rng + rand::CryptoRng>(
         &mut self,
-        store_context: StoreContext,
+        identity_store: &dyn IdentityKeyStore,
+        pre_key_store: &mut dyn PreKeyStore,
+        signed_pre_key_store: &mut dyn SignedPreKeyStore,
+        csprng: &mut R,
         pre_keys_offset_id: u32,
         next_signed_pre_key_id: u32,
         use_last_resort_key: bool,
@@ -102,31 +103,51 @@ impl<Service: PushService> AccountManager<Service> {
             return Ok((pre_keys_offset_id, next_signed_pre_key_id));
         }
 
-        let pre_keys = libsignal_protocol::generate_pre_keys(
-            &self.context,
-            pre_keys_offset_id,
-            PRE_KEY_BATCH_SIZE,
-        )?;
-        let identity_key_pair = store_context.identity_key_pair()?;
-        let signed_pre_key = libsignal_protocol::generate_signed_pre_key(
-            &self.context,
-            &identity_key_pair,
-            next_signed_pre_key_id,
-            SystemTime::now(),
-        )?;
-
-        store_context.store_signed_pre_key(&signed_pre_key)?;
-
         let mut pre_key_entities = vec![];
-        for pre_key in pre_keys {
-            store_context.store_pre_key(&pre_key)?;
-            pre_key_entities.push(PreKeyEntity::try_from(pre_key)?);
+        for i in 0..PRE_KEY_BATCH_SIZE {
+            let key_pair = KeyPair::generate(csprng);
+            let pre_key_id =
+                ((pre_keys_offset_id + i) % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1;
+            let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
+            pre_key_store
+                .save_pre_key(pre_key_id, &pre_key_record, None)
+                .await?;
+
+            pre_key_entities.push(PreKeyEntity::try_from(pre_key_record)?);
         }
+
+        // Generate and store the next signed prekey
+        let identity_key_pair =
+            identity_store.get_identity_key_pair(None).await?;
+        let signed_pre_key_pair = KeyPair::generate(csprng);
+        let signed_pre_key_public = signed_pre_key_pair.public_key;
+        let signed_pre_key_signature = identity_key_pair
+            .private_key()
+            .calculate_signature(&signed_pre_key_public.serialize(), csprng)?;
+
+        let unix_time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+
+        let signed_prekey_record = SignedPreKeyRecord::new(
+            next_signed_pre_key_id,
+            unix_time.as_millis() as u64,
+            &signed_pre_key_pair,
+            &signed_pre_key_signature,
+        );
+
+        signed_pre_key_store
+            .save_signed_pre_key(
+                next_signed_pre_key_id,
+                &signed_prekey_record,
+                None,
+            )
+            .await?;
 
         let pre_key_state = PreKeyState {
             pre_keys: pre_key_entities,
-            signed_pre_key: signed_pre_key.into(),
-            identity_key: identity_key_pair.public(),
+            signed_pre_key: signed_prekey_record.try_into()?,
+            identity_key: *identity_key_pair.public_key(),
             last_resort_key: if use_last_resort_key {
                 Some(PreKeyEntity {
                     key_id: 0x7fffffff,
@@ -209,7 +230,7 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn link_device(
         &mut self,
         url: url::Url,
-        store_context: StoreContext,
+        identity_store: &dyn IdentityKeyStore,
         credentials: ServiceCredentials,
     ) -> Result<(), LinkError> {
         let query: HashMap<_, _> = url.query_pairs().collect();
@@ -218,10 +239,11 @@ impl<Service: PushService> AccountManager<Service> {
             query.get("pub_key").ok_or(LinkError::InvalidPublicKey)?;
         let pub_key = base64::decode(&**pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
-        let pub_key = PublicKey::decode_point(&self.context, &pub_key)
+        let pub_key = PublicKey::deserialize(&pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
 
-        let identity_key_pair = store_context.identity_key_pair()?;
+        let identity_key_pair =
+            identity_store.get_identity_key_pair(None).await?;
 
         if credentials.uuid.is_none() {
             log::warn!("No local UUID set");
@@ -231,10 +253,10 @@ impl<Service: PushService> AccountManager<Service> {
 
         let msg = ProvisionMessage {
             identity_key_public: Some(
-                identity_key_pair.public().to_bytes()?.as_slice().to_vec(),
+                identity_key_pair.public_key().serialize().into_vec(),
             ),
             identity_key_private: Some(
-                identity_key_pair.private().to_bytes()?.as_slice().to_vec(),
+                identity_key_pair.private_key().serialize(),
             ),
             number: Some(credentials.e164()),
             uuid: credentials.uuid.as_ref().map(|u| u.to_string()),
@@ -248,8 +270,7 @@ impl<Service: PushService> AccountManager<Service> {
             user_agent: None,
         };
 
-        let cipher =
-            ProvisioningCipher::from_public(self.context.clone(), pub_key);
+        let cipher = ProvisioningCipher::from_public(pub_key);
 
         let encrypted = cipher.encrypt(msg)?;
         self.send_provisioning_message(ephemeral_id, encrypted)

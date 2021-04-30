@@ -1,19 +1,25 @@
 use std::time::SystemTime;
 
-use crate::cipher::get_preferred_protocol_address;
-use crate::proto::{
-    attachment_pointer::AttachmentIdentifier,
-    attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
-    AttachmentPointer, SyncMessage,
-};
-
 use chrono::prelude::*;
-use libsignal_protocol::SessionBuilder;
+use libsignal_protocol::{
+    process_prekey_bundle, IdentityKeyStore, PreKeyStore, ProtocolAddress,
+    SessionStore, SignalProtocolError, SignedPreKeyStore,
+};
 use log::{info, trace};
+use rand::{CryptoRng, Rng};
 
 use crate::{
-    cipher::ServiceCipher, content::ContentBody, push_service::*,
-    sealed_session_cipher::UnidentifiedAccess, ServiceAddress,
+    cipher::{get_preferred_protocol_address, ServiceCipher},
+    content::ContentBody,
+    proto::{
+        attachment_pointer::AttachmentIdentifier,
+        attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
+        AttachmentPointer, SyncMessage,
+    },
+    push_service::*,
+    sealed_session_cipher::UnidentifiedAccess,
+    session_store::SessionStoreExt,
+    ServiceAddress,
 };
 
 pub use crate::proto::{ContactDetails, GroupDetails};
@@ -22,7 +28,7 @@ pub use crate::proto::{ContactDetails, GroupDetails};
 #[serde(rename_all = "camelCase")]
 pub struct OutgoingPushMessage {
     pub r#type: u32,
-    pub destination_device_id: i32,
+    pub destination_device_id: u32,
     pub destination_registration_id: u32,
     pub content: String,
 }
@@ -66,10 +72,14 @@ pub struct AttachmentSpec {
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
-pub struct MessageSender<Service> {
+pub struct MessageSender<Service, S, I, SP, P, R> {
     service: Service,
-    cipher: ServiceCipher,
-    device_id: i32,
+    cipher: ServiceCipher<S, I, SP, P, R>,
+    csprng: R,
+    session_store: S,
+    identity_key_store: I,
+    local_address: ServiceAddress,
+    device_id: u32,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -86,7 +96,7 @@ pub enum MessageSenderError {
     #[error("{0}")]
     ServiceError(#[from] ServiceError),
     #[error("protocol error: {0}")]
-    ProtocolError(#[from] libsignal_protocol::Error),
+    ProtocolError(#[from] SignalProtocolError),
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
 
@@ -112,18 +122,31 @@ pub enum MessageSenderError {
     IdentityFailure { recipient: ServiceAddress },
 }
 
-impl<Service> MessageSender<Service>
+impl<Service, S, I, SP, P, R> MessageSender<Service, S, I, SP, P, R>
 where
     Service: PushService + Clone,
+    S: SessionStore + SessionStoreExt + Clone,
+    I: IdentityKeyStore + Clone,
+    SP: SignedPreKeyStore + Clone,
+    P: PreKeyStore + Clone,
+    R: Rng + CryptoRng + Clone,
 {
     pub fn new(
         service: Service,
-        cipher: ServiceCipher,
-        device_id: i32,
+        cipher: ServiceCipher<S, I, SP, P, R>,
+        csprng: R,
+        session_store: S,
+        identity_key_store: I,
+        local_address: ServiceAddress,
+        device_id: u32,
     ) -> Self {
         MessageSender {
             service,
             cipher,
+            csprng,
+            session_store,
+            identity_key_store,
+            local_address,
             device_id,
         }
     }
@@ -326,7 +349,7 @@ where
                         timestamp,
                     );
                 self.try_send_message(
-                    (&self.cipher.local_address).clone(),
+                    (&self.local_address).clone(),
                     None,
                     &sync_message,
                     timestamp,
@@ -340,12 +363,12 @@ where
         if end_session {
             log::debug!("ending session with {}", recipient);
             if let Some(ref uuid) = recipient.uuid {
-                self.cipher
-                    .store_context
-                    .delete_all_sessions(&uuid.to_string())?;
+                self.session_store
+                    .delete_all_sessions(&uuid.to_string())
+                    .await?;
             }
             if let Some(e164) = recipient.e164() {
-                self.cipher.store_context.delete_all_sessions(&e164)?;
+                self.session_store.delete_all_sessions(&e164).await?;
             }
         }
 
@@ -400,7 +423,7 @@ where
                         );
 
                     self.try_send_message(
-                        self.cipher.local_address.clone(),
+                        self.local_address.clone(),
                         unidentified_access,
                         &sync_message,
                         timestamp,
@@ -461,21 +484,21 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
-                        if let Some(ref uuid) = recipient.uuid {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
+                        if let Some(uuid) = recipient.uuid {
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
                                     uuid.to_string(),
                                     *extra_device_id,
-                                ),
-                            )?;
+                                ))
+                                .await?;
                         }
                         if let Some(e164) = recipient.e164() {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
-                                    &e164,
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
+                                    e164,
                                     *extra_device_id,
-                                ),
-                            )?;
+                                ))
+                                .await?;
                         }
                     }
 
@@ -484,23 +507,24 @@ where
                             "creating session with missing device {}",
                             missing_device_id
                         );
+                        let remote_address = ProtocolAddress::new(
+                            recipient.identifier(),
+                            *missing_device_id,
+                        );
                         let pre_key = self
                             .service
-                            .get_pre_key(
-                                &self.cipher.context,
-                                &recipient,
-                                *missing_device_id,
-                            )
+                            .get_pre_key(&recipient, *missing_device_id)
                             .await?;
-                        SessionBuilder::new(
-                            &self.cipher.context,
-                            &self.cipher.store_context,
-                            &libsignal_protocol::Address::new(
-                                &recipient.identifier(),
-                                *missing_device_id,
-                            ),
+
+                        process_prekey_bundle(
+                            &remote_address,
+                            &mut self.session_store,
+                            &mut self.identity_key_store,
+                            &pre_key,
+                            &mut self.csprng,
+                            None,
                         )
-                        .process_pre_key_bundle(&pre_key)
+                        .await
                         .map_err(|e| {
                             log::error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
@@ -517,20 +541,20 @@ where
                             extra_device_id
                         );
                         if let Some(ref uuid) = recipient.uuid {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
                                     uuid.to_string(),
                                     *extra_device_id,
-                                ),
-                            )?;
+                                ))
+                                .await?;
                         }
                         if let Some(e164) = recipient.e164() {
-                            self.cipher.store_context.delete_session(
-                                &libsignal_protocol::Address::new(
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
                                     e164,
                                     *extra_device_id,
-                                ),
-                            )?;
+                                ))
+                                .await?;
                         }
                     }
                 }
@@ -620,7 +644,7 @@ where
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
 
-        let myself = recipient.matches(&self.cipher.local_address);
+        let myself = recipient.matches(&self.local_address);
         if !myself || unidentified_access.is_some() {
             trace!("sending message to default device");
             messages.push(
@@ -634,30 +658,17 @@ where
             );
         }
 
-        // XXX maybe refactor this in a method, this is probably something we need on every call to
-        // get_sub_device_sessions.
-        let mut sub_device_sessions = Vec::new();
-        if let Some(uuid) = &recipient.uuid {
-            sub_device_sessions.extend(
-                self.cipher
-                    .store_context
-                    .get_sub_device_sessions(&uuid.to_string())?,
-            );
-        }
-        if let Some(e164) = &recipient.e164() {
-            sub_device_sessions.extend(
-                self.cipher.store_context.get_sub_device_sessions(&e164)?,
-            );
-        }
-
-        for device_id in sub_device_sessions {
+        for device_id in
+            recipient.sub_device_sessions(&self.session_store).await?
+        {
             trace!("sending message to device {}", device_id);
             let ppa = get_preferred_protocol_address(
-                &self.cipher.store_context,
-                recipient.clone(),
+                &self.session_store,
+                recipient,
                 device_id,
-            )?;
-            if self.cipher.store_context.contains_session(&ppa)? {
+            )
+            .await?;
+            if self.session_store.load_session(&ppa, None).await?.is_some() {
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
@@ -680,53 +691,57 @@ where
         &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&UnidentifiedAccess>,
-        device_id: i32,
+        device_id: u32,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
-            &self.cipher.store_context,
-            recipient.clone(),
+            &self.session_store,
+            recipient,
             device_id,
-        )?;
+        )
+        .await?;
         log::trace!("encrypting message for {:?}", recipient_address);
 
-        if !self
-            .cipher
-            .store_context
-            .contains_session(&recipient_address)?
+        if self
+            .session_store
+            .load_session(&recipient_address, None)
+            .await?
+            .is_none()
         {
             info!("establishing new session with {:?}", recipient_address);
-            let pre_keys = self
-                .service
-                .get_pre_keys(&self.cipher.context, recipient, device_id)
-                .await?;
+            let pre_keys =
+                self.service.get_pre_keys(&recipient, device_id).await?;
             for pre_key_bundle in pre_keys {
-                if recipient.matches(&self.cipher.local_address)
-                    && self.device_id == pre_key_bundle.device_id()
+                if recipient.matches(&self.local_address)
+                    && self.device_id == pre_key_bundle.device_id()?
                 {
                     trace!("not establishing a session with myself!");
                     continue;
                 }
 
                 let pre_key_address = get_preferred_protocol_address(
-                    &self.cipher.store_context,
-                    recipient.clone(),
-                    pre_key_bundle.device_id(),
-                )?;
-                let session_builder = SessionBuilder::new(
-                    &self.cipher.context,
-                    &self.cipher.store_context,
+                    &self.session_store,
+                    recipient,
+                    pre_key_bundle.device_id()?,
+                )
+                .await?;
+
+                process_prekey_bundle(
                     &pre_key_address,
-                );
-                session_builder.process_pre_key_bundle(&pre_key_bundle)?;
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
+                    &pre_key_bundle,
+                    &mut self.csprng,
+                    None,
+                )
+                .await?;
             }
         }
 
-        let message = self.cipher.encrypt(
-            &recipient_address,
-            unidentified_access,
-            content,
-        )?;
+        let message = self
+            .cipher
+            .encrypt(&recipient_address, unidentified_access, content)
+            .await?;
         Ok(message)
     }
 

@@ -21,6 +21,7 @@ pub mod push_service;
 pub mod receiver;
 pub mod sender;
 pub mod service_address;
+mod session_store;
 pub mod utils;
 
 pub use crate::account_manager::{
@@ -59,4 +60,14 @@ pub mod prelude {
     pub use prost::Message as ProtobufMessage;
     pub use uuid::{Error as UuidError, Uuid};
     pub use zkgroup::groups::{GroupMasterKey, GroupSecretParams};
+
+    pub mod protocol {
+        pub use crate::session_store::SessionStoreExt;
+        pub use libsignal_protocol::{
+            Context, Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore,
+            KeyPair, PreKeyRecord, PreKeyStore, PrivateKey, ProtocolAddress,
+            PublicKey, SessionRecord, SessionStore, SignalProtocolError,
+            SignedPreKeyRecord, SignedPreKeyStore,
+        };
+    }
 }

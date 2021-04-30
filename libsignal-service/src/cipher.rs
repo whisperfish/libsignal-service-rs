@@ -1,3 +1,15 @@
+use std::convert::TryFrom;
+
+use block_modes::block_padding::{Iso7816, Padding};
+use libsignal_protocol::{
+    message_decrypt_prekey, message_decrypt_signal, message_encrypt,
+    CiphertextMessageType, IdentityKeyStore, PreKeySignalMessage, PreKeyStore,
+    ProtocolAddress, SessionStore, SignalMessage, SignalProtocolError,
+    SignedPreKeyStore,
+};
+use prost::Message;
+use rand::{CryptoRng, Rng};
+
 use crate::{
     content::{Content, Metadata},
     envelope::Envelope,
@@ -10,41 +22,47 @@ use crate::{
     ServiceAddress,
 };
 
-use libsignal_protocol::{
-    messages::{CiphertextType, PreKeySignalMessage, SignalMessage},
-    Address as ProtocolAddress, Context, Deserializable, Serializable,
-    SessionCipher, StoreContext,
-};
-
-use block_modes::block_padding::{Iso7816, Padding};
-use prost::Message;
-
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
 #[derive(Clone)]
-pub struct ServiceCipher {
-    pub(crate) context: Context,
-    pub(crate) store_context: StoreContext,
-    pub(crate) local_address: ServiceAddress,
-    sealed_session_cipher: SealedSessionCipher,
+pub struct ServiceCipher<S, I, SP, P, R> {
+    session_store: S,
+    identity_key_store: I,
+    signed_pre_key_store: SP,
+    pre_key_store: P,
+    csprng: R,
+    sealed_session_cipher: SealedSessionCipher<S, I, SP, P, R>,
 }
 
-impl ServiceCipher {
-    pub fn from_context(
-        context: Context,
-        store_context: StoreContext,
-        local_address: ServiceAddress,
+impl<S, I, SP, P, R> ServiceCipher<S, I, SP, P, R>
+where
+    S: SessionStore + Clone,
+    I: IdentityKeyStore + Clone,
+    SP: SignedPreKeyStore + Clone,
+    P: PreKeyStore + Clone,
+    R: Rng + CryptoRng + Clone,
+{
+    pub fn new(
+        session_store: S,
+        identity_key_store: I,
+        signed_pre_key_store: SP,
+        pre_key_store: P,
+        csprng: R,
         certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            context: context.clone(),
-            store_context: store_context.clone(),
-            local_address: local_address.clone(),
+            session_store: session_store.clone(),
+            identity_key_store: identity_key_store.clone(),
+            signed_pre_key_store: signed_pre_key_store.clone(),
+            pre_key_store: pre_key_store.clone(),
+            csprng: csprng.clone(),
             sealed_session_cipher: SealedSessionCipher::new(
-                context,
-                store_context,
-                local_address,
+                session_store,
+                identity_key_store,
+                signed_pre_key_store,
+                pre_key_store,
+                csprng,
                 certificate_validator,
             ),
         }
@@ -53,17 +71,17 @@ impl ServiceCipher {
     /// Opens ("decrypts") an envelope.
     ///
     /// Envelopes may be empty, in which case this method returns `Ok(None)`
-    pub fn open_envelope(
+    pub async fn open_envelope(
         &mut self,
         envelope: Envelope,
     ) -> Result<Option<Content>, ServiceError> {
         if envelope.legacy_message.is_some() {
-            let plaintext = self.decrypt(&envelope)?;
+            let plaintext = self.decrypt(&envelope).await?;
             let message =
                 crate::proto::DataMessage::decode(plaintext.data.as_slice())?;
             Ok(Some(Content::from_body(message, plaintext.metadata)))
         } else if envelope.content.is_some() {
-            let plaintext = self.decrypt(&envelope)?;
+            let plaintext = self.decrypt(&envelope).await?;
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
             Ok(Content::from_proto(message, plaintext.metadata))
@@ -77,7 +95,7 @@ impl ServiceCipher {
     /// Triage of legacy messages happens inside this method, as opposed to the
     /// Java implementation, because it makes the borrow checker and the
     /// author happier.
-    fn decrypt(
+    async fn decrypt(
         &mut self,
         envelope: &Envelope,
     ) -> Result<Plaintext, ServiceError> {
@@ -97,61 +115,84 @@ impl ServiceCipher {
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
-                    &self.store_context,
-                    envelope.source_address(),
-                    envelope.source_device() as i32,
-                )?;
+                    &self.session_store,
+                    &envelope.source_address(),
+                    envelope.source_device(),
+                )
+                .await?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device() as i32,
+                    sender_device: envelope.source_device(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
-                let cipher = SessionCipher::new(
-                    &self.context,
-                    &self.store_context,
+
+                let mut data = message_decrypt_prekey(
+                    &PreKeySignalMessage::try_from(&ciphertext[..]).unwrap(),
                     &sender,
-                )?;
-                let mut data = cipher
-                    .decrypt_pre_key_message(
-                        &PreKeySignalMessage::deserialize(
-                            &self.context,
-                            ciphertext,
-                        )?,
-                    )?
-                    .as_slice()
-                    .to_vec();
-                let version =
-                    self.store_context.load_session(&sender)?.state().version();
-                strip_padding(version, &mut data)?;
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
+                    &mut self.pre_key_store,
+                    &mut self.signed_pre_key_store,
+                    &mut self.csprng,
+                    None,
+                )
+                .await?
+                .as_slice()
+                .to_vec();
+
+                let session_record = self
+                    .session_store
+                    .load_session(&sender, None)
+                    .await?
+                    .ok_or_else(|| {
+                        SignalProtocolError::SessionNotFound(format!(
+                            "{}",
+                            sender
+                        ))
+                    })?;
+
+                strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             }
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
-                    &self.store_context,
-                    envelope.source_address(),
-                    envelope.source_device() as i32,
-                )?;
+                    &self.session_store,
+                    &envelope.source_address(),
+                    envelope.source_device(),
+                )
+                .await?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device() as i32,
+                    sender_device: envelope.source_device(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
-                let mut data = SessionCipher::new(
-                    &self.context,
-                    &self.store_context,
+
+                let mut data = message_decrypt_signal(
+                    &SignalMessage::try_from(&ciphertext[..])?,
                     &sender,
-                )?
-                .decrypt_message(&SignalMessage::deserialize(
-                    &self.context,
-                    ciphertext,
-                )?)?
+                    &mut self.session_store,
+                    &mut self.identity_key_store,
+                    &mut self.csprng,
+                    None,
+                )
+                .await?
                 .as_slice()
                 .to_vec();
-                let version =
-                    self.store_context.load_session(&sender)?.state().version();
-                strip_padding(version, &mut data)?;
+
+                let session_record = self
+                    .session_store
+                    .load_session(&sender, None)
+                    .await?
+                    .ok_or_else(|| {
+                        SignalProtocolError::SessionNotFound(format!(
+                            "{}",
+                            sender
+                        ))
+                    })?;
+
+                strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             }
             Type::UnidentifiedSender => {
@@ -163,7 +204,8 @@ impl ServiceCipher {
                     version,
                 } = self
                     .sealed_session_cipher
-                    .decrypt(ciphertext, envelope.timestamp())?;
+                    .decrypt(ciphertext, envelope.timestamp())
+                    .await?;
                 let sender = ServiceAddress {
                     phonenumber: sender_e164,
                     uuid: sender_uuid,
@@ -191,8 +233,8 @@ impl ServiceCipher {
         Ok(plaintext)
     }
 
-    pub(crate) fn encrypt(
-        &self,
+    pub(crate) async fn encrypt(
+        &mut self,
         address: &ProtocolAddress,
         unindentified_access: Option<&UnidentifiedAccess>,
         content: &[u8],
@@ -200,27 +242,35 @@ impl ServiceCipher {
         if unindentified_access.is_some() {
             unimplemented!("unidentified access is not implemented");
         } else {
-            let session_cipher = SessionCipher::new(
-                &self.context,
-                &self.store_context,
-                address,
-            )?;
+            let session_record = self
+                .session_store
+                .load_session(&address, None)
+                .await?
+                .ok_or_else(|| {
+                    SignalProtocolError::SessionNotFound(format!("{}", address))
+                })?;
 
             let padded_content =
-                add_padding(session_cipher.get_session_version()?, content)?;
-            let message = session_cipher.encrypt(&padded_content)?;
+                add_padding(session_record.session_version()?, content)?;
+
+            let message = message_encrypt(
+                &padded_content,
+                &address,
+                &mut self.session_store,
+                &mut self.identity_key_store,
+                None,
+            )
+            .await?;
 
             let destination_registration_id =
-                session_cipher.get_remote_registration_id()?;
-            let body = base64::encode(message.serialize()?);
+                session_record.remote_registration_id()?;
+
+            let body = base64::encode(message.serialize());
+
             use crate::proto::envelope::Type;
-            let message_type = match message.get_type().map_err(|_| {
-                ServiceError::InvalidFrameError {
-                    reason: "unknown message type".into(),
-                }
-            })? {
-                CiphertextType::PreKey => Type::PrekeyBundle,
-                CiphertextType::Signal => Type::Ciphertext,
+            let message_type = match message.message_type() {
+                CiphertextMessageType::PreKey => Type::PrekeyBundle,
+                CiphertextMessageType::Whisper => Type::Ciphertext,
                 t => panic!("Bad type: {:?}", t),
             } as u32;
             Ok(OutgoingPushMessage {
@@ -290,20 +340,20 @@ fn strip_padding(
 }
 
 /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
-pub fn get_preferred_protocol_address(
-    store_context: &StoreContext,
-    address: ServiceAddress,
-    device_id: i32,
-) -> Result<ProtocolAddress, libsignal_protocol::Error> {
+pub async fn get_preferred_protocol_address(
+    session_store: &dyn SessionStore,
+    address: &ServiceAddress,
+    device_id: u32,
+) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
     if let Some(ref uuid) = address.uuid {
-        let address = ProtocolAddress::new(uuid.to_string(), device_id as i32);
-        if store_context.contains_session(&address)? {
+        let address = ProtocolAddress::new(uuid.to_string(), device_id);
+        if session_store.load_session(&address, None).await?.is_some() {
             return Ok(address);
         }
     }
     if let Some(e164) = address.e164() {
-        let address = ProtocolAddress::new(e164, device_id as i32);
-        if store_context.contains_session(&address)? {
+        let address = ProtocolAddress::new(e164, device_id);
+        if session_store.load_session(&address, None).await?.is_some() {
             return Ok(address);
         }
         if cfg!(feature = "prefer-e164") {
@@ -318,5 +368,5 @@ pub fn get_preferred_protocol_address(
         );
     }
 
-    Ok(ProtocolAddress::new(address.identifier(), device_id as i32))
+    Ok(ProtocolAddress::new(address.identifier(), device_id))
 }

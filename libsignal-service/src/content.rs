@@ -12,7 +12,7 @@ pub use crate::{
 #[derive(Clone, Debug)]
 pub struct Metadata {
     pub sender: crate::ServiceAddress,
-    pub sender_device: i32,
+    pub sender_device: u32,
     pub timestamp: u64,
     pub needs_receipt: bool,
 }

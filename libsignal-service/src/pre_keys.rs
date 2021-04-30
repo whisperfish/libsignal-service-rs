@@ -2,8 +2,7 @@ use std::convert::TryFrom;
 
 use crate::utils::{serde_base64, serde_public_key};
 use libsignal_protocol::{
-    keys::{PreKey, PublicKey, SessionSignedPreKey},
-    Error,
+    error::SignalProtocolError, PreKeyRecord, PublicKey, SignedPreKeyRecord,
 };
 
 use serde::{Deserialize, Serialize};
@@ -16,13 +15,13 @@ pub struct PreKeyEntity {
     pub public_key: Vec<u8>,
 }
 
-impl TryFrom<PreKey> for PreKeyEntity {
-    type Error = Error;
+impl TryFrom<PreKeyRecord> for PreKeyEntity {
+    type Error = SignalProtocolError;
 
-    fn try_from(key: PreKey) -> Result<Self, Self::Error> {
+    fn try_from(key: PreKeyRecord) -> Result<Self, Self::Error> {
         Ok(PreKeyEntity {
-            key_id: key.id(),
-            public_key: key.key_pair().public().to_bytes()?.as_slice().to_vec(),
+            key_id: key.id()?,
+            public_key: key.key_pair()?.public_key.serialize().to_vec(),
         })
     }
 }
@@ -47,13 +46,15 @@ pub struct SignedPreKey {
     signature: Vec<u8>,
 }
 
-impl From<SessionSignedPreKey> for SignedPreKey {
-    fn from(key: SessionSignedPreKey) -> SignedPreKey {
-        SignedPreKey {
-            key_id: key.id(),
-            public_key: key.key_pair().public(),
-            signature: key.signature().to_vec(),
-        }
+impl TryFrom<SignedPreKeyRecord> for SignedPreKey {
+    type Error = SignalProtocolError;
+
+    fn try_from(key: SignedPreKeyRecord) -> Result<Self, Self::Error> {
+        Ok(SignedPreKey {
+            key_id: key.id()?,
+            public_key: key.key_pair()?.public_key,
+            signature: key.signature()?,
+        })
     }
 }
 

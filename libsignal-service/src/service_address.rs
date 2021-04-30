@@ -1,6 +1,8 @@
 use phonenumber::*;
 use uuid::Uuid;
 
+use crate::{push_service::ServiceError, session_store::SessionStoreExt};
+
 #[derive(thiserror::Error, Debug)]
 pub enum ParseServiceAddressError {
     #[error("Supplied phone number could not be parsed in E164 format")]
@@ -26,6 +28,25 @@ impl ServiceAddress {
         self.phonenumber
             .as_ref()
             .map(|pn| pn.format().mode(phonenumber::Mode::E164).to_string())
+    }
+
+    pub async fn sub_device_sessions(
+        &self,
+        session_store: &dyn SessionStoreExt,
+    ) -> Result<Vec<u32>, ServiceError> {
+        let mut sub_device_sessions = Vec::new();
+        if let Some(uuid) = &self.uuid {
+            sub_device_sessions.extend(
+                session_store
+                    .get_sub_device_sessions(&uuid.to_string())
+                    .await?,
+            );
+        }
+        if let Some(e164) = &self.e164() {
+            sub_device_sessions
+                .extend(session_store.get_sub_device_sessions(&e164).await?);
+        }
+        Ok(sub_device_sessions)
     }
 }
 

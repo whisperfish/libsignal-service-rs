@@ -7,8 +7,8 @@ license = "GPLv3"
 readme = "../README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
-zkgroup = { git = "https://github.com/signalapp/zkgroup" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client" }
+zkgroup = { git = "https://github.com/signalapp/zkgroup", tag = "v0.7.2" }
 async-trait = "0.1.30"
 url = { version = "2.1.1", features = ["serde"] }
 base64 = "0.13"
@@ -30,7 +30,7 @@ aes = "0.6.0"
 aes-gcm = "0.8.0"
 aes-ctr = "0.6.0"
 block-modes = "0.7.0"
-rand = "0.8.0"
+rand = "0.7"
 
 uuid = { version = "0.8", features = [ "serde" ] }
 phonenumber = "0.3"
@@ -40,6 +40,7 @@ prost-build = "0.7"
 
 [dev-dependencies]
 anyhow = "1.0"
+tokio = { version = "1.0", features = [ "macros" ] }
 
 [features]
 prefer-e164 = []

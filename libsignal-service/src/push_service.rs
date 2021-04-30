@@ -12,13 +12,14 @@ use crate::{
     ServiceAddress,
 };
 
-use libsignal_protocol::{keys::PublicKey, Context, PreKeyBundle};
-
 use aes_gcm::{
     aead::{generic_array::GenericArray, Aead},
     Aes256Gcm, NewAead,
 };
 use chrono::prelude::*;
+use libsignal_protocol::{
+    error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
+};
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -61,12 +62,12 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 **/
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
-pub const DEFAULT_DEVICE_ID: i32 = 1;
+pub const DEFAULT_DEVICE_ID: u32 = 1;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
-    pub device_id: i32,
+    pub device_id: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -163,23 +164,45 @@ pub struct WhoAmIResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyResponseItem {
-    pub device_id: i32,
+    pub device_id: u32,
     pub registration_id: u32,
-    pub signed_pre_key: Option<SignedPreKeyEntity>,
+    pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
+}
+
+impl PreKeyResponseItem {
+    fn into_bundle(
+        self,
+        identity: IdentityKey,
+    ) -> Result<PreKeyBundle, SignalProtocolError> {
+        PreKeyBundle::new(
+            self.registration_id,
+            self.device_id,
+            self.pre_key
+                .map(|pk| -> Result<_, SignalProtocolError> {
+                    Ok((pk.key_id, PublicKey::deserialize(&pk.public_key)?))
+                })
+                .transpose()?,
+            // pre_key: Option<(u32, PublicKey)>,
+            self.signed_pre_key.key_id,
+            PublicKey::deserialize(&self.signed_pre_key.public_key)?,
+            self.signed_pre_key.signature,
+            identity,
+        )
+    }
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MismatchedDevices {
-    pub missing_devices: Vec<i32>,
-    pub extra_devices: Vec<i32>,
+    pub missing_devices: Vec<u32>,
+    pub extra_devices: Vec<u32>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
-    pub stale_devices: Vec<i32>,
+    pub stale_devices: Vec<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -268,7 +291,7 @@ pub enum ServiceError {
     MacError,
 
     #[error("Protocol error: {0}")]
-    SignalProtocolError(#[from] libsignal_protocol::Error),
+    SignalProtocolError(#[from] SignalProtocolError),
 
     #[error("{0:?}")]
     MismatchedDevicesException(MismatchedDevices),
@@ -554,9 +577,8 @@ pub trait PushService {
 
     async fn get_pre_key(
         &mut self,
-        context: &Context,
         destination: &ServiceAddress,
-        device_id: i32,
+        device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
         let path = if let Some(ref relay) = destination.relay {
             format!(
@@ -574,35 +596,15 @@ pub trait PushService {
             .await?;
         assert!(!pre_key_response.devices.is_empty());
 
+        let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         let device = pre_key_response.devices.remove(0);
-        let mut bundle = PreKeyBundle::builder()
-            .identity_key(&PublicKey::decode_point(
-                &context,
-                &pre_key_response.identity_key,
-            )?)
-            .device_id(device.device_id)
-            .registration_id(device.registration_id);
-        if let Some(signed_pre_key) = device.signed_pre_key {
-            bundle = bundle.signed_pre_key(
-                signed_pre_key.key_id,
-                &PublicKey::decode_point(&context, &signed_pre_key.public_key)?,
-            );
-            bundle = bundle.signature(&signed_pre_key.signature);
-        }
-        if let Some(pre_key) = device.pre_key {
-            bundle = bundle.pre_key(
-                pre_key.key_id,
-                &PublicKey::decode_point(context, &pre_key.public_key)?,
-            );
-        }
-        Ok(bundle.build()?)
+        Ok(device.into_bundle(identity)?)
     }
 
     async fn get_pre_keys(
         &mut self,
-        context: &Context,
         destination: &ServiceAddress,
-        device_id: i32,
+        device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
         let path = match (device_id, destination.relay.as_ref()) {
             (1, None) => format!("/v2/keys/{}/*", destination.identifier()),
@@ -625,31 +627,9 @@ pub trait PushService {
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
             .await?;
         let mut pre_keys = vec![];
+        let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         for device in pre_key_response.devices {
-            let mut bundle = PreKeyBundle::builder()
-                .identity_key(&PublicKey::decode_point(
-                    &context,
-                    &pre_key_response.identity_key,
-                )?)
-                .device_id(device.device_id)
-                .registration_id(device.registration_id);
-            if let Some(signed_pre_key) = device.signed_pre_key {
-                bundle = bundle.signed_pre_key(
-                    signed_pre_key.key_id,
-                    &PublicKey::decode_point(
-                        &context,
-                        &signed_pre_key.public_key,
-                    )?,
-                );
-                bundle = bundle.signature(&signed_pre_key.signature);
-            }
-            if let Some(pre_key) = device.pre_key {
-                bundle = bundle.pre_key(
-                    pre_key.key_id,
-                    &PublicKey::decode_point(context, &pre_key.public_key)?,
-                );
-            }
-            pre_keys.push(bundle.build()?)
+            pre_keys.push(device.into_bundle(identity)?);
         }
         Ok(pre_keys)
     }

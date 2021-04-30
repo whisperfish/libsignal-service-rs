@@ -8,8 +8,6 @@ use pin_project::pin_project;
 use prost::Message;
 use url::Url;
 
-use libsignal_protocol::Context;
-
 pub use crate::proto::{
     ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
 };
@@ -43,12 +41,13 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
     pub fn from_socket(
         ws: WS,
         stream: WS::Stream,
-        ctx: &Context,
     ) -> Result<Self, ProvisioningError> {
         Ok(ProvisioningPipe {
             ws,
             stream,
-            provisioning_cipher: ProvisioningCipher::new(ctx.clone())?,
+            provisioning_cipher: ProvisioningCipher::generate(
+                &mut rand::thread_rng(),
+            )?,
         })
     }
 
@@ -150,9 +149,10 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
                             .append_pair("uuid", &uuid.uuid.unwrap())
                             .append_pair(
                                 "pub_key",
-                                &format!(
-                                    "{}",
-                                    self.provisioning_cipher.public_key()
+                                &base64::encode(
+                                    self.provisioning_cipher
+                                        .public_key()
+                                        .serialize(),
                                 ),
                             );
 

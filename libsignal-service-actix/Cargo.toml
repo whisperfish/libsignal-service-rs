@@ -4,11 +4,8 @@ version = "0.1.0"
 authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 libsignal-service = { path = "../libsignal-service" }
-libsignal-protocol = { git = "https://github.com/Michael-F-Bryan/libsignal-protocol-rs" }
 
 awc = { version = "3.0.0-beta.5", features=["rustls"] }
 actix = "0.11.1"
@@ -22,7 +19,7 @@ rustls = "0.19"
 url = "2.1"
 serde = "1.0"
 log = "0.4"
-rand = "0.8"
+rand = "0.7"
 
 failure = "0.1.5"
 thiserror = "1.0"
@@ -36,6 +33,6 @@ env_logger = "0.8"
 image = { version = "0.23", default-features = false, features = ["png"] }
 opener = "0.4"
 qrcode = "0.12"
-rand = "0.8"
+rand = "0.7"
 structopt = "0.3"
 tokio = { version = "1", features=["macros"] }
