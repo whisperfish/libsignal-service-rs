@@ -363,10 +363,12 @@ where
         if end_session {
             log::debug!("ending session with {}", recipient);
             if let Some(ref uuid) = recipient.uuid {
-                self.session_store.delete_all_sessions(&uuid.to_string())?;
+                self.session_store
+                    .delete_all_sessions(&uuid.to_string())
+                    .await?;
             }
             if let Some(e164) = recipient.e164() {
-                self.session_store.delete_all_sessions(&e164)?;
+                self.session_store.delete_all_sessions(&e164).await?;
             }
         }
 
@@ -483,17 +485,20 @@ where
                             extra_device_id
                         );
                         if let Some(uuid) = recipient.uuid {
-                            self.session_store.delete_session(
-                                &ProtocolAddress::new(
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
                                     uuid.to_string(),
                                     *extra_device_id,
-                                ),
-                            )?;
+                                ))
+                                .await?;
                         }
                         if let Some(e164) = recipient.e164() {
-                            self.session_store.delete_session(
-                                &ProtocolAddress::new(e164, *extra_device_id),
-                            )?;
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
+                                    e164,
+                                    *extra_device_id,
+                                ))
+                                .await?;
                         }
                     }
 
@@ -513,7 +518,7 @@ where
 
                         process_prekey_bundle(
                             &remote_address,
-                            self.session_store.as_mut_session_store(),
+                            &mut self.session_store,
                             &mut self.identity_key_store,
                             &pre_key,
                             &mut self.csprng,
@@ -536,17 +541,20 @@ where
                             extra_device_id
                         );
                         if let Some(ref uuid) = recipient.uuid {
-                            self.session_store.delete_session(
-                                &ProtocolAddress::new(
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
                                     uuid.to_string(),
                                     *extra_device_id,
-                                ),
-                            )?;
+                                ))
+                                .await?;
                         }
                         if let Some(e164) = recipient.e164() {
-                            self.session_store.delete_session(
-                                &ProtocolAddress::new(e164, *extra_device_id),
-                            )?;
+                            self.session_store
+                                .delete_session(&ProtocolAddress::new(
+                                    e164,
+                                    *extra_device_id,
+                                ))
+                                .await?;
                         }
                     }
                 }
@@ -650,22 +658,12 @@ where
             );
         }
 
-        let mut sub_device_sessions = Vec::new();
-        if let Some(uuid) = &recipient.uuid {
-            sub_device_sessions.extend(
-                self.session_store
-                    .get_sub_device_sessions(&uuid.to_string())?,
-            );
-        }
-        if let Some(e164) = &recipient.e164() {
-            sub_device_sessions
-                .extend(self.session_store.get_sub_device_sessions(&e164)?);
-        }
-
-        for device_id in sub_device_sessions {
+        for device_id in
+            recipient.sub_device_sessions(&self.session_store).await?
+        {
             trace!("sending message to device {}", device_id);
             let ppa = get_preferred_protocol_address(
-                self.session_store.as_mut_session_store(),
+                &self.session_store,
                 recipient,
                 device_id,
             )
