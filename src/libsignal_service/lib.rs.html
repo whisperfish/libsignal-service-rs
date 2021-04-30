@@ -63,6 +63,17 @@
 <span id="60">60</span>
 <span id="61">61</span>
 <span id="62">62</span>
+<span id="63">63</span>
+<span id="64">64</span>
+<span id="65">65</span>
+<span id="66">66</span>
+<span id="67">67</span>
+<span id="68">68</span>
+<span id="69">69</span>
+<span id="70">70</span>
+<span id="71">71</span>
+<span id="72">72</span>
+<span id="73">73</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="attribute">#![<span class="ident">recursion_limit</span> <span class="op">=</span> <span class="string">&quot;256&quot;</span>]</span>
 
@@ -87,6 +98,7 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">receiver</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">sender</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">service_address</span>;
+<span class="kw">mod</span> <span class="ident">session_store</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">utils</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">account_manager</span>::{
@@ -125,6 +137,16 @@
     <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span> <span class="kw">as</span> <span class="ident">ProtobufMessage</span>;
     <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">uuid</span>::{<span class="ident">Error</span> <span class="kw">as</span> <span class="ident">UuidError</span>, <span class="ident">Uuid</span>};
     <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">zkgroup</span>::<span class="ident">groups</span>::{<span class="ident">GroupMasterKey</span>, <span class="ident">GroupSecretParams</span>};
+
+    <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">protocol</span> {
+        <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">session_store</span>::<span class="ident">SessionStoreExt</span>;
+        <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
+            <span class="ident">Context</span>, <span class="ident">Direction</span>, <span class="ident">IdentityKey</span>, <span class="ident">IdentityKeyPair</span>, <span class="ident">IdentityKeyStore</span>,
+            <span class="ident">KeyPair</span>, <span class="ident">PreKeyRecord</span>, <span class="ident">PreKeyStore</span>, <span class="ident">PrivateKey</span>, <span class="ident">ProtocolAddress</span>,
+            <span class="ident">PublicKey</span>, <span class="ident">SessionRecord</span>, <span class="ident">SessionStore</span>, <span class="ident">SignalProtocolError</span>,
+            <span class="ident">SignedPreKeyRecord</span>, <span class="ident">SignedPreKeyStore</span>,
+        };
+    }
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_service"></div>

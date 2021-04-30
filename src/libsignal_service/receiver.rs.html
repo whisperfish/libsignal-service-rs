@@ -157,6 +157,7 @@
 <span id="154">154</span>
 <span id="155">155</span>
 <span id="156">156</span>
+<span id="157">157</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Buf</span>, <span class="ident">Bytes</span>};
 
@@ -170,6 +171,7 @@
 };
 
 <span class="doccomment">/// Equivalent of Java&#39;s `SignalServiceMessageReceiver`.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MessageReceiver</span><span class="op">&lt;</span><span class="ident">Service</span><span class="op">&gt;</span> {
     <span class="ident">service</span>: <span class="ident">Service</span>,
 }

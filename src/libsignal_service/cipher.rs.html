@@ -323,7 +323,69 @@
 <span id="320">320</span>
 <span id="321">321</span>
 <span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
+
+<span class="kw">use</span> <span class="ident">block_modes</span>::<span class="ident">block_padding</span>::{<span class="ident">Iso7816</span>, <span class="ident">Padding</span>};
+<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
+    <span class="ident">message_decrypt_prekey</span>, <span class="ident">message_decrypt_signal</span>, <span class="ident">message_encrypt</span>,
+    <span class="ident">CiphertextMessageType</span>, <span class="ident">IdentityKeyStore</span>, <span class="ident">PreKeySignalMessage</span>, <span class="ident">PreKeyStore</span>,
+    <span class="ident">ProtocolAddress</span>, <span class="ident">SessionStore</span>, <span class="ident">SignalMessage</span>, <span class="ident">SignalProtocolError</span>,
+    <span class="ident">SignedPreKeyStore</span>,
+};
+<span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
+<span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">CryptoRng</span>, <span class="ident">Rng</span>};
+
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">content</span>::{<span class="ident">Content</span>, <span class="ident">Metadata</span>},
     <span class="ident">envelope</span>::<span class="ident">Envelope</span>,
@@ -336,41 +398,47 @@
     <span class="ident">ServiceAddress</span>,
 };
 
-<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
-    <span class="ident">messages</span>::{<span class="ident">CiphertextType</span>, <span class="ident">PreKeySignalMessage</span>, <span class="ident">SignalMessage</span>},
-    <span class="ident">Address</span> <span class="kw">as</span> <span class="ident">ProtocolAddress</span>, <span class="ident">Context</span>, <span class="ident">Deserializable</span>, <span class="ident">Serializable</span>,
-    <span class="ident">SessionCipher</span>, <span class="ident">StoreContext</span>,
-};
-
-<span class="kw">use</span> <span class="ident">block_modes</span>::<span class="ident">block_padding</span>::{<span class="ident">Iso7816</span>, <span class="ident">Padding</span>};
-<span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
-
 <span class="doccomment">/// Decrypts incoming messages and encrypts outgoing messages.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// Equivalent of SignalServiceCipher in Java.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ServiceCipher</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">context</span>: <span class="ident">Context</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">store_context</span>: <span class="ident">StoreContext</span>,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">local_address</span>: <span class="ident">ServiceAddress</span>,
-    <span class="ident">sealed_session_cipher</span>: <span class="ident">SealedSessionCipher</span>,
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ServiceCipher</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">I</span>, <span class="ident">SP</span>, <span class="ident">P</span>, <span class="ident">R</span><span class="op">&gt;</span> {
+    <span class="ident">session_store</span>: <span class="ident">S</span>,
+    <span class="ident">identity_key_store</span>: <span class="ident">I</span>,
+    <span class="ident">signed_pre_key_store</span>: <span class="ident">SP</span>,
+    <span class="ident">pre_key_store</span>: <span class="ident">P</span>,
+    <span class="ident">csprng</span>: <span class="ident">R</span>,
+    <span class="ident">sealed_session_cipher</span>: <span class="ident">SealedSessionCipher</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">I</span>, <span class="ident">SP</span>, <span class="ident">P</span>, <span class="ident">R</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">ServiceCipher</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_context</span>(
-        <span class="ident">context</span>: <span class="ident">Context</span>,
-        <span class="ident">store_context</span>: <span class="ident">StoreContext</span>,
-        <span class="ident">local_address</span>: <span class="ident">ServiceAddress</span>,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">I</span>, <span class="ident">SP</span>, <span class="ident">P</span>, <span class="ident">R</span><span class="op">&gt;</span> <span class="ident">ServiceCipher</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">I</span>, <span class="ident">SP</span>, <span class="ident">P</span>, <span class="ident">R</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">S</span>: <span class="ident">SessionStore</span> <span class="op">+</span> <span class="ident">Clone</span>,
+    <span class="ident">I</span>: <span class="ident">IdentityKeyStore</span> <span class="op">+</span> <span class="ident">Clone</span>,
+    <span class="ident">SP</span>: <span class="ident">SignedPreKeyStore</span> <span class="op">+</span> <span class="ident">Clone</span>,
+    <span class="ident">P</span>: <span class="ident">PreKeyStore</span> <span class="op">+</span> <span class="ident">Clone</span>,
+    <span class="ident">R</span>: <span class="ident">Rng</span> <span class="op">+</span> <span class="ident">CryptoRng</span> <span class="op">+</span> <span class="ident">Clone</span>,
+{
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
+        <span class="ident">session_store</span>: <span class="ident">S</span>,
+        <span class="ident">identity_key_store</span>: <span class="ident">I</span>,
+        <span class="ident">signed_pre_key_store</span>: <span class="ident">SP</span>,
+        <span class="ident">pre_key_store</span>: <span class="ident">P</span>,
+        <span class="ident">csprng</span>: <span class="ident">R</span>,
         <span class="ident">certificate_validator</span>: <span class="ident">CertificateValidator</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
-            <span class="ident">context</span>: <span class="ident">context</span>.<span class="ident">clone</span>(),
-            <span class="ident">store_context</span>: <span class="ident">store_context</span>.<span class="ident">clone</span>(),
-            <span class="ident">local_address</span>: <span class="ident">local_address</span>.<span class="ident">clone</span>(),
+            <span class="ident">session_store</span>: <span class="ident">session_store</span>.<span class="ident">clone</span>(),
+            <span class="ident">identity_key_store</span>: <span class="ident">identity_key_store</span>.<span class="ident">clone</span>(),
+            <span class="ident">signed_pre_key_store</span>: <span class="ident">signed_pre_key_store</span>.<span class="ident">clone</span>(),
+            <span class="ident">pre_key_store</span>: <span class="ident">pre_key_store</span>.<span class="ident">clone</span>(),
+            <span class="ident">csprng</span>: <span class="ident">csprng</span>.<span class="ident">clone</span>(),
             <span class="ident">sealed_session_cipher</span>: <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
-                <span class="ident">context</span>,
-                <span class="ident">store_context</span>,
-                <span class="ident">local_address</span>,
+                <span class="ident">session_store</span>,
+                <span class="ident">identity_key_store</span>,
+                <span class="ident">signed_pre_key_store</span>,
+                <span class="ident">pre_key_store</span>,
+                <span class="ident">csprng</span>,
                 <span class="ident">certificate_validator</span>,
             ),
         }
@@ -379,17 +447,17 @@
     <span class="doccomment">/// Opens (&quot;decrypts&quot;) an envelope.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Envelopes may be empty, in which case this method returns `Ok(None)`</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">open_envelope</span>(
+    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">open_envelope</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">envelope</span>: <span class="ident">Envelope</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Content</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">envelope</span>.<span class="ident">legacy_message</span>.<span class="ident">is_some</span>() {
-            <span class="kw">let</span> <span class="ident">plaintext</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">envelope</span>)<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">plaintext</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">envelope</span>).<span class="kw">await</span><span class="question-mark">?</span>;
             <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
                 <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">DataMessage</span>::<span class="ident">decode</span>(<span class="ident">plaintext</span>.<span class="ident">data</span>.<span class="ident">as_slice</span>())<span class="question-mark">?</span>;
             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">Content</span>::<span class="ident">from_body</span>(<span class="ident">message</span>, <span class="ident">plaintext</span>.<span class="ident">metadata</span>)))
         } <span class="kw">else</span> <span class="kw">if</span> <span class="ident">envelope</span>.<span class="ident">content</span>.<span class="ident">is_some</span>() {
-            <span class="kw">let</span> <span class="ident">plaintext</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">envelope</span>)<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">plaintext</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">envelope</span>).<span class="kw">await</span><span class="question-mark">?</span>;
             <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span>
                 <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">Content</span>::<span class="ident">decode</span>(<span class="ident">plaintext</span>.<span class="ident">data</span>.<span class="ident">as_slice</span>())<span class="question-mark">?</span>;
             <span class="prelude-val">Ok</span>(<span class="ident">Content</span>::<span class="ident">from_proto</span>(<span class="ident">message</span>, <span class="ident">plaintext</span>.<span class="ident">metadata</span>))
@@ -403,7 +471,7 @@
     <span class="doccomment">/// Triage of legacy messages happens inside this method, as opposed to the</span>
     <span class="doccomment">/// Java implementation, because it makes the borrow checker and the</span>
     <span class="doccomment">/// author happier.</span>
-    <span class="kw">fn</span> <span class="ident">decrypt</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">decrypt</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">envelope</span>: <span class="kw-2">&amp;</span><span class="ident">Envelope</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Plaintext</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
@@ -423,61 +491,84 @@
         <span class="kw">let</span> <span class="ident">plaintext</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">envelope</span>.<span class="ident">r#type</span>() {
             <span class="ident">Type</span>::<span class="ident">PrekeyBundle</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">get_preferred_protocol_address</span>(
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">store_context</span>,
-                    <span class="ident">envelope</span>.<span class="ident">source_address</span>(),
-                    <span class="ident">envelope</span>.<span class="ident">source_device</span>() <span class="kw">as</span> <span class="ident">i32</span>,
-                )<span class="question-mark">?</span>;
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session_store</span>,
+                    <span class="kw-2">&amp;</span><span class="ident">envelope</span>.<span class="ident">source_address</span>(),
+                    <span class="ident">envelope</span>.<span class="ident">source_device</span>(),
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="kw">let</span> <span class="ident">metadata</span> <span class="op">=</span> <span class="ident">Metadata</span> {
                     <span class="ident">sender</span>: <span class="ident">envelope</span>.<span class="ident">source_address</span>(),
-                    <span class="ident">sender_device</span>: <span class="ident">envelope</span>.<span class="ident">source_device</span>() <span class="kw">as</span> <span class="ident">i32</span>,
+                    <span class="ident">sender_device</span>: <span class="ident">envelope</span>.<span class="ident">source_device</span>(),
                     <span class="ident">timestamp</span>: <span class="ident">envelope</span>.<span class="ident">timestamp</span>(),
                     <span class="ident">needs_receipt</span>: <span class="bool-val">false</span>,
                 };
-                <span class="kw">let</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">SessionCipher</span>::<span class="ident">new</span>(
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">context</span>,
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">store_context</span>,
+
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">message_decrypt_prekey</span>(
+                    <span class="kw-2">&amp;</span><span class="ident">PreKeySignalMessage</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>[..]).<span class="ident">unwrap</span>(),
                     <span class="kw-2">&amp;</span><span class="ident">sender</span>,
-                )<span class="question-mark">?</span>;
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">cipher</span>
-                    .<span class="ident">decrypt_pre_key_message</span>(
-                        <span class="kw-2">&amp;</span><span class="ident">PreKeySignalMessage</span>::<span class="ident">deserialize</span>(
-                            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">context</span>,
-                            <span class="ident">ciphertext</span>,
-                        )<span class="question-mark">?</span>,
-                    )<span class="question-mark">?</span>
-                    .<span class="ident">as_slice</span>()
-                    .<span class="ident">to_vec</span>();
-                <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span>
-                    <span class="self">self</span>.<span class="ident">store_context</span>.<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">sender</span>)<span class="question-mark">?</span>.<span class="ident">state</span>().<span class="ident">version</span>();
-                <span class="ident">strip_padding</span>(<span class="ident">version</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>)<span class="question-mark">?</span>;
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">session_store</span>,
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">identity_key_store</span>,
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">pre_key_store</span>,
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">signed_pre_key_store</span>,
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">csprng</span>,
+                    <span class="prelude-val">None</span>,
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>
+                .<span class="ident">as_slice</span>()
+                .<span class="ident">to_vec</span>();
+
+                <span class="kw">let</span> <span class="ident">session_record</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">session_store</span>
+                    .<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">sender</span>, <span class="prelude-val">None</span>)
+                    .<span class="kw">await</span><span class="question-mark">?</span>
+                    .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
+                        <span class="ident">SignalProtocolError</span>::<span class="ident">SessionNotFound</span>(<span class="macro">format</span><span class="macro">!</span>(
+                            <span class="string">&quot;{}&quot;</span>,
+                            <span class="ident">sender</span>
+                        ))
+                    })<span class="question-mark">?</span>;
+
+                <span class="ident">strip_padding</span>(<span class="ident">session_record</span>.<span class="ident">session_version</span>()<span class="question-mark">?</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>)<span class="question-mark">?</span>;
                 <span class="ident">Plaintext</span> { <span class="ident">metadata</span>, <span class="ident">data</span> }
             }
             <span class="ident">Type</span>::<span class="ident">Ciphertext</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">get_preferred_protocol_address</span>(
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">store_context</span>,
-                    <span class="ident">envelope</span>.<span class="ident">source_address</span>(),
-                    <span class="ident">envelope</span>.<span class="ident">source_device</span>() <span class="kw">as</span> <span class="ident">i32</span>,
-                )<span class="question-mark">?</span>;
+                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session_store</span>,
+                    <span class="kw-2">&amp;</span><span class="ident">envelope</span>.<span class="ident">source_address</span>(),
+                    <span class="ident">envelope</span>.<span class="ident">source_device</span>(),
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="kw">let</span> <span class="ident">metadata</span> <span class="op">=</span> <span class="ident">Metadata</span> {
                     <span class="ident">sender</span>: <span class="ident">envelope</span>.<span class="ident">source_address</span>(),
-                    <span class="ident">sender_device</span>: <span class="ident">envelope</span>.<span class="ident">source_device</span>() <span class="kw">as</span> <span class="ident">i32</span>,
+                    <span class="ident">sender_device</span>: <span class="ident">envelope</span>.<span class="ident">source_device</span>(),
                     <span class="ident">timestamp</span>: <span class="ident">envelope</span>.<span class="ident">timestamp</span>(),
                     <span class="ident">needs_receipt</span>: <span class="bool-val">false</span>,
                 };
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">SessionCipher</span>::<span class="ident">new</span>(
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">context</span>,
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">store_context</span>,
+
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">message_decrypt_signal</span>(
+                    <span class="kw-2">&amp;</span><span class="ident">SignalMessage</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>[..])<span class="question-mark">?</span>,
                     <span class="kw-2">&amp;</span><span class="ident">sender</span>,
-                )<span class="question-mark">?</span>
-                .<span class="ident">decrypt_message</span>(<span class="kw-2">&amp;</span><span class="ident">SignalMessage</span>::<span class="ident">deserialize</span>(
-                    <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">context</span>,
-                    <span class="ident">ciphertext</span>,
-                )<span class="question-mark">?</span>)<span class="question-mark">?</span>
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">session_store</span>,
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">identity_key_store</span>,
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">csprng</span>,
+                    <span class="prelude-val">None</span>,
+                )
+                .<span class="kw">await</span><span class="question-mark">?</span>
                 .<span class="ident">as_slice</span>()
                 .<span class="ident">to_vec</span>();
-                <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span>
-                    <span class="self">self</span>.<span class="ident">store_context</span>.<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">sender</span>)<span class="question-mark">?</span>.<span class="ident">state</span>().<span class="ident">version</span>();
-                <span class="ident">strip_padding</span>(<span class="ident">version</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>)<span class="question-mark">?</span>;
+
+                <span class="kw">let</span> <span class="ident">session_record</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">session_store</span>
+                    .<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">sender</span>, <span class="prelude-val">None</span>)
+                    .<span class="kw">await</span><span class="question-mark">?</span>
+                    .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
+                        <span class="ident">SignalProtocolError</span>::<span class="ident">SessionNotFound</span>(<span class="macro">format</span><span class="macro">!</span>(
+                            <span class="string">&quot;{}&quot;</span>,
+                            <span class="ident">sender</span>
+                        ))
+                    })<span class="question-mark">?</span>;
+
+                <span class="ident">strip_padding</span>(<span class="ident">session_record</span>.<span class="ident">session_version</span>()<span class="question-mark">?</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>)<span class="question-mark">?</span>;
                 <span class="ident">Plaintext</span> { <span class="ident">metadata</span>, <span class="ident">data</span> }
             }
             <span class="ident">Type</span>::<span class="ident">UnidentifiedSender</span> <span class="op">=</span><span class="op">&gt;</span> {
@@ -489,7 +580,8 @@
                     <span class="ident">version</span>,
                 } <span class="op">=</span> <span class="self">self</span>
                     .<span class="ident">sealed_session_cipher</span>
-                    .<span class="ident">decrypt</span>(<span class="ident">ciphertext</span>, <span class="ident">envelope</span>.<span class="ident">timestamp</span>())<span class="question-mark">?</span>;
+                    .<span class="ident">decrypt</span>(<span class="ident">ciphertext</span>, <span class="ident">envelope</span>.<span class="ident">timestamp</span>())
+                    .<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">ServiceAddress</span> {
                     <span class="ident">phonenumber</span>: <span class="ident">sender_e164</span>,
                     <span class="ident">uuid</span>: <span class="ident">sender_uuid</span>,
@@ -517,8 +609,8 @@
         <span class="prelude-val">Ok</span>(<span class="ident">plaintext</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">encrypt</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">encrypt</span>(
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">address</span>: <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress</span>,
         <span class="ident">unindentified_access</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">UnidentifiedAccess</span><span class="op">&gt;</span>,
         <span class="ident">content</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
@@ -526,27 +618,35 @@
         <span class="kw">if</span> <span class="ident">unindentified_access</span>.<span class="ident">is_some</span>() {
             <span class="macro">unimplemented</span><span class="macro">!</span>(<span class="string">&quot;unidentified access is not implemented&quot;</span>);
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">session_cipher</span> <span class="op">=</span> <span class="ident">SessionCipher</span>::<span class="ident">new</span>(
-                <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">context</span>,
-                <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">store_context</span>,
-                <span class="ident">address</span>,
-            )<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">session_record</span> <span class="op">=</span> <span class="self">self</span>
+                .<span class="ident">session_store</span>
+                .<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>, <span class="prelude-val">None</span>)
+                .<span class="kw">await</span><span class="question-mark">?</span>
+                .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
+                    <span class="ident">SignalProtocolError</span>::<span class="ident">SessionNotFound</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">address</span>))
+                })<span class="question-mark">?</span>;
 
             <span class="kw">let</span> <span class="ident">padded_content</span> <span class="op">=</span>
-                <span class="ident">add_padding</span>(<span class="ident">session_cipher</span>.<span class="ident">get_session_version</span>()<span class="question-mark">?</span>, <span class="ident">content</span>)<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">session_cipher</span>.<span class="ident">encrypt</span>(<span class="kw-2">&amp;</span><span class="ident">padded_content</span>)<span class="question-mark">?</span>;
+                <span class="ident">add_padding</span>(<span class="ident">session_record</span>.<span class="ident">session_version</span>()<span class="question-mark">?</span>, <span class="ident">content</span>)<span class="question-mark">?</span>;
+
+            <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">message_encrypt</span>(
+                <span class="kw-2">&amp;</span><span class="ident">padded_content</span>,
+                <span class="kw-2">&amp;</span><span class="ident">address</span>,
+                <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">session_store</span>,
+                <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">identity_key_store</span>,
+                <span class="prelude-val">None</span>,
+            )
+            .<span class="kw">await</span><span class="question-mark">?</span>;
 
             <span class="kw">let</span> <span class="ident">destination_registration_id</span> <span class="op">=</span>
-                <span class="ident">session_cipher</span>.<span class="ident">get_remote_registration_id</span>()<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">base64</span>::<span class="ident">encode</span>(<span class="ident">message</span>.<span class="ident">serialize</span>()<span class="question-mark">?</span>);
+                <span class="ident">session_record</span>.<span class="ident">remote_registration_id</span>()<span class="question-mark">?</span>;
+
+            <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">base64</span>::<span class="ident">encode</span>(<span class="ident">message</span>.<span class="ident">serialize</span>());
+
             <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">envelope</span>::<span class="ident">Type</span>;
-            <span class="kw">let</span> <span class="ident">message_type</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">message</span>.<span class="ident">get_type</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">InvalidFrameError</span> {
-                    <span class="ident">reason</span>: <span class="string">&quot;unknown message type&quot;</span>.<span class="ident">into</span>(),
-                }
-            })<span class="question-mark">?</span> {
-                <span class="ident">CiphertextType</span>::<span class="ident">PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Type</span>::<span class="ident">PrekeyBundle</span>,
-                <span class="ident">CiphertextType</span>::<span class="ident">Signal</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Type</span>::<span class="ident">Ciphertext</span>,
+            <span class="kw">let</span> <span class="ident">message_type</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">message</span>.<span class="ident">message_type</span>() {
+                <span class="ident">CiphertextMessageType</span>::<span class="ident">PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Type</span>::<span class="ident">PrekeyBundle</span>,
+                <span class="ident">CiphertextMessageType</span>::<span class="ident">Whisper</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Type</span>::<span class="ident">Ciphertext</span>,
                 <span class="ident">t</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;Bad type: {:?}&quot;</span>, <span class="ident">t</span>),
             } <span class="kw">as</span> <span class="ident">u32</span>;
             <span class="prelude-val">Ok</span>(<span class="ident">OutgoingPushMessage</span> {
@@ -616,20 +716,20 @@
 }
 
 <span class="doccomment">/// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_preferred_protocol_address</span>(
-    <span class="ident">store_context</span>: <span class="kw-2">&amp;</span><span class="ident">StoreContext</span>,
-    <span class="ident">address</span>: <span class="ident">ServiceAddress</span>,
-    <span class="ident">device_id</span>: <span class="ident">i32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ProtocolAddress</span>, <span class="ident">libsignal_protocol</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_preferred_protocol_address</span>(
+    <span class="ident">session_store</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">SessionStore</span>,
+    <span class="ident">address</span>: <span class="kw-2">&amp;</span><span class="ident">ServiceAddress</span>,
+    <span class="ident">device_id</span>: <span class="ident">u32</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ProtocolAddress</span>, <span class="ident">libsignal_protocol</span>::<span class="ident">error</span>::<span class="ident">SignalProtocolError</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">uuid</span>) <span class="op">=</span> <span class="ident">address</span>.<span class="ident">uuid</span> {
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="ident">uuid</span>.<span class="ident">to_string</span>(), <span class="ident">device_id</span> <span class="kw">as</span> <span class="ident">i32</span>);
-        <span class="kw">if</span> <span class="ident">store_context</span>.<span class="ident">contains_session</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)<span class="question-mark">?</span> {
+        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="ident">uuid</span>.<span class="ident">to_string</span>(), <span class="ident">device_id</span>);
+        <span class="kw">if</span> <span class="ident">session_store</span>.<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>.<span class="ident">is_some</span>() {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">address</span>);
         }
     }
     <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e164</span>) <span class="op">=</span> <span class="ident">address</span>.<span class="ident">e164</span>() {
-        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="ident">e164</span>, <span class="ident">device_id</span> <span class="kw">as</span> <span class="ident">i32</span>);
-        <span class="kw">if</span> <span class="ident">store_context</span>.<span class="ident">contains_session</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>)<span class="question-mark">?</span> {
+        <span class="kw">let</span> <span class="ident">address</span> <span class="op">=</span> <span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="ident">e164</span>, <span class="ident">device_id</span>);
+        <span class="kw">if</span> <span class="ident">session_store</span>.<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">address</span>, <span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>.<span class="ident">is_some</span>() {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">address</span>);
         }
         <span class="kw">if</span> <span class="macro">cfg</span><span class="macro">!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;prefer-e164&quot;</span>) {
@@ -644,7 +744,7 @@
         );
     }
 
-    <span class="prelude-val">Ok</span>(<span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="ident">address</span>.<span class="ident">identifier</span>(), <span class="ident">device_id</span> <span class="kw">as</span> <span class="ident">i32</span>))
+    <span class="prelude-val">Ok</span>(<span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="ident">address</span>.<span class="ident">identifier</span>(), <span class="ident">device_id</span>))
 }
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_service"></div>

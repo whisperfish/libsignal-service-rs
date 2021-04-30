@@ -174,12 +174,10 @@
 <span id="171">171</span>
 <span id="172">172</span>
 <span id="173">173</span>
-<span id="174">174</span>
-<span id="175">175</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">collections</span>::<span class="ident">HashMap</span>, <span class="ident">str</span>::<span class="ident">FromStr</span>};
 
-<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">keys</span>::<span class="ident">PublicKey</span>, <span class="ident">Context</span>};
+<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::<span class="ident">PublicKey</span>;
 <span class="kw">use</span> <span class="ident">url</span>::<span class="ident">Url</span>;
 <span class="kw">use</span> <span class="ident">zkgroup</span>::<span class="ident">ServerPublicParams</span>;
 
@@ -208,7 +206,7 @@
     <span class="kw">pub</span> <span class="ident">phonenumber</span>: <span class="ident">phonenumber</span>::<span class="ident">PhoneNumber</span>,
     <span class="kw">pub</span> <span class="ident">password</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">signaling_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SignalingKey</span><span class="op">&gt;</span>,
-    <span class="kw">pub</span> <span class="ident">device_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span> <span class="ident">device_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">ServiceCredentials</span> {
@@ -334,10 +332,8 @@ MIID7zCCAtegAwIBAgIJAIm6LatK5PNiMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYDVQQGEwJVUzETMBEG
 <span class="kw">impl</span> <span class="ident">ServiceConfiguration</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">credentials_validator</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CertificateValidator</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">CertificateValidator</span>::<span class="ident">new</span>(<span class="ident">PublicKey</span>::<span class="ident">decode_point</span>(
-            <span class="ident">context</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">CertificateValidator</span>::<span class="ident">new</span>(<span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(
             <span class="kw-2">&amp;</span><span class="ident">base64</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">unidentified_sender_trust_root</span>)
                 .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>)<span class="question-mark">?</span>,
         )<span class="question-mark">?</span>))

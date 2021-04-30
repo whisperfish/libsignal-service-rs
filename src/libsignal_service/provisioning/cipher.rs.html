@@ -224,19 +224,23 @@
 <span id="221">221</span>
 <span id="222">222</span>
 <span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
 </pre><div class="example-wrap"><pre class="rust ">
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>};
+
 <span class="kw">use</span> <span class="ident">aes</span>::<span class="ident">Aes256</span>;
 <span class="kw">use</span> <span class="ident">block_modes</span>::{<span class="ident">block_padding</span>::<span class="ident">Pkcs7</span>, <span class="ident">BlockMode</span>, <span class="ident">Cbc</span>};
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Bytes</span>;
 <span class="kw">use</span> <span class="ident">hmac</span>::{<span class="ident">Hmac</span>, <span class="ident">Mac</span>, <span class="ident">NewMac</span>};
+<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">KeyPair</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">Rng</span>;
 <span class="kw">use</span> <span class="ident">sha2</span>::<span class="ident">Sha256</span>;
-
-<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
-    <span class="ident">keys</span>::{<span class="ident">KeyPair</span>, <span class="ident">PublicKey</span>},
-    <span class="ident">Context</span>,
-};
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::{
     <span class="ident">ProvisionEnvelope</span>, <span class="ident">ProvisionMessage</span>, <span class="ident">ProvisioningVersion</span>,
@@ -247,17 +251,31 @@
     <span class="ident">provisioning</span>::<span class="ident">ProvisioningError</span>,
 };
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">enum</span> <span class="ident">CipherMode</span> {
     <span class="ident">DecryptAndEncrypt</span>(<span class="ident">KeyPair</span>),
     <span class="ident">EncryptOnly</span>(<span class="ident">PublicKey</span>),
 }
 
-<span class="kw">impl</span> <span class="ident">CipherMode</span> {
-    <span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PublicKey</span> {
+<span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">CipherMode</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt</span>::<span class="ident">Error</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">CipherMode</span>::<span class="ident">DecryptAndEncrypt</span>(<span class="ident">pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">pair</span>.<span class="ident">public</span>(),
-            <span class="ident">CipherMode</span>::<span class="ident">EncryptOnly</span>(<span class="ident">pub_key</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">pub_key</span>.<span class="ident">clone</span>(),
+            <span class="ident">CipherMode</span>::<span class="ident">DecryptAndEncrypt</span>(<span class="ident">key_pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">f</span>
+                .<span class="ident">debug_tuple</span>(<span class="string">&quot;CipherMode::DecryptAndEncrypt&quot;</span>)
+                .<span class="ident">field</span>(<span class="kw-2">&amp;</span><span class="ident">key_pair</span>.<span class="ident">public_key</span>)
+                .<span class="ident">finish</span>(),
+            <span class="ident">CipherMode</span>::<span class="ident">EncryptOnly</span>(<span class="ident">public</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">f</span>
+                .<span class="ident">debug_tuple</span>(<span class="string">&quot;CipherMode::EncryptOnly&quot;</span>)
+                .<span class="ident">field</span>(<span class="kw-2">&amp;</span><span class="ident">public</span>)
+                .<span class="ident">finish</span>(),
+        }
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">CipherMode</span> {
+    <span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">CipherMode</span>::<span class="ident">DecryptAndEncrypt</span>(<span class="ident">pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">pair</span>.<span class="ident">public_key</span>,
+            <span class="ident">CipherMode</span>::<span class="ident">EncryptOnly</span>(<span class="ident">pub_key</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">pub_key</span>,
         }
     }
 }
@@ -266,34 +284,34 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ProvisioningCipher</span> {
-    <span class="ident">ctx</span>: <span class="ident">Context</span>,
     <span class="ident">key_material</span>: <span class="ident">CipherMode</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">ProvisioningCipher</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">ctx</span>: <span class="ident">Context</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">generate_key_pair</span>(<span class="kw-2">&amp;</span><span class="ident">ctx</span>)<span class="question-mark">?</span>;
+    <span class="doccomment">/// Generate a random key pair</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">R</span>: <span class="ident">rand</span>::<span class="ident">Rng</span> <span class="op">+</span> <span class="ident">rand</span>::<span class="ident">CryptoRng</span>,
+    {
+        <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="ident">rng</span>);
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-            <span class="ident">ctx</span>,
             <span class="ident">key_material</span>: <span class="ident">CipherMode</span>::<span class="ident">DecryptAndEncrypt</span>(<span class="ident">key_pair</span>),
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_public</span>(<span class="ident">ctx</span>: <span class="ident">Context</span>, <span class="ident">key</span>: <span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_public</span>(<span class="ident">key</span>: <span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
-            <span class="ident">ctx</span>,
             <span class="ident">key_material</span>: <span class="ident">CipherMode</span>::<span class="ident">EncryptOnly</span>(<span class="ident">key</span>),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_key_pair</span>(<span class="ident">ctx</span>: <span class="ident">Context</span>, <span class="ident">key_pair</span>: <span class="ident">KeyPair</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_key_pair</span>(<span class="ident">key_pair</span>: <span class="ident">KeyPair</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
-            <span class="ident">ctx</span>,
             <span class="ident">key_material</span>: <span class="ident">CipherMode</span>::<span class="ident">DecryptAndEncrypt</span>(<span class="ident">key_pair</span>),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PublicKey</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
         <span class="self">self</span>.<span class="ident">key_material</span>.<span class="ident">public</span>()
     }
 
@@ -308,17 +326,14 @@
         };
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>();
-        <span class="kw">let</span> <span class="ident">our_key_pair</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">generate_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">ctx</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">agreement</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">public_key</span>()
-            .<span class="ident">calculate_agreement</span>(<span class="kw-2">&amp;</span><span class="ident">our_key_pair</span>.<span class="ident">private</span>())<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">hkdf</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">create_hkdf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">ctx</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">our_key_pair</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rng</span>);
+        <span class="kw">let</span> <span class="ident">agreement</span> <span class="op">=</span> <span class="ident">our_key_pair</span>.<span class="ident">calculate_agreement</span>(<span class="self">self</span>.<span class="ident">public_key</span>())<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">hkdf</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">HKDF</span>::<span class="ident">new</span>(<span class="number">3</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">shared_secrets</span> <span class="op">=</span> <span class="ident">hkdf</span>.<span class="ident">derive_secrets</span>(
-            <span class="number">64</span>,
             <span class="kw-2">&amp;</span><span class="ident">agreement</span>,
-            <span class="kw-2">&amp;</span>[],
             <span class="string">b&quot;TextSecure Provisioning Message&quot;</span>,
+            <span class="number">64</span>,
         )<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">aes_key</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">shared_secrets</span>[<span class="number">0</span>..<span class="number">32</span>];
@@ -342,9 +357,7 @@
             .<span class="ident">collect</span>();
 
         <span class="prelude-val">Ok</span>(<span class="ident">ProvisionEnvelope</span> {
-            <span class="ident">public_key</span>: <span class="prelude-val">Some</span>(
-                <span class="ident">our_key_pair</span>.<span class="ident">public</span>().<span class="ident">to_bytes</span>()<span class="question-mark">?</span>.<span class="ident">as_slice</span>().<span class="ident">to_vec</span>(),
-            ),
+            <span class="ident">public_key</span>: <span class="prelude-val">Some</span>(<span class="ident">our_key_pair</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>().<span class="ident">into</span>()),
             <span class="ident">body</span>: <span class="prelude-val">Some</span>(<span class="ident">body</span>),
         })
     }
@@ -359,8 +372,7 @@
                 <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProvisioningError</span>::<span class="ident">EncryptOnlyProvisioningCipher</span>);
             }
         };
-        <span class="kw">let</span> <span class="ident">master_ephemeral</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">decode_point</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">ctx</span>,
+        <span class="kw">let</span> <span class="ident">master_ephemeral</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(
             <span class="kw-2">&amp;</span><span class="ident">provision_envelope</span>.<span class="ident">public_key</span>.<span class="ident">expect</span>(<span class="string">&quot;no public key&quot;</span>),
         )<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">body</span> <span class="op">=</span> <span class="ident">provision_envelope</span>
@@ -379,15 +391,13 @@
         <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">iv</span>.<span class="ident">len</span>(), <span class="ident">IV_LENGTH</span>);
         <span class="macro">debug_assert_eq</span><span class="macro">!</span>(<span class="ident">mac</span>.<span class="ident">len</span>(), <span class="number">32</span>);
 
-        <span class="kw">let</span> <span class="ident">agreement</span> <span class="op">=</span>
-            <span class="ident">master_ephemeral</span>.<span class="ident">calculate_agreement</span>(<span class="kw-2">&amp;</span><span class="ident">key_pair</span>.<span class="ident">private</span>())<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">hkdf</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">create_hkdf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">ctx</span>, <span class="number">3</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">agreement</span> <span class="op">=</span> <span class="ident">key_pair</span>.<span class="ident">calculate_agreement</span>(<span class="kw-2">&amp;</span><span class="ident">master_ephemeral</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">hkdf</span> <span class="op">=</span> <span class="ident">libsignal_protocol</span>::<span class="ident">HKDF</span>::<span class="ident">new</span>(<span class="number">3</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">shared_secrets</span> <span class="op">=</span> <span class="ident">hkdf</span>.<span class="ident">derive_secrets</span>(
-            <span class="number">64</span>,
             <span class="kw-2">&amp;</span><span class="ident">agreement</span>,
-            <span class="kw-2">&amp;</span>[],
             <span class="string">b&quot;TextSecure Provisioning Message&quot;</span>,
+            <span class="number">64</span>,
         )<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">parts1</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">shared_secrets</span>[<span class="number">0</span>..<span class="number">32</span>];
@@ -424,11 +434,11 @@
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">encrypt_provisioning_roundtrip</span>() {
-        <span class="kw">let</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">Context</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">ProvisioningCipher</span>::<span class="ident">new</span>(<span class="ident">ctx</span>.<span class="ident">clone</span>()).<span class="ident">unwrap</span>();
+    <span class="kw">fn</span> <span class="ident">encrypt_provisioning_roundtrip</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>();
+        <span class="kw">let</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">ProvisioningCipher</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rng</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">encrypt_cipher</span> <span class="op">=</span>
-            <span class="ident">ProvisioningCipher</span>::<span class="ident">from_public</span>(<span class="ident">ctx</span>, <span class="ident">cipher</span>.<span class="ident">public_key</span>());
+            <span class="ident">ProvisioningCipher</span>::<span class="ident">from_public</span>(<span class="ident">cipher</span>.<span class="ident">public_key</span>().<span class="ident">clone</span>());
 
         <span class="macro">assert_eq</span><span class="macro">!</span>(
             <span class="ident">cipher</span>.<span class="ident">public_key</span>(),
@@ -437,15 +447,17 @@
         );
 
         <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">ProvisionMessage</span>::<span class="ident">default</span>();
-        <span class="kw">let</span> <span class="ident">encrypted</span> <span class="op">=</span> <span class="ident">encrypt_cipher</span>.<span class="ident">encrypt</span>(<span class="ident">msg</span>.<span class="ident">clone</span>()).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">encrypted</span> <span class="op">=</span> <span class="ident">encrypt_cipher</span>.<span class="ident">encrypt</span>(<span class="ident">msg</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
 
         <span class="macro">assert</span><span class="macro">!</span>(<span class="macro">matches</span><span class="macro">!</span>(
             <span class="ident">encrypt_cipher</span>.<span class="ident">decrypt</span>(<span class="ident">encrypted</span>.<span class="ident">clone</span>()),
             <span class="prelude-val">Err</span>(<span class="ident">ProvisioningError</span>::<span class="ident">EncryptOnlyProvisioningCipher</span>)
         ));
 
-        <span class="kw">let</span> <span class="ident">decrypted</span> <span class="op">=</span> <span class="ident">cipher</span>.<span class="ident">decrypt</span>(<span class="ident">encrypted</span>).<span class="ident">expect</span>(<span class="string">&quot;decryptability&quot;</span>);
+        <span class="kw">let</span> <span class="ident">decrypted</span> <span class="op">=</span> <span class="ident">cipher</span>.<span class="ident">decrypt</span>(<span class="ident">encrypted</span>)<span class="question-mark">?</span>;
         <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">msg</span>, <span class="ident">decrypted</span>);
+
+        <span class="prelude-val">Ok</span>(())
     }
 }
 </pre></div>

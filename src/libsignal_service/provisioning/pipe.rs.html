@@ -225,8 +225,6 @@
 <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
 <span class="kw">use</span> <span class="ident">url</span>::<span class="ident">Url</span>;
 
-<span class="kw">use</span> <span class="ident">libsignal_protocol</span>::<span class="ident">Context</span>;
-
 <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::{
     <span class="ident">ProvisionEnvelope</span>, <span class="ident">ProvisionMessage</span>, <span class="ident">ProvisioningVersion</span>,
 };
@@ -260,12 +258,13 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_socket</span>(
         <span class="ident">ws</span>: <span class="ident">WS</span>,
         <span class="ident">stream</span>: <span class="ident">WS</span>::<span class="ident">Stream</span>,
-        <span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="ident">Context</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">ProvisioningPipe</span> {
             <span class="ident">ws</span>,
             <span class="ident">stream</span>,
-            <span class="ident">provisioning_cipher</span>: <span class="ident">ProvisioningCipher</span>::<span class="ident">new</span>(<span class="ident">ctx</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>,
+            <span class="ident">provisioning_cipher</span>: <span class="ident">ProvisioningCipher</span>::<span class="ident">generate</span>(
+                <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>(),
+            )<span class="question-mark">?</span>,
         })
     }
 
@@ -367,9 +366,10 @@
                             .<span class="ident">append_pair</span>(<span class="string">&quot;uuid&quot;</span>, <span class="kw-2">&amp;</span><span class="ident">uuid</span>.<span class="ident">uuid</span>.<span class="ident">unwrap</span>())
                             .<span class="ident">append_pair</span>(
                                 <span class="string">&quot;pub_key&quot;</span>,
-                                <span class="kw-2">&amp;</span><span class="macro">format</span><span class="macro">!</span>(
-                                    <span class="string">&quot;{}&quot;</span>,
-                                    <span class="self">self</span>.<span class="ident">provisioning_cipher</span>.<span class="ident">public_key</span>()
+                                <span class="kw-2">&amp;</span><span class="ident">base64</span>::<span class="ident">encode</span>(
+                                    <span class="self">self</span>.<span class="ident">provisioning_cipher</span>
+                                        .<span class="ident">public_key</span>()
+                                        .<span class="ident">serialize</span>(),
                                 ),
                             );
 
