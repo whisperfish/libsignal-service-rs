@@ -697,18 +697,18 @@ where
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
-            &mut self.session_store,
+            &self.session_store,
             recipient,
             device_id,
         )
         .await?;
         log::trace!("encrypting message for {:?}", recipient_address);
 
-        if !self
+        if self
             .session_store
             .load_session(&recipient_address, None)
             .await?
-            .is_some()
+            .is_none()
         {
             info!("establishing new session with {:?}", recipient_address);
             let pre_keys =
@@ -722,7 +722,7 @@ where
                 }
 
                 let pre_key_address = get_preferred_protocol_address(
-                    &mut self.session_store,
+                    &self.session_store,
                     recipient,
                     pre_key_bundle.device_id()?,
                 )

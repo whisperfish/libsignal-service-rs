@@ -63,7 +63,7 @@ where
                 signed_pre_key_store,
                 pre_key_store,
                 csprng,
-                certificate_validator.clone(),
+                certificate_validator,
             ),
         }
     }

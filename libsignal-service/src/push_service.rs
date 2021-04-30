@@ -629,7 +629,7 @@ pub trait PushService {
         let mut pre_keys = vec![];
         let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         for device in pre_key_response.devices {
-            pre_keys.push(device.into_bundle(identity.clone())?);
+            pre_keys.push(device.into_bundle(identity)?);
         }
         Ok(pre_keys)
     }

@@ -687,33 +687,28 @@ impl CertificateValidator {
         validation_time: u64,
     ) -> Result<(), SealedSessionError> {
         let server_certificate = &certificate.signer;
-        if !self
-            .trust_root
-            .verify_signature(
-                &server_certificate.certificate,
-                &server_certificate.signature,
-            )
-            .map_err(|e| {
-                error!("failed to verify server certificate: {}", e);
-                SealedSessionError::InvalidCertificate
-            })?
-        {
-            return Err(SealedSessionError::InvalidCertificate);
-        }
 
-        if !server_certificate
+        match self.trust_root.verify_signature(
+            &server_certificate.certificate,
+            &server_certificate.signature,
+        ) {
+            Err(_) | Ok(false) => {
+                return Err(SealedSessionError::InvalidCertificate)
+            }
+            _ => (),
+        };
+
+        match server_certificate
             .key
             .verify_signature(&certificate.certificate, &certificate.signature)
-            .map_err(|e| {
-                error!("failed to verify certificate: {}", e);
-                SealedSessionError::InvalidCertificate
-            })?
         {
-            return Err(SealedSessionError::InvalidCertificate);
+            Err(_) | Ok(false) => {
+                return Err(SealedSessionError::InvalidCertificate)
+            }
+            _ => (),
         }
 
         if validation_time > certificate.expiration {
-            error!("certificate is expired");
             return Err(SealedSessionError::ExpiredCertificate);
         }
 

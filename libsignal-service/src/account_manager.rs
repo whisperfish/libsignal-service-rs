@@ -75,6 +75,7 @@ impl<Service: PushService> AccountManager<Service> {
     /// Equivalent to Java's RefreshPreKeysJob
     ///
     /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
+    #[allow(clippy::clippy::too_many_arguments)]
     pub async fn update_pre_key_bundle<R: rand::Rng + rand::CryptoRng>(
         &mut self,
         identity_store: &dyn IdentityKeyStore,
@@ -146,7 +147,7 @@ impl<Service: PushService> AccountManager<Service> {
         let pre_key_state = PreKeyState {
             pre_keys: pre_key_entities,
             signed_pre_key: signed_prekey_record.try_into()?,
-            identity_key: identity_key_pair.public_key().clone(),
+            identity_key: *identity_key_pair.public_key(),
             last_resort_key: if use_last_resort_key {
                 Some(PreKeyEntity {
                     key_id: 0x7fffffff,
