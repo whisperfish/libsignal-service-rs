@@ -26,6 +26,20 @@ pub struct AwcPushService {
 }
 
 impl AwcPushService {
+    pub fn new(
+        cfg: impl Into<ServiceConfiguration>,
+        credentials: Option<ServiceCredentials>,
+        user_agent: String,
+    ) -> Self {
+        let cfg = cfg.into();
+        let client = get_client(&cfg, user_agent);
+        Self {
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+        }
+    }
+
     fn request(
         &self,
         method: Method,
@@ -112,20 +126,6 @@ impl PushService for AwcPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = AwcWebSocket;
-
-    fn new(
-        cfg: impl Into<ServiceConfiguration>,
-        credentials: Option<ServiceCredentials>,
-        user_agent: String,
-    ) -> Self {
-        let cfg = cfg.into();
-        let client = get_client(&cfg, user_agent);
-        Self {
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
-        }
-    }
 
     async fn get_json<T>(
         &mut self,

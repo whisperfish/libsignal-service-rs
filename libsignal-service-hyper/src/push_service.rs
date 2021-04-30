@@ -34,6 +34,35 @@ struct RequestBody {
 }
 
 impl HyperPushService {
+    pub fn new(
+        cfg: impl Into<ServiceConfiguration>,
+        credentials: Option<ServiceCredentials>,
+        user_agent: String,
+    ) -> Self {
+        let cfg = cfg.into();
+        let tls_config = Self::tls_config(&cfg);
+
+        let mut http = HttpConnector::new();
+        http.enforce_http(false);
+        let https = HttpsConnector::from((http, tls_config));
+
+        // as in Signal-Android
+        let mut timeout_connector = TimeoutConnector::new(https);
+        timeout_connector.set_connect_timeout(Some(Duration::from_secs(10)));
+        timeout_connector.set_read_timeout(Some(Duration::from_secs(65)));
+        timeout_connector.set_write_timeout(Some(Duration::from_secs(65)));
+
+        let client: Client<_, hyper::Body> =
+            Client::builder().build(timeout_connector);
+
+        Self {
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+            user_agent,
+        }
+    }
+
     fn tls_config(cfg: &ServiceConfiguration) -> rustls::ClientConfig {
         let mut tls_config = rustls::ClientConfig::new();
         tls_config.alpn_protocols = vec![b"http/1.1".to_vec()];
@@ -216,35 +245,6 @@ impl PushService for HyperPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
     type WebSocket = TungsteniteWebSocket;
-
-    fn new(
-        cfg: impl Into<ServiceConfiguration>,
-        credentials: Option<ServiceCredentials>,
-        user_agent: String,
-    ) -> Self {
-        let cfg = cfg.into();
-        let tls_config = Self::tls_config(&cfg);
-
-        let mut http = HttpConnector::new();
-        http.enforce_http(false);
-        let https = HttpsConnector::from((http, tls_config));
-
-        // as in Signal-Android
-        let mut timeout_connector = TimeoutConnector::new(https);
-        timeout_connector.set_connect_timeout(Some(Duration::from_secs(10)));
-        timeout_connector.set_read_timeout(Some(Duration::from_secs(65)));
-        timeout_connector.set_write_timeout(Some(Duration::from_secs(65)));
-
-        let client: Client<_, hyper::Body> =
-            Client::builder().build(timeout_connector);
-
-        Self {
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
-            user_agent,
-        }
-    }
 
     async fn get_json<T>(
         &mut self,

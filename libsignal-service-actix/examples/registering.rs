@@ -33,10 +33,11 @@ async fn main() -> Result<(), Error> {
     // Only used with MessageSender and MessageReceiver
     // let password = args.get_password()?;
 
+    let mut push_service =
+        AwcPushService::new(args.servers, None, USER_AGENT.into());
     let mut provision_manager: ProvisioningManager<AwcPushService> =
         ProvisioningManager::new(
-            args.servers,
-            USER_AGENT.into(),
+            &mut push_service,
             args.username,
             args.password.unwrap(),
         );
