@@ -315,7 +315,7 @@ pub enum ServiceError {
 }
 
 #[async_trait::async_trait(?Send)]
-pub trait PushService: Clone {
+pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
