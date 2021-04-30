@@ -14,9 +14,14 @@ If you're looking to contribute or want to ask a question, you're more than welc
 
 ## License
 
-Copyright 2015-2019 Open Whisper Systems
+Copyright 2015-2019 Open Whisper Systems  
+Copyright 2020-2021 Signal Messenger, LLC  
+Copyright 2019-2021 Ruben De Smet  
+Copyright 2019-2021 Michael F Bryan  
+Copyright 2019-2021 Gabriel Féron  
+Copyright 2019-2021 Whisperfish contributors  
 
-Licensed under the GPLv3: http://www.gnu.org/licenses/gpl-3.0.html
+Licensed under the AGPLv3: http://www.gnu.org/licenses/agpl-3.0.html
 
 Additional Permissions For Submission to Apple App Store: Provided that you
 are otherwise in compliance with the GPLv3 for each covered work you convey
