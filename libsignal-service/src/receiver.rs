@@ -10,6 +10,7 @@ use crate::{
 };
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
+#[derive(Clone)]
 pub struct MessageReceiver<Service> {
     service: Service,
 }

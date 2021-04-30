@@ -65,6 +65,7 @@ pub enum MacError {
     BadMac,
 }
 
+#[derive(Clone)]
 pub(crate) struct SealedSessionCipher<S, I, SP, P, R> {
     session_store: S,
     identity_key_store: I,

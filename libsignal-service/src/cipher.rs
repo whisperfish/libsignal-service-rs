@@ -25,6 +25,7 @@ use crate::{
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
+#[derive(Clone)]
 pub struct ServiceCipher<S, I, SP, P, R> {
     session_store: S,
     identity_key_store: I,

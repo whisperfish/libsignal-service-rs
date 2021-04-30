@@ -71,6 +71,7 @@ pub struct AttachmentSpec {
 }
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
+#[derive(Clone)]
 pub struct MessageSender<Service, S, I, SP, P, R> {
     service: Service,
     cipher: ServiceCipher<S, I, SP, P, R>,

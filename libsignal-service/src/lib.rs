@@ -62,6 +62,7 @@ pub mod prelude {
     pub use zkgroup::groups::{GroupMasterKey, GroupSecretParams};
 
     pub mod protocol {
+        pub use crate::session_store::SessionStoreExt;
         pub use libsignal_protocol::{
             Context, Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore,
             KeyPair, PreKeyRecord, PreKeyStore, PrivateKey, ProtocolAddress,
