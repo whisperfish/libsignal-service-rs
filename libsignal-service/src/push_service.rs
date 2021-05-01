@@ -1,7 +1,7 @@
 use std::{fmt, time::Duration};
 
 use crate::{
-    configuration::{Endpoint, ServiceConfiguration, ServiceCredentials},
+    configuration::{Endpoint, ServiceCredentials},
     envelope::*,
     groups_v2::GroupDecryptionError,
     messagepipe::WebSocketService,
@@ -318,12 +318,6 @@ pub enum ServiceError {
 pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
-
-    fn new(
-        cfg: impl Into<ServiceConfiguration>,
-        credentials: Option<ServiceCredentials>,
-        user_agent: String,
-    ) -> Self;
 
     async fn get_json<T>(
         &mut self,

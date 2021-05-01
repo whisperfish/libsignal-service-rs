@@ -42,8 +42,11 @@ async fn main() -> Result<(), Error> {
         base64::encode(&signaling_key.to_vec())
     );
 
+    let push_service =
+        AwcPushService::new(args.servers, None, USER_AGENT.into());
+
     let mut provision_manager: LinkingManager<AwcPushService> =
-        LinkingManager::new(args.servers, USER_AGENT.into(), password);
+        LinkingManager::new(push_service, password);
 
     let (tx, mut rx) = channel(1);
 

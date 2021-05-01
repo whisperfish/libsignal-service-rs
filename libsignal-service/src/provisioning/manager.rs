@@ -11,8 +11,7 @@ use super::{
 };
 
 use crate::{
-    configuration::{Endpoint, ServiceConfiguration, SignalingKey},
-    messagepipe::ServiceCredentials,
+    configuration::{Endpoint, ServiceCredentials, SignalingKey},
     push_service::{
         DeviceCapabilities, DeviceId, HttpAuthOverride, PushService,
         ServiceError,
@@ -104,11 +103,12 @@ pub enum VerificationCodeResponse {
     Issued,
 }
 
-#[derive(Clone)]
-pub struct ProvisioningManager<P: PushService> {
-    push_service: P,
+pub struct ProvisioningManager<'a, P: PushService + 'a> {
+    push_service: &'a mut P,
     phone_number: PhoneNumber,
+    password: String,
 }
+
 pub enum SecondaryDeviceProvisioning {
     Url(Url),
     NewDeviceRegistration {
@@ -122,26 +122,16 @@ pub enum SecondaryDeviceProvisioning {
     },
 }
 
-impl<P: PushService> ProvisioningManager<P> {
+impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
     pub fn new(
-        cfg: impl Into<ServiceConfiguration>,
-        user_agent: String,
+        push_service: &'a mut P,
         phone_number: PhoneNumber,
         password: String,
     ) -> Self {
         Self {
-            phone_number: phone_number.clone(),
-            push_service: P::new(
-                cfg,
-                Some(ServiceCredentials {
-                    phonenumber: phone_number,
-                    password: Some(password),
-                    uuid: None,
-                    signaling_key: None,
-                    device_id: None,
-                }),
-                user_agent,
-            ),
+            push_service,
+            phone_number,
+            password,
         }
     }
 
@@ -158,7 +148,7 @@ impl<P: PushService> ProvisioningManager<P> {
                     "sms", captcha, challenge,
                 )
                 .as_ref(),
-                HttpAuthOverride::NoOverride,
+                self.auth_override(),
             )
             .await
         {
@@ -187,7 +177,7 @@ impl<P: PushService> ProvisioningManager<P> {
                     "voice", captcha, challenge,
                 )
                 .as_ref(),
-                HttpAuthOverride::NoOverride,
+                self.auth_override(),
             )
             .await
         {
@@ -212,7 +202,7 @@ impl<P: PushService> ProvisioningManager<P> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/accounts/code/{}", confirm_code),
-                HttpAuthOverride::NoOverride,
+                self.auth_override(),
                 confirm_verification_message,
             )
             .await
@@ -227,7 +217,7 @@ impl<P: PushService> ProvisioningManager<P> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/devices/{}", confirm_code),
-                HttpAuthOverride::NoOverride,
+                self.auth_override(),
                 confirm_code_message,
             )
             .await
@@ -255,27 +245,35 @@ impl<P: PushService> ProvisioningManager<P> {
             format!("/v1/accounts/{}/code/{}", msg_type, phone_number)
         }
     }
+
+    fn auth_override(&self) -> HttpAuthOverride {
+        let credentials = ServiceCredentials {
+            uuid: None,
+            phonenumber: self.phone_number.clone(),
+            password: Some(self.password.clone()),
+            signaling_key: None,
+            device_id: None,
+        };
+        if let Some(auth) = credentials.authorization() {
+            HttpAuthOverride::Identified(auth)
+        } else {
+            HttpAuthOverride::NoOverride
+        }
+    }
 }
 
 #[derive(Clone)]
 pub struct LinkingManager<P: PushService> {
-    cfg: ServiceConfiguration,
-    user_agent: String,
-    password: String,
     push_service: P,
+    // forwarded to the `ProvisioningManager`
+    password: String,
 }
 
 impl<P: PushService> LinkingManager<P> {
-    pub fn new(
-        cfg: impl Into<ServiceConfiguration> + Clone,
-        user_agent: String,
-        password: String,
-    ) -> Self {
+    pub fn new(push_service: P, password: String) -> Self {
         Self {
-            cfg: cfg.clone().into(),
-            user_agent: user_agent.clone(),
+            push_service,
             password,
-            push_service: P::new(cfg, None, user_agent),
         }
     }
 
@@ -354,13 +352,11 @@ impl<P: PushService> LinkingManager<P> {
                         }
                     })?;
 
-                    let mut provisioning_manager: ProvisioningManager<P> =
-                        ProvisioningManager::new(
-                            self.cfg.clone(),
-                            self.user_agent.clone(),
-                            phone_number.clone(),
-                            self.password.to_string(),
-                        );
+                    let mut provisioning_manager = ProvisioningManager::new(
+                        &mut self.push_service,
+                        phone_number.clone(),
+                        self.password.clone(),
+                    );
 
                     let device_id = provisioning_manager
                         .confirm_device(
