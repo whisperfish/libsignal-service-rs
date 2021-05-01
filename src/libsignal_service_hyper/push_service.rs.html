@@ -512,6 +512,35 @@
 }
 
 <span class="kw">impl</span> <span class="ident">HyperPushService</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
+        <span class="ident">cfg</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">ServiceConfiguration</span><span class="op">&gt;</span>,
+        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ServiceCredentials</span><span class="op">&gt;</span>,
+        <span class="ident">user_agent</span>: <span class="ident">String</span>,
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="kw">let</span> <span class="ident">cfg</span> <span class="op">=</span> <span class="ident">cfg</span>.<span class="ident">into</span>();
+        <span class="kw">let</span> <span class="ident">tls_config</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">tls_config</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>);
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">http</span> <span class="op">=</span> <span class="ident">HttpConnector</span>::<span class="ident">new</span>();
+        <span class="ident">http</span>.<span class="ident">enforce_http</span>(<span class="bool-val">false</span>);
+        <span class="kw">let</span> <span class="ident">https</span> <span class="op">=</span> <span class="ident">HttpsConnector</span>::<span class="ident">from</span>((<span class="ident">http</span>, <span class="ident">tls_config</span>));
+
+        <span class="comment">// as in Signal-Android</span>
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">timeout_connector</span> <span class="op">=</span> <span class="ident">TimeoutConnector</span>::<span class="ident">new</span>(<span class="ident">https</span>);
+        <span class="ident">timeout_connector</span>.<span class="ident">set_connect_timeout</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">10</span>)));
+        <span class="ident">timeout_connector</span>.<span class="ident">set_read_timeout</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">65</span>)));
+        <span class="ident">timeout_connector</span>.<span class="ident">set_write_timeout</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">65</span>)));
+
+        <span class="kw">let</span> <span class="ident">client</span>: <span class="ident">Client</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">hyper</span>::<span class="ident">Body</span><span class="op">&gt;</span> <span class="op">=</span>
+            <span class="ident">Client</span>::<span class="ident">builder</span>().<span class="ident">build</span>(<span class="ident">timeout_connector</span>);
+
+        <span class="self">Self</span> {
+            <span class="ident">cfg</span>,
+            <span class="ident">credentials</span>: <span class="ident">credentials</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">authorization</span>()),
+            <span class="ident">client</span>,
+            <span class="ident">user_agent</span>,
+        }
+    }
+
     <span class="kw">fn</span> <span class="ident">tls_config</span>(<span class="ident">cfg</span>: <span class="kw-2">&amp;</span><span class="ident">ServiceConfiguration</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">rustls</span>::<span class="ident">ClientConfig</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">tls_config</span> <span class="op">=</span> <span class="ident">rustls</span>::<span class="ident">ClientConfig</span>::<span class="ident">new</span>();
         <span class="ident">tls_config</span>.<span class="ident">alpn_protocols</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="string">b&quot;http/1.1&quot;</span>.<span class="ident">to_vec</span>()];
@@ -694,35 +723,6 @@
     <span class="comment">// This is in principle known at compile time, but long to write out.</span>
     <span class="kw">type</span> <span class="ident">ByteStream</span> <span class="op">=</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">futures</span>::<span class="ident">io</span>::<span class="ident">AsyncRead</span> <span class="op">+</span> <span class="ident">Unpin</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">WebSocket</span> <span class="op">=</span> <span class="ident">TungsteniteWebSocket</span>;
-
-    <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">cfg</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">ServiceConfiguration</span><span class="op">&gt;</span>,
-        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ServiceCredentials</span><span class="op">&gt;</span>,
-        <span class="ident">user_agent</span>: <span class="ident">String</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">cfg</span> <span class="op">=</span> <span class="ident">cfg</span>.<span class="ident">into</span>();
-        <span class="kw">let</span> <span class="ident">tls_config</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">tls_config</span>(<span class="kw-2">&amp;</span><span class="ident">cfg</span>);
-
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">http</span> <span class="op">=</span> <span class="ident">HttpConnector</span>::<span class="ident">new</span>();
-        <span class="ident">http</span>.<span class="ident">enforce_http</span>(<span class="bool-val">false</span>);
-        <span class="kw">let</span> <span class="ident">https</span> <span class="op">=</span> <span class="ident">HttpsConnector</span>::<span class="ident">from</span>((<span class="ident">http</span>, <span class="ident">tls_config</span>));
-
-        <span class="comment">// as in Signal-Android</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">timeout_connector</span> <span class="op">=</span> <span class="ident">TimeoutConnector</span>::<span class="ident">new</span>(<span class="ident">https</span>);
-        <span class="ident">timeout_connector</span>.<span class="ident">set_connect_timeout</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">10</span>)));
-        <span class="ident">timeout_connector</span>.<span class="ident">set_read_timeout</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">65</span>)));
-        <span class="ident">timeout_connector</span>.<span class="ident">set_write_timeout</span>(<span class="prelude-val">Some</span>(<span class="ident">Duration</span>::<span class="ident">from_secs</span>(<span class="number">65</span>)));
-
-        <span class="kw">let</span> <span class="ident">client</span>: <span class="ident">Client</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">hyper</span>::<span class="ident">Body</span><span class="op">&gt;</span> <span class="op">=</span>
-            <span class="ident">Client</span>::<span class="ident">builder</span>().<span class="ident">build</span>(<span class="ident">timeout_connector</span>);
-
-        <span class="self">Self</span> {
-            <span class="ident">cfg</span>,
-            <span class="ident">credentials</span>: <span class="ident">credentials</span>.<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">c</span>.<span class="ident">authorization</span>()),
-            <span class="ident">client</span>,
-            <span class="ident">user_agent</span>,
-        }
-    }
 
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">get_json</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
