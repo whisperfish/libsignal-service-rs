@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Attachment represents an attachment received from a peer
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Attachment<R> {
     pub content_type: String,
     pub reader: R,
@@ -19,12 +19,14 @@ pub struct Contact {
     pub address: ServiceAddress,
     pub name: String,
     pub color: Option<String>,
+    #[serde(skip)]
     pub verified: Verified,
     pub profile_key: Vec<u8>,
     pub blocked: bool,
     pub expire_timer: u32,
     pub inbox_position: u32,
     pub archived: bool,
+    #[serde(skip)]
     pub avatar: Option<Attachment<Bytes>>,
 }
 

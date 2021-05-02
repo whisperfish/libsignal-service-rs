@@ -1,4 +1,5 @@
 use phonenumber::*;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{push_service::ServiceError, session_store::SessionStoreExt};
@@ -15,7 +16,7 @@ pub enum ParseServiceAddressError {
     NoSenderError,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ServiceAddress {
     pub uuid: Option<Uuid>,
     pub phonenumber: Option<PhoneNumber>,
