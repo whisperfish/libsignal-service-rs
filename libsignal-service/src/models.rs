@@ -1,6 +1,7 @@
 use crate::{proto::Verified, ParseServiceAddressError, ServiceAddress};
 
 use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Attachment represents an attachment received from a peer
@@ -13,7 +14,7 @@ pub struct Attachment<R> {
 /// Mirror of the protobuf ContactDetails message
 /// but with stronger types (e.g. `ServiceAddress` instead of optional uuid and string phone numbers)
 /// and some helper functions
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Contact {
     pub address: ServiceAddress,
     pub name: String,
