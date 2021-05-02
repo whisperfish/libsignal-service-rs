@@ -1,4 +1,4 @@
-use std::{fmt, time::Duration};
+use std::{convert::TryInto, fmt, ops::Deref, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -110,6 +110,7 @@ pub struct DeviceCapabilities {
     pub gv1_migration: bool,
 }
 
+#[derive(Clone)]
 pub struct ProfileKey(pub [u8; 32]);
 
 #[derive(Debug, Deserialize, Default)]
@@ -144,6 +145,42 @@ impl ProfileKey {
         let nonce = GenericArray::from_slice(&[0u8; 12]);
         let buf = [0u8; 16];
         cipher.encrypt(nonce, &buf[..]).unwrap()
+    }
+}
+
+impl Deref for ProfileKey {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Serialize for ProfileKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&base64::encode(self.0))
+    }
+}
+
+impl<'de> Deserialize<'de> for ProfileKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(ProfileKey(
+            base64::decode(String::deserialize(deserializer)?)
+                .map_err(serde::de::Error::custom)?
+                .try_into()
+                .map_err(|buf: Vec<u8>| {
+                    serde::de::Error::invalid_length(
+                        buf.len(),
+                        &"invalid profile key length",
+                    )
+                })?,
+        ))
     }
 }
 
