@@ -102,7 +102,7 @@ impl Envelope {
             // but that should not matter.
             // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
             use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
-            let cipher = Cbc::<Aes256, Pkcs7>::new_var(&aes_key, iv)
+            let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(&aes_key, iv)
                 .expect("initalization of CBC/AES/PKCS7");
             let input = &input[CIPHERTEXT_OFFSET..(input.len() - MAC_SIZE)];
             let input = cipher.decrypt_vec(input).expect("decryption");

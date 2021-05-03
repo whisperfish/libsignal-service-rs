@@ -107,7 +107,7 @@ impl ProvisioningCipher {
         let mac_key = &shared_secrets[32..];
         let iv: [u8; IV_LENGTH] = rng.gen();
 
-        let cipher = Cbc::<Aes256, Pkcs7>::new_var(&aes_key, &iv)
+        let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(&aes_key, &iv)
             .expect("initalization of CBC/AES/PKCS7");
         let ciphertext = cipher.encrypt_vec(&msg);
         let mut mac = Hmac::<Sha256>::new_varkey(&mac_key)
@@ -184,7 +184,7 @@ impl ProvisioningCipher {
         // libsignal-service-java uses Pkcs5,
         // but that should not matter.
         // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-        let cipher = Cbc::<Aes256, Pkcs7>::new_var(&parts1, &iv)
+        let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(&parts1, &iv)
             .expect("initalization of CBC/AES/PKCS7");
         let input = cipher.decrypt_vec(cipher_text).map_err(|e| {
             ProvisioningError::InvalidData {

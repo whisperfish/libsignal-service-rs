@@ -1,9 +1,10 @@
 use std::convert::TryFrom;
 
-use aes_ctr::{
-    cipher::stream::{NewStreamCipher, StreamCipher},
+use aes::{
+    cipher::{NewCipher, StreamCipher},
     Aes256Ctr,
 };
+
 use hmac::{Hmac, Mac, NewMac};
 use libsignal_protocol::{
     error::SignalProtocolError, message_decrypt_prekey, message_decrypt_signal,
@@ -414,7 +415,7 @@ where
         let mut cipher = Aes256Ctr::new(cipher_key.into(), &[0u8; 16].into());
 
         let mut ciphertext = plaintext.to_vec();
-        cipher.encrypt(&mut ciphertext);
+        cipher.apply_keystream(&mut ciphertext);
 
         let mut mac = Hmac::<Sha256>::new_varkey(&mac_key)
             .map_err(|_| MacError::InvalidKeyLength)?;
@@ -452,7 +453,7 @@ where
 
         let mut decrypted = ciphertext_part1.to_vec();
         let mut cipher = Aes256Ctr::new(cipher_key.into(), &[0u8; 16].into());
-        cipher.decrypt(&mut decrypted);
+        cipher.apply_keystream(&mut decrypted);
 
         Ok(decrypted)
     }
