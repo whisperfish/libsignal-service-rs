@@ -76,14 +76,18 @@
 <span id="73">73</span>
 <span id="74">74</span>
 <span id="75">75</span>
+<span id="76">76</span>
+<span id="77">77</span>
+<span id="78">78</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">proto</span>::<span class="ident">Verified</span>, <span class="ident">ParseServiceAddressError</span>, <span class="ident">ServiceAddress</span>};
 
 <span class="kw">use</span> <span class="ident">bytes</span>::<span class="ident">Bytes</span>;
+<span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 <span class="kw">use</span> <span class="ident">thiserror</span>::<span class="ident">Error</span>;
 
 <span class="doccomment">/// Attachment represents an attachment received from a peer</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Attachment</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="ident">content_type</span>: <span class="ident">String</span>,
     <span class="kw">pub</span> <span class="ident">reader</span>: <span class="ident">R</span>,
@@ -92,17 +96,19 @@
 <span class="doccomment">/// Mirror of the protobuf ContactDetails message</span>
 <span class="doccomment">/// but with stronger types (e.g. `ServiceAddress` instead of optional uuid and string phone numbers)</span>
 <span class="doccomment">/// and some helper functions</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Contact</span> {
     <span class="kw">pub</span> <span class="ident">address</span>: <span class="ident">ServiceAddress</span>,
     <span class="kw">pub</span> <span class="ident">name</span>: <span class="ident">String</span>,
     <span class="kw">pub</span> <span class="ident">color</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">skip</span>)]</span>
     <span class="kw">pub</span> <span class="ident">verified</span>: <span class="ident">Verified</span>,
     <span class="kw">pub</span> <span class="ident">profile_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">blocked</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">expire_timer</span>: <span class="ident">u32</span>,
     <span class="kw">pub</span> <span class="ident">inbox_position</span>: <span class="ident">u32</span>,
     <span class="kw">pub</span> <span class="ident">archived</span>: <span class="ident">bool</span>,
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">skip</span>)]</span>
     <span class="kw">pub</span> <span class="ident">avatar</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Attachment</span><span class="op">&lt;</span><span class="ident">Bytes</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
