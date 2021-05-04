@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["AuthCredential",""],["BlindedProfileKeyCredential",""],["BlindedProfileKeyCredentialWithSecretNonce",""],["KeyPair",""],["ProfileKeyCredential",""],["PublicKey",""],["SystemParams",""]]});

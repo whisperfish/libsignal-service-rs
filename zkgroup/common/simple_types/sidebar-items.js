@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["encode_redemption_time",""]],"type":[["AesKeyBytes",""],["GroupIdentifierBytes",""],["GroupMasterKeyBytes",""],["NotarySignatureBytes",""],["ProfileKeyBytes",""],["ProfileKeyVersionBytes",""],["ProfileKeyVersionEncodedBytes",""],["RandomnessBytes",""],["RedemptionTime",""],["ReservedBytes",""],["SignatureBytes",""],["UidBytes",""]]});
