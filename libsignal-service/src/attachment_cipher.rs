@@ -30,7 +30,7 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
     // Pad with zeroes for padding
     plaintext.extend(&[0u8; 16]);
 
-    let cipher = Cbc::<Aes256, Pkcs7>::new_var(aes_half, &iv)
+    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_half, &iv)
         .expect("fixed length key material");
 
     let buffer = plaintext;
@@ -71,7 +71,7 @@ pub fn decrypt_in_place(
 
     let (iv, buffer) = buffer.split_at_mut(16);
 
-    let cipher = Cbc::<Aes256, Pkcs7>::new_var(aes_half, &iv)
+    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_half, &iv)
         .expect("fixed length key material");
 
     let plaintext_slice = cipher
