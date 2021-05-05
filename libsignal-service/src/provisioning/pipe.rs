@@ -1,6 +1,7 @@
 use bytes::{Bytes, BytesMut};
 use futures::{
     channel::mpsc::{self, Sender},
+    future::Either,
     prelude::*,
     stream::FuturesUnordered,
 };
@@ -93,25 +94,22 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
         background_work.push(futures::future::pending().boxed_local());
 
         loop {
-            futures::select! {
+            match future::select(self.stream.next(), background_work.next())
+                .await
+            {
                 // WebsocketConnection::onMessage(ByteString)
-                frame = self.stream.next() => match frame {
+                Either::Left((frame, _)) => match frame {
                     Some(WebSocketStreamItem::Message(frame)) => {
                         let env = self.process_frame(frame).await.transpose();
                         if let Some(env) = env {
                             sink.send(env).await?;
                         }
-                    },
+                    }
                     // TODO: implement keep-alive?
                     Some(WebSocketStreamItem::KeepAliveRequest) => continue,
                     None => break,
                 },
-                _ = background_work.next() => {
-                    // no op
-                },
-                complete => {
-                    log::info!("select! complete");
-                }
+                Either::Right((_background_work, _)) => (),
             }
         }
 

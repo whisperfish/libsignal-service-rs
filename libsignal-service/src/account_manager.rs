@@ -398,7 +398,7 @@ impl<Service: PushService> AccountManager<Service> {
 
     /// Set profile attributes
     ///
-    /// Signal Android does not allow unsetting voice/video.
+    /// Signal Android does not allow un-setting voice/video.
     #[allow(clippy::too_many_arguments)]
     pub async fn set_account_attributes(
         &mut self,

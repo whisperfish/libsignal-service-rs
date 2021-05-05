@@ -5,7 +5,7 @@ use async_tungstenite::{
     tungstenite::{Error as TungsteniteError, Message},
 };
 use bytes::Bytes;
-use futures::{channel::mpsc::*, prelude::*};
+use futures::{channel::mpsc::*, future::Either, pin_mut, prelude::*};
 use hyper::StatusCode;
 use tokio::time::Instant;
 use tokio_rustls::rustls;
@@ -74,30 +74,33 @@ impl From<TungsteniteWebSocketError> for ServiceError {
 
 // Process the WebSocket, until it times out.
 async fn process<S: Stream>(
-    socket_stream: S,
+    mut socket_stream: S,
     mut incoming_sink: Sender<WebSocketStreamItem>,
 ) -> Result<(), TungsteniteWebSocketError>
 where
     S: Unpin,
     S: Stream<Item = Result<Message, TungsteniteError>>,
 {
-    let mut socket_stream = socket_stream.fuse();
-
     let mut ka_interval = tokio::time::interval_at(
         Instant::now(),
         push_service::KEEPALIVE_TIMEOUT_SECONDS,
     );
 
     loop {
-        tokio::select! {
-            _ = ka_interval.tick() => {
+        let tick = ka_interval.tick();
+        pin_mut!(tick);
+        match future::select(tick, socket_stream.next()).await {
+            Either::Left((_tick, _)) => {
                 log::trace!("Triggering keep-alive");
-                if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
+                if let Err(e) = incoming_sink
+                    .send(WebSocketStreamItem::KeepAliveRequest)
+                    .await
+                {
                     log::info!("Websocket sink has closed: {:?}.", e);
                     break;
                 };
-            },
-            frame = socket_stream.next() => {
+            }
+            Either::Right((frame, _)) => {
                 let frame = if let Some(frame) = frame {
                     frame
                 } else {
@@ -111,32 +114,35 @@ where
                         log::warn!("Received Ping({:?})", msg);
 
                         continue;
-                    },
+                    }
                     Message::Pong(msg) => {
                         log::trace!("Received Pong({:?})", msg);
 
                         continue;
-                    },
+                    }
                     Message::Text(frame) => {
                         log::warn!("Message::Text {:?}", frame);
 
                         // this is a protocol violation, maybe break; is better?
                         continue;
-                    },
+                    }
 
                     Message::Close(c) => {
                         log::warn!("Websocket closing: {:?}", c);
 
                         break;
-                    },
+                    }
                 };
 
                 // Match SendError
-                if let Err(e) = incoming_sink.send(WebSocketStreamItem::Message(Bytes::from(frame))).await {
+                if let Err(e) = incoming_sink
+                    .send(WebSocketStreamItem::Message(Bytes::from(frame)))
+                    .await
+                {
                     log::info!("Websocket sink has closed: {:?}.", e);
                     break;
                 }
-            },
+            }
         }
     }
     Ok(())

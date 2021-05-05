@@ -6,6 +6,7 @@ use futures::{
         mpsc::{self, Sender},
         oneshot,
     },
+    future::Either,
     prelude::*,
     stream::{FusedStream, FuturesUnordered},
 };
@@ -129,43 +130,44 @@ impl<WS: WebSocketService> MessagePipe<WS> {
         let mut background_work = FuturesUnordered::<LocalBoxFuture<()>>::new();
         // a pending task is added, as to never end the background worker until
         // it's dropped.
-        background_work.push(futures::future::pending().boxed_local());
+        background_work.push(future::pending().boxed_local());
 
         loop {
-            futures::select! {
-                // WebsocketConnection::onMessage(ByteString)
-                frame = self.stream.next() => match frame {
+            match future::select(self.stream.next(), background_work.next())
+                .await
+            {
+                Either::Left((frame, _)) => match frame {
                     Some(WebSocketStreamItem::Message(frame)) => {
                         let env = self.process_frame(frame).await.transpose();
                         if let Some(env) = env {
                             sink.send(env).await?;
                         }
-                    },
+                    }
                     Some(WebSocketStreamItem::KeepAliveRequest) => {
                         let request = self.send_keep_alive().await;
                         match request {
                             Ok(request) => {
                                 let request = request.map(|response| {
                                     if let Err(e) = response {
-                                        log::warn!("Error from keep alive: {:?}", e);
+                                        log::warn!(
+                                            "Error from keep alive: {:?}",
+                                            e
+                                        );
                                     }
                                 });
                                 background_work.push(request.boxed_local());
-                            },
-                            Err(e) => log::warn!("Could not send keep alive: {}", e),
+                            }
+                            Err(e) => {
+                                log::warn!("Could not send keep alive: {}", e)
+                            }
                         }
-                    },
+                    }
                     None => {
                         log::debug!("WebSocket stream ended.");
                         break;
-                    },
+                    }
                 },
-                _ = background_work.next() => {
-                    // no op
-                },
-                complete => {
-                    log::info!("select! complete");
-                }
+                Either::Right((_background_work, _)) => {}
             }
         }
 
