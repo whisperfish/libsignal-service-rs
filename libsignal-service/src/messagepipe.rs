@@ -3,14 +3,18 @@ use std::collections::HashMap;
 use bytes::{Bytes, BytesMut};
 use futures::{
     channel::{
-        mpsc::{self, Sender},
+        mpsc::{self, Receiver, Sender},
         oneshot,
     },
     prelude::*,
     stream::{FusedStream, FuturesUnordered},
 };
+use libsignal_protocol::{
+    IdentityKeyStore, PreKeyStore, SessionStore, SignedPreKeyStore,
+};
 use pin_project::pin_project;
 use prost::Message;
+use rand::{CryptoRng, Rng};
 
 pub use crate::{
     configuration::ServiceCredentials,
@@ -20,7 +24,18 @@ pub use crate::{
     },
 };
 
-use crate::push_service::ServiceError;
+use crate::{
+    content::ContentBody,
+    prelude::MessageSender,
+    push_service::{PushService, ServiceError},
+    sealed_session_cipher::UnidentifiedAccess,
+    sender::{
+        create_multi_device_sent_transcript_content, MessageToSend,
+        OutgoingPushMessages, SendMessageResponse,
+    },
+    session_store::SessionStoreExt,
+    ServiceAddress,
+};
 
 pub enum WebSocketStreamItem {
     Message(Bytes),
@@ -35,25 +50,37 @@ pub trait WebSocketService {
 }
 
 #[pin_project]
-pub struct MessagePipe<WS: WebSocketService> {
+pub struct MessagePipe<WS: WebSocketService, Service, S, I, SP, P, R> {
     ws: WS,
     #[pin]
     stream: WS::Stream,
     credentials: ServiceCredentials,
     requests: HashMap<u64, oneshot::Sender<WebSocketResponseMessage>>,
+    message_sender: MessageSender<Service, S, I, SP, P, R>,
 }
 
-impl<WS: WebSocketService> MessagePipe<WS> {
+impl<WS: WebSocketService, Service, S, I, SP, P, R>
+    MessagePipe<WS, Service, S, I, SP, P, R>
+where
+    Service: PushService + Clone,
+    S: SessionStore + SessionStoreExt + Clone,
+    I: IdentityKeyStore + Clone,
+    SP: SignedPreKeyStore + Clone,
+    P: PreKeyStore + Clone,
+    R: Rng + CryptoRng + Clone,
+{
     pub fn from_socket(
         ws: WS,
         stream: WS::Stream,
         credentials: ServiceCredentials,
+        message_sender: MessageSender<Service, S, I, SP, P, R>,
     ) -> Self {
         MessagePipe {
             ws,
             stream,
             credentials,
             requests: HashMap::new(),
+            message_sender,
         }
     }
 
@@ -119,9 +146,11 @@ impl<WS: WebSocketService> MessagePipe<WS> {
     }
 
     /// Worker task that
-    async fn run(
+    async fn run<'a>(
         mut self,
-        mut sink: Sender<Result<Envelope, ServiceError>>,
+        mut outgoing_sender: Sender<Result<Envelope, ServiceError>>,
+        incoming_sender: Sender<MessageToSend>,
+        mut incoming_receiver: Receiver<MessageToSend>,
     ) -> Result<(), mpsc::SendError> {
         use futures::future::LocalBoxFuture;
 
@@ -133,12 +162,13 @@ impl<WS: WebSocketService> MessagePipe<WS> {
 
         loop {
             futures::select! {
+                // When we receive a new message from Signal's servers
                 // WebsocketConnection::onMessage(ByteString)
                 frame = self.stream.next() => match frame {
                     Some(WebSocketStreamItem::Message(frame)) => {
                         let env = self.process_frame(frame).await.transpose();
                         if let Some(env) = env {
-                            sink.send(env).await?;
+                            outgoing_sender.send(env).await?;
                         }
                     },
                     Some(WebSocketStreamItem::KeepAliveRequest) => {
@@ -160,6 +190,40 @@ impl<WS: WebSocketService> MessagePipe<WS> {
                         break;
                     },
                 },
+                // When we have a message to send (from either the outside, or re-injected)
+                message_to_send = incoming_receiver.next() => {
+                    let mut inner_outgoing_sender = outgoing_sender.clone();
+                    let mut inner_incoming_sender = incoming_sender.clone();
+                    let local_address = self.message_sender.local_address.clone();
+                    if let Some(MessageToSend { recipient, unidentified_access, content_body, timestamp, online }) = message_to_send {
+                        // this is mirrored logic from MessageSender::send_message
+                        match self.send_message(&recipient, unidentified_access.as_ref(), &content_body, timestamp, online).await {
+                            Ok(response_fut) => {
+                                // we want to wait for the response in the background to avoid blocking the message loop
+                                background_work.push(async move {
+                                    match Self::process_send_response(recipient, content_body, timestamp, response_fut).await {
+                                        Ok(Some(content_body)) => {
+                                            // we re-inject the new sync message in the pipe!
+                                            inner_incoming_sender.send(MessageToSend {
+                                                recipient: local_address,
+                                                unidentified_access: None,
+                                                content_body,
+                                                timestamp,
+                                                online: false,
+                                            }).await.expect("working incoming sender");
+                                        }
+                                        Err(e) => { inner_outgoing_sender.send(Err(e)).await.expect("working outgoing sender"); }
+                                        _ => (),
+                                    };
+                                }.boxed_local());
+                            }
+                            Err(e) => {
+                                outgoing_sender.send(Err(e)).await?;
+                            }
+                        }
+                }
+
+                }
                 _ = background_work.next() => {
                     // no op
                 },
@@ -170,6 +234,146 @@ impl<WS: WebSocketService> MessagePipe<WS> {
         }
 
         Ok(())
+    }
+
+    async fn send_message(
+        &mut self,
+        recipient: &ServiceAddress,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        content_body: &ContentBody,
+        timestamp: u64,
+        online: bool,
+    ) -> Result<
+        impl Future<Output = Result<WebSocketResponseMessage, ServiceError>>,
+        ServiceError,
+    > {
+        use crate::proto::data_message::Flags;
+
+        // TODO: check what we should do here
+        // this should be possible when we factor the common parts between `MessageSender` and `MessagePipe`
+        // (mostly the session handling part)
+        let _end_session = match &content_body {
+            ContentBody::DataMessage(message) => {
+                message.flags == Some(Flags::EndSession as u32)
+            }
+            _ => false,
+        };
+
+        let content = content_body.clone().into_proto();
+        let mut content_bytes = Vec::with_capacity(content.encoded_len());
+        content
+            .encode(&mut content_bytes)
+            .expect("infallible message encoding");
+
+        // here we need to transform our MessageToSend to a OutgoingPushMessages
+        let messages = self
+            .message_sender
+            .create_encrypted_messages(
+                &recipient,
+                unidentified_access,
+                &content_bytes,
+            )
+            .await
+            .unwrap();
+
+        let destination = recipient.identifier();
+        let messages = OutgoingPushMessages {
+            destination,
+            timestamp,
+            messages,
+            online,
+        };
+
+        let message_request = WebSocketRequestMessage {
+            id: Some(timestamp),
+            path: Some(format!("/v1/messages/{}", messages.destination)),
+            verb: Some("PUT".into()),
+            body: Some(serde_json::to_vec(&messages).unwrap()),
+            headers: vec!["content-type:application/json".to_string()],
+        };
+
+        self.send_request(message_request).await
+    }
+
+    async fn process_send_response(
+        recipient: ServiceAddress,
+        content_body: ContentBody,
+        timestamp: u64,
+        response_fut: impl Future<
+            Output = Result<WebSocketResponseMessage, ServiceError>,
+        >,
+    ) -> Result<Option<ContentBody>, ServiceError> {
+        match response_fut.await {
+            Ok(WebSocketResponseMessage {
+                status: Some(status),
+                body: Some(body),
+                ..
+            }) if status == 200 => {
+                match (content_body, serde_json::from_slice(&body)) {
+                    (
+                        ContentBody::DataMessage(message),
+                        Ok(SendMessageResponse { needs_sync, .. }),
+                    ) if needs_sync => {
+                        // TODO: also implement the selection logic for the recipient of the sync message
+                        // following sending a group message
+                        // see: https://github.com/whisperfish/libsignal-service-rs/issues/75
+                        // and sender.rs:418
+                        log::debug!("sending multi-device sync message");
+                        let sync_message =
+                            create_multi_device_sent_transcript_content(
+                                Some(&recipient),
+                                Some(message),
+                                timestamp,
+                            );
+                        Ok(Some(sync_message))
+                    }
+                    (_, Err(e)) => {
+                        log::error!(
+                            "Failed to decode HTTP 200 response: {}",
+                            e
+                        );
+                        Err(ServiceError::UnhandledResponseCode {
+                            http_code: 200,
+                        })
+                    }
+                    (content_body, response) => {
+                        eprintln!("{:?}, {:?}", content_body, response);
+                        Ok(None)
+                    }
+                }
+            }
+
+            Ok(WebSocketResponseMessage {
+                status: Some(status),
+                body: Some(body),
+                ..
+            }) if status == 409 => match serde_json::from_slice(&body) {
+                Ok(mismatched_devices) => {
+                    Err(ServiceError::MismatchedDevicesException(
+                        mismatched_devices,
+                    ))
+                }
+                Err(e) => {
+                    log::error!("Failed to decode HTTP 409 response: {}", e);
+                    Err(ServiceError::UnhandledResponseCode { http_code: 409 })
+                }
+            },
+            Ok(WebSocketResponseMessage {
+                status: Some(status),
+                body,
+                ..
+            }) => {
+                // unhandled HTTP status
+                log::trace!("Unhandled response with body: {:?}", body);
+                Err(ServiceError::UnhandledResponseCode {
+                    http_code: status as u16,
+                })
+            }
+            Ok(_) => Err(ServiceError::WsError {
+                reason: "malformed websocket response".into(),
+            }),
+            Err(e) => Err(e),
+        }
     }
 
     async fn send_keep_alive(
@@ -279,17 +483,25 @@ impl<WS: WebSocketService> MessagePipe<WS> {
     /// Returns the stream of `Envelope`s
     ///
     /// Envelopes yielded are acknowledged.
-    pub fn stream(self) -> impl Stream<Item = Result<Envelope, ServiceError>> {
+    pub fn split(
+        self,
+    ) -> (
+        impl Sink<MessageToSend>,
+        impl Stream<Item = Result<Envelope, ServiceError>>,
+    ) {
         let (sink, stream) = mpsc::channel(1);
+        let (message_sender, message_receiver) = mpsc::channel(1);
 
         let stream = stream.map(Some);
-        let runner = self.run(sink).map(|e| {
-            log::info!("Sink was closed. Reason: {:?}", e);
-            None
-        });
+        let runner = self
+            .run(sink, message_sender.clone(), message_receiver)
+            .map(|e| {
+                log::info!("Sink was closed. Reason: {:?}", e);
+                None
+            });
 
         let combined = futures::stream::select(stream, runner.into_stream());
-        combined.filter_map(|x| async { x })
+        (message_sender, combined.filter_map(|x| async { x }))
     }
 }
 

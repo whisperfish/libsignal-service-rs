@@ -513,9 +513,9 @@ pub trait PushService {
         }
     }
 
-    async fn send_messages<'a>(
+    async fn send_messages(
         &mut self,
-        messages: OutgoingPushMessages<'a>,
+        messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
         self.put_json(

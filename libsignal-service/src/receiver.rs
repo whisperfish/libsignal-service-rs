@@ -2,9 +2,7 @@ use bytes::{Buf, Bytes};
 
 use crate::{
     attachment_cipher::decrypt_in_place,
-    configuration::ServiceCredentials,
     envelope::Envelope,
-    messagepipe::MessagePipe,
     models::{Contact, ParseContactError},
     push_service::*,
 };
@@ -50,16 +48,16 @@ impl<Service: PushService> MessageReceiver<Service> {
         Ok(entities)
     }
 
-    pub async fn create_message_pipe(
-        &mut self,
-        credentials: ServiceCredentials,
-    ) -> Result<MessagePipe<Service::WebSocket>, MessageReceiverError> {
-        let (ws, stream) = self
-            .service
-            .ws("/v1/websocket/", Some(credentials.clone()))
-            .await?;
-        Ok(MessagePipe::from_socket(ws, stream, credentials))
-    }
+    // pub async fn create_message_pipe(
+    //     &mut self,
+    //     credentials: ServiceCredentials,
+    // ) -> Result<MessagePipe<Service::WebSocket>, MessageReceiverError> {
+    //     let (ws, stream) = self
+    //         .service
+    //         .ws("/v1/websocket/", Some(credentials.clone()))
+    //         .await?;
+    //     Ok(MessagePipe::from_socket(ws, stream, credentials))
+    // }
 
     pub async fn retrieve_contacts(
         &mut self,
