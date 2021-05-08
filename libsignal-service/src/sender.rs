@@ -47,8 +47,10 @@ pub struct SendMessageResponse {
     pub needs_sync: bool,
 }
 
+pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
+
 #[derive(Debug, Clone)]
-pub struct SendMessageResult {
+pub struct SentMessage {
     recipient: ServiceAddress,
     unidentified: bool,
     needs_sync: bool,
@@ -314,7 +316,7 @@ where
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
-    ) -> Result<SendMessageResult, MessageSenderError> {
+    ) -> SendMessageResult {
         let content_body = message.into();
 
         use crate::proto::data_message::Flags;
@@ -339,7 +341,7 @@ where
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
-                Ok(SendMessageResult { needs_sync, .. }),
+                Ok(SentMessage { needs_sync, .. }),
             ) if *needs_sync => {
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
@@ -347,6 +349,7 @@ where
                         Some(&recipient),
                         Some(message.clone()),
                         timestamp,
+                        &[&result],
                     );
                 self.try_send_message(
                     (&self.local_address).clone(),
@@ -383,13 +386,14 @@ where
         message: crate::proto::DataMessage,
         timestamp: u64,
         online: bool,
-    ) -> Vec<Result<SendMessageResult, MessageSenderError>> {
+    ) -> Vec<SendMessageResult> {
         let content_body: ContentBody = message.clone().into();
         let mut results = vec![];
 
         let recipients = recipients.as_ref();
+        let mut needs_sync_in_results = false;
         for recipient in recipients.iter() {
-            let result = match self
+            let result = self
                 .try_send_message(
                     recipient.clone(),
                     unidentified_access,
@@ -397,42 +401,39 @@ where
                     timestamp,
                     online,
                 )
-                .await
-            {
-                Ok(SendMessageResult { needs_sync, .. }) if needs_sync => {
-                    let recipient = match content_body {
-                        ContentBody::DataMessage(
-                            crate::proto::DataMessage {
-                                ref group,
-                                ref group_v2,
-                                ..
-                            },
-                        ) if group.is_none()
-                            && group_v2.is_none()
-                            && recipients.len() == 1 =>
-                        {
-                            Some(&recipients[0])
-                        }
-                        _ => None,
-                    };
-                    let sync_message = self
-                        .create_multi_device_sent_transcript_content(
-                            recipient,
-                            Some(message.clone()),
-                            timestamp,
-                        );
+                .await;
 
-                    self.try_send_message(
-                        self.local_address.clone(),
-                        unidentified_access,
-                        &sync_message,
-                        timestamp,
-                        false,
-                    )
-                    .await
+            match result {
+                Ok(SentMessage { needs_sync, .. }) if needs_sync => {
+                    needs_sync_in_results = true;
                 }
-                result => result,
+                _ => (),
             };
+
+            results.push(result);
+        }
+
+        // we only need to send a synchronization message once
+        if needs_sync_in_results {
+            let results_ref: Vec<&SendMessageResult> = results.iter().collect();
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
+                    None,
+                    Some(message.clone()),
+                    timestamp,
+                    &results_ref,
+                );
+
+            let result = self
+                .try_send_message(
+                    self.local_address.clone(),
+                    unidentified_access,
+                    &sync_message,
+                    timestamp,
+                    false,
+                )
+                .await;
+
             results.push(result);
         }
 
@@ -447,7 +448,7 @@ where
         content_body: &ContentBody,
         timestamp: u64,
         online: bool,
-    ) -> Result<SendMessageResult, MessageSenderError> {
+    ) -> SendMessageResult {
         use prost::Message;
         let content = content_body.clone().into_proto();
         let mut content_bytes = Vec::with_capacity(content.encoded_len());
@@ -471,7 +472,7 @@ where
             match self.service.send_messages(messages).await {
                 Ok(SendMessageResponse { needs_sync }) => {
                     log::debug!("message sent!");
-                    return Ok(SendMessageResult {
+                    return Ok(SentMessage {
                         recipient,
                         unidentified: unidentified_access.is_some(),
                         needs_sync,
@@ -750,7 +751,25 @@ where
         recipient: Option<&ServiceAddress>,
         data_message: Option<crate::proto::DataMessage>,
         timestamp: u64,
+        send_message_results: &[&SendMessageResult],
     ) -> ContentBody {
+        use sync_message::sent::UnidentifiedDeliveryStatus;
+        let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
+            send_message_results
+                .iter()
+                .filter_map(|result| match result.as_ref() {
+                    Ok(SentMessage {
+                        recipient,
+                        unidentified,
+                        ..
+                    }) => Some(UnidentifiedDeliveryStatus {
+                        destination_e164: recipient.e164(),
+                        destination_uuid: recipient.uuid.map(|s| s.to_string()),
+                        unidentified: Some(*unidentified),
+                    }),
+                    _ => None,
+                })
+                .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
                 destination_uuid: recipient
@@ -759,6 +778,7 @@ where
                 destination_e164: recipient.and_then(|r| r.e164()),
                 message: data_message,
                 timestamp: Some(timestamp),
+                unidentified_status,
                 ..Default::default()
             }),
             ..Default::default()
