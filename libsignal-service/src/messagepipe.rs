@@ -146,7 +146,7 @@ where
     }
 
     /// Worker task that
-    async fn run<'a>(
+    async fn run(
         mut self,
         mut outgoing_sender: Sender<Result<Envelope, ServiceError>>,
         incoming_sender: Sender<MessageToSend>,
