@@ -1,4 +1,5 @@
 #![recursion_limit = "256"]
+#![deny(clippy::dbg_macro)]
 
 mod account_manager;
 pub mod attachment_cipher;

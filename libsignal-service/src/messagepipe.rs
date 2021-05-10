@@ -31,7 +31,7 @@ use crate::{
     sealed_session_cipher::UnidentifiedAccess,
     sender::{
         create_multi_device_sent_transcript_content, MessageToSend,
-        OutgoingPushMessages, SendMessageResponse,
+        OutgoingPushMessages, SendMessageResponse, SentMessage,
     },
     session_store::SessionStoreExt,
     ServiceAddress,
@@ -312,18 +312,19 @@ where
                 match (content_body, serde_json::from_slice(&body)) {
                     (
                         ContentBody::DataMessage(message),
-                        Ok(SendMessageResponse { needs_sync, .. }),
+                        Ok(SendMessageResponse { needs_sync }),
                     ) if needs_sync => {
-                        // TODO: also implement the selection logic for the recipient of the sync message
-                        // following sending a group message
-                        // see: https://github.com/whisperfish/libsignal-service-rs/issues/75
-                        // and sender.rs:418
                         log::debug!("sending multi-device sync message");
                         let sync_message =
                             create_multi_device_sent_transcript_content(
-                                Some(&recipient),
+                                Some(&recipient.clone()),
                                 Some(message),
                                 timestamp,
+                                &[Ok(SentMessage {
+                                    recipient,
+                                    unidentified: false, // TODO: this needs to be properly set
+                                    needs_sync,
+                                })],
                             );
                         Ok(Some(sync_message))
                     }
