@@ -30,8 +30,8 @@ use crate::{
     push_service::{PushService, ServiceError},
     sealed_session_cipher::UnidentifiedAccess,
     sender::{
-        create_multi_device_sent_transcript_content, MessageToSend,
-        OutgoingPushMessages, SendMessageResponse, SentMessage,
+        create_multi_device_sent_transcript_content, OutgoingPushMessages,
+        SendMessageResponse, SentMessage,
     },
     session_store::SessionStoreExt,
     ServiceAddress,
@@ -40,6 +40,14 @@ use crate::{
 pub enum WebSocketStreamItem {
     Message(Bytes),
     KeepAliveRequest,
+}
+
+pub struct MessageToSend {
+    pub recipients: Vec<ServiceAddress>,
+    pub unidentified_access: Option<UnidentifiedAccess>,
+    pub content_body: ContentBody,
+    pub timestamp: u64,
+    pub online: bool,
 }
 
 #[async_trait::async_trait(?Send)]
@@ -145,7 +153,8 @@ where
         }
     }
 
-    /// Worker task that
+    /// Worker task that runs the message pipe loop which concurrently looks for incoming message to process
+    /// and processes frames received in the web-socket
     async fn run(
         mut self,
         mut outgoing_sender: Sender<Result<Envelope, ServiceError>>,
@@ -192,36 +201,40 @@ where
                 },
                 // When we have a message to send (from either the outside, or re-injected)
                 message_to_send = incoming_receiver.next() => {
-                    let mut inner_outgoing_sender = outgoing_sender.clone();
-                    let mut inner_incoming_sender = incoming_sender.clone();
-                    let local_address = self.message_sender.local_address.clone();
-                    if let Some(MessageToSend { recipient, unidentified_access, content_body, timestamp, online }) = message_to_send {
+                    if let Some(MessageToSend { recipients, unidentified_access, content_body, timestamp, online }) = message_to_send {
                         // this is mirrored logic from MessageSender::send_message
-                        match self.send_message(&recipient, unidentified_access.as_ref(), &content_body, timestamp, online).await {
-                            Ok(response_fut) => {
-                                // we want to wait for the response in the background to avoid blocking the message loop
-                                background_work.push(async move {
-                                    match Self::process_send_response(recipient, content_body, timestamp, response_fut).await {
-                                        Ok(Some(content_body)) => {
-                                            // we re-inject the new sync message in the pipe!
-                                            inner_incoming_sender.send(MessageToSend {
-                                                recipient: local_address,
-                                                unidentified_access: None,
-                                                content_body,
-                                                timestamp,
-                                                online: false,
-                                            }).await.expect("working incoming sender");
-                                        }
-                                        Err(e) => { inner_outgoing_sender.send(Err(e)).await.expect("working outgoing sender"); }
-                                        _ => (),
-                                    };
-                                }.boxed_local());
-                            }
-                            Err(e) => {
-                                outgoing_sender.send(Err(e)).await?;
+                        for recipient in recipients {
+                            let mut inner_outgoing_sender = outgoing_sender.clone();
+                            let mut inner_incoming_sender = incoming_sender.clone();
+                            let local_address = self.message_sender.local_address.clone();
+                            let content_body = content_body.clone();
+                            let unidentified_access = unidentified_access.clone();
+                            match self.send_message(&recipient, unidentified_access.as_ref(), &content_body, timestamp, online).await {
+                                Ok(response_fut) => {
+                                    // we want to wait for the response in the background to avoid blocking the message loop
+                                    background_work.push(async move {
+                                        match Self::process_send_response(recipient, unidentified_access, content_body, timestamp, response_fut).await {
+                                            Ok(Some(content_body)) => {
+                                                // we re-inject the new sync message in the pipe!
+                                                inner_incoming_sender.send(MessageToSend {
+                                                    recipients: vec![local_address],
+                                                    unidentified_access: None,
+                                                    content_body,
+                                                    timestamp,
+                                                    online: false,
+                                                }).await.expect("working incoming sender");
+                                            }
+                                            Err(e) => { inner_outgoing_sender.send(Err(e)).await.expect("working outgoing sender"); }
+                                            _ => (),
+                                        };
+                                    }.boxed_local());
+                                }
+                                Err(e) => {
+                                    outgoing_sender.send(Err(e)).await?;
+                                }
                             }
                         }
-                }
+                    }
 
                 }
                 _ = background_work.next() => {
@@ -248,16 +261,6 @@ where
         ServiceError,
     > {
         use crate::proto::data_message::Flags;
-
-        // TODO: check what we should do here
-        // this should be possible when we factor the common parts between `MessageSender` and `MessagePipe`
-        // (mostly the session handling part)
-        let _end_session = match &content_body {
-            ContentBody::DataMessage(message) => {
-                message.flags == Some(Flags::EndSession as u32)
-            }
-            _ => false,
-        };
 
         let content = content_body.clone().into_proto();
         let mut content_bytes = Vec::with_capacity(content.encoded_len());
@@ -292,11 +295,38 @@ where
             headers: vec!["content-type:application/json".to_string()],
         };
 
-        self.send_request(message_request).await
+        let response_fut = self.send_request(message_request).await;
+
+        // check if we need to end the session after sending this message
+        let end_session = match &content_body {
+            ContentBody::DataMessage(message) => {
+                message.flags == Some(Flags::EndSession as u32)
+            }
+            _ => false,
+        };
+
+        if end_session {
+            log::debug!("ending session with {}", recipient);
+            if let Some(ref uuid) = recipient.uuid {
+                self.message_sender
+                    .session_store
+                    .delete_all_sessions(&uuid.to_string())
+                    .await?;
+            }
+            if let Some(e164) = recipient.e164() {
+                self.message_sender
+                    .session_store
+                    .delete_all_sessions(&e164)
+                    .await?;
+            }
+        }
+
+        response_fut
     }
 
     async fn process_send_response(
         recipient: ServiceAddress,
+        unidentified_access: Option<UnidentifiedAccess>,
         content_body: ContentBody,
         timestamp: u64,
         response_fut: impl Future<
@@ -322,7 +352,7 @@ where
                                 timestamp,
                                 &[Ok(SentMessage {
                                     recipient,
-                                    unidentified: false, // TODO: this needs to be properly set
+                                    unidentified: unidentified_access.is_some(),
                                     needs_sync,
                                 })],
                             );
@@ -503,17 +533,5 @@ where
 
         let combined = futures::stream::select(stream, runner.into_stream());
         (message_sender, combined.filter_map(|x| async { x }))
-    }
-}
-
-/// WebSocketService that panics on every request, mainly for example code.
-pub struct PanicingWebSocketService;
-
-#[async_trait::async_trait(?Send)]
-impl WebSocketService for PanicingWebSocketService {
-    type Stream = futures::channel::mpsc::Receiver<WebSocketStreamItem>;
-
-    async fn send_message(&mut self, _msg: Bytes) -> Result<(), ServiceError> {
-        unimplemented!();
     }
 }

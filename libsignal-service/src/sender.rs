@@ -72,22 +72,13 @@ pub struct AttachmentSpec {
     pub blur_hash: Option<String>,
 }
 
-// TODO: switch to enum, such that you can send messages to group
-pub struct MessageToSend {
-    pub recipient: ServiceAddress,
-    pub unidentified_access: Option<UnidentifiedAccess>,
-    pub content_body: ContentBody,
-    pub timestamp: u64,
-    pub online: bool,
-}
-
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
 pub struct MessageSender<Service, S, I, SP, P, R> {
     service: Service,
     cipher: ServiceCipher<S, I, SP, P, R>,
     csprng: R,
-    session_store: S,
+    pub(crate) session_store: S,
     identity_key_store: I,
     pub(crate) local_address: ServiceAddress,
     device_id: u32,
