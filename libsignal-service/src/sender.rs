@@ -327,17 +327,18 @@ where
             _ => false,
         };
 
-        let result = self
-            .try_send_message(
+        let mut results = vec![
+            self.try_send_message(
                 recipient.clone(),
                 unidentified_access,
                 &content_body,
                 timestamp,
                 online,
             )
-            .await;
+            .await,
+        ];
 
-        match (&content_body, &result) {
+        match (&content_body, &results[0]) {
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
@@ -349,7 +350,7 @@ where
                         Some(&recipient),
                         Some(message.clone()),
                         timestamp,
-                        &[&result],
+                        &results,
                     );
                 self.try_send_message(
                     (&self.local_address).clone(),
@@ -375,7 +376,7 @@ where
             }
         }
 
-        result
+        results.remove(0)
     }
 
     /// Send a message to the recipients in a group.
@@ -415,13 +416,12 @@ where
 
         // we only need to send a synchronization message once
         if needs_sync_in_results {
-            let results_ref: Vec<&SendMessageResult> = results.iter().collect();
             let sync_message = self
                 .create_multi_device_sent_transcript_content(
                     None,
                     Some(message.clone()),
                     timestamp,
-                    &results_ref,
+                    &results,
                 );
 
             let result = self
@@ -751,23 +751,24 @@ where
         recipient: Option<&ServiceAddress>,
         data_message: Option<crate::proto::DataMessage>,
         timestamp: u64,
-        send_message_results: &[&SendMessageResult],
+        send_message_results: &[SendMessageResult],
     ) -> ContentBody {
         use sync_message::sent::UnidentifiedDeliveryStatus;
         let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
             send_message_results
                 .iter()
-                .filter_map(|result| match result.as_ref() {
-                    Ok(SentMessage {
+                .filter_map(|result| result.as_ref().ok())
+                .map(|sent| {
+                    let SentMessage {
                         recipient,
                         unidentified,
                         ..
-                    }) => Some(UnidentifiedDeliveryStatus {
+                    } = sent;
+                    UnidentifiedDeliveryStatus {
                         destination_e164: recipient.e164(),
                         destination_uuid: recipient.uuid.map(|s| s.to_string()),
                         unidentified: Some(*unidentified),
-                    }),
-                    _ => None,
+                    }
                 })
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
