@@ -425,7 +425,6 @@ impl<Service: PushService> AccountManager<Service> {
             unidentified_access_key,
             unrestricted_unidentified_access,
             discoverable_by_phone_number,
-
             capabilities,
         };
         self.service.set_account_attributes(attribs).await?;

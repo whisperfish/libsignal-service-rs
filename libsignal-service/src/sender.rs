@@ -95,7 +95,7 @@ pub enum AttachmentUploadError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum MessageSenderError {
-    #[error("{0}")]
+    #[error(transparent)]
     ServiceError(#[from] ServiceError),
     #[error("protocol error: {0}")]
     ProtocolError(#[from] SignalProtocolError),
@@ -354,7 +354,7 @@ where
                 self.try_send_message(
                     (&self.local_address).clone(),
                     None,
-                    &sync_message,
+                    &sync_message.into(),
                     timestamp,
                     false,
                 )
@@ -426,7 +426,7 @@ where
                 .try_send_message(
                     self.local_address.clone(),
                     unidentified_access,
-                    &sync_message,
+                    &sync_message.into(),
                     timestamp,
                     false,
                 )
@@ -754,7 +754,7 @@ pub fn create_multi_device_sent_transcript_content(
     data_message: Option<crate::proto::DataMessage>,
     timestamp: u64,
     send_message_results: &[SendMessageResult],
-) -> ContentBody {
+) -> SyncMessage {
     use sync_message::sent::UnidentifiedDeliveryStatus;
     let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
         send_message_results
@@ -773,7 +773,7 @@ pub fn create_multi_device_sent_transcript_content(
                 }
             })
             .collect();
-    ContentBody::SynchronizeMessage(SyncMessage {
+    SyncMessage {
         sent: Some(sync_message::Sent {
             destination_uuid: recipient
                 .and_then(|r| r.uuid)
@@ -785,5 +785,5 @@ pub fn create_multi_device_sent_transcript_content(
             ..Default::default()
         }),
         ..Default::default()
-    })
+    }
 }
