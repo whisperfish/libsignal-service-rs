@@ -484,22 +484,12 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
-                        if let Some(uuid) = recipient.uuid {
-                            self.session_store
-                                .delete_session(&ProtocolAddress::new(
-                                    uuid.to_string(),
-                                    *extra_device_id,
-                                ))
-                                .await?;
-                        }
-                        if let Some(e164) = recipient.e164() {
-                            self.session_store
-                                .delete_session(&ProtocolAddress::new(
-                                    e164,
-                                    *extra_device_id,
-                                ))
-                                .await?;
-                        }
+                        self.session_store
+                            .delete_service_addr_device_session(
+                                &recipient,
+                                *extra_device_id,
+                            )
+                            .await?;
                     }
 
                     for missing_device_id in &m.missing_devices {
@@ -540,22 +530,12 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
-                        if let Some(ref uuid) = recipient.uuid {
-                            self.session_store
-                                .delete_session(&ProtocolAddress::new(
-                                    uuid.to_string(),
-                                    *extra_device_id,
-                                ))
-                                .await?;
-                        }
-                        if let Some(e164) = recipient.e164() {
-                            self.session_store
-                                .delete_session(&ProtocolAddress::new(
-                                    e164,
-                                    *extra_device_id,
-                                ))
-                                .await?;
-                        }
+                        self.session_store
+                            .delete_service_addr_device_session(
+                                &recipient,
+                                *extra_device_id,
+                            )
+                            .await?;
                     }
                 }
                 Err(e) => return Err(MessageSenderError::ServiceError(e)),
