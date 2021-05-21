@@ -20,6 +20,7 @@ use crate::{
     sealed_session_cipher::UnidentifiedAccess,
     session_store::SessionStoreExt,
     ServiceAddress,
+    MaybeSend,
 };
 
 pub use crate::proto::{ContactDetails, GroupDetails};
@@ -126,7 +127,7 @@ pub enum MessageSenderError {
 
 impl<Service, S, I, SP, P, R> MessageSender<Service, S, I, SP, P, R>
 where
-    Service: PushService + Clone,
+    Service: PushService + Clone + MaybeSend,
     S: SessionStore + SessionStoreExt + Clone,
     I: IdentityKeyStore + Clone,
     SP: SignedPreKeyStore + Clone,

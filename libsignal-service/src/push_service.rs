@@ -10,6 +10,7 @@ use crate::{
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
     ServiceAddress,
+    MaybeSend
 };
 
 use aes_gcm::{
@@ -351,7 +352,8 @@ pub enum ServiceError {
     GroupsV2DecryptionError(#[from] GroupDecryptionError),
 }
 
-#[async_trait::async_trait(?Send)]
+#[cfg_attr(feature = "require-send", async_trait::async_trait)]
+#[cfg_attr(not(feature = "require-send"), async_trait::async_trait(?Send))]
 pub trait PushService {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
@@ -382,7 +384,7 @@ pub trait PushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: Serialize;
+        S: MaybeSend + Serialize;
 
     async fn get_protobuf<T>(
         &mut self,

@@ -18,7 +18,7 @@ use libsignal_service::{
 };
 
 pub struct TungsteniteWebSocket {
-    socket_sink: Box<dyn Sink<Message, Error = TungsteniteError> + Unpin>,
+    socket_sink: Box<dyn Sink<Message, Error = TungsteniteError> + Unpin + Send>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -197,7 +197,7 @@ impl TungsteniteWebSocket {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl WebSocketService for TungsteniteWebSocket {
     type Stream = Receiver<WebSocketStreamItem>;
 

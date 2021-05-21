@@ -240,7 +240,7 @@ impl HyperPushService {
     }
 }
 
-#[async_trait::async_trait(?Send)]
+#[async_trait::async_trait]
 impl PushService for HyperPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
@@ -292,7 +292,7 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: Serialize,
+        S: Send + Serialize,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {

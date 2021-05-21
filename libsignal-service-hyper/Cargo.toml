@@ -5,7 +5,7 @@ authors = ["Gabriel Féron <g@leirbag.net>"]
 edition = "2018"
 
 [dependencies]
-libsignal-service = { path = "../libsignal-service" }
+libsignal-service = { path = "../libsignal-service", features = ["require-send"] }
 
 async-trait = "0.1"
 base64 = "0.13"

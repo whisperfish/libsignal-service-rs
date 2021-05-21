@@ -7,6 +7,7 @@ use crate::{
     messagepipe::MessagePipe,
     models::{Contact, ParseContactError},
     push_service::*,
+    MaybeSend,
 };
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
@@ -24,7 +25,7 @@ pub enum MessageReceiverError {
     EnvelopeParseError(#[from] crate::envelope::EnvelopeParseError),
 }
 
-impl<Service: PushService> MessageReceiver<Service> {
+impl<Service: PushService + MaybeSend> MessageReceiver<Service> {
     // TODO: to avoid providing the wrong service/wrong credentials
     // change it like LinkingManager or ProvisioningManager
     pub fn new(service: Service) -> Self {

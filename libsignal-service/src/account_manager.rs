@@ -19,6 +19,7 @@ use crate::{
         AccountAttributes, DeviceCapabilities, HttpAuthOverride, PushService,
         ServiceError,
     },
+    MaybeSend,
 };
 
 pub struct AccountManager<Service> {
@@ -59,7 +60,7 @@ const PRE_KEY_MINIMUM: u32 = 10;
 const PRE_KEY_BATCH_SIZE: u32 = 100;
 const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
-impl<Service: PushService> AccountManager<Service> {
+impl<Service: PushService + MaybeSend> AccountManager<Service> {
     pub fn new(service: Service, profile_key: Option<[u8; 32]>) -> Self {
         Self {
             service,

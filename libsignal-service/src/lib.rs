@@ -40,6 +40,16 @@ pub const GROUP_UPDATE_FLAG: u32 = 1;
 /// GROUP_LEAVE_FLAG signals that this message is a group leave message.
 pub const GROUP_LEAVE_FLAG: u32 = 2;
 
+#[cfg(feature = "require-send")]
+pub trait MaybeSend: Send {}
+#[cfg(feature = "require-send")]
+impl<T> MaybeSend for T where T: Send {}
+
+#[cfg(not(feature = "require-send"))]
+pub trait MaybeSend {}
+#[cfg(not(feature = "require-send"))]
+impl<T> MaybeSend for T {}
+
 pub mod prelude {
     pub use super::ServiceAddress;
     pub use crate::{

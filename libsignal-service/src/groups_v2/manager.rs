@@ -8,6 +8,7 @@ use crate::{
     prelude::{PushService, ServiceError},
     proto::DecryptedGroup,
     push_service::{HttpAuth, HttpAuthOverride},
+    MaybeSend,
 };
 
 use rand::RngCore;
@@ -108,7 +109,7 @@ pub struct GroupsManager<'a, S: PushService, C: CredentialsCache> {
     server_public_params: ServerPublicParams,
 }
 
-impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
+impl<'a, S: PushService + MaybeSend, C: CredentialsCache> GroupsManager<'a, S, C> {
     pub fn new(
         push_service: S,
         credentials_cache: &'a mut C,
