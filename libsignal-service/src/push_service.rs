@@ -354,7 +354,7 @@ pub enum ServiceError {
 
 #[cfg_attr(feature = "require-send", async_trait::async_trait)]
 #[cfg_attr(not(feature = "require-send"), async_trait::async_trait(?Send))]
-pub trait PushService {
+pub trait PushService: MaybeSend {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 

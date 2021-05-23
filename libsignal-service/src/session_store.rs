@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use libsignal_protocol::{ProtocolAddress, SessionStore, SignalProtocolError};
 
 /// This is additional functions required to handle
