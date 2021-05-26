@@ -12,7 +12,7 @@ use hyper_rustls::HttpsConnector;
 use hyper_timeout::TimeoutConnector;
 use libsignal_service::{
     configuration::*, messagepipe::WebSocketService, prelude::ProtobufMessage,
-    push_service::*, MaybeSend
+    push_service::*, MaybeSend,
 };
 use serde::{Deserialize, Serialize};
 use tokio_rustls::rustls;

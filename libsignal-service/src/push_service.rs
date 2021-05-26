@@ -9,8 +9,7 @@ use crate::{
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
-    ServiceAddress,
-    MaybeSend
+    MaybeSend, ServiceAddress,
 };
 
 use aes_gcm::{

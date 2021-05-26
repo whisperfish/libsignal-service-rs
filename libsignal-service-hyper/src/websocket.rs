@@ -21,7 +21,10 @@ use libsignal_service::{
 // This weird one-time trait is required because MaybeSend, unlike Send, is not
 // an auto trait. Only auto traits can be used as additional traits in a trait object.
 trait MaybeSendSink: Sink<Message, Error = TungsteniteError> + MaybeSend {}
-impl<T> MaybeSendSink for T where T: Sink<Message, Error = TungsteniteError> + MaybeSend {}
+impl<T> MaybeSendSink for T where
+    T: Sink<Message, Error = TungsteniteError> + MaybeSend
+{
+}
 
 pub struct TungsteniteWebSocket {
     socket_sink: Box<dyn MaybeSendSink + Unpin>,
