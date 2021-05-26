@@ -15,10 +15,16 @@ use libsignal_service::{
     configuration::ServiceCredentials,
     messagepipe::*,
     push_service::{self, ServiceError},
+    MaybeSend,
 };
 
+// This weird one-time trait is required because MaybeSend, unlike Send, is not
+// an auto trait. Only auto traits can be used as additional traits in a trait object.
+trait MaybeSendSink: Sink<Message, Error = TungsteniteError> + MaybeSend {}
+impl<T> MaybeSendSink for T where T: Sink<Message, Error = TungsteniteError> + MaybeSend {}
+
 pub struct TungsteniteWebSocket {
-    socket_sink: Box<dyn Sink<Message, Error = TungsteniteError> + Unpin + Send>,
+    socket_sink: Box<dyn MaybeSendSink + Unpin>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -197,7 +203,8 @@ impl TungsteniteWebSocket {
     }
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
+#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 impl WebSocketService for TungsteniteWebSocket {
     type Stream = Receiver<WebSocketStreamItem>;
 

@@ -36,3 +36,6 @@ opener = "0.4"
 qrcode = "0.12"
 rand = "0.7"
 structopt = "0.3"
+
+[features]
+unsend-futures = ["libsignal-service/unsend-futures"]

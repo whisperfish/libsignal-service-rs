@@ -12,7 +12,7 @@ use hyper_rustls::HttpsConnector;
 use hyper_timeout::TimeoutConnector;
 use libsignal_service::{
     configuration::*, messagepipe::WebSocketService, prelude::ProtobufMessage,
-    push_service::*,
+    push_service::*, MaybeSend
 };
 use serde::{Deserialize, Serialize};
 use tokio_rustls::rustls;
@@ -240,7 +240,8 @@ impl HyperPushService {
     }
 }
 
-#[async_trait::async_trait]
+#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
+#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 impl PushService for HyperPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
@@ -292,7 +293,7 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: Send + Serialize,
+        S: MaybeSend + Serialize,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {
