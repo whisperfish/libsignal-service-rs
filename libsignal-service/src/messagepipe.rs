@@ -27,8 +27,8 @@ pub enum WebSocketStreamItem {
     KeepAliveRequest,
 }
 
-#[cfg_attr(feature = "require-send", async_trait::async_trait)]
-#[cfg_attr(not(feature = "require-send"), async_trait::async_trait(?Send))]
+#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
+#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait WebSocketService {
     type Stream: FusedStream<Item = WebSocketStreamItem> + Unpin;
 
@@ -297,8 +297,8 @@ impl<WS: WebSocketService> MessagePipe<WS> {
 /// WebSocketService that panics on every request, mainly for example code.
 pub struct PanicingWebSocketService;
 
-#[cfg_attr(feature = "require-send", async_trait::async_trait)]
-#[cfg_attr(not(feature = "require-send"), async_trait::async_trait(?Send))]
+#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
+#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 impl WebSocketService for PanicingWebSocketService {
     type Stream = futures::channel::mpsc::Receiver<WebSocketStreamItem>;
 

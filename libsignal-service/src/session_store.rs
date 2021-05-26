@@ -3,8 +3,8 @@ use libsignal_protocol::{ProtocolAddress, SessionStore, SignalProtocolError};
 /// This is additional functions required to handle
 /// session deletion. It might be a candidate for inclusion into
 /// the bigger `SessionStore` trait.
-#[cfg_attr(feature = "require-send", async_trait::async_trait)]
-#[cfg_attr(not(feature = "require-send"), async_trait::async_trait(?Send))]
+#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
+#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait SessionStoreExt: SessionStore {
     /// Get the IDs of all known devices with active sessions for a recipient.
     async fn get_sub_device_sessions(

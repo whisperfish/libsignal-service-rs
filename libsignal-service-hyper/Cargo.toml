@@ -5,9 +5,7 @@ authors = ["Gabriel Féron <g@leirbag.net>"]
 edition = "2018"
 
 [dependencies]
-# Contrary to actix, hyper has Send compatible futures, which means
-# libsignal-service-hyper should also support it by enabling `require-send`.
-libsignal-service = { path = "../libsignal-service", features = ["require-send"] }
+libsignal-service = { path = "../libsignal-service" }
 
 async-trait = "0.1"
 base64 = "0.13"

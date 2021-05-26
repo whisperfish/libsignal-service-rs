@@ -352,8 +352,8 @@ pub enum ServiceError {
     GroupsV2DecryptionError(#[from] GroupDecryptionError),
 }
 
-#[cfg_attr(feature = "require-send", async_trait::async_trait)]
-#[cfg_attr(not(feature = "require-send"), async_trait::async_trait(?Send))]
+#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
+#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait PushService: MaybeSend {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;

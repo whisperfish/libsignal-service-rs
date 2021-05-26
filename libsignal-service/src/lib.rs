@@ -41,22 +41,22 @@ pub const GROUP_UPDATE_FLAG: u32 = 1;
 pub const GROUP_LEAVE_FLAG: u32 = 2;
 
 /// This trait allows for the conditional support of Send compatible futures
-/// depending on whether the `require-send` feature flag is enabled (off by
-/// default).
+/// depending on whether or not the `unsend-futures` feature flag is enabled.
+/// As this feature is disabled by default, Send is supported by default.
 ///
 /// This is necessary as actix does not support Send, which means unconditionally
 /// imposing this requirement would break libsignal-service-actix.
 ///
 /// Conversely, hyper does support Send, which is why libsignal-service-hyper
-/// enables the `require-send` feature flag by default.
-#[cfg(feature = "require-send")]
+/// does not enable the `unsend-futures` feature flag.
+#[cfg(not(feature = "unsend-futures"))]
 pub trait MaybeSend: Send {}
-#[cfg(feature = "require-send")]
+#[cfg(not(feature = "unsend-futures"))]
 impl<T> MaybeSend for T where T: Send {}
 
-#[cfg(not(feature = "require-send"))]
+#[cfg(feature = "unsend-futures")]
 pub trait MaybeSend {}
-#[cfg(not(feature = "require-send"))]
+#[cfg(feature = "unsend-futures")]
 impl<T> MaybeSend for T {}
 
 pub mod prelude {
