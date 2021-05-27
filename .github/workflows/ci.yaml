@@ -30,6 +30,9 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: ["libsignal-service-actix", "libsignal-service-hyper"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -40,10 +43,14 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          args: --manifest-path ${{ matrix.project }}/Cargo.toml
 
   build:
-    name: Build and test
+    name: Build
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: ["libsignal-service-actix", "libsignal-service-hyper"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -52,7 +59,8 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all-targets
+          args: --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml
       - uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --manifest-path ${{ matrix.project }}/Cargo.toml
