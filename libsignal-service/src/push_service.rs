@@ -9,7 +9,7 @@ use crate::{
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
-    ServiceAddress,
+    MaybeSend, ServiceAddress,
 };
 
 use aes_gcm::{
@@ -351,8 +351,9 @@ pub enum ServiceError {
     GroupsV2DecryptionError(#[from] GroupDecryptionError),
 }
 
-#[async_trait::async_trait(?Send)]
-pub trait PushService {
+#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
+#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
+pub trait PushService: MaybeSend {
     type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
@@ -382,7 +383,7 @@ pub trait PushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: Serialize;
+        S: MaybeSend + Serialize;
 
     async fn get_protobuf<T>(
         &mut self,

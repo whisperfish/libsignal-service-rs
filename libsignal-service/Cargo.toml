@@ -43,3 +43,4 @@ tokio = { version = "1.0", features = [ "macros" ] }
 
 [features]
 prefer-e164 = []
+unsend-futures = []

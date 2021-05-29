@@ -5,7 +5,9 @@ authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>"]
 edition = "2018"
 
 [dependencies]
-libsignal-service = { path = "../libsignal-service" }
+# Contrary to hyper, actix does not have Send compatible futures, which means
+# the Send requirement in libsignal-service needs to be lifted by enabling `unsend-futures`.
+libsignal-service = { path = "../libsignal-service", features = ["unsend-futures"] }
 
 awc = { version = "3.0.0-beta.5", features=["rustls"] }
 actix = "0.11.1"

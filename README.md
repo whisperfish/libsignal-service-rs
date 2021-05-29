@@ -12,6 +12,13 @@ We're actively trying to make `libsignal-service-rs` fully functional.
 
 If you're looking to contribute or want to ask a question, you're more than welcome to join our development channel on Matrix (#whisperfish:rubdos.be) or Freenode (#whisperfish) to get in touch with us!
 
+## Feature flags for libsignal-service
+
+| Feature flag     | Description                                                                                                                                                                             |
+|------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `unsend-futures` | This feature removes the `Send` requirement on returned futures. Enabling this flag may be necessary for interoperability with other libraries that don't support `Send` such as actix. |
+| `prefer-e164`    | This is a legacy feature that should not be used in new applications.                                                                                                                   |
+
 ## License
 
 Copyright 2015-2019 Open Whisper Systems  
