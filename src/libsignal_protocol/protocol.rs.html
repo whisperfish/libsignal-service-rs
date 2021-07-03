@@ -1,6 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/c042f16/rust/protocol/src/protocol.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>protocol.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/d923dd3/rust/protocol/src/protocol.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>protocol.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
@@ -1063,24 +1063,23 @@
 <span id="1060">1060</span>
 <span id="1061">1061</span>
 <span id="1062">1062</span>
-<span id="1063">1063</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="comment">//</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::proto</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">IdentityKey</span>, <span class="ident">PrivateKey</span>, <span class="ident">PublicKey</span>, <span class="prelude-ty">Result</span>, <span class="ident">SignalProtocolError</span>};
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
+<span class="kw">use</span> <span class="ident">std::convert::TryFrom</span>;
 
 <span class="kw">use</span> <span class="ident">hmac</span>::{<span class="ident">Hmac</span>, <span class="ident">Mac</span>, <span class="ident">NewMac</span>};
-<span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
+<span class="kw">use</span> <span class="ident">prost::Message</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">CryptoRng</span>, <span class="ident">Rng</span>};
-<span class="kw">use</span> <span class="ident">sha2</span>::<span class="ident">Sha256</span>;
-<span class="kw">use</span> <span class="ident">subtle</span>::<span class="ident">ConstantTimeEq</span>;
-<span class="kw">use</span> <span class="ident">uuid</span>::<span class="ident">Uuid</span>;
+<span class="kw">use</span> <span class="ident">sha2::Sha256</span>;
+<span class="kw">use</span> <span class="ident">subtle::ConstantTimeEq</span>;
+<span class="kw">use</span> <span class="ident">uuid::Uuid</span>;
 
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">3</span>;
 <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">3</span>;
@@ -1092,7 +1091,7 @@
     <span class="ident">PlaintextContent</span>(<span class="ident">PlaintextContent</span>),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>, <span class="ident">num_enum</span>::<span class="ident">TryFromPrimitive</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>, <span class="ident">num_enum::TryFromPrimitive</span>)]</span>
 <span class="attribute">#[<span class="ident">repr</span>(<span class="ident">u8</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CiphertextMessageType</span> {
     <span class="ident">Whisper</span> <span class="op">=</span> <span class="number">2</span>,
@@ -1104,19 +1103,19 @@
 <span class="kw">impl</span> <span class="ident">CiphertextMessage</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">message_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">CiphertextMessage</span>::<span class="ident">SignalMessage</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType</span>::<span class="ident">Whisper</span>,
-            <span class="ident">CiphertextMessage</span>::<span class="ident">PreKeySignalMessage</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType</span>::<span class="ident">PreKey</span>,
-            <span class="ident">CiphertextMessage</span>::<span class="ident">SenderKeyMessage</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType</span>::<span class="ident">SenderKey</span>,
-            <span class="ident">CiphertextMessage</span>::<span class="ident">PlaintextContent</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType</span>::<span class="ident">Plaintext</span>,
+            <span class="ident">CiphertextMessage::SignalMessage</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType::Whisper</span>,
+            <span class="ident">CiphertextMessage::PreKeySignalMessage</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType::PreKey</span>,
+            <span class="ident">CiphertextMessage::SenderKeyMessage</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType::SenderKey</span>,
+            <span class="ident">CiphertextMessage::PlaintextContent</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">CiphertextMessageType::Plaintext</span>,
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">CiphertextMessage</span>::<span class="ident">SignalMessage</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
-            <span class="ident">CiphertextMessage</span>::<span class="ident">PreKeySignalMessage</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
-            <span class="ident">CiphertextMessage</span>::<span class="ident">SenderKeyMessage</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
-            <span class="ident">CiphertextMessage</span>::<span class="ident">PlaintextContent</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
+            <span class="ident">CiphertextMessage::SignalMessage</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
+            <span class="ident">CiphertextMessage::PreKeySignalMessage</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
+            <span class="ident">CiphertextMessage::SenderKeyMessage</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
+            <span class="ident">CiphertextMessage::PlaintextContent</span>(<span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>.<span class="ident">serialized</span>(),
         }
     }
 }
@@ -1145,17 +1144,17 @@
         <span class="ident">sender_identity_key</span>: <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span>,
         <span class="ident">receiver_identity_key</span>: <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">SignalMessage</span> {
+        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">proto::wire::SignalMessage</span> {
             <span class="ident">ratchet_key</span>: <span class="prelude-val">Some</span>(<span class="ident">sender_ratchet_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
             <span class="ident">counter</span>: <span class="prelude-val">Some</span>(<span class="ident">counter</span>),
             <span class="ident">previous_counter</span>: <span class="prelude-val">Some</span>(<span class="ident">previous_counter</span>),
-            <span class="ident">ciphertext</span>: <span class="prelude-val">Some</span>(<span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>::<span class="ident">from</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>[..])),
+            <span class="ident">ciphertext</span>: <span class="prelude-val">Some</span>(<span class="ident">Vec</span>::<span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="ident">::from</span>(<span class="ident">ciphertext</span>)),
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">message</span>.<span class="ident">encoded_len</span>() <span class="op">+</span> <span class="self">Self</span>::<span class="ident">MAC_LENGTH</span>];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">message</span>.<span class="ident">encoded_len</span>() <span class="op">+</span> <span class="self">Self</span><span class="ident">::MAC_LENGTH</span>];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span>;
         <span class="ident">message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..<span class="ident">message</span>.<span class="ident">encoded_len</span>() <span class="op">+</span> <span class="number">1</span>])<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">msg_len_for_mac</span> <span class="op">=</span> <span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span>::<span class="ident">MAC_LENGTH</span>;
-        <span class="kw">let</span> <span class="ident">mac</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">compute_mac</span>(
+        <span class="kw">let</span> <span class="ident">msg_len_for_mac</span> <span class="op">=</span> <span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span><span class="ident">::MAC_LENGTH</span>;
+        <span class="kw">let</span> <span class="ident">mac</span> <span class="op">=</span> <span class="self">Self</span><span class="ident">::compute_mac</span>(
             <span class="ident">sender_identity_key</span>,
             <span class="ident">receiver_identity_key</span>,
             <span class="ident">mac_key</span>,
@@ -1204,19 +1203,19 @@
         <span class="ident">receiver_identity_key</span>: <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span>,
         <span class="ident">mac_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">our_mac</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">Self</span>::<span class="ident">compute_mac</span>(
+        <span class="kw">let</span> <span class="ident">our_mac</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">Self</span><span class="ident">::compute_mac</span>(
             <span class="ident">sender_identity_key</span>,
             <span class="ident">receiver_identity_key</span>,
             <span class="ident">mac_key</span>,
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[..<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span>::<span class="ident">MAC_LENGTH</span>],
+            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[..<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span><span class="ident">::MAC_LENGTH</span>],
         )<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">their_mac</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span>::<span class="ident">MAC_LENGTH</span>..];
+        <span class="kw">let</span> <span class="ident">their_mac</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span><span class="ident">::MAC_LENGTH</span>..];
         <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">bool</span> <span class="op">=</span> <span class="ident">our_mac</span>.<span class="ident">ct_eq</span>(<span class="ident">their_mac</span>).<span class="ident">into</span>();
         <span class="kw">if</span> <span class="op">!</span><span class="ident">result</span> {
-            <span class="ident">log</span>::<span class="macro">error</span><span class="macro">!</span>(
+            <span class="macro">log::error!</span>(
                 <span class="string">&quot;Bad Mac! Their Mac: {} Our Mac: {}&quot;</span>,
-                <span class="ident">hex</span>::<span class="ident">encode</span>(<span class="ident">their_mac</span>),
-                <span class="ident">hex</span>::<span class="ident">encode</span>(<span class="ident">our_mac</span>)
+                <span class="ident">hex::encode</span>(<span class="ident">their_mac</span>),
+                <span class="ident">hex::encode</span>(<span class="ident">our_mac</span>)
             );
         }
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
@@ -1227,12 +1226,12 @@
         <span class="ident">receiver_identity_key</span>: <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span>,
         <span class="ident">mac_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="self">Self</span>::<span class="ident">MAC_LENGTH</span>]<span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="self">Self</span><span class="ident">::MAC_LENGTH</span>]<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">mac_key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidMacKeyLength</span>(<span class="ident">mac_key</span>.<span class="ident">len</span>()));
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidMacKeyLength</span>(<span class="ident">mac_key</span>.<span class="ident">len</span>()));
         }
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span>::<span class="ident">new_varkey</span>(<span class="ident">mac_key</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
-            <span class="ident">SignalProtocolError</span>::<span class="ident">InvalidArgument</span>(<span class="macro">format</span><span class="macro">!</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_varkey</span>(<span class="ident">mac_key</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+            <span class="ident">SignalProtocolError::InvalidArgument</span>(<span class="macro">format!</span>(
                 <span class="string">&quot;Invalid HMAC key length &lt;{}&gt;&quot;</span>,
                 <span class="ident">mac_key</span>.<span class="ident">len</span>()
             ))
@@ -1241,8 +1240,8 @@
         <span class="ident">mac</span>.<span class="ident">update</span>(<span class="ident">sender_identity_key</span>.<span class="ident">public_key</span>().<span class="ident">serialize</span>().<span class="ident">as_ref</span>());
         <span class="ident">mac</span>.<span class="ident">update</span>(<span class="ident">receiver_identity_key</span>.<span class="ident">public_key</span>().<span class="ident">serialize</span>().<span class="ident">as_ref</span>());
         <span class="ident">mac</span>.<span class="ident">update</span>(<span class="ident">message</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="self">Self</span>::<span class="ident">MAC_LENGTH</span>];
-        <span class="ident">result</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">mac</span>.<span class="ident">finalize</span>().<span class="ident">into_bytes</span>()[..<span class="self">Self</span>::<span class="ident">MAC_LENGTH</span>]);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="self">Self</span><span class="ident">::MAC_LENGTH</span>];
+        <span class="ident">result</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">mac</span>.<span class="ident">finalize</span>().<span class="ident">into_bytes</span>()[..<span class="self">Self</span><span class="ident">::MAC_LENGTH</span>]);
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>)
     }
 }
@@ -1257,35 +1256,35 @@
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SignalProtocolError</span>;
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="ident">SignalMessage</span>::<span class="ident">MAC_LENGTH</span> <span class="op">+</span> <span class="number">1</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
+        <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="ident">SignalMessage::MAC_LENGTH</span> <span class="op">+</span> <span class="number">1</span> {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
         }
         <span class="kw">let</span> <span class="ident">message_version</span> <span class="op">=</span> <span class="ident">value</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&lt;</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">LegacyCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::LegacyCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&gt;</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">UnrecognizedCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnrecognizedCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
 
         <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span>
-            <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">SignalMessage</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..<span class="ident">value</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="ident">SignalMessage</span>::<span class="ident">MAC_LENGTH</span>])<span class="question-mark">?</span>;
+            <span class="ident">proto::wire::SignalMessage::decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..<span class="ident">value</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="ident">SignalMessage::MAC_LENGTH</span>])<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">sender_ratchet_key</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">ratchet_key</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">sender_ratchet_key</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">sender_ratchet_key</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">sender_ratchet_key</span> <span class="op">=</span> <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">sender_ratchet_key</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">counter</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">counter</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">previous_counter</span> <span class="op">=</span> <span class="ident">proto_structure</span>.<span class="ident">previous_counter</span>.<span class="ident">unwrap_or</span>(<span class="number">0</span>);
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">ciphertext</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>
             .<span class="ident">into_boxed_slice</span>();
 
         <span class="prelude-val">Ok</span>(<span class="ident">SignalMessage</span> {
@@ -1294,7 +1293,7 @@
             <span class="ident">counter</span>,
             <span class="ident">previous_counter</span>,
             <span class="ident">ciphertext</span>,
-            <span class="ident">serialized</span>: <span class="ident">Box</span>::<span class="ident">from</span>(<span class="ident">value</span>),
+            <span class="ident">serialized</span>: <span class="ident">Box::from</span>(<span class="ident">value</span>),
         })
     }
 }
@@ -1321,15 +1320,15 @@
         <span class="ident">identity_key</span>: <span class="ident">IdentityKey</span>,
         <span class="ident">message</span>: <span class="ident">SignalMessage</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">PreKeySignalMessage</span> {
+        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto::wire::PreKeySignalMessage</span> {
             <span class="ident">registration_id</span>: <span class="prelude-val">Some</span>(<span class="ident">registration_id</span>),
             <span class="ident">pre_key_id</span>,
             <span class="ident">signed_pre_key_id</span>: <span class="prelude-val">Some</span>(<span class="ident">signed_pre_key_id</span>),
             <span class="ident">base_key</span>: <span class="prelude-val">Some</span>(<span class="ident">base_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
             <span class="ident">identity_key</span>: <span class="prelude-val">Some</span>(<span class="ident">identity_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
-            <span class="ident">message</span>: <span class="prelude-val">Some</span>(<span class="ident">Vec</span>::<span class="ident">from</span>(<span class="ident">message</span>.<span class="ident">as_ref</span>())),
+            <span class="ident">message</span>: <span class="prelude-val">Some</span>(<span class="ident">Vec::from</span>(<span class="ident">message</span>.<span class="ident">as_ref</span>())),
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>()];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>()];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span>;
         <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
@@ -1396,37 +1395,37 @@
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
         }
 
         <span class="kw">let</span> <span class="ident">message_version</span> <span class="op">=</span> <span class="ident">value</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&lt;</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">LegacyCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::LegacyCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&gt;</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">UnrecognizedCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnrecognizedCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
 
-        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">PreKeySignalMessage</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto::wire::PreKeySignalMessage::decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">base_key</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">base_key</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">identity_key</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">identity_key</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">message</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">signed_pre_key_id</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">signed_pre_key_id</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">base_key</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="ident">base_key</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">base_key</span> <span class="op">=</span> <span class="ident">PublicKey::deserialize</span>(<span class="ident">base_key</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">PreKeySignalMessage</span> {
             <span class="ident">message_version</span>,
@@ -1434,9 +1433,9 @@
             <span class="ident">pre_key_id</span>: <span class="ident">proto_structure</span>.<span class="ident">pre_key_id</span>,
             <span class="ident">signed_pre_key_id</span>,
             <span class="ident">base_key</span>,
-            <span class="ident">identity_key</span>: <span class="ident">IdentityKey</span>::<span class="ident">try_from</span>(<span class="ident">identity_key</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>,
-            <span class="ident">message</span>: <span class="ident">SignalMessage</span>::<span class="ident">try_from</span>(<span class="ident">message</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>,
-            <span class="ident">serialized</span>: <span class="ident">Box</span>::<span class="ident">from</span>(<span class="ident">value</span>),
+            <span class="ident">identity_key</span>: <span class="ident">IdentityKey::try_from</span>(<span class="ident">identity_key</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>,
+            <span class="ident">message</span>: <span class="ident">SignalMessage::try_from</span>(<span class="ident">message</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>,
+            <span class="ident">serialized</span>: <span class="ident">Box::from</span>(<span class="ident">value</span>),
         })
     }
 }
@@ -1463,14 +1462,14 @@
         <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
         <span class="ident">signature_key</span>: <span class="kw-2">&amp;</span><span class="ident">PrivateKey</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">SenderKeyMessage</span> {
+        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto::wire::SenderKeyMessage</span> {
             <span class="ident">distribution_uuid</span>: <span class="prelude-val">Some</span>(<span class="ident">distribution_id</span>.<span class="ident">as_bytes</span>().<span class="ident">to_vec</span>()),
             <span class="ident">chain_id</span>: <span class="prelude-val">Some</span>(<span class="ident">chain_id</span>),
             <span class="ident">iteration</span>: <span class="prelude-val">Some</span>(<span class="ident">iteration</span>),
             <span class="ident">ciphertext</span>: <span class="prelude-val">Some</span>(<span class="ident">ciphertext</span>.<span class="ident">to_vec</span>()),
         };
         <span class="kw">let</span> <span class="ident">proto_message_len</span> <span class="op">=</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span> <span class="op">+</span> <span class="self">Self</span>::<span class="ident">SIGNATURE_LEN</span>];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span> <span class="op">+</span> <span class="self">Self</span><span class="ident">::SIGNATURE_LEN</span>];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span>;
         <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..<span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span>])<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span>
@@ -1488,8 +1487,8 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">signature_key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">valid</span> <span class="op">=</span> <span class="ident">signature_key</span>.<span class="ident">verify_signature</span>(
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[..<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span>::<span class="ident">SIGNATURE_LEN</span>],
-            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span>::<span class="ident">SIGNATURE_LEN</span>..],
+            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[..<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span><span class="ident">::SIGNATURE_LEN</span>],
+            <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>[<span class="self">self</span>.<span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span><span class="ident">::SIGNATURE_LEN</span>..],
         )<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">valid</span>)
@@ -1536,36 +1535,36 @@
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SignalProtocolError</span>;
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">1</span> <span class="op">+</span> <span class="self">Self</span>::<span class="ident">SIGNATURE_LEN</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
+        <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">1</span> <span class="op">+</span> <span class="self">Self</span><span class="ident">::SIGNATURE_LEN</span> {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
         }
         <span class="kw">let</span> <span class="ident">message_version</span> <span class="op">=</span> <span class="ident">value</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&lt;</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">LegacyCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::LegacyCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&gt;</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">UnrecognizedCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnrecognizedCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
         <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span>
-            <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">SenderKeyMessage</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..<span class="ident">value</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span>::<span class="ident">SIGNATURE_LEN</span>])<span class="question-mark">?</span>;
+            <span class="ident">proto::wire::SenderKeyMessage::decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..<span class="ident">value</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="self">Self</span><span class="ident">::SIGNATURE_LEN</span>])<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">distribution_id</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">distribution_uuid</span>
-            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> <span class="ident">Uuid</span>::<span class="ident">from_slice</span>(<span class="ident">bytes</span>.<span class="ident">as_slice</span>()).<span class="ident">ok</span>())
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> <span class="ident">Uuid::from_slice</span>(<span class="ident">bytes</span>.<span class="ident">as_slice</span>()).<span class="ident">ok</span>())
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">chain_id</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">chain_id</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">iteration</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">iteration</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">ciphertext</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>
             .<span class="ident">into_boxed_slice</span>();
 
         <span class="prelude-val">Ok</span>(<span class="ident">SenderKeyMessage</span> {
@@ -1574,7 +1573,7 @@
             <span class="ident">chain_id</span>,
             <span class="ident">iteration</span>,
             <span class="ident">ciphertext</span>,
-            <span class="ident">serialized</span>: <span class="ident">Box</span>::<span class="ident">from</span>(<span class="ident">value</span>),
+            <span class="ident">serialized</span>: <span class="ident">Box::from</span>(<span class="ident">value</span>),
         })
     }
 }
@@ -1599,14 +1598,14 @@
         <span class="ident">chain_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
         <span class="ident">signing_key</span>: <span class="ident">PublicKey</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">SenderKeyDistributionMessage</span> {
+        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto::wire::SenderKeyDistributionMessage</span> {
             <span class="ident">distribution_uuid</span>: <span class="prelude-val">Some</span>(<span class="ident">distribution_id</span>.<span class="ident">as_bytes</span>().<span class="ident">to_vec</span>()),
             <span class="ident">chain_id</span>: <span class="prelude-val">Some</span>(<span class="ident">chain_id</span>),
             <span class="ident">iteration</span>: <span class="prelude-val">Some</span>(<span class="ident">iteration</span>),
             <span class="ident">chain_key</span>: <span class="prelude-val">Some</span>(<span class="ident">chain_key</span>.<span class="ident">clone</span>()),
             <span class="ident">signing_key</span>: <span class="prelude-val">Some</span>(<span class="ident">signing_key</span>.<span class="ident">serialize</span>().<span class="ident">to_vec</span>()),
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>()];
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>()];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span>;
         <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
 
@@ -1669,46 +1668,46 @@
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="comment">// The message contains at least a X25519 key and a chain key</span>
         <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">1</span> <span class="op">+</span> <span class="number">32</span> <span class="op">+</span> <span class="number">32</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::CiphertextMessageTooShort</span>(<span class="ident">value</span>.<span class="ident">len</span>()));
         }
 
         <span class="kw">let</span> <span class="ident">message_version</span> <span class="op">=</span> <span class="ident">value</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
 
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&lt;</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">LegacyCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::LegacyCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
         <span class="kw">if</span> <span class="ident">message_version</span> <span class="op">&gt;</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">UnrecognizedCiphertextVersion</span>(
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnrecognizedCiphertextVersion</span>(
                 <span class="ident">message_version</span>,
             ));
         }
 
-        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">wire</span>::<span class="ident">SenderKeyDistributionMessage</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto::wire::SenderKeyDistributionMessage::decode</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">distribution_id</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">distribution_uuid</span>
-            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> <span class="ident">Uuid</span>::<span class="ident">from_slice</span>(<span class="ident">bytes</span>.<span class="ident">as_slice</span>()).<span class="ident">ok</span>())
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> <span class="ident">Uuid::from_slice</span>(<span class="ident">bytes</span>.<span class="ident">as_slice</span>()).<span class="ident">ok</span>())
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">chain_id</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">chain_id</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">iteration</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">iteration</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">chain_key</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">chain_key</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">signing_key</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">signing_key</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
 
         <span class="kw">if</span> <span class="ident">chain_key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> <span class="op">|</span><span class="op">|</span> <span class="ident">signing_key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">33</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">signing_key</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">signing_key</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">signing_key</span> <span class="op">=</span> <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">signing_key</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="ident">SenderKeyDistributionMessage</span> {
             <span class="ident">message_version</span>,
@@ -1717,7 +1716,7 @@
             <span class="ident">iteration</span>,
             <span class="ident">chain_key</span>,
             <span class="ident">signing_key</span>,
-            <span class="ident">serialized</span>: <span class="ident">Box</span>::<span class="ident">from</span>(<span class="ident">value</span>),
+            <span class="ident">serialized</span>: <span class="ident">Box::from</span>(<span class="ident">value</span>),
         })
     }
 }
@@ -1753,18 +1752,17 @@
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">DecryptionErrorMessage</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PlaintextContent</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">message</span>: <span class="ident">DecryptionErrorMessage</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">service</span>::<span class="ident">Content</span> {
+        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto::service::Content</span> {
             <span class="ident">decryption_error_message</span>: <span class="prelude-val">Some</span>(<span class="ident">message</span>.<span class="ident">serialized</span>().<span class="ident">to_vec</span>()),
-            ..<span class="ident">Default</span>::<span class="ident">default</span>()
+            ..<span class="ident">Default::default</span>()
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
-        <span class="ident">serialized</span>.<span class="ident">push</span>(<span class="self">Self</span>::<span class="ident">PLAINTEXT_CONTEXT_IDENTIFIER_BYTE</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="self">Self</span><span class="ident">::PLAINTEXT_CONTEXT_IDENTIFIER_BYTE</span>];
         <span class="ident">proto_structure</span>
             .<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;can always encode to a Vec&quot;</span>);
-        <span class="ident">serialized</span>.<span class="ident">push</span>(<span class="self">Self</span>::<span class="ident">PADDING_BOUNDARY_BYTE</span>);
+        <span class="ident">serialized</span>.<span class="ident">push</span>(<span class="self">Self</span><span class="ident">::PADDING_BOUNDARY_BYTE</span>);
         <span class="self">Self</span> {
-            <span class="ident">serialized</span>: <span class="ident">Box</span>::<span class="ident">from</span>(<span class="ident">serialized</span>),
+            <span class="ident">serialized</span>: <span class="ident">Box::from</span>(<span class="ident">serialized</span>),
         }
     }
 }
@@ -1774,15 +1772,15 @@
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">CiphertextMessageTooShort</span>(<span class="number">0</span>));
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::CiphertextMessageTooShort</span>(<span class="number">0</span>));
         }
-        <span class="kw">if</span> <span class="ident">value</span>[<span class="number">0</span>] <span class="op">!</span><span class="op">=</span> <span class="self">Self</span>::<span class="ident">PLAINTEXT_CONTEXT_IDENTIFIER_BYTE</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">UnrecognizedMessageVersion</span>(
+        <span class="kw">if</span> <span class="ident">value</span>[<span class="number">0</span>] <span class="op">!</span><span class="op">=</span> <span class="self">Self</span><span class="ident">::PLAINTEXT_CONTEXT_IDENTIFIER_BYTE</span> {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnrecognizedMessageVersion</span>(
                 <span class="ident">value</span>[<span class="number">0</span>] <span class="kw">as</span> <span class="ident">u32</span>,
             ));
         }
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-            <span class="ident">serialized</span>: <span class="ident">Box</span>::<span class="ident">from</span>(<span class="ident">value</span>),
+            <span class="ident">serialized</span>: <span class="ident">Box::from</span>(<span class="ident">value</span>),
         })
     }
 }
@@ -1803,28 +1801,28 @@
         <span class="ident">original_sender_device_id</span>: <span class="ident">u32</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">ratchet_key</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">original_type</span> {
-            <span class="ident">CiphertextMessageType</span>::<span class="ident">Whisper</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">SignalMessage</span>::<span class="ident">try_from</span>(<span class="ident">original_bytes</span>)<span class="question-mark">?</span>.<span class="ident">sender_ratchet_key</span>())
+            <span class="ident">CiphertextMessageType::Whisper</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">SignalMessage::try_from</span>(<span class="ident">original_bytes</span>)<span class="question-mark">?</span>.<span class="ident">sender_ratchet_key</span>())
             }
-            <span class="ident">CiphertextMessageType</span>::<span class="ident">PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(
-                <span class="kw-2">*</span><span class="ident">PreKeySignalMessage</span>::<span class="ident">try_from</span>(<span class="ident">original_bytes</span>)<span class="question-mark">?</span>
+            <span class="ident">CiphertextMessageType::PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(
+                <span class="kw-2">*</span><span class="ident">PreKeySignalMessage::try_from</span>(<span class="ident">original_bytes</span>)<span class="question-mark">?</span>
                     .<span class="ident">message</span>()
                     .<span class="ident">sender_ratchet_key</span>(),
             ),
-            <span class="ident">CiphertextMessageType</span>::<span class="ident">SenderKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
-            <span class="ident">CiphertextMessageType</span>::<span class="ident">Plaintext</span> <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidArgument</span>(
+            <span class="ident">CiphertextMessageType::SenderKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
+            <span class="ident">CiphertextMessageType::Plaintext</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidArgument</span>(
                     <span class="string">&quot;cannot create a DecryptionErrorMessage for plaintext content; it is not encrypted&quot;</span>.<span class="ident">to_string</span>()
                 ));
             }
         };
 
-        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">service</span>::<span class="ident">DecryptionErrorMessage</span> {
+        <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto::service::DecryptionErrorMessage</span> {
             <span class="ident">timestamp</span>: <span class="prelude-val">Some</span>(<span class="ident">original_timestamp</span>),
             <span class="ident">ratchet_key</span>: <span class="ident">ratchet_key</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">k</span>.<span class="ident">serialize</span>().<span class="ident">into</span>()),
             <span class="ident">device_id</span>: <span class="prelude-val">Some</span>(<span class="ident">original_sender_device_id</span>),
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">new</span>();
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
         <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
@@ -1860,20 +1858,20 @@
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SignalProtocolError</span>;
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">service</span>::<span class="ident">DecryptionErrorMessage</span>::<span class="ident">decode</span>(<span class="ident">value</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">proto_structure</span> <span class="op">=</span> <span class="ident">proto::service::DecryptionErrorMessage::decode</span>(<span class="ident">value</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">timestamp</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">timestamp</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">ratchet_key</span> <span class="op">=</span> <span class="ident">proto_structure</span>
             .<span class="ident">ratchet_key</span>
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">k</span>))
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">k</span>))
             .<span class="ident">transpose</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">device_id</span> <span class="op">=</span> <span class="ident">proto_structure</span>.<span class="ident">device_id</span>.<span class="ident">unwrap_or_default</span>();
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">timestamp</span>,
             <span class="ident">ratchet_key</span>,
             <span class="ident">device_id</span>,
-            <span class="ident">serialized</span>: <span class="ident">Box</span>::<span class="ident">from</span>(<span class="ident">value</span>),
+            <span class="ident">serialized</span>: <span class="ident">Box::from</span>(<span class="ident">value</span>),
         })
     }
 }
@@ -1882,27 +1880,27 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">extract_decryption_error_message_from_serialized_content</span>(
     <span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">DecryptionErrorMessage</span><span class="op">&gt;</span> {
-    <span class="kw">if</span> <span class="ident">bytes</span>.<span class="ident">last</span>() <span class="op">!</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">PlaintextContent</span>::<span class="ident">PADDING_BOUNDARY_BYTE</span>) {
-        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidProtobufEncoding</span>);
+    <span class="kw">if</span> <span class="ident">bytes</span>.<span class="ident">last</span>() <span class="op">!</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="ident">PlaintextContent::PADDING_BOUNDARY_BYTE</span>) {
+        <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>);
     }
-    <span class="kw">let</span> <span class="ident">content</span> <span class="op">=</span> <span class="ident">proto</span>::<span class="ident">service</span>::<span class="ident">Content</span>::<span class="ident">decode</span>(<span class="ident">bytes</span>.<span class="ident">split_last</span>().<span class="ident">expect</span>(<span class="string">&quot;checked above&quot;</span>).<span class="number">1</span>)<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">content</span> <span class="op">=</span> <span class="ident">proto::service::Content::decode</span>(<span class="ident">bytes</span>.<span class="ident">split_last</span>().<span class="ident">expect</span>(<span class="string">&quot;checked above&quot;</span>).<span class="number">1</span>)<span class="question-mark">?</span>;
     <span class="ident">content</span>
         .<span class="ident">decryption_error_message</span>
         .<span class="ident">as_deref</span>()
         .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
-            <span class="ident">SignalProtocolError</span>::<span class="ident">InvalidArgument</span>(
+            <span class="ident">SignalProtocolError::InvalidArgument</span>(
                 <span class="string">&quot;Content does not contain DecryptionErrorMessage&quot;</span>.<span class="ident">to_owned</span>(),
             )
         })
-        .<span class="ident">and_then</span>(<span class="ident">DecryptionErrorMessage</span>::<span class="ident">try_from</span>)
+        .<span class="ident">and_then</span>(<span class="ident">DecryptionErrorMessage::try_from</span>)
 }
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">KeyPair</span>;
+    <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::KeyPair</span>;
 
-    <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">rngs</span>::<span class="ident">OsRng</span>;
+    <span class="kw">use</span> <span class="ident">rand::rngs::OsRng</span>;
     <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">CryptoRng</span>, <span class="ident">Rng</span>};
 
     <span class="kw">fn</span> <span class="ident">create_signal_message</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignalMessage</span><span class="op">&gt;</span>
@@ -1917,11 +1915,11 @@
         <span class="ident">csprng</span>.<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ciphertext</span>);
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">ciphertext</span>;
 
-        <span class="kw">let</span> <span class="ident">sender_ratchet_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">sender_identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">receiver_identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">sender_ratchet_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">sender_identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">receiver_identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="ident">csprng</span>);
 
-        <span class="ident">SignalMessage</span>::<span class="ident">new</span>(
+        <span class="ident">SignalMessage::new</span>(
             <span class="number">3</span>,
             <span class="kw-2">&amp;</span><span class="ident">mac_key</span>,
             <span class="ident">sender_ratchet_key_pair</span>.<span class="ident">public_key</span>,
@@ -1934,12 +1932,12 @@
     }
 
     <span class="kw">fn</span> <span class="ident">assert_signal_message_equals</span>(<span class="ident">m1</span>: <span class="kw-2">&amp;</span><span class="ident">SignalMessage</span>, <span class="ident">m2</span>: <span class="kw-2">&amp;</span><span class="ident">SignalMessage</span>) {
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">m1</span>.<span class="ident">message_version</span>, <span class="ident">m2</span>.<span class="ident">message_version</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">m1</span>.<span class="ident">sender_ratchet_key</span>, <span class="ident">m2</span>.<span class="ident">sender_ratchet_key</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">m1</span>.<span class="ident">counter</span>, <span class="ident">m2</span>.<span class="ident">counter</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">m1</span>.<span class="ident">previous_counter</span>, <span class="ident">m2</span>.<span class="ident">previous_counter</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">m1</span>.<span class="ident">ciphertext</span>, <span class="ident">m2</span>.<span class="ident">ciphertext</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">m1</span>.<span class="ident">serialized</span>, <span class="ident">m2</span>.<span class="ident">serialized</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">m1</span>.<span class="ident">message_version</span>, <span class="ident">m2</span>.<span class="ident">message_version</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">m1</span>.<span class="ident">sender_ratchet_key</span>, <span class="ident">m2</span>.<span class="ident">sender_ratchet_key</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">m1</span>.<span class="ident">counter</span>, <span class="ident">m2</span>.<span class="ident">counter</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">m1</span>.<span class="ident">previous_counter</span>, <span class="ident">m2</span>.<span class="ident">previous_counter</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">m1</span>.<span class="ident">ciphertext</span>, <span class="ident">m2</span>.<span class="ident">ciphertext</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">m1</span>.<span class="ident">serialized</span>, <span class="ident">m2</span>.<span class="ident">serialized</span>);
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
@@ -1947,7 +1945,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">deser_message</span> <span class="op">=</span>
-            <span class="ident">SignalMessage</span>::<span class="ident">try_from</span>(<span class="ident">message</span>.<span class="ident">as_ref</span>()).<span class="ident">expect</span>(<span class="string">&quot;should deserialize without error&quot;</span>);
+            <span class="ident">SignalMessage::try_from</span>(<span class="ident">message</span>.<span class="ident">as_ref</span>()).<span class="ident">expect</span>(<span class="string">&quot;should deserialize without error&quot;</span>);
         <span class="ident">assert_signal_message_equals</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">deser_message</span>);
         <span class="prelude-val">Ok</span>(())
     }
@@ -1955,10 +1953,10 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_pre_key_signal_message_serialize_deserialize</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">pre_key_signal_message</span> <span class="op">=</span> <span class="ident">PreKeySignalMessage</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">pre_key_signal_message</span> <span class="op">=</span> <span class="ident">PreKeySignalMessage::new</span>(
             <span class="number">3</span>,
             <span class="number">365</span>,
             <span class="prelude-val">None</span>,
@@ -1968,29 +1966,29 @@
             <span class="ident">message</span>,
         )<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">deser_pre_key_signal_message</span> <span class="op">=</span>
-            <span class="ident">PreKeySignalMessage</span>::<span class="ident">try_from</span>(<span class="ident">pre_key_signal_message</span>.<span class="ident">as_ref</span>())
+            <span class="ident">PreKeySignalMessage::try_from</span>(<span class="ident">pre_key_signal_message</span>.<span class="ident">as_ref</span>())
                 .<span class="ident">expect</span>(<span class="string">&quot;should deserialize without error&quot;</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">pre_key_signal_message</span>.<span class="ident">message_version</span>,
             <span class="ident">deser_pre_key_signal_message</span>.<span class="ident">message_version</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">pre_key_signal_message</span>.<span class="ident">registration_id</span>,
             <span class="ident">deser_pre_key_signal_message</span>.<span class="ident">registration_id</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">pre_key_signal_message</span>.<span class="ident">pre_key_id</span>,
             <span class="ident">deser_pre_key_signal_message</span>.<span class="ident">pre_key_id</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">pre_key_signal_message</span>.<span class="ident">signed_pre_key_id</span>,
             <span class="ident">deser_pre_key_signal_message</span>.<span class="ident">signed_pre_key_id</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">pre_key_signal_message</span>.<span class="ident">base_key</span>,
             <span class="ident">deser_pre_key_signal_message</span>.<span class="ident">base_key</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">pre_key_signal_message</span>.<span class="ident">identity_key</span>.<span class="ident">public_key</span>(),
             <span class="ident">deser_pre_key_signal_message</span>.<span class="ident">identity_key</span>.<span class="ident">public_key</span>()
         );
@@ -1998,7 +1996,7 @@
             <span class="kw-2">&amp;</span><span class="ident">pre_key_signal_message</span>.<span class="ident">message</span>,
             <span class="kw-2">&amp;</span><span class="ident">deser_pre_key_signal_message</span>.<span class="ident">message</span>,
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">pre_key_signal_message</span>.<span class="ident">serialized</span>,
             <span class="ident">deser_pre_key_signal_message</span>.<span class="ident">serialized</span>
         );
@@ -2008,35 +2006,35 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_sender_key_message_serialize_deserialize</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">signature_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">signature_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage::new</span>(
             <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span>,
-            <span class="ident">Uuid</span>::<span class="ident">from_u128</span>(<span class="number">0xd1d1d1d1_7000_11eb_b32a_33b8a8a487a6</span>),
+            <span class="ident">Uuid::from_u128</span>(<span class="number">0xd1d1d1d1_7000_11eb_b32a_33b8a8a487a6</span>),
             <span class="number">42</span>,
             <span class="number">7</span>,
             [<span class="number">1u8</span>, <span class="number">2</span>, <span class="number">3</span>].<span class="ident">into</span>(),
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
             <span class="kw-2">&amp;</span><span class="ident">signature_key_pair</span>.<span class="ident">private_key</span>,
         )<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">deser_sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage</span>::<span class="ident">try_from</span>(<span class="ident">sender_key_message</span>.<span class="ident">as_ref</span>())
+        <span class="kw">let</span> <span class="ident">deser_sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage::try_from</span>(<span class="ident">sender_key_message</span>.<span class="ident">as_ref</span>())
             .<span class="ident">expect</span>(<span class="string">&quot;should deserialize without error&quot;</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">sender_key_message</span>.<span class="ident">message_version</span>,
             <span class="ident">deser_sender_key_message</span>.<span class="ident">message_version</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">sender_key_message</span>.<span class="ident">chain_id</span>,
             <span class="ident">deser_sender_key_message</span>.<span class="ident">chain_id</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">sender_key_message</span>.<span class="ident">iteration</span>,
             <span class="ident">deser_sender_key_message</span>.<span class="ident">iteration</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">sender_key_message</span>.<span class="ident">ciphertext</span>,
             <span class="ident">deser_sender_key_message</span>.<span class="ident">ciphertext</span>
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">sender_key_message</span>.<span class="ident">serialized</span>,
             <span class="ident">deser_sender_key_message</span>.<span class="ident">serialized</span>
         );
@@ -2046,29 +2044,29 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_decryption_error_message</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">timestamp</span> <span class="op">=</span> <span class="number">0x2_0000_0001</span>;
         <span class="kw">let</span> <span class="ident">device_id</span> <span class="op">=</span> <span class="number">0x8086_2021</span>;
 
         {
-            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage</span>::<span class="ident">for_original</span>(
+            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage::for_original</span>(
                 <span class="ident">message</span>.<span class="ident">serialized</span>(),
-                <span class="ident">CiphertextMessageType</span>::<span class="ident">Whisper</span>,
+                <span class="ident">CiphertextMessageType::Whisper</span>,
                 <span class="ident">timestamp</span>,
                 <span class="ident">device_id</span>,
             )<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage</span>::<span class="ident">try_from</span>(<span class="ident">error_message</span>.<span class="ident">serialized</span>())<span class="question-mark">?</span>;
-            <span class="macro">assert_eq</span><span class="macro">!</span>(
+            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage::try_from</span>(<span class="ident">error_message</span>.<span class="ident">serialized</span>())<span class="question-mark">?</span>;
+            <span class="macro">assert_eq!</span>(
                 <span class="ident">error_message</span>.<span class="ident">ratchet_key</span>(),
                 <span class="prelude-val">Some</span>(<span class="ident">message</span>.<span class="ident">sender_ratchet_key</span>())
             );
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">error_message</span>.<span class="ident">timestamp</span>(), <span class="ident">timestamp</span>);
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">error_message</span>.<span class="ident">device_id</span>(), <span class="ident">device_id</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">error_message</span>.<span class="ident">timestamp</span>(), <span class="ident">timestamp</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">error_message</span>.<span class="ident">device_id</span>(), <span class="ident">device_id</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">pre_key_signal_message</span> <span class="op">=</span> <span class="ident">PreKeySignalMessage</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">pre_key_signal_message</span> <span class="op">=</span> <span class="ident">PreKeySignalMessage::new</span>(
             <span class="number">3</span>,
             <span class="number">365</span>,
             <span class="prelude-val">None</span>,
@@ -2079,42 +2077,42 @@
         )<span class="question-mark">?</span>;
 
         {
-            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage</span>::<span class="ident">for_original</span>(
+            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage::for_original</span>(
                 <span class="ident">pre_key_signal_message</span>.<span class="ident">serialized</span>(),
-                <span class="ident">CiphertextMessageType</span>::<span class="ident">PreKey</span>,
+                <span class="ident">CiphertextMessageType::PreKey</span>,
                 <span class="ident">timestamp</span>,
                 <span class="ident">device_id</span>,
             )<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage</span>::<span class="ident">try_from</span>(<span class="ident">error_message</span>.<span class="ident">serialized</span>())<span class="question-mark">?</span>;
-            <span class="macro">assert_eq</span><span class="macro">!</span>(
+            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage::try_from</span>(<span class="ident">error_message</span>.<span class="ident">serialized</span>())<span class="question-mark">?</span>;
+            <span class="macro">assert_eq!</span>(
                 <span class="ident">error_message</span>.<span class="ident">ratchet_key</span>(),
                 <span class="prelude-val">Some</span>(<span class="ident">pre_key_signal_message</span>.<span class="ident">message</span>().<span class="ident">sender_ratchet_key</span>())
             );
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">error_message</span>.<span class="ident">timestamp</span>(), <span class="ident">timestamp</span>);
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">error_message</span>.<span class="ident">device_id</span>(), <span class="ident">device_id</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">error_message</span>.<span class="ident">timestamp</span>(), <span class="ident">timestamp</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">error_message</span>.<span class="ident">device_id</span>(), <span class="ident">device_id</span>);
         }
 
-        <span class="kw">let</span> <span class="ident">sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage::new</span>(
             <span class="number">3</span>,
-            <span class="ident">Uuid</span>::<span class="ident">nil</span>(),
+            <span class="ident">Uuid::nil</span>(),
             <span class="number">1</span>,
             <span class="number">2</span>,
-            <span class="ident">Box</span>::<span class="ident">from</span>(<span class="string">b&quot;test&quot;</span>.<span class="ident">to_owned</span>()),
+            <span class="ident">Box::from</span>(<span class="string">b&quot;test&quot;</span>.<span class="ident">to_owned</span>()),
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
             <span class="kw-2">&amp;</span><span class="ident">base_key_pair</span>.<span class="ident">private_key</span>,
         )<span class="question-mark">?</span>;
 
         {
-            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage</span>::<span class="ident">for_original</span>(
+            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage::for_original</span>(
                 <span class="ident">sender_key_message</span>.<span class="ident">serialized</span>(),
-                <span class="ident">CiphertextMessageType</span>::<span class="ident">SenderKey</span>,
+                <span class="ident">CiphertextMessageType::SenderKey</span>,
                 <span class="ident">timestamp</span>,
                 <span class="ident">device_id</span>,
             )<span class="question-mark">?</span>;
-            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage</span>::<span class="ident">try_from</span>(<span class="ident">error_message</span>.<span class="ident">serialized</span>())<span class="question-mark">?</span>;
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">error_message</span>.<span class="ident">ratchet_key</span>(), <span class="prelude-val">None</span>);
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">error_message</span>.<span class="ident">timestamp</span>(), <span class="ident">timestamp</span>);
-            <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">error_message</span>.<span class="ident">device_id</span>(), <span class="ident">device_id</span>);
+            <span class="kw">let</span> <span class="ident">error_message</span> <span class="op">=</span> <span class="ident">DecryptionErrorMessage::try_from</span>(<span class="ident">error_message</span>.<span class="ident">serialized</span>())<span class="question-mark">?</span>;
+            <span class="macro">assert_eq!</span>(<span class="ident">error_message</span>.<span class="ident">ratchet_key</span>(), <span class="prelude-val">None</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">error_message</span>.<span class="ident">timestamp</span>(), <span class="ident">timestamp</span>);
+            <span class="macro">assert_eq!</span>(<span class="ident">error_message</span>.<span class="ident">device_id</span>(), <span class="ident">device_id</span>);
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -2122,12 +2120,12 @@
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_decryption_error_message_for_plaintext</span>() {
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="macro">matches</span><span class="macro">!</span>(
-            <span class="ident">DecryptionErrorMessage</span>::<span class="ident">for_original</span>(<span class="kw-2">&amp;</span>[], <span class="ident">CiphertextMessageType</span>::<span class="ident">Plaintext</span>, <span class="number">5</span>, <span class="number">7</span>),
-            <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">InvalidArgument</span>(<span class="kw">_</span>))
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+            <span class="ident">DecryptionErrorMessage::for_original</span>(<span class="kw-2">&amp;</span>[], <span class="ident">CiphertextMessageType::Plaintext</span>, <span class="number">5</span>, <span class="number">7</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidArgument</span>(<span class="kw">_</span>))
         ));
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_protocol" data-search-js="../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_protocol" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

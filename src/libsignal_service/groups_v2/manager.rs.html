@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service/src/groups_v2/manager.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>manager.rs - source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script id="default-settings"></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../libsignal_service/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../libsignal_service/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -233,27 +233,27 @@
 <span id="230">230</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std</span>::{
-    <span class="ident">collections</span>::<span class="ident">HashMap</span>,
+    <span class="ident">collections::HashMap</span>,
     <span class="ident">time</span>::{<span class="ident">SystemTime</span>, <span class="ident">UNIX_EPOCH</span>},
 };
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
-    <span class="ident">configuration</span>::<span class="ident">Endpoint</span>,
+    <span class="ident">configuration::Endpoint</span>,
     <span class="ident">prelude</span>::{<span class="ident">PushService</span>, <span class="ident">ServiceError</span>},
-    <span class="ident">proto</span>::<span class="ident">DecryptedGroup</span>,
+    <span class="ident">proto::DecryptedGroup</span>,
     <span class="ident">push_service</span>::{<span class="ident">HttpAuth</span>, <span class="ident">HttpAuthOverride</span>},
 };
 
-<span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">RngCore</span>;
-<span class="kw">use</span> <span class="ident">serde</span>::<span class="ident">Deserialize</span>;
-<span class="kw">use</span> <span class="ident">uuid</span>::<span class="ident">Uuid</span>;
+<span class="kw">use</span> <span class="ident">rand::RngCore</span>;
+<span class="kw">use</span> <span class="ident">serde::Deserialize</span>;
+<span class="kw">use</span> <span class="ident">uuid::Uuid</span>;
 <span class="kw">use</span> <span class="ident">zkgroup</span>::{
-    <span class="ident">auth</span>::<span class="ident">AuthCredentialResponse</span>, <span class="ident">groups</span>::<span class="ident">GroupSecretParams</span>, <span class="ident">ServerPublicParams</span>,
+    <span class="ident">auth::AuthCredentialResponse</span>, <span class="ident">groups::GroupSecretParams</span>, <span class="ident">ServerPublicParams</span>,
 };
 
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">operations</span>::<span class="ident">GroupOperations</span>;
+<span class="kw">use</span> <span class="kw">super</span><span class="ident">::operations::GroupOperations</span>;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">serde</span>::<span class="ident">Deserialize</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">serde::Deserialize</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TemporalCredential</span> {
     <span class="ident">credential</span>: <span class="ident">String</span>,
@@ -273,15 +273,15 @@
         <span class="self">self</span>.<span class="ident">credentials</span>
             .<span class="ident">into_iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="ident">base64</span>::<span class="ident">decode</span>(<span class="ident">c</span>.<span class="ident">credential</span>)<span class="question-mark">?</span>;
-                <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>)<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="ident">base64::decode</span>(<span class="ident">c</span>.<span class="ident">credential</span>)<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">bincode::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>((<span class="ident">c</span>.<span class="ident">redemption_time</span>, <span class="ident">data</span>))
             })
             .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span><span class="op">&gt;</span>()
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">thiserror</span>::<span class="ident">Error</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">thiserror::Error</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">CredentialsCacheError</span> {
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;failed to read values from cache: {0}&quot;</span>)]</span>
     <span class="ident">ReadError</span>(<span class="ident">String</span>),
@@ -360,7 +360,7 @@
         <span class="ident">uuid</span>: <span class="ident">Uuid</span>,
         <span class="ident">group_secret_params</span>: <span class="ident">GroupSecretParams</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">HttpAuth</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">today</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">current_time_days</span>();
+        <span class="kw">let</span> <span class="ident">today</span> <span class="op">=</span> <span class="self">Self</span><span class="ident">::current_time_days</span>();
         <span class="kw">let</span> <span class="ident">auth_credential_response</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">auth_credential_response</span>) <span class="op">=</span>
             <span class="self">self</span>.<span class="ident">credentials_cache</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">today</span>)<span class="question-mark">?</span>
         {
@@ -370,7 +370,7 @@
                 <span class="self">self</span>.<span class="ident">get_authorization</span>(<span class="ident">today</span>).<span class="kw">await</span><span class="question-mark">?</span>.<span class="ident">parse</span>()<span class="question-mark">?</span>;
             <span class="self">self</span>.<span class="ident">credentials_cache</span>.<span class="ident">write</span>(<span class="ident">credentials_map</span>)<span class="question-mark">?</span>;
             <span class="self">self</span>.<span class="ident">credentials_cache</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">today</span>)<span class="question-mark">?</span>.<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
-                <span class="ident">ServiceError</span>::<span class="ident">ResponseError</span> {
+                <span class="ident">ServiceError::ResponseError</span> {
                     <span class="ident">reason</span>:
                         <span class="string">&quot;credentials received did not contain requested day&quot;</span>
                             .<span class="ident">into</span>(),
@@ -393,16 +393,16 @@
         <span class="kw">let</span> <span class="ident">today_plus_7_days</span> <span class="op">=</span> <span class="ident">today</span> <span class="op">+</span> <span class="number">7</span>;
 
         <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span>
-            <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;/v1/certificate/group/{}/{}&quot;</span>, <span class="ident">today</span>, <span class="ident">today_plus_7_days</span>);
+            <span class="macro">format!</span>(<span class="string">&quot;/v1/certificate/group/{}/{}&quot;</span>, <span class="ident">today</span>, <span class="ident">today_plus_7_days</span>);
 
         <span class="self">self</span>.<span class="ident">push_service</span>
-            .<span class="ident">get_json</span>(<span class="ident">Endpoint</span>::<span class="ident">Service</span>, <span class="kw-2">&amp;</span><span class="ident">path</span>, <span class="ident">HttpAuthOverride</span>::<span class="ident">NoOverride</span>)
+            .<span class="ident">get_json</span>(<span class="ident">Endpoint::Service</span>, <span class="kw-2">&amp;</span><span class="ident">path</span>, <span class="ident">HttpAuthOverride::NoOverride</span>)
             .<span class="kw">await</span>
     }
 
     <span class="kw">fn</span> <span class="ident">current_time_days</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i64</span> {
-        <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">SystemTime</span>::<span class="ident">now</span>().<span class="ident">duration_since</span>(<span class="ident">UNIX_EPOCH</span>).<span class="ident">unwrap</span>();
-        <span class="kw">let</span> <span class="ident">today</span> <span class="op">=</span> <span class="ident">chrono</span>::<span class="ident">Duration</span>::<span class="ident">from_std</span>(<span class="ident">now</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">SystemTime::now</span>().<span class="ident">duration_since</span>(<span class="ident">UNIX_EPOCH</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">today</span> <span class="op">=</span> <span class="ident">chrono::Duration::from_std</span>(<span class="ident">now</span>).<span class="ident">unwrap</span>();
         <span class="ident">today</span>.<span class="ident">num_days</span>()
     }
 
@@ -421,12 +421,12 @@
                 <span class="ident">credential_response</span>,
             )
             .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
-                <span class="ident">log</span>::<span class="macro">error</span><span class="macro">!</span>(<span class="string">&quot;zero-knowledge group error: {:?}&quot;</span>, <span class="ident">e</span>);
-                <span class="ident">ServiceError</span>::<span class="ident">GroupsV2Error</span>
+                <span class="macro">log::error!</span>(<span class="string">&quot;zero-knowledge group error: {:?}&quot;</span>, <span class="ident">e</span>);
+                <span class="ident">ServiceError::GroupsV2Error</span>
             })<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">random_bytes</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
-        <span class="ident">rand</span>::<span class="ident">thread_rng</span>().<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">random_bytes</span>);
+        <span class="ident">rand::thread_rng</span>().<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">random_bytes</span>);
 
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">server_public_params</span>
@@ -438,12 +438,12 @@
 
         <span class="comment">// see simpleapi.rs GroupSecretParams_getPublicParams, everything is bincode encoded</span>
         <span class="comment">// across the boundary of Rust/Java</span>
-        <span class="kw">let</span> <span class="ident">username</span> <span class="op">=</span> <span class="ident">hex</span>::<span class="ident">encode</span>(<span class="ident">bincode</span>::<span class="ident">serialize</span>(
+        <span class="kw">let</span> <span class="ident">username</span> <span class="op">=</span> <span class="ident">hex::encode</span>(<span class="ident">bincode::serialize</span>(
             <span class="kw-2">&amp;</span><span class="ident">group_secret_params</span>.<span class="ident">get_public_params</span>(),
         )<span class="question-mark">?</span>);
 
         <span class="kw">let</span> <span class="ident">password</span> <span class="op">=</span>
-            <span class="ident">hex</span>::<span class="ident">encode</span>(<span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential_presentation</span>)<span class="question-mark">?</span>);
+            <span class="ident">hex::encode</span>(<span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential_presentation</span>)<span class="question-mark">?</span>);
 
         <span class="prelude-val">Ok</span>(<span class="ident">HttpAuth</span> { <span class="ident">username</span>, <span class="ident">password</span> })
     }
@@ -454,7 +454,7 @@
         <span class="ident">credentials</span>: <span class="ident">HttpAuth</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">DecryptedGroup</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">encrypted_group</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">push_service</span>.<span class="ident">get_group</span>(<span class="ident">credentials</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">decrypted_group</span> <span class="op">=</span> <span class="ident">GroupOperations</span>::<span class="ident">decrypt_group</span>(
+        <span class="kw">let</span> <span class="ident">decrypted_group</span> <span class="op">=</span> <span class="ident">GroupOperations::decrypt_group</span>(
             <span class="ident">group_secret_params</span>,
             <span class="ident">encrypted_group</span>,
         )<span class="question-mark">?</span>;
@@ -463,5 +463,5 @@
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="libsignal_service" data-search-js="../../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="libsignal_service" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script></body></html>

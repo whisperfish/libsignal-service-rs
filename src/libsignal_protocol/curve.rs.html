@@ -1,6 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/c042f16/rust/protocol/src/curve.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>curve.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/d923dd3/rust/protocol/src/curve.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>curve.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -399,29 +399,29 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="prelude-ty">Result</span>, <span class="ident">SignalProtocolError</span>};
 
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">cmp</span>::<span class="ident">Ordering</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">fmt</span>;
+<span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
+<span class="kw">use</span> <span class="ident">std::convert::TryFrom</span>;
+<span class="kw">use</span> <span class="ident">std::fmt</span>;
 
-<span class="kw">use</span> <span class="ident">arrayref</span>::<span class="ident">array_ref</span>;
+<span class="kw">use</span> <span class="ident">arrayref::array_ref</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">CryptoRng</span>, <span class="ident">Rng</span>};
-<span class="kw">use</span> <span class="ident">subtle</span>::<span class="ident">ConstantTimeEq</span>;
+<span class="kw">use</span> <span class="ident">subtle::ConstantTimeEq</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">PartialEq</span>, <span class="ident">Eq</span>, <span class="ident">PartialOrd</span>, <span class="ident">Ord</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">KeyType</span> {
     <span class="ident">Djb</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Display</span> <span class="kw">for</span> <span class="ident">KeyType</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="ident">fmt</span>::<span class="ident">Debug</span>::<span class="ident">fmt</span>(<span class="self">self</span>, <span class="ident">f</span>)
+<span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">KeyType</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt::Result</span> {
+        <span class="ident">fmt::Debug::fmt</span>(<span class="self">self</span>, <span class="ident">f</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">KeyType</span> {
     <span class="kw">fn</span> <span class="ident">value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u8</span> {
         <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="self">self</span> {
-            <span class="ident">KeyType</span>::<span class="ident">Djb</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">0x05u8</span>,
+            <span class="ident">KeyType::Djb</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">0x05u8</span>,
         }
     }
 }
@@ -431,8 +431,8 @@
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">x</span>: <span class="ident">u8</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="ident">x</span> {
-            <span class="number">0x05u8</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">KeyType</span>::<span class="ident">Djb</span>),
-            <span class="ident">t</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">BadKeyType</span>(<span class="ident">t</span>)),
+            <span class="number">0x05u8</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">KeyType::Djb</span>),
+            <span class="ident">t</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::BadKeyType</span>(<span class="ident">t</span>)),
         }
     }
 }
@@ -454,19 +454,19 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">is_empty</span>() {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">NoKeyTypeIdentifier</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::NoKeyTypeIdentifier</span>);
         }
-        <span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyType</span>::<span class="ident">try_from</span>(<span class="ident">value</span>[<span class="number">0</span>])<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">key_type</span> <span class="op">=</span> <span class="ident">KeyType::try_from</span>(<span class="ident">value</span>[<span class="number">0</span>])<span class="question-mark">?</span>;
         <span class="kw">match</span> <span class="ident">key_type</span> {
-            <span class="ident">KeyType</span>::<span class="ident">Djb</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">KeyType::Djb</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="comment">// We allow trailing data after the public key (why?)</span>
                 <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">32</span> <span class="op">+</span> <span class="number">1</span> {
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">BadKeyLength</span>(<span class="ident">KeyType</span>::<span class="ident">Djb</span>, <span class="ident">value</span>.<span class="ident">len</span>()));
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::BadKeyLength</span>(<span class="ident">KeyType::Djb</span>, <span class="ident">value</span>.<span class="ident">len</span>()));
                 }
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">key</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
                 <span class="ident">key</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[<span class="number">1</span>..<span class="number">33</span>]);
                 <span class="prelude-val">Ok</span>(<span class="ident">PublicKey</span> {
-                    <span class="ident">key</span>: <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="ident">key</span>),
+                    <span class="ident">key</span>: <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="ident">key</span>),
                 })
             }
         }
@@ -474,41 +474,41 @@
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="kw-2">ref</span> <span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">v</span>),
+            <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="kw-2">ref</span> <span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">v</span>),
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_djb_public_key_bytes</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> <span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span>::<span class="ident">try_from</span>(<span class="ident">bytes</span>) {
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">BadKeyLength</span>(<span class="ident">KeyType</span>::<span class="ident">Djb</span>, <span class="ident">bytes</span>.<span class="ident">len</span>())),
+        <span class="kw">match</span> <span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span><span class="ident">::try_from</span>(<span class="ident">bytes</span>) {
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::BadKeyLength</span>(<span class="ident">KeyType::Djb</span>, <span class="ident">bytes</span>.<span class="ident">len</span>())),
             <span class="prelude-val">Ok</span>(<span class="ident">key</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">PublicKey</span> {
-                <span class="ident">key</span>: <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="ident">key</span>),
+                <span class="ident">key</span>: <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="ident">key</span>),
             }),
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">value_len</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">v</span>.<span class="ident">len</span>(),
+            <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">v</span>.<span class="ident">len</span>(),
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec</span>::<span class="ident">with_capacity</span>(<span class="number">1</span> <span class="op">+</span> <span class="ident">value_len</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="number">1</span> <span class="op">+</span> <span class="ident">value_len</span>);
         <span class="ident">result</span>.<span class="ident">push</span>(<span class="self">self</span>.<span class="ident">key_type</span>().<span class="ident">value</span>());
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>),
+            <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">v</span>),
         }
         <span class="ident">result</span>.<span class="ident">into_boxed_slice</span>()
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="ident">pub_key</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="ident">pub_key</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">if</span> <span class="ident">signature</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">64</span> {
                     <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
                 }
-                <span class="prelude-val">Ok</span>(<span class="ident">curve25519</span>::<span class="ident">KeyPair</span>::<span class="ident">verify_signature</span>(
+                <span class="prelude-val">Ok</span>(<span class="ident">curve25519::KeyPair::verify_signature</span>(
                     <span class="kw-2">&amp;</span><span class="ident">pub_key</span>,
                     <span class="ident">message</span>,
-                    <span class="macro">array_ref</span><span class="macro">!</span>[<span class="ident">signature</span>, <span class="number">0</span>, <span class="number">64</span>],
+                    <span class="macro">array_ref!</span>[<span class="ident">signature</span>, <span class="number">0</span>, <span class="number">64</span>],
                 ))
             }
         }
@@ -516,13 +516,13 @@
 
     <span class="kw">fn</span> <span class="ident">key_data</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="kw-2">ref</span> <span class="ident">k</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">k</span>.<span class="ident">as_ref</span>(),
+            <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="kw-2">ref</span> <span class="ident">k</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">k</span>.<span class="ident">as_ref</span>(),
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">KeyType</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">KeyType</span>::<span class="ident">Djb</span>,
+            <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">KeyType::Djb</span>,
         }
     }
 }
@@ -537,16 +537,16 @@
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SignalProtocolError</span>;
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="self">Self</span>::<span class="ident">deserialize</span>(<span class="ident">value</span>)
+        <span class="self">Self</span><span class="ident">::deserialize</span>(<span class="ident">value</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">subtle</span>::<span class="ident">ConstantTimeEq</span> <span class="kw">for</span> <span class="ident">PublicKey</span> {
+<span class="kw">impl</span> <span class="ident">subtle::ConstantTimeEq</span> <span class="kw">for</span> <span class="ident">PublicKey</span> {
     <span class="doccomment">/// A constant-time comparison as long as the two keys have a matching type.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// If the two keys have different types, the comparison short-circuits,</span>
     <span class="doccomment">/// much like comparing two slices of different lengths.</span>
-    <span class="kw">fn</span> <span class="ident">ct_eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">subtle</span>::<span class="ident">Choice</span> {
+    <span class="kw">fn</span> <span class="ident">ct_eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">subtle::Choice</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">key_type</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">key_type</span>() {
             <span class="kw">return</span> <span class="number">0</span>.<span class="ident">ct_eq</span>(<span class="kw-2">&amp;</span><span class="number">1</span>);
         }
@@ -556,7 +556,7 @@
 
 <span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">PublicKey</span> {
     <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="ident">bool</span>::<span class="ident">from</span>(<span class="self">self</span>.<span class="ident">ct_eq</span>(<span class="ident">other</span>))
+        <span class="ident">bool::from</span>(<span class="self">self</span>.<span class="ident">ct_eq</span>(<span class="ident">other</span>))
     }
 }
 
@@ -566,7 +566,7 @@
             <span class="kw">return</span> <span class="self">self</span>.<span class="ident">key_type</span>().<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">other</span>.<span class="ident">key_type</span>());
         }
 
-        <span class="kw">crate</span>::<span class="ident">utils</span>::<span class="ident">constant_time_cmp</span>(<span class="self">self</span>.<span class="ident">key_data</span>(), <span class="ident">other</span>.<span class="ident">key_data</span>())
+        <span class="kw">crate</span><span class="ident">::utils::constant_time_cmp</span>(<span class="self">self</span>.<span class="ident">key_data</span>(), <span class="ident">other</span>.<span class="ident">key_data</span>())
     }
 }
 
@@ -576,9 +576,9 @@
     }
 }
 
-<span class="kw">impl</span> <span class="ident">fmt</span>::<span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">PublicKey</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt</span>::<span class="ident">Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt</span>::<span class="prelude-ty">Result</span> {
-        <span class="macro">write</span><span class="macro">!</span>(
+<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">PublicKey</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt::Result</span> {
+        <span class="macro">write!</span>(
             <span class="ident">f</span>,
             <span class="string">&quot;PublicKey {{ key_type={}, serialize={:?} }}&quot;</span>,
             <span class="self">self</span>.<span class="ident">key_type</span>(),
@@ -600,7 +600,7 @@
 <span class="kw">impl</span> <span class="ident">PrivateKey</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">value</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError</span>::<span class="ident">BadKeyLength</span>(<span class="ident">KeyType</span>::<span class="ident">Djb</span>, <span class="ident">value</span>.<span class="ident">len</span>()))
+            <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::BadKeyLength</span>(<span class="ident">KeyType::Djb</span>, <span class="ident">value</span>.<span class="ident">len</span>()))
         } <span class="kw">else</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">key</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
             <span class="ident">key</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">value</span>[..<span class="number">32</span>]);
@@ -609,29 +609,29 @@
             <span class="ident">key</span>[<span class="number">31</span>] <span class="op">&amp;=</span> <span class="number">0x7F</span>;
             <span class="ident">key</span>[<span class="number">31</span>] <span class="op">|</span><span class="op">=</span> <span class="number">0x40</span>;
             <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-                <span class="ident">key</span>: <span class="ident">PrivateKeyData</span>::<span class="ident">DjbPrivateKey</span>(<span class="ident">key</span>),
+                <span class="ident">key</span>: <span class="ident">PrivateKeyData::DjbPrivateKey</span>(<span class="ident">key</span>),
             })
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PrivateKeyData</span>::<span class="ident">DjbPrivateKey</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">v</span>.<span class="ident">to_vec</span>(),
+            <span class="ident">PrivateKeyData::DjbPrivateKey</span>(<span class="ident">v</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">v</span>.<span class="ident">to_vec</span>(),
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PrivateKeyData</span>::<span class="ident">DjbPrivateKey</span>(<span class="ident">private_key</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="ident">curve25519</span>::<span class="ident">derive_public_key</span>(<span class="kw-2">&amp;</span><span class="ident">private_key</span>);
-                <span class="prelude-val">Ok</span>(<span class="ident">PublicKey</span>::<span class="ident">new</span>(<span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="ident">public_key</span>)))
+            <span class="ident">PrivateKeyData::DjbPrivateKey</span>(<span class="ident">private_key</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="ident">curve25519::derive_public_key</span>(<span class="kw-2">&amp;</span><span class="ident">private_key</span>);
+                <span class="prelude-val">Ok</span>(<span class="ident">PublicKey::new</span>(<span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="ident">public_key</span>)))
             }
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">KeyType</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PrivateKeyData</span>::<span class="ident">DjbPrivateKey</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">KeyType</span>::<span class="ident">Djb</span>,
+            <span class="ident">PrivateKeyData::DjbPrivateKey</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">KeyType::Djb</span>,
         }
     }
 
@@ -641,18 +641,18 @@
         <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key</span> {
-            <span class="ident">PrivateKeyData</span>::<span class="ident">DjbPrivateKey</span>(<span class="ident">k</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">kp</span> <span class="op">=</span> <span class="ident">curve25519</span>::<span class="ident">KeyPair</span>::<span class="ident">from</span>(<span class="ident">k</span>);
-                <span class="prelude-val">Ok</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">kp</span>.<span class="ident">calculate_signature</span>(<span class="ident">csprng</span>, <span class="ident">message</span>)))
+            <span class="ident">PrivateKeyData::DjbPrivateKey</span>(<span class="ident">k</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">kp</span> <span class="op">=</span> <span class="ident">curve25519::KeyPair::from</span>(<span class="ident">k</span>);
+                <span class="prelude-val">Ok</span>(<span class="ident">Box::new</span>(<span class="ident">kp</span>.<span class="ident">calculate_signature</span>(<span class="ident">csprng</span>, <span class="ident">message</span>)))
             }
         }
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">calculate_agreement</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">their_key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">match</span> (<span class="self">self</span>.<span class="ident">key</span>, <span class="ident">their_key</span>.<span class="ident">key</span>) {
-            (<span class="ident">PrivateKeyData</span>::<span class="ident">DjbPrivateKey</span>(<span class="ident">priv_key</span>), <span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="ident">pub_key</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">kp</span> <span class="op">=</span> <span class="ident">curve25519</span>::<span class="ident">KeyPair</span>::<span class="ident">from</span>(<span class="ident">priv_key</span>);
-                <span class="prelude-val">Ok</span>(<span class="ident">Box</span>::<span class="ident">new</span>(<span class="ident">kp</span>.<span class="ident">calculate_agreement</span>(<span class="kw-2">&amp;</span><span class="ident">pub_key</span>)))
+            (<span class="ident">PrivateKeyData::DjbPrivateKey</span>(<span class="ident">priv_key</span>), <span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="ident">pub_key</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="kw">let</span> <span class="ident">kp</span> <span class="op">=</span> <span class="ident">curve25519::KeyPair::from</span>(<span class="ident">priv_key</span>);
+                <span class="prelude-val">Ok</span>(<span class="ident">Box::new</span>(<span class="ident">kp</span>.<span class="ident">calculate_agreement</span>(<span class="kw-2">&amp;</span><span class="ident">pub_key</span>)))
             }
         }
     }
@@ -668,7 +668,7 @@
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SignalProtocolError</span>;
 
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="self">Self</span>::<span class="ident">deserialize</span>(<span class="ident">value</span>)
+        <span class="self">Self</span><span class="ident">::deserialize</span>(<span class="ident">value</span>)
     }
 }
 
@@ -680,10 +680,10 @@
 
 <span class="kw">impl</span> <span class="ident">KeyPair</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">Rng</span> <span class="op">+</span> <span class="ident">CryptoRng</span><span class="op">&gt;</span>(<span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="ident">keypair</span> <span class="op">=</span> <span class="ident">curve25519</span>::<span class="ident">KeyPair</span>::<span class="ident">new</span>(<span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">keypair</span> <span class="op">=</span> <span class="ident">curve25519::KeyPair::new</span>(<span class="ident">csprng</span>);
 
-        <span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">from</span>(<span class="ident">PublicKeyData</span>::<span class="ident">DjbPublicKey</span>(<span class="kw-2">*</span><span class="ident">keypair</span>.<span class="ident">public_key</span>()));
-        <span class="kw">let</span> <span class="ident">private_key</span> <span class="op">=</span> <span class="ident">PrivateKey</span>::<span class="ident">from</span>(<span class="ident">PrivateKeyData</span>::<span class="ident">DjbPrivateKey</span>(<span class="kw-2">*</span><span class="ident">keypair</span>.<span class="ident">private_key</span>()));
+        <span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="ident">PublicKey::from</span>(<span class="ident">PublicKeyData::DjbPublicKey</span>(<span class="kw-2">*</span><span class="ident">keypair</span>.<span class="ident">public_key</span>()));
+        <span class="kw">let</span> <span class="ident">private_key</span> <span class="op">=</span> <span class="ident">PrivateKey::from</span>(<span class="ident">PrivateKeyData::DjbPrivateKey</span>(<span class="kw-2">*</span><span class="ident">keypair</span>.<span class="ident">private_key</span>()));
 
         <span class="self">Self</span> {
             <span class="ident">public_key</span>,
@@ -699,8 +699,8 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_public_and_private</span>(<span class="ident">public_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">private_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">try_from</span>(<span class="ident">public_key</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">private_key</span> <span class="op">=</span> <span class="ident">PrivateKey</span>::<span class="ident">try_from</span>(<span class="ident">private_key</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="ident">PublicKey::try_from</span>(<span class="ident">public_key</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">private_key</span> <span class="op">=</span> <span class="ident">PrivateKey::try_from</span>(<span class="ident">private_key</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">public_key</span>,
             <span class="ident">private_key</span>,
@@ -722,25 +722,25 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">rand</span>::<span class="ident">rngs</span>::<span class="ident">OsRng</span>;
+    <span class="kw">use</span> <span class="ident">rand::rngs::OsRng</span>;
 
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_large_signatures</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">message</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">1024</span> <span class="op">*</span> <span class="number">1024</span>];
         <span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span> <span class="ident">key_pair</span>
             .<span class="ident">private_key</span>
             .<span class="ident">calculate_signature</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
 
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">key_pair</span>.<span class="ident">public_key</span>.<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)<span class="question-mark">?</span>);
+        <span class="macro">assert!</span>(<span class="ident">key_pair</span>.<span class="ident">public_key</span>.<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)<span class="question-mark">?</span>);
         <span class="ident">message</span>[<span class="number">0</span>] <span class="op">^</span><span class="op">=</span> <span class="number">0x01u8</span>;
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="op">!</span><span class="ident">key_pair</span>.<span class="ident">public_key</span>.<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)<span class="question-mark">?</span>);
+        <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">key_pair</span>.<span class="ident">public_key</span>.<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)<span class="question-mark">?</span>);
         <span class="ident">message</span>[<span class="number">0</span>] <span class="op">^</span><span class="op">=</span> <span class="number">0x01u8</span>;
         <span class="kw">let</span> <span class="ident">public_key</span> <span class="op">=</span> <span class="ident">key_pair</span>.<span class="ident">private_key</span>.<span class="ident">public_key</span>()<span class="question-mark">?</span>;
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">public_key</span>.<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)<span class="question-mark">?</span>);
+        <span class="macro">assert!</span>(<span class="ident">public_key</span>.<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">signature</span>)<span class="question-mark">?</span>);
 
         <span class="prelude-val">Ok</span>(())
     }
@@ -748,36 +748,36 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_decode_size</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">serialized_public</span> <span class="op">=</span> <span class="ident">key_pair</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>();
 
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
+        <span class="macro">assert_eq!</span>(
             <span class="ident">serialized_public</span>,
             <span class="ident">key_pair</span>.<span class="ident">private_key</span>.<span class="ident">public_key</span>()<span class="question-mark">?</span>.<span class="ident">serialize</span>()
         );
         <span class="kw">let</span> <span class="ident">empty</span>: [<span class="ident">u8</span>; <span class="number">0</span>] <span class="op">=</span> [];
 
-        <span class="kw">let</span> <span class="ident">just_right</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..]);
+        <span class="kw">let</span> <span class="ident">just_right</span> <span class="op">=</span> <span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..]);
 
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">just_right</span>.<span class="ident">is_ok</span>());
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">PublicKey</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[<span class="number">1</span>..]).<span class="ident">is_err</span>());
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">PublicKey</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">empty</span>[..]).<span class="ident">is_err</span>());
+        <span class="macro">assert!</span>(<span class="ident">just_right</span>.<span class="ident">is_ok</span>());
+        <span class="macro">assert!</span>(<span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[<span class="number">1</span>..]).<span class="ident">is_err</span>());
+        <span class="macro">assert!</span>(<span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">empty</span>[..]).<span class="ident">is_err</span>());
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bad_key_type</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">33</span>];
         <span class="ident">bad_key_type</span>[..].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..]);
         <span class="ident">bad_key_type</span>[<span class="number">0</span>] <span class="op">=</span> <span class="number">0x01u8</span>;
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">PublicKey</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">bad_key_type</span>[..]).<span class="ident">is_err</span>());
+        <span class="macro">assert!</span>(<span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">bad_key_type</span>[..]).<span class="ident">is_err</span>());
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">extra_space</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">34</span>];
         <span class="ident">extra_space</span>[..<span class="number">33</span>].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..]);
-        <span class="kw">let</span> <span class="ident">extra_space_decode</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">extra_space</span>[..]);
-        <span class="macro">assert</span><span class="macro">!</span>(<span class="ident">extra_space_decode</span>.<span class="ident">is_ok</span>());
+        <span class="kw">let</span> <span class="ident">extra_space_decode</span> <span class="op">=</span> <span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">extra_space</span>[..]);
+        <span class="macro">assert!</span>(<span class="ident">extra_space_decode</span>.<span class="ident">is_ok</span>());
 
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..], <span class="kw-2">&amp;</span><span class="ident">just_right</span><span class="question-mark">?</span>.<span class="ident">serialize</span>()[..]);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..], <span class="kw-2">&amp;</span><span class="ident">extra_space_decode</span><span class="question-mark">?</span>.<span class="ident">serialize</span>()[..]);
+        <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..], <span class="kw-2">&amp;</span><span class="ident">just_right</span><span class="question-mark">?</span>.<span class="ident">serialize</span>()[..]);
+        <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span><span class="ident">serialized_public</span>[..], <span class="kw-2">&amp;</span><span class="ident">extra_space_decode</span><span class="question-mark">?</span>.<span class="ident">serialize</span>()[..]);
         <span class="prelude-val">Ok</span>(())
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_protocol" data-search-js="../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_protocol" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

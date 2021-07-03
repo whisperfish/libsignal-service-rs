@@ -1,6 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/zkgroup-f6dd8b8b2fc96d24/d3cb5db/rust/src/ffi/ffiapi.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>ffiapi.rs - source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script id="default-settings"></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/zkgroup-f6dd8b8b2fc96d24/197c382/rust/src/ffi/ffiapi.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>ffiapi.rs - source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script id="default-settings"></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../zkgroup/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../zkgroup/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
@@ -1337,8 +1337,8 @@
 
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
 
-<span class="kw">use</span> <span class="kw">super</span>::<span class="ident">simpleapi</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ffi</span>::<span class="ident">constants</span>::<span class="ident">FFI_RETURN_INTERNAL_ERROR</span>;
+<span class="kw">use</span> <span class="kw">super</span><span class="ident">::simpleapi</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::ffi::constants::FFI_RETURN_INTERNAL_ERROR</span>;
 <span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">panic</span>, <span class="ident">slice</span>};
 
 <span class="attribute">#[<span class="ident">no_mangle</span>]</span>
@@ -1350,15 +1350,15 @@
     <span class="ident">profileKeyCommitmentOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCommitmentLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_commitment</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">profileKeyCommitmentOut</span>, <span class="ident">profileKeyCommitmentLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">profileKeyCommitmentOut</span>, <span class="ident">profileKeyCommitmentLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKey_getCommitment</span>(<span class="ident">profile_key</span>, <span class="kw-2">&amp;</span><span class="ident">uuid</span>, <span class="ident">profile_key_commitment</span>)
+        <span class="ident">simpleapi::ProfileKey_getCommitment</span>(<span class="ident">profile_key</span>, <span class="ident">uuid</span>, <span class="ident">profile_key_commitment</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1376,15 +1376,15 @@
     <span class="ident">profileKeyVersionOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyVersionLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_version</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">profileKeyVersionOut</span>, <span class="ident">profileKeyVersionLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">profileKeyVersionOut</span>, <span class="ident">profileKeyVersionLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKey_getProfileKeyVersion</span>(<span class="ident">profile_key</span>, <span class="kw-2">&amp;</span><span class="ident">uuid</span>, <span class="ident">profile_key_version</span>)
+        <span class="ident">simpleapi::ProfileKey_getProfileKeyVersion</span>(<span class="ident">profile_key</span>, <span class="ident">uuid</span>, <span class="ident">profile_key_version</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1398,12 +1398,12 @@
     <span class="ident">profileKeyCommitment</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCommitmentLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_commitment</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKeyCommitment</span>, <span class="ident">profileKeyCommitmentLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCommitment</span>, <span class="ident">profileKeyCommitmentLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCommitment_checkValidContents</span>(<span class="ident">profile_key_commitment</span>)
+        <span class="ident">simpleapi::ProfileKeyCommitment_checkValidContents</span>(<span class="ident">profile_key_commitment</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1419,14 +1419,14 @@
     <span class="ident">groupSecretParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">groupSecretParamsOut</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">groupSecretParamsOut</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_generateDeterministic</span>(<span class="kw-2">&amp;</span><span class="ident">randomness</span>, <span class="ident">group_secret_params</span>)
+        <span class="ident">simpleapi::GroupSecretParams_generateDeterministic</span>(<span class="ident">randomness</span>, <span class="ident">group_secret_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1442,14 +1442,14 @@
     <span class="ident">groupSecretParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_master_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupMasterKey</span>, <span class="ident">groupMasterKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupMasterKey</span>, <span class="ident">groupMasterKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">groupSecretParamsOut</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">groupSecretParamsOut</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_deriveFromMasterKey</span>(<span class="kw-2">&amp;</span><span class="ident">group_master_key</span>, <span class="ident">group_secret_params</span>)
+        <span class="ident">simpleapi::GroupSecretParams_deriveFromMasterKey</span>(<span class="ident">group_master_key</span>, <span class="ident">group_secret_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1463,11 +1463,11 @@
     <span class="ident">groupSecretParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_checkValidContents</span>(<span class="ident">group_secret_params</span>)
+        <span class="ident">simpleapi::GroupSecretParams_checkValidContents</span>(<span class="ident">group_secret_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1483,13 +1483,13 @@
     <span class="ident">groupMasterKeyOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupMasterKeyLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_master_key</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">groupMasterKeyOut</span>, <span class="ident">groupMasterKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">groupMasterKeyOut</span>, <span class="ident">groupMasterKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_getMasterKey</span>(<span class="ident">group_secret_params</span>, <span class="ident">group_master_key</span>)
+        <span class="ident">simpleapi::GroupSecretParams_getMasterKey</span>(<span class="ident">group_secret_params</span>, <span class="ident">group_master_key</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1505,14 +1505,14 @@
     <span class="ident">groupPublicParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupPublicParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">groupPublicParamsOut</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">groupPublicParamsOut</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_getPublicParams</span>(<span class="ident">group_secret_params</span>, <span class="ident">group_public_params</span>)
+        <span class="ident">simpleapi::GroupSecretParams_getPublicParams</span>(<span class="ident">group_secret_params</span>, <span class="ident">group_public_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1530,14 +1530,14 @@
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">uuidCiphertextOut</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">uuidCiphertextOut</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_encryptUuid</span>(<span class="ident">group_secret_params</span>, <span class="kw-2">&amp;</span><span class="ident">uuid</span>, <span class="ident">uuid_ciphertext</span>)
+        <span class="ident">simpleapi::GroupSecretParams_encryptUuid</span>(<span class="ident">group_secret_params</span>, <span class="ident">uuid</span>, <span class="ident">uuid_ciphertext</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1555,14 +1555,14 @@
     <span class="ident">uuidOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuidCiphertext</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">uuidOut</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuidCiphertext</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">uuidOut</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_decryptUuid</span>(<span class="ident">group_secret_params</span>, <span class="kw-2">&amp;</span><span class="ident">uuid_ciphertext</span>, <span class="ident">uuid</span>)
+        <span class="ident">simpleapi::GroupSecretParams_decryptUuid</span>(<span class="ident">group_secret_params</span>, <span class="ident">uuid_ciphertext</span>, <span class="ident">uuid</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1582,20 +1582,20 @@
     <span class="ident">profileKeyCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">profileKeyCiphertextOut</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">profileKeyCiphertextOut</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_encryptProfileKey</span>(
+        <span class="ident">simpleapi::GroupSecretParams_encryptProfileKey</span>(
             <span class="ident">group_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key</span>,
-            <span class="kw-2">&amp;</span><span class="ident">uuid</span>,
+            <span class="ident">profile_key</span>,
+            <span class="ident">uuid</span>,
             <span class="ident">profile_key_ciphertext</span>,
         )
     });
@@ -1617,20 +1617,20 @@
     <span class="ident">profileKeyOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKeyCiphertext</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCiphertext</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">profileKeyOut</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">profileKeyOut</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_decryptProfileKey</span>(
+        <span class="ident">simpleapi::GroupSecretParams_decryptProfileKey</span>(
             <span class="ident">group_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key_ciphertext</span>,
-            <span class="kw-2">&amp;</span><span class="ident">uuid</span>,
+            <span class="ident">profile_key_ciphertext</span>,
+            <span class="ident">uuid</span>,
             <span class="ident">profile_key</span>,
         )
     });
@@ -1652,19 +1652,19 @@
     <span class="ident">blobCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">blobCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">plaintext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">plaintext</span>, <span class="ident">plaintextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">plaintext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">plaintext</span>, <span class="ident">plaintextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">blob_ciphertext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">blobCiphertextOut</span>, <span class="ident">blobCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">blobCiphertextOut</span>, <span class="ident">blobCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_encryptBlobDeterministic</span>(
+        <span class="ident">simpleapi::GroupSecretParams_encryptBlobDeterministic</span>(
             <span class="ident">group_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
-            <span class="kw-2">&amp;</span><span class="ident">plaintext</span>,
+            <span class="ident">randomness</span>,
+            <span class="ident">plaintext</span>,
             <span class="ident">blob_ciphertext</span>,
         )
     });
@@ -1684,15 +1684,15 @@
     <span class="ident">plaintextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">plaintextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">blob_ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">blobCiphertext</span>, <span class="ident">blobCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">blobCiphertext</span>, <span class="ident">blobCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">plaintext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">plaintextOut</span>, <span class="ident">plaintextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">plaintextOut</span>, <span class="ident">plaintextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupSecretParams_decryptBlob</span>(<span class="ident">group_secret_params</span>, <span class="kw-2">&amp;</span><span class="ident">blob_ciphertext</span>, <span class="ident">plaintext</span>)
+        <span class="ident">simpleapi::GroupSecretParams_decryptBlob</span>(<span class="ident">group_secret_params</span>, <span class="ident">blob_ciphertext</span>, <span class="ident">plaintext</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1708,14 +1708,14 @@
     <span class="ident">serverSecretParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">serverSecretParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">serverSecretParamsOut</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">serverSecretParamsOut</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_generateDeterministic</span>(<span class="kw-2">&amp;</span><span class="ident">randomness</span>, <span class="ident">server_secret_params</span>)
+        <span class="ident">simpleapi::ServerSecretParams_generateDeterministic</span>(<span class="ident">randomness</span>, <span class="ident">server_secret_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1729,11 +1729,11 @@
     <span class="ident">serverSecretParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">serverSecretParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_checkValidContents</span>(<span class="ident">server_secret_params</span>)
+        <span class="ident">simpleapi::ServerSecretParams_checkValidContents</span>(<span class="ident">server_secret_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1749,14 +1749,14 @@
     <span class="ident">serverPublicParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">serverPublicParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">serverPublicParamsOut</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">serverPublicParamsOut</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_getPublicParams</span>(<span class="ident">server_secret_params</span>, <span class="ident">server_public_params</span>)
+        <span class="ident">simpleapi::ServerSecretParams_getPublicParams</span>(<span class="ident">server_secret_params</span>, <span class="ident">server_public_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -1776,19 +1776,19 @@
     <span class="ident">notarySignatureOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">notarySignatureLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">message</span>, <span class="ident">messageLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">message</span>, <span class="ident">messageLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">notary_signature</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">notarySignatureOut</span>, <span class="ident">notarySignatureLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">notarySignatureOut</span>, <span class="ident">notarySignatureLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_signDeterministic</span>(
+        <span class="ident">simpleapi::ServerSecretParams_signDeterministic</span>(
             <span class="ident">server_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
-            <span class="kw-2">&amp;</span><span class="ident">message</span>,
+            <span class="ident">randomness</span>,
+            <span class="ident">message</span>,
             <span class="ident">notary_signature</span>,
         )
     });
@@ -1811,22 +1811,22 @@
     <span class="ident">authCredentialOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">redemption_time</span> <span class="op">=</span> <span class="ident">redemptionTime</span> <span class="kw">as</span> <span class="ident">u32</span>;
         <span class="kw">let</span> <span class="ident">auth_credential_response</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">authCredentialResponse</span>, <span class="ident">authCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">authCredentialResponse</span>, <span class="ident">authCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
         <span class="kw">let</span> <span class="ident">auth_credential</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">authCredentialOut</span>, <span class="ident">authCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">authCredentialOut</span>, <span class="ident">authCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerPublicParams_receiveAuthCredential</span>(
+        <span class="ident">simpleapi::ServerPublicParams_receiveAuthCredential</span>(
             <span class="ident">server_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">uuid</span>,
+            <span class="ident">uuid</span>,
             <span class="ident">redemption_time</span>,
-            <span class="kw-2">&amp;</span><span class="ident">auth_credential_response</span>,
+            <span class="ident">auth_credential_response</span>,
             <span class="ident">auth_credential</span>,
         )
     });
@@ -1850,27 +1850,27 @@
     <span class="ident">authCredentialPresentationOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">auth_credential</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">authCredential</span>, <span class="ident">authCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">authCredential</span>, <span class="ident">authCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(
+            <span class="ident">slice::from_raw_parts_mut</span>(
                 <span class="ident">authCredentialPresentationOut</span>,
                 <span class="ident">authCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerPublicParams_createAuthCredentialPresentationDeterministic</span>(
+        <span class="ident">simpleapi::ServerPublicParams_createAuthCredentialPresentationDeterministic</span>(
             <span class="ident">server_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
-            <span class="kw-2">&amp;</span><span class="ident">group_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">auth_credential</span>,
+            <span class="ident">randomness</span>,
+            <span class="ident">group_secret_params</span>,
+            <span class="ident">auth_credential</span>,
             <span class="ident">auth_credential_presentation</span>,
         )
     });
@@ -1894,26 +1894,26 @@
     <span class="ident">profileKeyCredentialRequestContextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestContextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(
+            <span class="ident">slice::from_raw_parts_mut</span>(
                 <span class="ident">profileKeyCredentialRequestContextOut</span>,
                 <span class="ident">profileKeyCredentialRequestContextLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerPublicParams_createProfileKeyCredentialRequestContextDeterministic</span>(
+        <span class="ident">simpleapi::ServerPublicParams_createProfileKeyCredentialRequestContextDeterministic</span>(
             <span class="ident">server_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
-            <span class="kw-2">&amp;</span><span class="ident">uuid</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key</span>,
+            <span class="ident">randomness</span>,
+            <span class="ident">uuid</span>,
+            <span class="ident">profile_key</span>,
             <span class="ident">profile_key_credential_request_context</span>,
         )
     });
@@ -1935,29 +1935,29 @@
     <span class="ident">profileKeyCredentialOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialRequestContext</span>,
                 <span class="ident">profileKeyCredentialRequestContextLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
         <span class="kw">let</span> <span class="ident">profile_key_credential_response</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialResponse</span>,
                 <span class="ident">profileKeyCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
         <span class="kw">let</span> <span class="ident">profile_key_credential</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">profileKeyCredentialOut</span>, <span class="ident">profileKeyCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">profileKeyCredentialOut</span>, <span class="ident">profileKeyCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerPublicParams_receiveProfileKeyCredential</span>(
+        <span class="ident">simpleapi::ServerPublicParams_receiveProfileKeyCredential</span>(
             <span class="ident">server_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key_credential_request_context</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key_credential_response</span>,
+            <span class="ident">profile_key_credential_request_context</span>,
+            <span class="ident">profile_key_credential_response</span>,
             <span class="ident">profile_key_credential</span>,
         )
     });
@@ -1981,28 +1981,28 @@
     <span class="ident">profileKeyCredentialPresentationOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_credential</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKeyCredential</span>, <span class="ident">profileKeyCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCredential</span>, <span class="ident">profileKeyCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(
+            <span class="ident">slice::from_raw_parts_mut</span>(
                 <span class="ident">profileKeyCredentialPresentationOut</span>,
                 <span class="ident">profileKeyCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerPublicParams_createProfileKeyCredentialPresentationDeterministic</span>(
+        <span class="ident">simpleapi::ServerPublicParams_createProfileKeyCredentialPresentationDeterministic</span>(
             <span class="ident">server_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
-            <span class="kw-2">&amp;</span><span class="ident">group_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key_credential</span>,
+            <span class="ident">randomness</span>,
+            <span class="ident">group_secret_params</span>,
+            <span class="ident">profile_key_credential</span>,
             <span class="ident">profile_key_credential_presentation</span>,
         )
     });
@@ -2025,24 +2025,24 @@
     <span class="ident">authCredentialResponseOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialResponseLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">redemption_time</span> <span class="op">=</span> <span class="ident">redemptionTime</span> <span class="kw">as</span> <span class="ident">u32</span>;
         <span class="kw">let</span> <span class="ident">auth_credential_response</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(
+            <span class="ident">slice::from_raw_parts_mut</span>(
                 <span class="ident">authCredentialResponseOut</span>,
                 <span class="ident">authCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_issueAuthCredentialDeterministic</span>(
+        <span class="ident">simpleapi::ServerSecretParams_issueAuthCredentialDeterministic</span>(
             <span class="ident">server_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
-            <span class="kw-2">&amp;</span><span class="ident">uuid</span>,
+            <span class="ident">randomness</span>,
+            <span class="ident">uuid</span>,
             <span class="ident">redemption_time</span>,
             <span class="ident">auth_credential_response</span>,
         )
@@ -2063,22 +2063,22 @@
     <span class="ident">authCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">authCredentialPresentation</span>,
                 <span class="ident">authCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_verifyAuthCredentialPresentation</span>(
+        <span class="ident">simpleapi::ServerSecretParams_verifyAuthCredentialPresentation</span>(
             <span class="ident">server_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">group_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">auth_credential_presentation</span>,
+            <span class="ident">group_public_params</span>,
+            <span class="ident">auth_credential_presentation</span>,
         )
     });
 
@@ -2103,34 +2103,34 @@
     <span class="ident">profileKeyCredentialResponseOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialResponseLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_credential_request</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialRequest</span>,
                 <span class="ident">profileKeyCredentialRequestLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_commitment</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKeyCommitment</span>, <span class="ident">profileKeyCommitmentLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCommitment</span>, <span class="ident">profileKeyCommitmentLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
         <span class="kw">let</span> <span class="ident">profile_key_credential_response</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(
+            <span class="ident">slice::from_raw_parts_mut</span>(
                 <span class="ident">profileKeyCredentialResponseOut</span>,
                 <span class="ident">profileKeyCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_issueProfileKeyCredentialDeterministic</span>(
+        <span class="ident">simpleapi::ServerSecretParams_issueProfileKeyCredentialDeterministic</span>(
             <span class="ident">server_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key_credential_request</span>,
-            <span class="kw-2">&amp;</span><span class="ident">uuid</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key_commitment</span>,
+            <span class="ident">randomness</span>,
+            <span class="ident">profile_key_credential_request</span>,
+            <span class="ident">uuid</span>,
+            <span class="ident">profile_key_commitment</span>,
             <span class="ident">profile_key_credential_response</span>,
         )
     });
@@ -2150,22 +2150,22 @@
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialPresentation</span>,
                 <span class="ident">profileKeyCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerSecretParams_verifyProfileKeyCredentialPresentation</span>(
+        <span class="ident">simpleapi::ServerSecretParams_verifyProfileKeyCredentialPresentation</span>(
             <span class="ident">server_secret_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">group_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">profile_key_credential_presentation</span>,
+            <span class="ident">group_public_params</span>,
+            <span class="ident">profile_key_credential_presentation</span>,
         )
     });
 
@@ -2180,11 +2180,11 @@
     <span class="ident">groupPublicParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">groupPublicParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupPublicParams_checkValidContents</span>(<span class="ident">group_public_params</span>)
+        <span class="ident">simpleapi::GroupPublicParams_checkValidContents</span>(<span class="ident">group_public_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2200,13 +2200,13 @@
     <span class="ident">groupIdentifierOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupIdentifierLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">group_identifier</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">groupIdentifierOut</span>, <span class="ident">groupIdentifierLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">groupIdentifierOut</span>, <span class="ident">groupIdentifierLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">GroupPublicParams_getGroupIdentifier</span>(<span class="ident">group_public_params</span>, <span class="ident">group_identifier</span>)
+        <span class="ident">simpleapi::GroupPublicParams_getGroupIdentifier</span>(<span class="ident">group_public_params</span>, <span class="ident">group_identifier</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2220,11 +2220,11 @@
     <span class="ident">serverPublicParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">serverPublicParamsLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerPublicParams_checkValidContents</span>(<span class="ident">server_public_params</span>)
+        <span class="ident">simpleapi::ServerPublicParams_checkValidContents</span>(<span class="ident">server_public_params</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2242,17 +2242,17 @@
     <span class="ident">notarySignature</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">notarySignatureLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
-        <span class="kw">let</span> <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">message</span>, <span class="ident">messageLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+        <span class="kw">let</span> <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">message</span>, <span class="ident">messageLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
         <span class="kw">let</span> <span class="ident">notary_signature</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">notarySignature</span>, <span class="ident">notarySignatureLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">notarySignature</span>, <span class="ident">notarySignatureLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ServerPublicParams_verifySignature</span>(
+        <span class="ident">simpleapi::ServerPublicParams_verifySignature</span>(
             <span class="ident">server_public_params</span>,
-            <span class="kw-2">&amp;</span><span class="ident">message</span>,
-            <span class="kw-2">&amp;</span><span class="ident">notary_signature</span>,
+            <span class="ident">message</span>,
+            <span class="ident">notary_signature</span>,
         )
     });
 
@@ -2267,12 +2267,12 @@
     <span class="ident">authCredentialResponse</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialResponseLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_response</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">authCredentialResponse</span>, <span class="ident">authCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">authCredentialResponse</span>, <span class="ident">authCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">AuthCredentialResponse_checkValidContents</span>(<span class="ident">auth_credential_response</span>)
+        <span class="ident">simpleapi::AuthCredentialResponse_checkValidContents</span>(<span class="ident">auth_credential_response</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2286,11 +2286,11 @@
     <span class="ident">authCredential</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">authCredential</span>, <span class="ident">authCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">authCredential</span>, <span class="ident">authCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">AuthCredential_checkValidContents</span>(<span class="ident">auth_credential</span>)
+        <span class="ident">simpleapi::AuthCredential_checkValidContents</span>(<span class="ident">auth_credential</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2304,15 +2304,15 @@
     <span class="ident">authCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">authCredentialPresentation</span>,
                 <span class="ident">authCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">AuthCredentialPresentation_checkValidContents</span>(<span class="ident">auth_credential_presentation</span>)
+        <span class="ident">simpleapi::AuthCredentialPresentation_checkValidContents</span>(<span class="ident">auth_credential_presentation</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2328,17 +2328,17 @@
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">authCredentialPresentation</span>,
                 <span class="ident">authCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">uuidCiphertextOut</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">uuidCiphertextOut</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">AuthCredentialPresentation_getUuidCiphertext</span>(
+        <span class="ident">simpleapi::AuthCredentialPresentation_getUuidCiphertext</span>(
             <span class="ident">auth_credential_presentation</span>,
             <span class="ident">uuid_ciphertext</span>,
         )
@@ -2357,17 +2357,17 @@
     <span class="ident">redemptionTimeOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">redemptionTimeLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">authCredentialPresentation</span>,
                 <span class="ident">authCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
         <span class="kw">let</span> <span class="ident">redemption_time</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">redemptionTimeOut</span>, <span class="ident">redemptionTimeLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">redemptionTimeOut</span>, <span class="ident">redemptionTimeLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">AuthCredentialPresentation_getRedemptionTime</span>(
+        <span class="ident">simpleapi::AuthCredentialPresentation_getRedemptionTime</span>(
             <span class="ident">auth_credential_presentation</span>,
             <span class="ident">redemption_time</span>,
         )
@@ -2384,15 +2384,15 @@
     <span class="ident">profileKeyCredentialRequestContext</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestContextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialRequestContext</span>,
                 <span class="ident">profileKeyCredentialRequestContextLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredentialRequestContext_checkValidContents</span>(
+        <span class="ident">simpleapi::ProfileKeyCredentialRequestContext_checkValidContents</span>(
             <span class="ident">profile_key_credential_request_context</span>,
         )
     });
@@ -2410,21 +2410,21 @@
     <span class="ident">profileKeyCredentialRequestOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialRequestContext</span>,
                 <span class="ident">profileKeyCredentialRequestContextLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
         <span class="kw">let</span> <span class="ident">profile_key_credential_request</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(
+            <span class="ident">slice::from_raw_parts_mut</span>(
                 <span class="ident">profileKeyCredentialRequestOut</span>,
                 <span class="ident">profileKeyCredentialRequestLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredentialRequestContext_getRequest</span>(
+        <span class="ident">simpleapi::ProfileKeyCredentialRequestContext_getRequest</span>(
             <span class="ident">profile_key_credential_request_context</span>,
             <span class="ident">profile_key_credential_request</span>,
         )
@@ -2441,15 +2441,15 @@
     <span class="ident">profileKeyCredentialRequest</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialRequest</span>,
                 <span class="ident">profileKeyCredentialRequestLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredentialRequest_checkValidContents</span>(<span class="ident">profile_key_credential_request</span>)
+        <span class="ident">simpleapi::ProfileKeyCredentialRequest_checkValidContents</span>(<span class="ident">profile_key_credential_request</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2463,15 +2463,15 @@
     <span class="ident">profileKeyCredentialResponse</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialResponseLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_response</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialResponse</span>,
                 <span class="ident">profileKeyCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredentialResponse_checkValidContents</span>(<span class="ident">profile_key_credential_response</span>)
+        <span class="ident">simpleapi::ProfileKeyCredentialResponse_checkValidContents</span>(<span class="ident">profile_key_credential_response</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2485,12 +2485,12 @@
     <span class="ident">profileKeyCredential</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKeyCredential</span>, <span class="ident">profileKeyCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCredential</span>, <span class="ident">profileKeyCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredential_checkValidContents</span>(<span class="ident">profile_key_credential</span>)
+        <span class="ident">simpleapi::ProfileKeyCredential_checkValidContents</span>(<span class="ident">profile_key_credential</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2504,15 +2504,15 @@
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialPresentation</span>,
                 <span class="ident">profileKeyCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredentialPresentation_checkValidContents</span>(
+        <span class="ident">simpleapi::ProfileKeyCredentialPresentation_checkValidContents</span>(
             <span class="ident">profile_key_credential_presentation</span>,
         )
     });
@@ -2530,17 +2530,17 @@
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialPresentation</span>,
                 <span class="ident">profileKeyCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">uuidCiphertextOut</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">uuidCiphertextOut</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredentialPresentation_getUuidCiphertext</span>(
+        <span class="ident">simpleapi::ProfileKeyCredentialPresentation_getUuidCiphertext</span>(
             <span class="ident">profile_key_credential_presentation</span>,
             <span class="ident">uuid_ciphertext</span>,
         )
@@ -2559,18 +2559,18 @@
     <span class="ident">profileKeyCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(
+            <span class="ident">slice::from_raw_parts</span>(
                 <span class="ident">profileKeyCredentialPresentation</span>,
                 <span class="ident">profileKeyCredentialPresentationLen</span> <span class="kw">as</span> <span class="ident">usize</span>,
             )
         };
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts_mut</span>(<span class="ident">profileKeyCiphertextOut</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts_mut</span>(<span class="ident">profileKeyCiphertextOut</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCredentialPresentation_getProfileKeyCiphertext</span>(
+        <span class="ident">simpleapi::ProfileKeyCredentialPresentation_getProfileKeyCiphertext</span>(
             <span class="ident">profile_key_credential_presentation</span>,
             <span class="ident">profile_key_ciphertext</span>,
         )
@@ -2587,11 +2587,11 @@
     <span class="ident">uuidCiphertext</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuidCiphertext</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuidCiphertext</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">UuidCiphertext_checkValidContents</span>(<span class="ident">uuid_ciphertext</span>)
+        <span class="ident">simpleapi::UuidCiphertext_checkValidContents</span>(<span class="ident">uuid_ciphertext</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2605,12 +2605,12 @@
     <span class="ident">profileKeyCiphertext</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCiphertextLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
-            <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">profileKeyCiphertext</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
+            <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCiphertext</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
         };
 
-        <span class="ident">simpleapi</span>::<span class="ident">ProfileKeyCiphertext_checkValidContents</span>(<span class="ident">profile_key_ciphertext</span>)
+        <span class="ident">simpleapi::ProfileKeyCiphertext_checkValidContents</span>(<span class="ident">profile_key_ciphertext</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2624,11 +2624,11 @@
     <span class="ident">randomness</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">randomnessLen</span>: <span class="ident">u32</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
-            <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+            <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">Randomness_checkValidContents</span>(<span class="ident">randomness</span>)
+        <span class="ident">simpleapi::Randomness_checkValidContents</span>(<span class="ident">randomness</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2639,10 +2639,10 @@
 
 <span class="attribute">#[<span class="ident">no_mangle</span>]</span>
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_Uuid_checkValidContents</span>(<span class="ident">uuid</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">uuidLen</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic</span>::<span class="ident">catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
-        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice</span>::<span class="ident">from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
+    <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
+        <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
-        <span class="ident">simpleapi</span>::<span class="ident">Uuid_checkValidContents</span>(<span class="ident">uuid</span>)
+        <span class="ident">simpleapi::Uuid_checkValidContents</span>(<span class="ident">uuid</span>)
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
@@ -2651,5 +2651,5 @@
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="zkgroup" data-search-js="../../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="zkgroup" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script></body></html>

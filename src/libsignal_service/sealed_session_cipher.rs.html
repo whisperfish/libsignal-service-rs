@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service/src/sealed_session_cipher.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sealed_session_cipher.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_service/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_service/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
@@ -1127,7 +1127,7 @@
 <span id="1124">1124</span>
 <span id="1125">1125</span>
 </pre><div class="example-wrap"><pre class="rust ">
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">convert</span>::<span class="ident">TryFrom</span>;
+<span class="kw">use</span> <span class="ident">std::convert::TryFrom</span>;
 
 <span class="kw">use</span> <span class="ident">aes</span>::{
     <span class="ident">cipher</span>::{<span class="ident">NewCipher</span>, <span class="ident">StreamCipher</span>},
@@ -1136,20 +1136,20 @@
 
 <span class="kw">use</span> <span class="ident">hmac</span>::{<span class="ident">Hmac</span>, <span class="ident">Mac</span>, <span class="ident">NewMac</span>};
 <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
-    <span class="ident">error</span>::<span class="ident">SignalProtocolError</span>, <span class="ident">message_decrypt_prekey</span>, <span class="ident">message_decrypt_signal</span>,
+    <span class="ident">error::SignalProtocolError</span>, <span class="ident">message_decrypt_prekey</span>, <span class="ident">message_decrypt_signal</span>,
     <span class="ident">message_encrypt</span>, <span class="ident">CiphertextMessageType</span>, <span class="ident">IdentityKeyStore</span>, <span class="ident">KeyPair</span>,
     <span class="ident">PreKeySignalMessage</span>, <span class="ident">PreKeyStore</span>, <span class="ident">PrivateKey</span>, <span class="ident">ProtocolAddress</span>, <span class="ident">PublicKey</span>,
     <span class="ident">SessionStore</span>, <span class="ident">SignalMessage</span>, <span class="ident">SignedPreKeyStore</span>, <span class="ident">HKDF</span>,
 };
-<span class="kw">use</span> <span class="ident">log</span>::<span class="ident">error</span>;
-<span class="kw">use</span> <span class="ident">phonenumber</span>::<span class="ident">PhoneNumber</span>;
+<span class="kw">use</span> <span class="ident">log::error</span>;
+<span class="kw">use</span> <span class="ident">phonenumber::PhoneNumber</span>;
 <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">CryptoRng</span>, <span class="ident">Rng</span>};
-<span class="kw">use</span> <span class="ident">sha2</span>::<span class="ident">Sha256</span>;
-<span class="kw">use</span> <span class="ident">uuid</span>::<span class="ident">Uuid</span>;
+<span class="kw">use</span> <span class="ident">sha2::Sha256</span>;
+<span class="kw">use</span> <span class="ident">uuid::Uuid</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">push_service</span>::<span class="ident">ProfileKey</span>, <span class="ident">ServiceAddress</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">push_service::ProfileKey</span>, <span class="ident">ServiceAddress</span>};
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">thiserror</span>::<span class="ident">Error</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">thiserror::Error</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">SealedSessionError</span> {
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Unknown version {0}&quot;</span>)]</span>
     <span class="ident">InvalidMetadataVersionError</span>(<span class="ident">u8</span>),
@@ -1167,10 +1167,10 @@
     <span class="ident">ExpiredCertificate</span>,
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to decode protobuf {0}&quot;</span>)]</span>
-    <span class="ident">DecodeError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">prost</span>::<span class="ident">DecodeError</span>),
+    <span class="ident">DecodeError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">prost::DecodeError</span>),
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Failed to encode protobuf: {0}&quot;</span>)]</span>
-    <span class="ident">EncodeError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">prost</span>::<span class="ident">EncodeError</span>),
+    <span class="ident">EncodeError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">prost::EncodeError</span>),
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Protocol error {0}&quot;</span>)]</span>
     <span class="ident">ProtocolError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">SignalProtocolError</span>),
@@ -1179,13 +1179,13 @@
     <span class="ident">NoSessionWithRecipient</span>,
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Supplied phone number could not be parsed in E164 format&quot;</span>)]</span>
-    <span class="ident">InvalidPhoneNumber</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">phonenumber</span>::<span class="ident">ParseError</span>),
+    <span class="ident">InvalidPhoneNumber</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">phonenumber::ParseError</span>),
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Supplied uuid could not be parsed&quot;</span>)]</span>
-    <span class="ident">InvalidUuidError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">uuid</span>::<span class="ident">Error</span>),
+    <span class="ident">InvalidUuidError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">uuid::Error</span>),
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">thiserror</span>::<span class="ident">Error</span>, <span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">thiserror::Error</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">MacError</span> {
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Invalid MAC key length&quot;</span>)]</span>
     <span class="ident">InvalidKeyLength</span>,
@@ -1236,8 +1236,8 @@
     <span class="ident">signer</span>: <span class="ident">ServerCertificate</span>,
     <span class="ident">key</span>: <span class="ident">PublicKey</span>,
     <span class="ident">sender_device_id</span>: <span class="ident">u32</span>,
-    <span class="ident">sender_uuid</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">uuid</span>::<span class="ident">Uuid</span><span class="op">&gt;</span>,
-    <span class="ident">sender_e164</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">phonenumber</span>::<span class="ident">PhoneNumber</span><span class="op">&gt;</span>,
+    <span class="ident">sender_uuid</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">uuid::Uuid</span><span class="op">&gt;</span>,
+    <span class="ident">sender_e164</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">phonenumber::PhoneNumber</span><span class="op">&gt;</span>,
     <span class="ident">expiration</span>: <span class="ident">u64</span>,
     <span class="kw">pub</span> <span class="ident">certificate</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">signature</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
@@ -1295,14 +1295,14 @@
 
     <span class="kw">fn</span> <span class="ident">from_bytes</span>(<span class="ident">serialized</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
-        <span class="kw">if</span> <span class="ident">version</span> <span class="op">&gt;</span> <span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidMetadataVersionError</span>(
+        <span class="kw">if</span> <span class="ident">version</span> <span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::CIPHERTEXT_VERSION</span> {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidMetadataVersionError</span>(
                 <span class="ident">version</span>,
             ));
         }
 
-        <span class="kw">let</span> <span class="ident">unidentified_sender_message</span>: <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">UnidentifiedSenderMessage</span> <span class="op">=</span>
-            <span class="ident">prost</span>::<span class="ident">Message</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>[<span class="number">1</span>..<span class="ident">serialized</span>.<span class="ident">len</span>()])<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">unidentified_sender_message</span>: <span class="kw">crate</span><span class="ident">::proto::UnidentifiedSenderMessage</span> <span class="op">=</span>
+            <span class="ident">prost::Message::decode</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>[<span class="number">1</span>..<span class="ident">serialized</span>.<span class="ident">len</span>()])<span class="question-mark">?</span>;
 
         <span class="kw">match</span> (
             <span class="ident">unidentified_sender_message</span>.<span class="ident">ephemeral_public</span>,
@@ -1314,21 +1314,21 @@
                 <span class="prelude-val">Some</span>(<span class="ident">encrypted_static</span>),
                 <span class="prelude-val">Some</span>(<span class="ident">encrypted_message</span>),
             ) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-                <span class="ident">ephemeral</span>: <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">ephemeral_public</span>)<span class="question-mark">?</span>,
+                <span class="ident">ephemeral</span>: <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">ephemeral_public</span>)<span class="question-mark">?</span>,
                 <span class="ident">encrypted_static</span>,
                 <span class="ident">encrypted_message</span>,
             }),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidMetadataMessageError</span>(
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidMetadataMessageError</span>(
                 <span class="string">&quot;Missing fields&quot;</span>.<span class="ident">into</span>(),
             )),
         }
     }
 
     <span class="kw">fn</span> <span class="ident">into_bytes</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
+        <span class="kw">use</span> <span class="ident">prost::Message</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buf</span> <span class="op">=</span>
-            <span class="macro">vec</span><span class="macro">!</span>[<span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span> <span class="op">|</span> <span class="self">Self</span>::<span class="ident">CIPHERTEXT_VERSION</span>];
-        <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">UnidentifiedSenderMessage</span> {
+            <span class="macro">vec!</span>[<span class="self">Self</span><span class="ident">::CIPHERTEXT_VERSION</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span> <span class="op">|</span> <span class="self">Self</span><span class="ident">::CIPHERTEXT_VERSION</span>];
+        <span class="kw">crate</span><span class="ident">::proto::UnidentifiedSenderMessage</span> {
             <span class="ident">ephemeral_public</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">ephemeral</span>.<span class="ident">serialize</span>().<span class="ident">to_vec</span>()),
             <span class="ident">encrypted_static</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">encrypted_static</span>),
             <span class="ident">encrypted_message</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">encrypted_message</span>),
@@ -1388,9 +1388,9 @@
             .<span class="ident">identity_key_store</span>
             .<span class="ident">get_identity</span>(<span class="ident">destination</span>, <span class="prelude-val">None</span>)
             .<span class="kw">await</span><span class="question-mark">?</span>
-            .<span class="ident">ok_or</span>(<span class="ident">SealedSessionError</span>::<span class="ident">NoSessionWithRecipient</span>)<span class="question-mark">?</span>;
+            .<span class="ident">ok_or</span>(<span class="ident">SealedSessionError::NoSessionWithRecipient</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">ephemeral</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">ephemeral</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">ephemeral_salt</span> <span class="op">=</span> [
             <span class="string">b&quot;UnidentifiedDelivery&quot;</span>,
             <span class="ident">their_identity</span>.<span class="ident">serialize</span>().<span class="ident">as_ref</span>(),
@@ -1450,7 +1450,7 @@
         <span class="kw">let</span> <span class="ident">our_identity</span> <span class="op">=</span>
             <span class="self">self</span>.<span class="ident">identity_key_store</span>.<span class="ident">get_identity_key_pair</span>(<span class="prelude-val">None</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">wrapper</span> <span class="op">=</span> <span class="ident">UnidentifiedSenderMessage</span>::<span class="ident">from_bytes</span>(<span class="ident">ciphertext</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">wrapper</span> <span class="op">=</span> <span class="ident">UnidentifiedSenderMessage::from_bytes</span>(<span class="ident">ciphertext</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">ephemeral_salt</span> <span class="op">=</span> [
             <span class="string">b&quot;UnidentifiedDelivery&quot;</span>,
@@ -1465,13 +1465,13 @@
             <span class="kw-2">&amp;</span><span class="ident">ephemeral_salt</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">static_key_bytes</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">decrypt_bytes</span>(
+        <span class="kw">let</span> <span class="ident">static_key_bytes</span> <span class="op">=</span> <span class="self">Self</span><span class="ident">::decrypt_bytes</span>(
             <span class="kw-2">&amp;</span><span class="ident">ephemeral_keys</span>.<span class="ident">cipher_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">ephemeral_keys</span>.<span class="ident">mac_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">wrapper</span>.<span class="ident">encrypted_static</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">static_key</span> <span class="op">=</span> <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">static_key_bytes</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">static_key</span> <span class="op">=</span> <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">static_key_bytes</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">static_salt</span> <span class="op">=</span>
             [<span class="ident">ephemeral_keys</span>.<span class="ident">chain_key</span>, <span class="ident">wrapper</span>.<span class="ident">encrypted_static</span>].<span class="ident">concat</span>();
         <span class="kw">let</span> <span class="ident">static_keys</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">calculate_static_keys</span>(
@@ -1480,13 +1480,13 @@
             <span class="kw-2">&amp;</span><span class="ident">static_salt</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">message_bytes</span> <span class="op">=</span> <span class="self">Self</span>::<span class="ident">decrypt_bytes</span>(
+        <span class="kw">let</span> <span class="ident">message_bytes</span> <span class="op">=</span> <span class="self">Self</span><span class="ident">::decrypt_bytes</span>(
             <span class="kw-2">&amp;</span><span class="ident">static_keys</span>.<span class="ident">cipher_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">static_keys</span>.<span class="ident">mac_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">wrapper</span>.<span class="ident">encrypted_message</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">content</span> <span class="op">=</span> <span class="ident">UnidentifiedSenderMessageContent</span>::<span class="ident">try_from</span>(
+        <span class="kw">let</span> <span class="ident">content</span> <span class="op">=</span> <span class="ident">UnidentifiedSenderMessageContent::try_from</span>(
             <span class="ident">message_bytes</span>.<span class="ident">as_slice</span>(),
         )<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">certificate_validator</span>
@@ -1502,7 +1502,7 @@
         <span class="ident">salt</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">EphemeralKeys</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">ephemeral_secret</span> <span class="op">=</span> <span class="ident">private_key</span>.<span class="ident">calculate_agreement</span>(<span class="ident">public_key</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">ephemeral_derived</span> <span class="op">=</span> <span class="ident">HKDF</span>::<span class="ident">new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_salted_secrets</span>(
+        <span class="kw">let</span> <span class="ident">ephemeral_derived</span> <span class="op">=</span> <span class="ident">HKDF::new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_salted_secrets</span>(
             <span class="kw-2">&amp;</span><span class="ident">ephemeral_secret</span>,
             <span class="ident">salt</span>,
             <span class="kw-2">&amp;</span>[],
@@ -1523,7 +1523,7 @@
         <span class="ident">salt</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">StaticKeys</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">static_secret</span> <span class="op">=</span> <span class="ident">private_key</span>.<span class="ident">calculate_agreement</span>(<span class="ident">public_key</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">static_derived</span> <span class="op">=</span> <span class="ident">HKDF</span>::<span class="ident">new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_salted_secrets</span>(
+        <span class="kw">let</span> <span class="ident">static_derived</span> <span class="op">=</span> <span class="ident">HKDF::new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_salted_secrets</span>(
             <span class="kw-2">&amp;</span><span class="ident">static_secret</span>,
             <span class="ident">salt</span>,
             <span class="kw-2">&amp;</span>[],
@@ -1541,13 +1541,13 @@
         <span class="ident">mac_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">plaintext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">Aes256Ctr</span>::<span class="ident">new</span>(<span class="ident">cipher_key</span>.<span class="ident">into</span>(), <span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>].<span class="ident">into</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">Aes256Ctr::new</span>(<span class="ident">cipher_key</span>.<span class="ident">into</span>(), <span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>].<span class="ident">into</span>());
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">plaintext</span>.<span class="ident">to_vec</span>();
         <span class="ident">cipher</span>.<span class="ident">apply_keystream</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ciphertext</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span>::<span class="ident">new_varkey</span>(<span class="kw-2">&amp;</span><span class="ident">mac_key</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">MacError</span>::<span class="ident">InvalidKeyLength</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_varkey</span>(<span class="kw-2">&amp;</span><span class="ident">mac_key</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">MacError::InvalidKeyLength</span>)<span class="question-mark">?</span>;
         <span class="ident">mac</span>.<span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>);
         <span class="kw">let</span> <span class="ident">our_mac</span> <span class="op">=</span> <span class="ident">mac</span>.<span class="ident">finalize</span>().<span class="ident">into_bytes</span>();
 
@@ -1562,26 +1562,26 @@
         <span class="ident">ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">ciphertext</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">10</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidMacError</span>(
-                <span class="ident">MacError</span>::<span class="ident">CiphertextNotLongEnough</span>(<span class="ident">ciphertext</span>.<span class="ident">len</span>()),
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidMacError</span>(
+                <span class="ident">MacError::CiphertextNotLongEnough</span>(<span class="ident">ciphertext</span>.<span class="ident">len</span>()),
             ));
         }
 
         <span class="kw">let</span> (<span class="ident">ciphertext_part1</span>, <span class="ident">their_mac</span>) <span class="op">=</span>
             <span class="ident">ciphertext</span>.<span class="ident">split_at</span>(<span class="ident">ciphertext</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="number">10</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span>::<span class="ident">new_varkey</span>(<span class="kw-2">&amp;</span><span class="ident">mac_key</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">MacError</span>::<span class="ident">InvalidKeyLength</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">verifier</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_varkey</span>(<span class="kw-2">&amp;</span><span class="ident">mac_key</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">MacError::InvalidKeyLength</span>)<span class="question-mark">?</span>;
         <span class="ident">verifier</span>.<span class="ident">update</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext_part1</span>);
         <span class="kw">let</span> <span class="ident">digest</span> <span class="op">=</span> <span class="ident">verifier</span>.<span class="ident">finalize</span>().<span class="ident">into_bytes</span>();
         <span class="kw">let</span> <span class="ident">our_mac</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">digest</span>[..<span class="number">10</span>];
 
         <span class="kw">if</span> <span class="ident">our_mac</span> <span class="op">!</span><span class="op">=</span> <span class="ident">their_mac</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidMacError</span>(<span class="ident">MacError</span>::<span class="ident">BadMac</span>));
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidMacError</span>(<span class="ident">MacError::BadMac</span>));
         }
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">decrypted</span> <span class="op">=</span> <span class="ident">ciphertext_part1</span>.<span class="ident">to_vec</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">Aes256Ctr</span>::<span class="ident">new</span>(<span class="ident">cipher_key</span>.<span class="ident">into</span>(), <span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>].<span class="ident">into</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">Aes256Ctr::new</span>(<span class="ident">cipher_key</span>.<span class="ident">into</span>(), <span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>].<span class="ident">into</span>());
         <span class="ident">cipher</span>.<span class="ident">apply_keystream</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">decrypted</span>);
 
         <span class="prelude-val">Ok</span>(<span class="ident">decrypted</span>)
@@ -1596,7 +1596,7 @@
             <span class="ident">content</span>,
             <span class="ident">sender_certificate</span>,
         } <span class="op">=</span> <span class="ident">message</span>;
-        <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">cipher</span>::<span class="ident">get_preferred_protocol_address</span>(
+        <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="kw">crate</span><span class="ident">::cipher::get_preferred_protocol_address</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session_store</span>,
             <span class="kw-2">&amp;</span><span class="ident">sender_certificate</span>.<span class="ident">address</span>(),
             <span class="ident">sender_certificate</span>.<span class="ident">sender_device_id</span>,
@@ -1604,9 +1604,9 @@
         .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">r#type</span> {
-            <span class="ident">CiphertextMessageType</span>::<span class="ident">Whisper</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">CiphertextMessageType::Whisper</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">message_decrypt_signal</span>(
-                    <span class="kw-2">&amp;</span><span class="ident">SignalMessage</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">content</span>[..])<span class="question-mark">?</span>,
+                    <span class="kw-2">&amp;</span><span class="ident">SignalMessage::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">content</span>[..])<span class="question-mark">?</span>,
                     <span class="kw-2">&amp;</span><span class="ident">sender</span>,
                     <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">session_store</span>,
                     <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">identity_key_store</span>,
@@ -1616,9 +1616,9 @@
                 .<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="ident">msg</span>.<span class="ident">as_slice</span>().<span class="ident">to_vec</span>()
             }
-            <span class="ident">CiphertextMessageType</span>::<span class="ident">PreKey</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">CiphertextMessageType::PreKey</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">message_decrypt_prekey</span>(
-                    <span class="kw-2">&amp;</span><span class="ident">PreKeySignalMessage</span>::<span class="ident">try_from</span>(<span class="kw-2">&amp;</span><span class="ident">content</span>[..])<span class="question-mark">?</span>,
+                    <span class="kw-2">&amp;</span><span class="ident">PreKeySignalMessage::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">content</span>[..])<span class="question-mark">?</span>,
                     <span class="kw-2">&amp;</span><span class="ident">sender</span>,
                     <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">session_store</span>,
                     <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">identity_key_store</span>,
@@ -1630,7 +1630,7 @@
                 .<span class="kw">await</span><span class="question-mark">?</span>;
                 <span class="ident">msg</span>.<span class="ident">as_slice</span>().<span class="ident">to_vec</span>()
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable</span><span class="macro">!</span>(<span class="string">&quot;unknown message from unidentified sender type&quot;</span>),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">unreachable!</span>(<span class="string">&quot;unknown message from unidentified sender type&quot;</span>),
         };
 
         <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="self">self</span>
@@ -1638,7 +1638,7 @@
             .<span class="ident">load_session</span>(<span class="kw-2">&amp;</span><span class="ident">sender</span>, <span class="prelude-val">None</span>)
             .<span class="kw">await</span><span class="question-mark">?</span>
             .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
-                <span class="ident">SignalProtocolError</span>::<span class="ident">SessionNotFound</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">sender</span>))
+                <span class="ident">SignalProtocolError::SessionNotFound</span>(<span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">sender</span>))
             })<span class="question-mark">?</span>
             .<span class="ident">session_version</span>()<span class="question-mark">?</span>;
 
@@ -1654,59 +1654,59 @@
 
 <span class="kw">impl</span> <span class="ident">UnidentifiedSenderMessageContent</span> {
     <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">serialized</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">unidentified_sender_message</span>::{<span class="self">self</span>, <span class="ident">message</span>};
+        <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::proto::unidentified_sender_message</span>::{<span class="self">self</span>, <span class="ident">message</span>};
 
-        <span class="kw">let</span> <span class="ident">message</span>: <span class="ident">unidentified_sender_message</span>::<span class="ident">Message</span> <span class="op">=</span>
-            <span class="ident">prost</span>::<span class="ident">Message</span>::<span class="ident">decode</span>(<span class="ident">serialized</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">message</span>: <span class="ident">unidentified_sender_message::Message</span> <span class="op">=</span>
+            <span class="ident">prost::Message::decode</span>(<span class="ident">serialized</span>)<span class="question-mark">?</span>;
 
         <span class="kw">match</span> (<span class="ident">message</span>.<span class="ident">r#type</span>, <span class="ident">message</span>.<span class="ident">sender_certificate</span>, <span class="ident">message</span>.<span class="ident">content</span>) {
             (<span class="prelude-val">Some</span>(<span class="ident">message_type</span>), <span class="prelude-val">Some</span>(<span class="ident">sender_certificate</span>), <span class="prelude-val">Some</span>(<span class="ident">content</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-                    <span class="ident">r#type</span>: <span class="kw">match</span> <span class="ident">message</span>::<span class="ident">Type</span>::<span class="ident">from_i32</span>(<span class="ident">message_type</span>) {
-                        <span class="prelude-val">Some</span>(<span class="ident">message</span>::<span class="ident">Type</span>::<span class="ident">Message</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="ident">CiphertextMessageType</span>::<span class="ident">Whisper</span>
+                    <span class="ident">r#type</span>: <span class="kw">match</span> <span class="ident">message::Type::from_i32</span>(<span class="ident">message_type</span>) {
+                        <span class="prelude-val">Some</span>(<span class="ident">message::Type::Message</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="ident">CiphertextMessageType::Whisper</span>
                         }
-                        <span class="prelude-val">Some</span>(<span class="ident">message</span>::<span class="ident">Type</span>::<span class="ident">PrekeyMessage</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                            <span class="ident">CiphertextMessageType</span>::<span class="ident">PreKey</span>
+                        <span class="prelude-val">Some</span>(<span class="ident">message::Type::PrekeyMessage</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                            <span class="ident">CiphertextMessageType::PreKey</span>
                         }
                         <span class="ident">t</span> <span class="op">=</span><span class="op">&gt;</span> {
                             <span class="kw">return</span> <span class="prelude-val">Err</span>(
-                                <span class="ident">SealedSessionError</span>::<span class="ident">InvalidMetadataMessageError</span>(
-                                    <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;Wrong message type ({:?})&quot;</span>, <span class="ident">t</span>),
+                                <span class="ident">SealedSessionError::InvalidMetadataMessageError</span>(
+                                    <span class="macro">format!</span>(<span class="string">&quot;Wrong message type ({:?})&quot;</span>, <span class="ident">t</span>),
                                 ),
                             )
                         }
                     },
-                    <span class="ident">sender_certificate</span>: <span class="ident">SenderCertificate</span>::<span class="ident">try_from</span>(
+                    <span class="ident">sender_certificate</span>: <span class="ident">SenderCertificate::try_from</span>(
                         <span class="ident">sender_certificate</span>,
                     )<span class="question-mark">?</span>,
                     <span class="ident">content</span>,
                 })
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidMetadataMessageError</span>(
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidMetadataMessageError</span>(
                 <span class="string">&quot;Missing fields&quot;</span>.<span class="ident">into</span>(),
             )),
         }
     }
 
     <span class="kw">fn</span> <span class="ident">into_bytes</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">unidentified_sender_message</span>::{<span class="self">self</span>, <span class="ident">message</span>};
-        <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
+        <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::proto::unidentified_sender_message</span>::{<span class="self">self</span>, <span class="ident">message</span>};
+        <span class="kw">use</span> <span class="ident">prost::Message</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data</span> <span class="op">=</span> <span class="macro">vec!</span>[];
 
-        <span class="ident">unidentified_sender_message</span>::<span class="ident">Message</span> {
+        <span class="ident">unidentified_sender_message::Message</span> {
             <span class="ident">r#type</span>: <span class="prelude-val">Some</span>(<span class="kw">match</span> <span class="self">self</span>.<span class="ident">r#type</span> {
-                <span class="ident">CiphertextMessageType</span>::<span class="ident">PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">message</span>::<span class="ident">Type</span>::<span class="ident">PrekeyMessage</span>,
-                <span class="ident">CiphertextMessageType</span>::<span class="ident">Whisper</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">message</span>::<span class="ident">Type</span>::<span class="ident">Message</span>,
+                <span class="ident">CiphertextMessageType::PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">message::Type::PrekeyMessage</span>,
+                <span class="ident">CiphertextMessageType::Whisper</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">message::Type::Message</span>,
                 <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">return</span> <span class="prelude-val">Err</span>(
-                        <span class="ident">SealedSessionError</span>::<span class="ident">InvalidMetadataMessageError</span>(
+                        <span class="ident">SealedSessionError::InvalidMetadataMessageError</span>(
                             <span class="string">&quot;unknown ciphertext message type&quot;</span>.<span class="ident">into</span>(),
                         ),
                     )
                 }
             } <span class="kw">as</span> <span class="ident">i32</span>),
-            <span class="ident">sender_certificate</span>: <span class="prelude-val">Some</span>(<span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">SenderCertificate</span> {
+            <span class="ident">sender_certificate</span>: <span class="prelude-val">Some</span>(<span class="kw">crate</span><span class="ident">::proto::SenderCertificate</span> {
                 <span class="ident">certificate</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">sender_certificate</span>.<span class="ident">certificate</span>),
                 <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">sender_certificate</span>.<span class="ident">signature</span>),
             }),
@@ -1720,10 +1720,10 @@
 
 <span class="kw">impl</span> <span class="ident">SenderCertificate</span> {
     <span class="kw">fn</span> <span class="ident">try_from</span>(
-        <span class="ident">wrapper</span>: <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">SenderCertificate</span>,
+        <span class="ident">wrapper</span>: <span class="kw">crate</span><span class="ident">::proto::SenderCertificate</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">sender_certificate</span>::<span class="ident">Certificate</span>;
-        <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
+        <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::proto::sender_certificate::Certificate</span>;
+        <span class="kw">use</span> <span class="ident">prost::Message</span>;
         <span class="kw">match</span> (<span class="ident">wrapper</span>.<span class="ident">signature</span>, <span class="ident">wrapper</span>.<span class="ident">certificate</span>) {
             (<span class="prelude-val">Some</span>(<span class="ident">signature</span>), <span class="prelude-val">Some</span>(<span class="ident">certificate</span>)) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="ident">Certificate</span> {
@@ -1733,7 +1733,7 @@
                     <span class="ident">expires</span>,
                     <span class="ident">identity_key</span>,
                     <span class="ident">signer</span>,
-                } <span class="op">=</span> <span class="ident">Message</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>[..])<span class="question-mark">?</span>;
+                } <span class="op">=</span> <span class="ident">Message::decode</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>[..])<span class="question-mark">?</span>;
                 <span class="kw">match</span> (<span class="ident">sender_device</span>, <span class="ident">expires</span>, <span class="ident">identity_key</span>, <span class="ident">signer</span>) {
                     (
                         <span class="prelude-val">Some</span>(<span class="ident">sender_device_id</span>),
@@ -1742,20 +1742,20 @@
                         <span class="prelude-val">Some</span>(<span class="ident">signer</span>),
                     ) <span class="op">=</span><span class="op">&gt;</span> {
                         <span class="kw">if</span> <span class="ident">sender_e164</span>.<span class="ident">is_none</span>() <span class="op">&amp;&amp;</span> <span class="ident">sender_uuid</span>.<span class="ident">is_none</span>() {
-                            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>);
+                            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>);
                         }
 
                         <span class="kw">let</span> <span class="ident">sender_e164</span> <span class="op">=</span> <span class="ident">sender_e164</span>
-                            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">phonenumber</span>::<span class="ident">parse</span>(<span class="prelude-val">None</span>, <span class="ident">s</span>))
+                            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">phonenumber::parse</span>(<span class="prelude-val">None</span>, <span class="ident">s</span>))
                             .<span class="ident">transpose</span>()<span class="question-mark">?</span>;
                         <span class="kw">let</span> <span class="ident">sender_uuid</span> <span class="op">=</span> <span class="ident">sender_uuid</span>
                             .<span class="ident">as_deref</span>()
-                            .<span class="ident">map</span>(<span class="ident">Uuid</span>::<span class="ident">parse_str</span>)
+                            .<span class="ident">map</span>(<span class="ident">Uuid::parse_str</span>)
                             .<span class="ident">transpose</span>()<span class="question-mark">?</span>;
 
                         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
-                            <span class="ident">signer</span>: <span class="ident">ServerCertificate</span>::<span class="ident">try_from</span>(<span class="ident">signer</span>)<span class="question-mark">?</span>,
-                            <span class="ident">key</span>: <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">identity_key</span>)<span class="question-mark">?</span>,
+                            <span class="ident">signer</span>: <span class="ident">ServerCertificate::try_from</span>(<span class="ident">signer</span>)<span class="question-mark">?</span>,
+                            <span class="ident">key</span>: <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">identity_key</span>)<span class="question-mark">?</span>,
                             <span class="ident">sender_e164</span>,
                             <span class="ident">sender_uuid</span>,
                             <span class="ident">sender_device_id</span>,
@@ -1764,10 +1764,10 @@
                             <span class="ident">signature</span>,
                         })
                     }
-                    <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>),
+                    <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>),
                 }
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>),
         }
     }
 
@@ -1782,26 +1782,26 @@
 
 <span class="kw">impl</span> <span class="ident">ServerCertificate</span> {
     <span class="kw">fn</span> <span class="ident">try_from</span>(
-        <span class="ident">wrapper</span>: <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">ServerCertificate</span>,
+        <span class="ident">wrapper</span>: <span class="kw">crate</span><span class="ident">::proto::ServerCertificate</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">server_certificate</span>;
-        <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
+        <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::proto::server_certificate</span>;
+        <span class="kw">use</span> <span class="ident">prost::Message</span>;
 
         <span class="kw">match</span> (<span class="ident">wrapper</span>.<span class="ident">certificate</span>, <span class="ident">wrapper</span>.<span class="ident">signature</span>) {
             (<span class="prelude-val">Some</span>(<span class="ident">certificate</span>), <span class="prelude-val">Some</span>(<span class="ident">signature</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">server_certificate</span>: <span class="ident">server_certificate</span>::<span class="ident">Certificate</span> <span class="op">=</span>
-                    <span class="ident">Message</span>::<span class="ident">decode</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>[..])<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">server_certificate</span>: <span class="ident">server_certificate::Certificate</span> <span class="op">=</span>
+                    <span class="ident">Message::decode</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>[..])<span class="question-mark">?</span>;
                 <span class="kw">match</span> (<span class="ident">server_certificate</span>.<span class="ident">id</span>, <span class="ident">server_certificate</span>.<span class="ident">key</span>) {
                     (<span class="prelude-val">Some</span>(<span class="ident">id</span>), <span class="prelude-val">Some</span>(<span class="ident">key</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
                         <span class="ident">key_id</span>: <span class="ident">id</span>,
-                        <span class="ident">key</span>: <span class="ident">PublicKey</span>::<span class="ident">deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>)<span class="question-mark">?</span>,
+                        <span class="ident">key</span>: <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>)<span class="question-mark">?</span>,
                         <span class="ident">certificate</span>,
                         <span class="ident">signature</span>,
                     }),
-                    <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>),
+                    <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>),
                 }
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>),
         }
     }
 }
@@ -1823,7 +1823,7 @@
             <span class="kw-2">&amp;</span><span class="ident">server_certificate</span>.<span class="ident">signature</span>,
         ) {
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>)
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>)
             }
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (),
         };
@@ -1833,13 +1833,13 @@
             .<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">certificate</span>, <span class="kw-2">&amp;</span><span class="ident">certificate</span>.<span class="ident">signature</span>)
         {
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>)
+                <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>)
             }
             <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (),
         }
 
         <span class="kw">if</span> <span class="ident">validation_time</span> <span class="op">&gt;</span> <span class="ident">certificate</span>.<span class="ident">expiration</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">ExpiredCertificate</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::ExpiredCertificate</span>);
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -1848,7 +1848,7 @@
 
 <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
 <span class="kw">mod</span> <span class="ident">tests</span> {
-    <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">time</span>::{<span class="ident">SystemTime</span>, <span class="ident">UNIX_EPOCH</span>};
+    <span class="kw">use</span> <span class="ident">std::time</span>::{<span class="ident">SystemTime</span>, <span class="ident">UNIX_EPOCH</span>};
 
     <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
         <span class="ident">process_prekey_bundle</span>, <span class="ident">IdentityKeyPair</span>, <span class="ident">IdentityKeyStore</span>,
@@ -1858,17 +1858,17 @@
         <span class="ident">SignedPreKeyStore</span>,
     };
 
-    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">provisioning</span>::<span class="ident">generate_registration_id</span>, <span class="ident">ServiceAddress</span>};
+    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">provisioning::generate_registration_id</span>, <span class="ident">ServiceAddress</span>};
 
     <span class="kw">use</span> <span class="kw">super</span>::{
         <span class="ident">CertificateValidator</span>, <span class="ident">SealedSessionCipher</span>, <span class="ident">SealedSessionError</span>,
         <span class="ident">SenderCertificate</span>,
     };
 
-    <span class="kw">use</span> <span class="ident">prost</span>::<span class="ident">Message</span>;
+    <span class="kw">use</span> <span class="ident">prost::Message</span>;
 
     <span class="kw">fn</span> <span class="ident">alice_address</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ServiceAddress</span> {
-        <span class="ident">ServiceAddress</span>::<span class="ident">parse</span>(
+        <span class="ident">ServiceAddress::parse</span>(
             <span class="prelude-val">Some</span>(<span class="string">&quot;+14151111111&quot;</span>),
             <span class="prelude-val">Some</span>(<span class="string">&quot;9d0652a3-dcc3-4d11-975f-74d61598733f&quot;</span>),
         )
@@ -1882,15 +1882,15 @@
         <span class="ident">pre_key_store</span>: <span class="ident">InMemPreKeyStore</span>,
     }
 
-    <span class="attribute">#[<span class="ident">tokio</span>::<span class="ident">test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_decrypt</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>();
+    <span class="attribute">#[<span class="ident">tokio::test</span>]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_decrypt</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>();
 
         <span class="kw">let</span> (<span class="ident">alice_stores</span>, <span class="ident">bob_stores</span>) <span class="op">=</span> <span class="ident">create_stores</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">certificate_validator</span> <span class="op">=</span>
-            <span class="ident">CertificateValidator</span>::<span class="ident">new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
+            <span class="ident">CertificateValidator::new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
         <span class="kw">let</span> <span class="ident">sender_certificate</span> <span class="op">=</span> <span class="ident">create_certificate_for</span>(
             <span class="kw-2">&amp;</span><span class="ident">trust_root</span>,
             <span class="ident">alice_address</span>(),
@@ -1904,7 +1904,7 @@
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">alice_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -1915,13 +1915,13 @@
 
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">alice_cipher</span>
             .<span class="ident">encrypt</span>(
-                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
+                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress::new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
                 <span class="ident">sender_certificate</span>,
                 <span class="string">&quot;smert za smert&quot;</span>.<span class="ident">as_bytes</span>(),
             )
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">bob_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -1932,29 +1932,29 @@
 
         <span class="kw">let</span> <span class="ident">plaintext</span> <span class="op">=</span> <span class="ident">bob_cipher</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>, <span class="number">31335</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="macro">assert_eq</span><span class="macro">!</span>(
-            <span class="ident">String</span>::<span class="ident">from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">plaintext</span>.<span class="ident">padded_message</span>),
+        <span class="macro">assert_eq!</span>(
+            <span class="ident">String::from_utf8_lossy</span>(<span class="kw-2">&amp;</span><span class="ident">plaintext</span>.<span class="ident">padded_message</span>),
             <span class="string">&quot;smert za smert&quot;</span>.<span class="ident">to_string</span>()
         );
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">plaintext</span>.<span class="ident">sender_uuid</span>, <span class="ident">alice_address</span>().<span class="ident">uuid</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">plaintext</span>.<span class="ident">sender_e164</span>, <span class="ident">alice_address</span>().<span class="ident">phonenumber</span>);
-        <span class="macro">assert_eq</span><span class="macro">!</span>(<span class="ident">plaintext</span>.<span class="ident">device_id</span>, <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">plaintext</span>.<span class="ident">sender_uuid</span>, <span class="ident">alice_address</span>().<span class="ident">uuid</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">plaintext</span>.<span class="ident">sender_e164</span>, <span class="ident">alice_address</span>().<span class="ident">phonenumber</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">plaintext</span>.<span class="ident">device_id</span>, <span class="number">1</span>);
 
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="attribute">#[<span class="ident">tokio</span>::<span class="ident">test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_decrypt_untrusted</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>();
+    <span class="attribute">#[<span class="ident">tokio::test</span>]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_decrypt_untrusted</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>();
         <span class="kw">let</span> (<span class="ident">alice_stores</span>, <span class="ident">bob_stores</span>) <span class="op">=</span> <span class="ident">create_stores</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">certificate_validator</span> <span class="op">=</span>
-            <span class="ident">CertificateValidator</span>::<span class="ident">new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
+            <span class="ident">CertificateValidator::new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
 
-        <span class="kw">let</span> <span class="ident">false_trust_root</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">false_trust_root</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">false_certificate_validator</span> <span class="op">=</span>
-            <span class="ident">CertificateValidator</span>::<span class="ident">new</span>(<span class="ident">false_trust_root</span>.<span class="ident">public_key</span>);
+            <span class="ident">CertificateValidator::new</span>(<span class="ident">false_trust_root</span>.<span class="ident">public_key</span>);
 
         <span class="kw">let</span> <span class="ident">sender_certificate</span> <span class="op">=</span> <span class="ident">create_certificate_for</span>(
             <span class="kw-2">&amp;</span><span class="ident">trust_root</span>,
@@ -1969,7 +1969,7 @@
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">alice_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -1980,13 +1980,13 @@
 
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">alice_cipher</span>
             .<span class="ident">encrypt</span>(
-                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
+                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress::new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
                 <span class="ident">sender_certificate</span>,
                 <span class="string">&quot;и вот я&quot;</span>.<span class="ident">as_bytes</span>(),
             )
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">bob_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -1998,19 +1998,19 @@
         <span class="kw">let</span> <span class="ident">plaintext</span> <span class="op">=</span> <span class="ident">bob_cipher</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>, <span class="number">31335</span>).<span class="kw">await</span>;
 
         <span class="kw">match</span> <span class="ident">plaintext</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;decryption succeeded, this should not happen here!1!&quot;</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic!</span>(<span class="string">&quot;decryption succeeded, this should not happen here!1!&quot;</span>),
         }
     }
 
-    <span class="attribute">#[<span class="ident">tokio</span>::<span class="ident">test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_decrypt_expired</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>();
+    <span class="attribute">#[<span class="ident">tokio::test</span>]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_decrypt_expired</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>();
         <span class="kw">let</span> (<span class="ident">alice_stores</span>, <span class="ident">bob_stores</span>) <span class="op">=</span> <span class="ident">create_stores</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">certificate_validator</span> <span class="op">=</span>
-            <span class="ident">CertificateValidator</span>::<span class="ident">new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
+            <span class="ident">CertificateValidator::new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
         <span class="kw">let</span> <span class="ident">sender_certificate</span> <span class="op">=</span> <span class="ident">create_certificate_for</span>(
             <span class="kw-2">&amp;</span><span class="ident">trust_root</span>,
             <span class="ident">alice_address</span>(),
@@ -2024,7 +2024,7 @@
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">alice_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -2035,13 +2035,13 @@
 
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">alice_cipher</span>
             .<span class="ident">encrypt</span>(
-                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
+                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress::new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
                 <span class="ident">sender_certificate</span>,
                 <span class="string">&quot;smert za smert&quot;</span>.<span class="ident">as_bytes</span>(),
             )
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">bob_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -2051,20 +2051,20 @@
         );
 
         <span class="kw">match</span> <span class="ident">bob_cipher</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>, <span class="number">31338</span>).<span class="kw">await</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">ExpiredCertificate</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;certificate is expired, we should not get decrypted data here!11!&quot;</span>)
+            <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::ExpiredCertificate</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic!</span>(<span class="string">&quot;certificate is expired, we should not get decrypted data here!11!&quot;</span>)
         }
     }
 
-    <span class="attribute">#[<span class="ident">tokio</span>::<span class="ident">test</span>]</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_from_wrong_identity</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">thread_rng</span>();
+    <span class="attribute">#[<span class="ident">tokio::test</span>]</span>
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">test_encrypt_from_wrong_identity</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>();
         <span class="kw">let</span> (<span class="ident">alice_stores</span>, <span class="ident">bob_stores</span>) <span class="op">=</span> <span class="ident">create_stores</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">random_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">random_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">certificate_validator</span> <span class="op">=</span>
-            <span class="ident">CertificateValidator</span>::<span class="ident">new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
+            <span class="ident">CertificateValidator::new</span>(<span class="ident">trust_root</span>.<span class="ident">public_key</span>);
         <span class="kw">let</span> <span class="ident">sender_certificate</span> <span class="op">=</span> <span class="ident">create_certificate_for</span>(
             <span class="kw-2">&amp;</span><span class="ident">random_key_pair</span>,
             <span class="ident">alice_address</span>(),
@@ -2078,7 +2078,7 @@
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
         )<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">alice_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">alice_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -2089,13 +2089,13 @@
 
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">alice_cipher</span>
             .<span class="ident">encrypt</span>(
-                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
+                <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress::new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
                 <span class="ident">sender_certificate</span>,
                 <span class="string">&quot;smert za smert&quot;</span>.<span class="ident">as_bytes</span>(),
             )
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_cipher</span> <span class="op">=</span> <span class="ident">SealedSessionCipher::new</span>(
             <span class="ident">bob_stores</span>.<span class="ident">session_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="ident">bob_stores</span>.<span class="ident">signed_pre_key_store</span>,
@@ -2105,32 +2105,32 @@
         );
 
         <span class="kw">match</span> <span class="ident">bob_cipher</span>.<span class="ident">decrypt</span>(<span class="kw-2">&amp;</span><span class="ident">ciphertext</span>, <span class="number">31335</span>).<span class="kw">await</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError</span>::<span class="ident">InvalidCertificate</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic</span><span class="macro">!</span>(<span class="string">&quot;the certificate is invalid here!11&quot;</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">SealedSessionError::InvalidCertificate</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
+            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic!</span>(<span class="string">&quot;the certificate is invalid here!11&quot;</span>),
         }
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">create_stores</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand</span>::<span class="ident">Rng</span> <span class="op">+</span> <span class="ident">rand</span>::<span class="ident">CryptoRng</span><span class="op">&gt;</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">create_stores</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand::Rng</span> <span class="op">+</span> <span class="ident">rand::CryptoRng</span><span class="op">&gt;</span>(
         <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">Stores</span>, <span class="ident">Stores</span>)<span class="op">&gt;</span> {
+    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow::Result</span><span class="op">&lt;</span>(<span class="ident">Stores</span>, <span class="ident">Stores</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">alice_stores</span> <span class="op">=</span> <span class="ident">Stores</span> {
-            <span class="ident">identity_key_store</span>: <span class="ident">InMemIdentityKeyStore</span>::<span class="ident">new</span>(
-                <span class="ident">IdentityKeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>),
+            <span class="ident">identity_key_store</span>: <span class="ident">InMemIdentityKeyStore::new</span>(
+                <span class="ident">IdentityKeyPair::generate</span>(<span class="ident">csprng</span>),
                 <span class="ident">generate_registration_id</span>(<span class="ident">csprng</span>),
             ),
-            <span class="ident">session_store</span>: <span class="ident">InMemSessionStore</span>::<span class="ident">new</span>(),
-            <span class="ident">signed_pre_key_store</span>: <span class="ident">InMemSignedPreKeyStore</span>::<span class="ident">new</span>(),
-            <span class="ident">pre_key_store</span>: <span class="ident">InMemPreKeyStore</span>::<span class="ident">new</span>(),
+            <span class="ident">session_store</span>: <span class="ident">InMemSessionStore::new</span>(),
+            <span class="ident">signed_pre_key_store</span>: <span class="ident">InMemSignedPreKeyStore::new</span>(),
+            <span class="ident">pre_key_store</span>: <span class="ident">InMemPreKeyStore::new</span>(),
         };
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bob_stores</span> <span class="op">=</span> <span class="ident">Stores</span> {
-            <span class="ident">identity_key_store</span>: <span class="ident">InMemIdentityKeyStore</span>::<span class="ident">new</span>(
-                <span class="ident">IdentityKeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>),
+            <span class="ident">identity_key_store</span>: <span class="ident">InMemIdentityKeyStore::new</span>(
+                <span class="ident">IdentityKeyPair::generate</span>(<span class="ident">csprng</span>),
                 <span class="ident">generate_registration_id</span>(<span class="ident">csprng</span>),
             ),
-            <span class="ident">session_store</span>: <span class="ident">InMemSessionStore</span>::<span class="ident">new</span>(),
-            <span class="ident">signed_pre_key_store</span>: <span class="ident">InMemSignedPreKeyStore</span>::<span class="ident">new</span>(),
-            <span class="ident">pre_key_store</span>: <span class="ident">InMemPreKeyStore</span>::<span class="ident">new</span>(),
+            <span class="ident">session_store</span>: <span class="ident">InMemSessionStore::new</span>(),
+            <span class="ident">signed_pre_key_store</span>: <span class="ident">InMemSignedPreKeyStore::new</span>(),
+            <span class="ident">pre_key_store</span>: <span class="ident">InMemPreKeyStore::new</span>(),
         };
 
         <span class="ident">initialize_session</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">alice_stores</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">bob_stores</span>, <span class="ident">csprng</span>).<span class="kw">await</span><span class="question-mark">?</span>;
@@ -2138,7 +2138,7 @@
         <span class="prelude-val">Ok</span>((<span class="ident">alice_stores</span>, <span class="ident">bob_stores</span>))
     }
 
-    <span class="kw">fn</span> <span class="ident">create_certificate_for</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand</span>::<span class="ident">Rng</span> <span class="op">+</span> <span class="ident">rand</span>::<span class="ident">CryptoRng</span><span class="op">&gt;</span>(
+    <span class="kw">fn</span> <span class="ident">create_certificate_for</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand::Rng</span> <span class="op">+</span> <span class="ident">rand::CryptoRng</span><span class="op">&gt;</span>(
         <span class="ident">trust_root</span>: <span class="kw-2">&amp;</span><span class="ident">KeyPair</span>,
         <span class="ident">addr</span>: <span class="ident">ServiceAddress</span>,
         <span class="ident">device_id</span>: <span class="ident">u32</span>,
@@ -2146,13 +2146,13 @@
         <span class="ident">expires</span>: <span class="ident">u64</span>,
         <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderCertificate</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">server_key</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">server_key</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="ident">csprng</span>);
 
-        <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">addr</span>.<span class="ident">uuid</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">uuid</span>::<span class="ident">Uuid</span>::<span class="ident">to_string</span>);
+        <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">addr</span>.<span class="ident">uuid</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">uuid::Uuid::to_string</span>);
         <span class="kw">let</span> <span class="ident">e164</span> <span class="op">=</span> <span class="ident">addr</span>.<span class="ident">e164</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">server_certificate_bytes</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-        <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">server_certificate</span>::<span class="ident">Certificate</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">server_certificate_bytes</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+        <span class="kw">crate</span><span class="ident">::proto::server_certificate::Certificate</span> {
             <span class="ident">id</span>: <span class="prelude-val">Some</span>(<span class="number">1</span>),
             <span class="ident">key</span>: <span class="prelude-val">Some</span>(<span class="ident">server_key</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
         }
@@ -2162,13 +2162,13 @@
             .<span class="ident">private_key</span>
             .<span class="ident">calculate_signature</span>(<span class="kw-2">&amp;</span><span class="ident">server_certificate_bytes</span>, <span class="ident">csprng</span>)<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">server_certificate</span> <span class="op">=</span> <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">ServerCertificate</span> {
+        <span class="kw">let</span> <span class="ident">server_certificate</span> <span class="op">=</span> <span class="kw">crate</span><span class="ident">::proto::ServerCertificate</span> {
             <span class="ident">certificate</span>: <span class="prelude-val">Some</span>(<span class="ident">server_certificate_bytes</span>),
             <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="ident">server_certificate_signature</span>.<span class="ident">into_vec</span>()),
         };
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sender_certificate_bytes</span> <span class="op">=</span> <span class="macro">vec</span><span class="macro">!</span>[];
-        <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">sender_certificate</span>::<span class="ident">Certificate</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sender_certificate_bytes</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+        <span class="kw">crate</span><span class="ident">::proto::sender_certificate::Certificate</span> {
             <span class="ident">sender_uuid</span>: <span class="ident">uuid</span>,
             <span class="ident">sender_e164</span>: <span class="ident">e164</span>,
             <span class="ident">sender_device</span>: <span class="prelude-val">Some</span>(<span class="ident">device_id</span>),
@@ -2182,27 +2182,27 @@
             .<span class="ident">private_key</span>
             .<span class="ident">calculate_signature</span>(<span class="kw-2">&amp;</span><span class="ident">sender_certificate_bytes</span>, <span class="ident">csprng</span>)<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(<span class="ident">SenderCertificate</span>::<span class="ident">try_from</span>(
-            <span class="kw">crate</span>::<span class="ident">proto</span>::<span class="ident">SenderCertificate</span> {
+        <span class="prelude-val">Ok</span>(<span class="ident">SenderCertificate::try_from</span>(
+            <span class="kw">crate</span><span class="ident">::proto::SenderCertificate</span> {
                 <span class="ident">certificate</span>: <span class="prelude-val">Some</span>(<span class="ident">sender_certificate_bytes</span>),
                 <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="ident">sender_certificate_signature</span>.<span class="ident">into_vec</span>()),
             },
         )<span class="question-mark">?</span>)
     }
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">initialize_session</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand</span>::<span class="ident">Rng</span> <span class="op">+</span> <span class="ident">rand</span>::<span class="ident">CryptoRng</span><span class="op">&gt;</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">initialize_session</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">rand::Rng</span> <span class="op">+</span> <span class="ident">rand::CryptoRng</span><span class="op">&gt;</span>(
         <span class="ident">alice_stores</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Stores</span>,
         <span class="ident">bob_stores</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Stores</span>,
         <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">bob_pre_key</span> <span class="op">=</span> <span class="ident">PreKeyRecord</span>::<span class="ident">new</span>(<span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>));
+        <span class="kw">let</span> <span class="ident">bob_pre_key</span> <span class="op">=</span> <span class="ident">PreKeyRecord::new</span>(<span class="number">1</span>, <span class="kw-2">&amp;</span><span class="ident">KeyPair::generate</span>(<span class="ident">csprng</span>));
         <span class="kw">let</span> <span class="ident">bob_identity_key_pair</span> <span class="op">=</span> <span class="ident">bob_stores</span>
             .<span class="ident">identity_key_store</span>
             .<span class="ident">get_identity_key_pair</span>(<span class="prelude-val">None</span>)
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="comment">// TODO: check</span>
-        <span class="kw">let</span> <span class="ident">signed_pre_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair</span>::<span class="ident">generate</span>(<span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">signed_pre_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">signed_pre_key_signature</span> <span class="op">=</span> <span class="ident">bob_identity_key_pair</span>
             .<span class="ident">private_key</span>()
             .<span class="ident">calculate_signature</span>(
@@ -2211,9 +2211,9 @@
             )<span class="question-mark">?</span>
             .<span class="ident">into_vec</span>();
 
-        <span class="kw">let</span> <span class="ident">bob_signed_pre_key_record</span> <span class="op">=</span> <span class="ident">SignedPreKeyRecord</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">bob_signed_pre_key_record</span> <span class="op">=</span> <span class="ident">SignedPreKeyRecord::new</span>(
             <span class="number">2</span>,
-            <span class="ident">SystemTime</span>::<span class="ident">now</span>()
+            <span class="ident">SystemTime::now</span>()
                 .<span class="ident">duration_since</span>(<span class="ident">UNIX_EPOCH</span>)
                 .<span class="ident">unwrap</span>()
                 .<span class="ident">as_millis</span>() <span class="kw">as</span> <span class="ident">u64</span>,
@@ -2221,7 +2221,7 @@
             <span class="kw-2">&amp;</span><span class="ident">signed_pre_key_signature</span>,
         );
 
-        <span class="kw">let</span> <span class="ident">bob_bundle</span> <span class="op">=</span> <span class="ident">PreKeyBundle</span>::<span class="ident">new</span>(
+        <span class="kw">let</span> <span class="ident">bob_bundle</span> <span class="op">=</span> <span class="ident">PreKeyBundle::new</span>(
             <span class="number">1</span>,
             <span class="number">1</span>,
             <span class="prelude-val">Some</span>((<span class="number">1</span>, <span class="ident">bob_pre_key</span>.<span class="ident">public_key</span>()<span class="question-mark">?</span>)),
@@ -2232,7 +2232,7 @@
         )<span class="question-mark">?</span>;
 
         <span class="ident">process_prekey_bundle</span>(
-            <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress</span>::<span class="ident">new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
+            <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress::new</span>(<span class="string">&quot;+14152222222&quot;</span>.<span class="ident">into</span>(), <span class="number">1</span>),
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">alice_stores</span>.<span class="ident">session_store</span>,
             <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">alice_stores</span>.<span class="ident">identity_key_store</span>,
             <span class="kw-2">&amp;</span><span class="ident">bob_bundle</span>,
@@ -2253,5 +2253,5 @@
     }
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_service" data-search-js="../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_service" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>

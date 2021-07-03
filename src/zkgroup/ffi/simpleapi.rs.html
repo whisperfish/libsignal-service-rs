@@ -1,6 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/zkgroup-f6dd8b8b2fc96d24/d3cb5db/rust/src/ffi/simpleapi.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>simpleapi.rs - source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script id="default-settings"></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/zkgroup-f6dd8b8b2fc96d24/197c382/rust/src/ffi/simpleapi.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>simpleapi.rs - source</title><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled ><script id="default-settings"></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../zkgroup/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../../../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
+<link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../../zkgroup/index.html'><div class='logo-container rust-logo'><img src='../../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
                 <a id="settings-menu" href="../../../settings.html"><img src="../../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">  1</span>
 <span id="2">  2</span>
 <span id="3">  3</span>
@@ -914,27 +914,27 @@
 
 <span class="attribute">#![<span class="ident">allow</span>(<span class="ident">non_snake_case</span>)]</span>
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">api</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">common</span>::<span class="ident">constants</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">common</span>::<span class="ident">simple_types</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">ffi</span>::<span class="ident">constants</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::api</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::common::constants</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::common::simple_types</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::ffi::constants</span>::<span class="kw-2">*</span>;
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKey_getCommitment</span>(
     <span class="ident">profileKeyIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">uuidIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCommitmentOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api::profiles::ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="kw">let</span> <span class="ident">profile_key_commitment</span> <span class="op">=</span> <span class="ident">profile_key</span>.<span class="ident">get_commitment</span>(<span class="ident">uuid</span>);
-    <span class="ident">profileKeyCommitmentOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_commitment</span>).<span class="ident">unwrap</span>());
+    <span class="ident">profileKeyCommitmentOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_commitment</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -943,22 +943,22 @@
     <span class="ident">uuidIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyVersionOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api::profiles::ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="kw">let</span> <span class="ident">profile_key_version</span> <span class="op">=</span> <span class="ident">profile_key</span>.<span class="ident">get_profile_key_version</span>(<span class="ident">uuid</span>);
-    <span class="ident">profileKeyVersionOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_version</span>).<span class="ident">unwrap</span>());
+    <span class="ident">profileKeyVersionOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_version</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKeyCommitment_checkValidContents</span>(<span class="ident">profileKeyCommitmentIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCommitment</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCommitmentIn</span>)
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::profiles::ProfileKeyCommitment</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCommitmentIn</span>)
     {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
@@ -971,12 +971,12 @@
     <span class="ident">randomnessIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">groupSecretParamsOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
-    <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span>::<span class="ident">generate</span>(<span class="ident">randomness</span>);
-    <span class="ident">groupSecretParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_secret_params</span>).<span class="ident">unwrap</span>());
+    <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">api::groups::GroupSecretParams::generate</span>(<span class="ident">randomness</span>);
+    <span class="ident">groupSecretParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_secret_params</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -984,19 +984,19 @@
     <span class="ident">groupMasterKeyIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">groupSecretParamsOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_master_key</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupMasterKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupMasterKeyIn</span>)
+    <span class="kw">let</span> <span class="ident">group_master_key</span>: <span class="ident">api::groups::GroupMasterKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupMasterKeyIn</span>)
     {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span>
-        <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span>::<span class="ident">derive_from_master_key</span>(<span class="ident">group_master_key</span>);
-    <span class="ident">groupSecretParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_secret_params</span>).<span class="ident">unwrap</span>());
+        <span class="ident">api::groups::GroupSecretParams::derive_from_master_key</span>(<span class="ident">group_master_key</span>);
+    <span class="ident">groupSecretParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_secret_params</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">GroupSecretParams_checkValidContents</span>(<span class="ident">groupSecretParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1008,13 +1008,13 @@
     <span class="ident">groupSecretParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">groupMasterKeyOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">group_master_key</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">get_master_key</span>();
-    <span class="ident">groupMasterKeyOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_master_key</span>).<span class="ident">unwrap</span>());
+    <span class="ident">groupMasterKeyOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_master_key</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1022,13 +1022,13 @@
     <span class="ident">groupSecretParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">groupPublicParamsOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">group_public_params</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">get_public_params</span>();
-    <span class="ident">groupPublicParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_public_params</span>).<span class="ident">unwrap</span>());
+    <span class="ident">groupPublicParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_public_params</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1037,18 +1037,18 @@
     <span class="ident">uuidIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_uuid</span>(<span class="ident">uuid</span>);
-    <span class="ident">uuidCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid_ciphertext</span>).<span class="ident">unwrap</span>());
+    <span class="ident">uuidCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid_ciphertext</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1057,13 +1057,13 @@
     <span class="ident">uuidCiphertextIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">uuidOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">UuidCiphertext</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidCiphertextIn</span>)
+    <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="ident">api::groups::UuidCiphertext</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidCiphertextIn</span>)
     {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
@@ -1072,7 +1072,7 @@
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
-    <span class="ident">uuidOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid</span>).<span class="ident">unwrap</span>());
+    <span class="ident">uuidOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1082,23 +1082,23 @@
     <span class="ident">uuidIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCiphertextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api::profiles::ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_profile_key</span>(<span class="ident">profile_key</span>, <span class="ident">uuid</span>);
-    <span class="ident">profileKeyCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_ciphertext</span>).<span class="ident">unwrap</span>());
+    <span class="ident">profileKeyCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_ciphertext</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1108,19 +1108,19 @@
     <span class="ident">uuidIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">ProfileKeyCiphertext</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCiphertextIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span>: <span class="ident">api::groups::ProfileKeyCiphertext</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCiphertextIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1128,7 +1128,7 @@
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
-    <span class="ident">profileKeyOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key</span>).<span class="ident">unwrap</span>());
+    <span class="ident">profileKeyOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1138,13 +1138,13 @@
     <span class="ident">plaintextIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">blobCiphertextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1162,8 +1162,8 @@
     <span class="ident">blobCiphertextIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">plaintextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
@@ -1180,17 +1180,17 @@
     <span class="ident">randomnessIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">serverSecretParamsOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
-    <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">api</span>::<span class="ident">ServerSecretParams</span>::<span class="ident">generate</span>(<span class="ident">randomness</span>);
-    <span class="ident">serverSecretParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">server_secret_params</span>).<span class="ident">unwrap</span>());
+    <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">api::ServerSecretParams::generate</span>(<span class="ident">randomness</span>);
+    <span class="ident">serverSecretParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">server_secret_params</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ServerSecretParams_checkValidContents</span>(<span class="ident">serverSecretParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">ServerSecretParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::ServerSecretParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1202,13 +1202,13 @@
     <span class="ident">serverSecretParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">serverPublicParamsOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api</span>::<span class="ident">ServerSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api::ServerSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">server_secret_params</span>.<span class="ident">get_public_params</span>();
-    <span class="ident">serverPublicParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">server_public_params</span>).<span class="ident">unwrap</span>());
+    <span class="ident">serverPublicParamsOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">server_public_params</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1218,13 +1218,13 @@
     <span class="ident">messageIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">notarySignatureOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api</span>::<span class="ident">ServerSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api::ServerSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1244,20 +1244,20 @@
     <span class="ident">authCredentialResponseIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">authCredentialOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api</span>::<span class="ident">ServerPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api::ServerPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="kw">let</span> <span class="ident">redemption_time</span> <span class="op">=</span> <span class="ident">redemptionTimeIn</span>;
 
-    <span class="kw">let</span> <span class="ident">auth_credential_response</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredentialResponse</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialResponseIn</span>) {
+    <span class="kw">let</span> <span class="ident">auth_credential_response</span>: <span class="ident">api::auth::AuthCredentialResponse</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialResponseIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1269,7 +1269,7 @@
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
-    <span class="ident">authCredentialOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential</span>).<span class="ident">unwrap</span>());
+    <span class="ident">authCredentialOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1280,24 +1280,24 @@
     <span class="ident">authCredentialIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">authCredentialPresentationOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api</span>::<span class="ident">ServerPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api::ServerPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">auth_credential</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredential</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialIn</span>) {
+    <span class="kw">let</span> <span class="ident">auth_credential</span>: <span class="ident">api::auth::AuthCredential</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1307,7 +1307,7 @@
         <span class="ident">auth_credential</span>,
     );
     <span class="ident">authCredentialPresentationOut</span>
-        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential_presentation</span>).<span class="ident">unwrap</span>());
+        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential_presentation</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1318,30 +1318,30 @@
     <span class="ident">profileKeyIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCredentialRequestContextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api</span>::<span class="ident">ServerPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api::ServerPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="ident">api::profiles::ProfileKey</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span> <span class="op">=</span> <span class="ident">server_public_params</span>
         .<span class="ident">create_profile_key_credential_request_context</span>(<span class="ident">randomness</span>, <span class="ident">uuid</span>, <span class="ident">profile_key</span>);
     <span class="ident">profileKeyCredentialRequestContextOut</span>
-        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_request_context</span>).<span class="ident">unwrap</span>());
+        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_request_context</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1351,20 +1351,20 @@
     <span class="ident">profileKeyCredentialResponseIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCredentialOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api</span>::<span class="ident">ServerPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api::ServerPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialRequestContext</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialRequestContextIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="ident">api::profiles::ProfileKeyCredentialRequestContext</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialRequestContextIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">profile_key_credential_response</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialResponse</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialResponseIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential_response</span>: <span class="ident">api::profiles::ProfileKeyCredentialResponse</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialResponseIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1375,7 +1375,7 @@
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
-    <span class="ident">profileKeyCredentialOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential</span>).<span class="ident">unwrap</span>());
+    <span class="ident">profileKeyCredentialOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1386,25 +1386,25 @@
     <span class="ident">profileKeyCredentialIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCredentialPresentationOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api</span>::<span class="ident">ServerPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api::ServerPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">profile_key_credential</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredential</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential</span>: <span class="ident">api::profiles::ProfileKeyCredential</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1415,7 +1415,7 @@
             <span class="ident">profile_key_credential</span>,
         );
     <span class="ident">profileKeyCredentialPresentationOut</span>
-        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_presentation</span>).<span class="ident">unwrap</span>());
+        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_presentation</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1426,18 +1426,18 @@
     <span class="ident">redemptionTimeIn</span>: <span class="ident">u32</span>,
     <span class="ident">authCredentialResponseOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api</span>::<span class="ident">ServerSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api::ServerSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1445,7 +1445,7 @@
     <span class="kw">let</span> <span class="ident">auth_credential_response</span> <span class="op">=</span>
         <span class="ident">server_secret_params</span>.<span class="ident">issue_auth_credential</span>(<span class="ident">randomness</span>, <span class="ident">uuid</span>, <span class="ident">redemption_time</span>);
     <span class="ident">authCredentialResponseOut</span>
-        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential_response</span>).<span class="ident">unwrap</span>());
+        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">auth_credential_response</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1454,20 +1454,20 @@
     <span class="ident">groupPublicParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">authCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api</span>::<span class="ident">ServerSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api::ServerSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="ident">api::auth::AuthCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1488,30 +1488,30 @@
     <span class="ident">profileKeyCommitmentIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCredentialResponseOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api</span>::<span class="ident">ServerSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api::ServerSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="ident">randomness</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">profile_key_credential_request</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialRequest</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialRequestIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential_request</span>: <span class="ident">api::profiles::ProfileKeyCredentialRequest</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialRequestIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="ident">uuid</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
 
-    <span class="kw">let</span> <span class="ident">profile_key_commitment</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCommitment</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCommitmentIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_commitment</span>: <span class="ident">api::profiles::ProfileKeyCommitment</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCommitmentIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1525,7 +1525,7 @@
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
     <span class="ident">profileKeyCredentialResponseOut</span>
-        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_response</span>).<span class="ident">unwrap</span>());
+        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_response</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1534,20 +1534,20 @@
     <span class="ident">groupPublicParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api</span>::<span class="ident">ServerSecretParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="ident">api::ServerSecretParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverSecretParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
 
-    <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">api::profiles::ProfileKeyCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1562,7 +1562,7 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">GroupPublicParams_checkValidContents</span>(<span class="ident">groupPublicParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupPublicParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::groups::GroupPublicParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1574,18 +1574,18 @@
     <span class="ident">groupPublicParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">groupIdentifierOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">GroupPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">groupPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">group_identifier</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">get_group_identifier</span>();
-    <span class="ident">groupIdentifierOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_identifier</span>).<span class="ident">unwrap</span>());
+    <span class="ident">groupIdentifierOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">group_identifier</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ServerPublicParams_checkValidContents</span>(<span class="ident">serverPublicParamsIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">ServerPublicParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::ServerPublicParams</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1598,13 +1598,13 @@
     <span class="ident">messageIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">notarySignatureIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api</span>::<span class="ident">ServerPublicParams</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
+    <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="ident">api::ServerPublicParams</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">serverPublicParamsIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">messageIn</span>;
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">notary_signature</span>: <span class="ident">simple_types</span>::<span class="ident">NotarySignatureBytes</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="ident">SIGNATURE_LEN</span>];
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">notary_signature</span>: <span class="ident">simple_types::NotarySignatureBytes</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="ident">SIGNATURE_LEN</span>];
     <span class="ident">notary_signature</span>.<span class="ident">copy_from_slice</span>(<span class="ident">notarySignatureIn</span>);
     <span class="kw">match</span> <span class="ident">server_public_params</span>.<span class="ident">verify_signature</span>(<span class="ident">message</span>, <span class="ident">notary_signature</span>) {
         <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> (),
@@ -1614,7 +1614,7 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">AuthCredentialResponse_checkValidContents</span>(<span class="ident">authCredentialResponseIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredentialResponse</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialResponseIn</span>)
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::auth::AuthCredentialResponse</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialResponseIn</span>)
     {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
@@ -1624,7 +1624,7 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">AuthCredential_checkValidContents</span>(<span class="ident">authCredentialIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredential</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::auth::AuthCredential</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1633,8 +1633,8 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">AuthCredentialPresentation_checkValidContents</span>(<span class="ident">authCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::auth::AuthCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1646,13 +1646,13 @@
     <span class="ident">authCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="ident">api::auth::AuthCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">auth_credential_presentation</span>.<span class="ident">get_uuid_ciphertext</span>();
-    <span class="ident">uuidCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid_ciphertext</span>).<span class="ident">unwrap</span>());
+    <span class="ident">uuidCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid_ciphertext</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1660,8 +1660,8 @@
     <span class="ident">authCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">redemptionTimeOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="ident">api</span>::<span class="ident">auth</span>::<span class="ident">AuthCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="ident">api::auth::AuthCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">authCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
@@ -1673,8 +1673,8 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKeyCredentialRequestContext_checkValidContents</span>(
     <span class="ident">profileKeyCredentialRequestContextIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialRequestContext</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialRequestContextIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::profiles::ProfileKeyCredentialRequestContext</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialRequestContextIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1686,20 +1686,20 @@
     <span class="ident">profileKeyCredentialRequestContextIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCredentialRequestOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialRequestContext</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialRequestContextIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="ident">api::profiles::ProfileKeyCredentialRequestContext</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialRequestContextIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">profile_key_credential_request</span> <span class="op">=</span> <span class="ident">profile_key_credential_request_context</span>.<span class="ident">get_request</span>();
     <span class="ident">profileKeyCredentialRequestOut</span>
-        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_request</span>).<span class="ident">unwrap</span>());
+        .<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_credential_request</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKeyCredentialRequest_checkValidContents</span>(<span class="ident">profileKeyCredentialRequestIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialRequest</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialRequestIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::profiles::ProfileKeyCredentialRequest</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialRequestIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1710,8 +1710,8 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKeyCredentialResponse_checkValidContents</span>(
     <span class="ident">profileKeyCredentialResponseIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialResponse</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialResponseIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::profiles::ProfileKeyCredentialResponse</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialResponseIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1720,7 +1720,7 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKeyCredential_checkValidContents</span>(<span class="ident">profileKeyCredentialIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredential</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialIn</span>)
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::profiles::ProfileKeyCredential</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialIn</span>)
     {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
@@ -1732,8 +1732,8 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKeyCredentialPresentation_checkValidContents</span>(
     <span class="ident">profileKeyCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::profiles::ProfileKeyCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
         };
@@ -1745,13 +1745,13 @@
     <span class="ident">profileKeyCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">api::profiles::ProfileKeyCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">profile_key_credential_presentation</span>.<span class="ident">get_uuid_ciphertext</span>();
-    <span class="ident">uuidCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid_ciphertext</span>).<span class="ident">unwrap</span>());
+    <span class="ident">uuidCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">uuid_ciphertext</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
@@ -1759,18 +1759,18 @@
     <span class="ident">profileKeyCredentialPresentationIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">profileKeyCiphertextOut</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> [<span class="ident">u8</span>],
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">api</span>::<span class="ident">profiles</span>::<span class="ident">ProfileKeyCredentialPresentation</span> <span class="op">=</span>
-        <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
+    <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">api::profiles::ProfileKeyCredentialPresentation</span> <span class="op">=</span>
+        <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCredentialPresentationIn</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
         };
     <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span> <span class="op">=</span> <span class="ident">profile_key_credential_presentation</span>.<span class="ident">get_profile_key_ciphertext</span>();
-    <span class="ident">profileKeyCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode</span>::<span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_ciphertext</span>).<span class="ident">unwrap</span>());
+    <span class="ident">profileKeyCiphertextOut</span>.<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">bincode::serialize</span>(<span class="kw-2">&amp;</span><span class="ident">profile_key_ciphertext</span>).<span class="ident">unwrap</span>());
     <span class="ident">FFI_RETURN_OK</span>
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">UuidCiphertext_checkValidContents</span>(<span class="ident">uuidCiphertextIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">UuidCiphertext</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidCiphertextIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::groups::UuidCiphertext</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidCiphertextIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1779,7 +1779,7 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">ProfileKeyCiphertext_checkValidContents</span>(<span class="ident">profileKeyCiphertextIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api</span>::<span class="ident">groups</span>::<span class="ident">ProfileKeyCiphertext</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">profileKeyCiphertextIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">api::groups::ProfileKeyCiphertext</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">profileKeyCiphertextIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1788,7 +1788,7 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">Randomness_checkValidContents</span>(<span class="ident">randomnessIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">simple_types</span>::<span class="ident">RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">randomnessIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">simple_types::RandomnessBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">randomnessIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1797,7 +1797,7 @@
 }
 
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">Uuid_checkValidContents</span>(<span class="ident">uuidIn</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
-    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">simple_types</span>::<span class="ident">UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode</span>::<span class="ident">deserialize</span>(<span class="ident">uuidIn</span>) {
+    <span class="kw">let</span> <span class="kw">_</span>: <span class="ident">simple_types::UidBytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">bincode::deserialize</span>(<span class="ident">uuidIn</span>) {
         <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="ident">FFI_RETURN_INPUT_ERROR</span>,
     };
@@ -1805,5 +1805,5 @@
     <span class="ident">FFI_RETURN_OK</span>
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><section class="footer"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="zkgroup" data-search-js="../../../search-index.js"></div>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="zkgroup" data-search-index-js="../../../search-index.js" data-search-js="../../../search.js"></div>
     <script src="../../../main.js"></script><script src="../../../source-script.js"></script><script src="../../../source-files.js"></script></body></html>
