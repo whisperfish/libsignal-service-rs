@@ -226,10 +226,6 @@
 <span id="223">223</span>
 <span id="224">224</span>
 <span id="225">225</span>
-<span id="226">226</span>
-<span id="227">227</span>
-<span id="228">228</span>
-<span id="229">229</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="self">self</span>, <span class="ident">Debug</span>};
 
@@ -319,11 +315,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">msg</span>: <span class="ident">ProvisionMessage</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ProvisionEnvelope</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">encoded</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">msg</span>.<span class="ident">encoded_len</span>());
-            <span class="ident">msg</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">encoded</span>).<span class="ident">expect</span>(<span class="string">&quot;infallible encoding&quot;</span>);
-            <span class="ident">encoded</span>
-        };
+        <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">encode_to_vec</span>();
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>();
         <span class="kw">let</span> <span class="ident">our_key_pair</span> <span class="op">=</span> <span class="ident">libsignal_protocol::KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rng</span>);

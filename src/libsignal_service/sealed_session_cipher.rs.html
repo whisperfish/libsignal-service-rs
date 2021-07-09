@@ -1125,7 +1125,6 @@
 <span id="1122">1122</span>
 <span id="1123">1123</span>
 <span id="1124">1124</span>
-<span id="1125">1125</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std::convert::TryFrom</span>;
 
@@ -1692,9 +1691,8 @@
     <span class="kw">fn</span> <span class="ident">into_bytes</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SealedSessionError</span><span class="op">&gt;</span> {
         <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::proto::unidentified_sender_message</span>::{<span class="self">self</span>, <span class="ident">message</span>};
         <span class="kw">use</span> <span class="ident">prost::Message</span>;
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">data</span> <span class="op">=</span> <span class="macro">vec!</span>[];
 
-        <span class="ident">unidentified_sender_message::Message</span> {
+        <span class="kw">let</span> <span class="ident">data</span> <span class="op">=</span> <span class="ident">unidentified_sender_message::Message</span> {
             <span class="ident">r#type</span>: <span class="prelude-val">Some</span>(<span class="kw">match</span> <span class="self">self</span>.<span class="ident">r#type</span> {
                 <span class="ident">CiphertextMessageType::PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">message::Type::PrekeyMessage</span>,
                 <span class="ident">CiphertextMessageType::Whisper</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">message::Type::Message</span>,
@@ -1712,7 +1710,7 @@
             }),
             <span class="ident">content</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">content</span>),
         }
-        .<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">data</span>)<span class="question-mark">?</span>;
+        .<span class="ident">encode_to_vec</span>();
 
         <span class="prelude-val">Ok</span>(<span class="ident">data</span>)
     }
@@ -2151,12 +2149,12 @@
         <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">addr</span>.<span class="ident">uuid</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="ident">uuid::Uuid::to_string</span>);
         <span class="kw">let</span> <span class="ident">e164</span> <span class="op">=</span> <span class="ident">addr</span>.<span class="ident">e164</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">server_certificate_bytes</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-        <span class="kw">crate</span><span class="ident">::proto::server_certificate::Certificate</span> {
-            <span class="ident">id</span>: <span class="prelude-val">Some</span>(<span class="number">1</span>),
-            <span class="ident">key</span>: <span class="prelude-val">Some</span>(<span class="ident">server_key</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
-        }
-        .<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">server_certificate_bytes</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">server_certificate_bytes</span> <span class="op">=</span>
+            <span class="kw">crate</span><span class="ident">::proto::server_certificate::Certificate</span> {
+                <span class="ident">id</span>: <span class="prelude-val">Some</span>(<span class="number">1</span>),
+                <span class="ident">key</span>: <span class="prelude-val">Some</span>(<span class="ident">server_key</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
+            }
+            .<span class="ident">encode_to_vec</span>();
 
         <span class="kw">let</span> <span class="ident">server_certificate_signature</span> <span class="op">=</span> <span class="ident">trust_root</span>
             .<span class="ident">private_key</span>
@@ -2167,16 +2165,16 @@
             <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="ident">server_certificate_signature</span>.<span class="ident">into_vec</span>()),
         };
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sender_certificate_bytes</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-        <span class="kw">crate</span><span class="ident">::proto::sender_certificate::Certificate</span> {
-            <span class="ident">sender_uuid</span>: <span class="ident">uuid</span>,
-            <span class="ident">sender_e164</span>: <span class="ident">e164</span>,
-            <span class="ident">sender_device</span>: <span class="prelude-val">Some</span>(<span class="ident">device_id</span>),
-            <span class="ident">identity_key</span>: <span class="prelude-val">Some</span>(<span class="ident">identity_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
-            <span class="ident">expires</span>: <span class="prelude-val">Some</span>(<span class="ident">expires</span>),
-            <span class="ident">signer</span>: <span class="prelude-val">Some</span>(<span class="ident">server_certificate</span>),
-        }
-        .<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">sender_certificate_bytes</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">sender_certificate_bytes</span> <span class="op">=</span>
+            <span class="kw">crate</span><span class="ident">::proto::sender_certificate::Certificate</span> {
+                <span class="ident">sender_uuid</span>: <span class="ident">uuid</span>,
+                <span class="ident">sender_e164</span>: <span class="ident">e164</span>,
+                <span class="ident">sender_device</span>: <span class="prelude-val">Some</span>(<span class="ident">device_id</span>),
+                <span class="ident">identity_key</span>: <span class="prelude-val">Some</span>(<span class="ident">identity_key</span>.<span class="ident">serialize</span>().<span class="ident">into_vec</span>()),
+                <span class="ident">expires</span>: <span class="prelude-val">Some</span>(<span class="ident">expires</span>),
+                <span class="ident">signer</span>: <span class="prelude-val">Some</span>(<span class="ident">server_certificate</span>),
+            }
+            .<span class="ident">encode_to_vec</span>();
 
         <span class="kw">let</span> <span class="ident">sender_certificate_signature</span> <span class="op">=</span> <span class="ident">server_key</span>
             .<span class="ident">private_key</span>

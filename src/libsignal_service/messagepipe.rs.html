@@ -307,12 +307,10 @@
 <span id="304">304</span>
 <span id="305">305</span>
 <span id="306">306</span>
-<span id="307">307</span>
-<span id="308">308</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
 
-<span class="kw">use</span> <span class="ident">bytes</span>::{<span class="ident">Bytes</span>, <span class="ident">BytesMut</span>};
+<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
 <span class="kw">use</span> <span class="ident">futures</span>::{
     <span class="ident">channel</span>::{
         <span class="ident">mpsc</span>::{<span class="self">self</span>, <span class="ident">Sender</span>},
@@ -379,8 +377,7 @@
             <span class="ident">response</span>: <span class="prelude-val">Some</span>(<span class="ident">r</span>),
             ..<span class="ident">Default::default</span>()
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">BytesMut::with_capacity</span>(<span class="ident">msg</span>.<span class="ident">encoded_len</span>());
-        <span class="ident">msg</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buffer</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">encode_to_vec</span>();
         <span class="self">self</span>.<span class="ident">ws</span>.<span class="ident">send_message</span>(<span class="ident">buffer</span>.<span class="ident">into</span>()).<span class="kw">await</span>
     }
 
@@ -395,8 +392,7 @@
             <span class="ident">request</span>: <span class="prelude-val">Some</span>(<span class="ident">r</span>),
             ..<span class="ident">Default::default</span>()
         };
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">BytesMut::with_capacity</span>(<span class="ident">msg</span>.<span class="ident">encoded_len</span>());
-        <span class="ident">msg</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">buffer</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">encode_to_vec</span>();
         <span class="self">self</span>.<span class="ident">ws</span>.<span class="ident">send_message</span>(<span class="ident">buffer</span>.<span class="ident">into</span>()).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="macro">log::trace!</span>(<span class="string">&quot;request on route.&quot;</span>);
         <span class="prelude-val">Ok</span>(())
