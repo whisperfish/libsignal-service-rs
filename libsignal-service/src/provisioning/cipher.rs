@@ -86,11 +86,7 @@ impl ProvisioningCipher {
         &self,
         msg: ProvisionMessage,
     ) -> Result<ProvisionEnvelope, ProvisioningError> {
-        let msg = {
-            let mut encoded = Vec::with_capacity(msg.encoded_len());
-            msg.encode(&mut encoded).expect("infallible encoding");
-            encoded
-        };
+        let msg = msg.encode_to_vec();
 
         let mut rng = rand::thread_rng();
         let our_key_pair = libsignal_protocol::KeyPair::generate(&mut rng);

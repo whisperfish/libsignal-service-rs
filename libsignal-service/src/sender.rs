@@ -451,10 +451,7 @@ where
     ) -> SendMessageResult {
         use prost::Message;
         let content = content_body.clone().into_proto();
-        let mut content_bytes = Vec::with_capacity(content.encoded_len());
-        content
-            .encode(&mut content_bytes)
-            .expect("infallible message encoding");
+        let content_bytes = content.encode_to_vec();
 
         for _ in 0..4u8 {
             let messages = self

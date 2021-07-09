@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use futures::{
     channel::{
         mpsc::{self, Sender},
@@ -67,8 +67,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
             response: Some(r),
             ..Default::default()
         };
-        let mut buffer = BytesMut::with_capacity(msg.encoded_len());
-        msg.encode(&mut buffer).unwrap();
+        let buffer = msg.encode_to_vec();
         self.ws.send_message(buffer.into()).await
     }
 
@@ -83,8 +82,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
             request: Some(r),
             ..Default::default()
         };
-        let mut buffer = BytesMut::with_capacity(msg.encoded_len());
-        msg.encode(&mut buffer).unwrap();
+        let buffer = msg.encode_to_vec();
         self.ws.send_message(buffer.into()).await?;
         log::trace!("request on route.");
         Ok(())

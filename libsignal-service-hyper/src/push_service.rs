@@ -343,8 +343,7 @@ impl PushService for HyperPushService {
         D: Default + libsignal_service::prelude::ProtobufMessage,
         S: Sized + libsignal_service::prelude::ProtobufMessage,
     {
-        let mut protobuf = Vec::with_capacity(value.encoded_len());
-        value.encode(&mut protobuf).expect("infallible");
+        let protobuf = value.encode_to_vec();
 
         let mut response = self
             .request(

@@ -17,7 +17,7 @@ futures = "0.3"
 pin-project = "1.0"
 thiserror = "1.0"
 serde = {version = "1.0", features=["derive"]}
-prost = "0.7"
+prost = "0.8"
 http = "0.2.2"
 chrono = { version = "0.4", features = ["serde"] }
 log = "0.4.8"
@@ -35,7 +35,7 @@ uuid = { version = "0.8", features = [ "serde" ] }
 phonenumber = "0.3"
 
 [build-dependencies]
-prost-build = "0.7"
+prost-build = "0.8"
 
 [dev-dependencies]
 anyhow = "1.0"

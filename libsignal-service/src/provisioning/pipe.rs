@@ -1,4 +1,4 @@
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use futures::{
     channel::mpsc::{self, Sender},
     prelude::*,
@@ -74,8 +74,7 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
             response: Some(r),
             ..Default::default()
         };
-        let mut buffer = BytesMut::with_capacity(msg.encoded_len());
-        msg.encode(&mut buffer).unwrap();
+        let buffer = msg.encode_to_vec();
         Ok(self.ws.send_message(buffer.into()).await?)
     }
 

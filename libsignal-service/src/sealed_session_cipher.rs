@@ -563,9 +563,8 @@ impl UnidentifiedSenderMessageContent {
     fn into_bytes(self) -> Result<Vec<u8>, SealedSessionError> {
         use crate::proto::unidentified_sender_message::{self, message};
         use prost::Message;
-        let mut data = vec![];
 
-        unidentified_sender_message::Message {
+        let data = unidentified_sender_message::Message {
             r#type: Some(match self.r#type {
                 CiphertextMessageType::PreKey => message::Type::PrekeyMessage,
                 CiphertextMessageType::Whisper => message::Type::Message,
@@ -583,7 +582,7 @@ impl UnidentifiedSenderMessageContent {
             }),
             content: Some(self.content),
         }
-        .encode(&mut data)?;
+        .encode_to_vec();
 
         Ok(data)
     }
@@ -1022,12 +1021,12 @@ mod tests {
         let uuid = addr.uuid.as_ref().map(uuid::Uuid::to_string);
         let e164 = addr.e164();
 
-        let mut server_certificate_bytes = vec![];
-        crate::proto::server_certificate::Certificate {
-            id: Some(1),
-            key: Some(server_key.public_key.serialize().into_vec()),
-        }
-        .encode(&mut server_certificate_bytes)?;
+        let server_certificate_bytes =
+            crate::proto::server_certificate::Certificate {
+                id: Some(1),
+                key: Some(server_key.public_key.serialize().into_vec()),
+            }
+            .encode_to_vec();
 
         let server_certificate_signature = trust_root
             .private_key
@@ -1038,16 +1037,16 @@ mod tests {
             signature: Some(server_certificate_signature.into_vec()),
         };
 
-        let mut sender_certificate_bytes = vec![];
-        crate::proto::sender_certificate::Certificate {
-            sender_uuid: uuid,
-            sender_e164: e164,
-            sender_device: Some(device_id),
-            identity_key: Some(identity_key.serialize().into_vec()),
-            expires: Some(expires),
-            signer: Some(server_certificate),
-        }
-        .encode(&mut sender_certificate_bytes)?;
+        let sender_certificate_bytes =
+            crate::proto::sender_certificate::Certificate {
+                sender_uuid: uuid,
+                sender_e164: e164,
+                sender_device: Some(device_id),
+                identity_key: Some(identity_key.serialize().into_vec()),
+                expires: Some(expires),
+                signer: Some(server_certificate),
+            }
+            .encode_to_vec();
 
         let sender_certificate_signature = server_key
             .private_key

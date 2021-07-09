@@ -199,8 +199,7 @@ impl<Service: PushService> AccountManager<Service> {
             body: String,
         }
 
-        let mut body = Vec::with_capacity(env.encoded_len());
-        env.encode(&mut body).expect("infallible encode");
+        let body = env.encode_to_vec();
 
         self.service
             .put_json(
