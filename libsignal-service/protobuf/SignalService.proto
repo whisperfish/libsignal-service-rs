@@ -18,6 +18,8 @@ message Envelope {
     PREKEY_BUNDLE       = 3;
     RECEIPT             = 5;
     UNIDENTIFIED_SENDER = 6;
+    reserved 7; // SENDERKEY_MESSAGE
+    PLAINTEXT_CONTENT   = 8;
   }
 
   optional Type   type            = 1;
@@ -33,20 +35,22 @@ message Envelope {
 }
 
 message Content {
-  optional DataMessage    dataMessage    = 1;
-  optional SyncMessage    syncMessage    = 2;
-  optional CallMessage    callMessage    = 3;
-  optional NullMessage    nullMessage    = 4;
-  optional ReceiptMessage receiptMessage = 5;
-  optional TypingMessage  typingMessage  = 6;
+  optional DataMessage    dataMessage                  = 1;
+  optional SyncMessage    syncMessage                  = 2;
+  optional CallMessage    callMessage                  = 3;
+  optional NullMessage    nullMessage                  = 4;
+  optional ReceiptMessage receiptMessage               = 5;
+  optional TypingMessage  typingMessage                = 6;
+  optional bytes          senderKeyDistributionMessage = 7;
+  optional bytes          decryptionErrorMessage       = 8;
 }
 
 message CallMessage {
   message Offer {
     enum Type {
-      OFFER_AUDIO_CALL      = 0;
-      OFFER_VIDEO_CALL      = 1;
-      // 2 is reserved, removed OFFER_NEED_PERMISSION
+      OFFER_AUDIO_CALL                   = 0;
+      OFFER_VIDEO_CALL                   = 1;
+      reserved /* OFFER_NEED_PERMISSION */ 2; // removed
     }
 
     optional uint64 id     = 1;
@@ -92,16 +96,20 @@ message CallMessage {
     optional uint32 deviceId = 3;
   }
 
+  message Opaque {
+    optional bytes data = 1;
+  }
 
   optional Offer     offer               = 1;
   optional Answer    answer              = 2;
   repeated IceUpdate iceUpdate           = 3;
   optional Hangup    legacyHangup        = 4;
   optional Busy      busy                = 5;
-  // 6 is reserved.
+  reserved        /* profileKey */         6;
   optional Hangup    hangup              = 7;
   optional bool      multiRing           = 8;
   optional uint32    destinationDeviceId = 9;
+  optional Opaque    opaque              = 10;
 }
 
 message DataMessage {
@@ -221,13 +229,56 @@ message DataMessage {
   message Reaction {
     optional string emoji               = 1;
     optional bool   remove              = 2;
-    // optional string targetAuthorE164    = 3;
+    reserved     /* targetAuthorE164 */   3; // removed
     optional string targetAuthorUuid    = 4;
     optional uint64 targetSentTimestamp = 5;
   }
 
   message Delete {
     optional uint64 targetSentTimestamp = 1;
+  }
+
+  message GroupCallUpdate {
+    optional string eraId = 1;
+  }
+
+  message Payment {
+
+    message Address {
+      message MobileCoin {
+        optional bytes address = 1;
+      }
+
+      oneof Address {
+        MobileCoin mobileCoin = 1;
+      }
+    }
+
+    message Amount {
+      message MobileCoin {
+        optional uint64 picoMob = 1;
+      }
+
+      oneof Amount {
+        MobileCoin mobileCoin = 1;
+      }
+    }
+
+    message Notification {
+      message MobileCoin {
+        optional bytes receipt = 1;
+      }
+
+      oneof Transaction {
+        MobileCoin mobileCoin = 1;
+      }
+
+      optional string note = 2;
+    }
+
+    oneof Item {
+      Notification notification = 1;
+    }
   }
 
   enum ProtocolVersion {
@@ -240,7 +291,8 @@ message DataMessage {
     REACTIONS                = 4;
     CDN_SELECTOR_ATTACHMENTS = 5;
     MENTIONS                 = 6;
-    CURRENT                  = 6;
+    PAYMENTS                 = 7;
+    CURRENT                  = 7;
   }
 
   optional string             body                    = 1;
@@ -260,6 +312,8 @@ message DataMessage {
   optional Reaction           reaction                = 16;
   optional Delete             delete                  = 17;
   repeated BodyRange          bodyRanges              = 18;
+  optional GroupCallUpdate    groupCallUpdate         = 19;
+  optional Payment            payment                 = 20;
 }
 
 message NullMessage {
@@ -270,6 +324,7 @@ message ReceiptMessage {
   enum Type {
     DELIVERY = 0;
     READ     = 1;
+    VIEWED   = 2;
   }
 
   optional Type   type      = 1;
@@ -352,11 +407,17 @@ message SyncMessage {
     optional uint64 timestamp  = 2;
   }
 
+  message Viewed {
+    optional string senderE164 = 1;
+    optional string senderUuid = 3;
+    optional uint64 timestamp = 2;
+  }
+
   message Configuration {
     optional bool   readReceipts                   = 1;
     optional bool   unidentifiedDeliveryIndicators = 2;
     optional bool   typingIndicators               = 3;
-    // 4 is reserved (old link preview setting)
+    reserved     /* linkPreviews */                  4; // removed
     optional uint32 provisioningVersion            = 5;
     optional bool   linkPreviews                   = 6;
   }
@@ -407,6 +468,28 @@ message SyncMessage {
     optional Type   type       = 4;
   }
 
+  message OutgoingPayment {
+    message MobileCoin {
+      optional bytes  recipientAddress     = 1;
+      // @required
+      optional uint64 amountPicoMob        = 2;
+      // @required
+      optional uint64 feePicoMob           = 3;
+      optional bytes  receipt              = 4;
+      optional uint64 ledgerBlockTimestamp = 5;
+      // @required
+      optional uint64 ledgerBlockIndex     = 6;
+      repeated bytes  spentKeyImages       = 7;
+      repeated bytes  outputPublicKeys     = 8;
+    }
+    optional string recipientUuid = 1;
+    optional string note          = 2;
+
+    oneof paymentDetail {
+      MobileCoin mobileCoin = 3;
+    }
+  }
+
   optional Sent                   sent                   = 1;
   optional Contacts               contacts               = 2;
   optional Groups                 groups                 = 3;
@@ -421,12 +504,16 @@ message SyncMessage {
   optional FetchLatest            fetchLatest            = 12;
   optional Keys                   keys                   = 13;
   optional MessageRequestResponse messageRequestResponse = 14;
+  optional OutgoingPayment        outgoingPayment        = 15;
+  repeated Viewed                 viewed                 = 16;
 }
 
 message AttachmentPointer {
   enum Flags {
     VOICE_MESSAGE = 1;
     BORDERLESS    = 2;
+    reserved        3;
+    GIF           = 4;
   }
 
   oneof attachment_identifier {
@@ -459,8 +546,8 @@ message GroupContext {
   }
 
   message Member {
-    // 1 is reserved
-    optional string e164 = 2;
+    reserved     /* uuid */ 1; // removed
+    optional string e164  = 2;
   }
 
   optional bytes             id          = 1;
@@ -503,8 +590,8 @@ message GroupDetails {
   }
 
   message Member {
-    // 1 is reserved
-    optional string e164 = 2;
+    reserved     /* uuid */ 1; // removed
+    optional string e164  = 2;
   }
 
   optional bytes  id            = 1;
@@ -518,4 +605,21 @@ message GroupDetails {
   optional bool   blocked       = 8;
   optional uint32 inboxPosition = 10;
   optional bool   archived      = 11;
+}
+
+message PaymentAddress {
+  oneof Address {
+    MobileCoinAddress mobileCoinAddress = 1;
+  }
+
+  message MobileCoinAddress {
+    optional bytes address   = 1;
+    optional bytes signature = 2;
+  }
+}
+
+message DecryptionErrorMessage {
+  optional bytes  ratchetKey = 1;
+  optional uint64 timestamp  = 2;
+  optional uint32 deviceId   = 3;
 }
