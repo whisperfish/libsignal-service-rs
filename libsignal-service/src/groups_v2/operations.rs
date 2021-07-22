@@ -163,6 +163,14 @@ impl GroupOperations {
         }
     }
 
+    fn decrypt_description(&self, ciphertext: &[u8]) -> String {
+        use group_attribute_blob::Content;
+        match self.decrypt_blob(&ciphertext).content {
+            Some(Content::Description(title)) => title,
+            _ => "".into(), // TODO: return an error here?
+        }
+    }
+
     fn decrypt_disappearing_message_timer(
         &self,
         ciphertext: &[u8],
@@ -184,6 +192,8 @@ impl GroupOperations {
             group_secret_params,
         };
         let title = group_operations.decrypt_title(&group.title);
+        let description =
+            group_operations.decrypt_description(&group.description);
         let disappearing_messages_timer = group_operations
             .decrypt_disappearing_message_timer(
                 &group.disappearing_messages_timer,
@@ -213,6 +223,7 @@ impl GroupOperations {
             pending_members,
             requesting_members,
             invite_link_password: group.invite_link_password,
+            description,
         })
     }
 }
