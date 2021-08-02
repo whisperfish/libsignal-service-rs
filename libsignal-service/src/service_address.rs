@@ -47,6 +47,8 @@ impl ServiceAddress {
             sub_device_sessions
                 .extend(session_store.get_sub_device_sessions(&e164).await?);
         }
+        sub_device_sessions.sort_unstable();
+        sub_device_sessions.dedup();
         Ok(sub_device_sessions)
     }
 }
