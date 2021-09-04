@@ -1,7 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/528aec7/rust/protocol/src/sealed_sender.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sealed_sender.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/aaa24f6/rust/protocol/src/sealed_sender.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sealed_sender.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings"></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../../favicon.svg">
 <link rel="alternate icon" type="image/png" href="../../favicon-16x16.png">
-<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" class="help-button">?</button>
-                <a id="settings-menu" href="../../settings.html"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><pre class="line-numbers"><span id="1">   1</span>
+<link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img src="../../brush.svg" width="18" height="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img src="../../wheel.svg" width="18" height="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
 <span id="4">   4</span>
@@ -1295,7 +1294,51 @@
 <span id="1292">1292</span>
 <span id="1293">1293</span>
 <span id="1294">1294</span>
-</pre><div class="example-wrap"><pre class="rust ">
+<span id="1295">1295</span>
+<span id="1296">1296</span>
+<span id="1297">1297</span>
+<span id="1298">1298</span>
+<span id="1299">1299</span>
+<span id="1300">1300</span>
+<span id="1301">1301</span>
+<span id="1302">1302</span>
+<span id="1303">1303</span>
+<span id="1304">1304</span>
+<span id="1305">1305</span>
+<span id="1306">1306</span>
+<span id="1307">1307</span>
+<span id="1308">1308</span>
+<span id="1309">1309</span>
+<span id="1310">1310</span>
+<span id="1311">1311</span>
+<span id="1312">1312</span>
+<span id="1313">1313</span>
+<span id="1314">1314</span>
+<span id="1315">1315</span>
+<span id="1316">1316</span>
+<span id="1317">1317</span>
+<span id="1318">1318</span>
+<span id="1319">1319</span>
+<span id="1320">1320</span>
+<span id="1321">1321</span>
+<span id="1322">1322</span>
+<span id="1323">1323</span>
+<span id="1324">1324</span>
+<span id="1325">1325</span>
+<span id="1326">1326</span>
+<span id="1327">1327</span>
+<span id="1328">1328</span>
+<span id="1329">1329</span>
+<span id="1330">1330</span>
+<span id="1331">1331</span>
+<span id="1332">1332</span>
+<span id="1333">1333</span>
+<span id="1334">1334</span>
+<span id="1335">1335</span>
+<span id="1336">1336</span>
+<span id="1337">1337</span>
+<span id="1338">1338</span>
+</pre><pre class="rust">
 <span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
@@ -1308,6 +1351,7 @@
 };
 
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::crypto</span>;
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::curve</span>;
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::proto</span>;
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::session_cipher</span>;
 <span class="kw">use</span> <span class="ident">aes_gcm_siv::aead</span>::{<span class="ident">AeadInPlace</span>, <span class="ident">NewAead</span>};
@@ -1832,7 +1876,7 @@ with this test certificate ID, Bad Things will happen.
             ));
         }
         <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">data</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
-        <span class="macro">log::info!</span>(
+        <span class="macro">log::debug!</span>(
             <span class="string">&quot;deserializing UnidentifiedSenderMessage with version {}&quot;</span>,
             <span class="ident">version</span>
         );
@@ -1863,12 +1907,19 @@ with this test certificate ID, Bad Things will happen.
             <span class="ident">SEALED_SENDER_V2_VERSION</span> <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="comment">// Uses a flat representation: C || AT || E.pub || ciphertext</span>
                 <span class="kw">let</span> <span class="ident">remaining</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">data</span>[<span class="number">1</span>..];
-                <span class="kw">if</span> <span class="ident">remaining</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">32</span> <span class="op">+</span> <span class="number">16</span> <span class="op">+</span> <span class="number">32</span> {
+                <span class="kw">if</span> <span class="ident">remaining</span>.<span class="ident">len</span>()
+                    <span class="op">&lt;</span> <span class="ident">sealed_sender_v2::MESSAGE_KEY_LEN</span>
+                        <span class="op">+</span> <span class="ident">sealed_sender_v2::AUTH_TAG_LEN</span>
+                        <span class="op">+</span> <span class="ident">curve::curve25519::PUBLIC_KEY_LENGTH</span>
+                {
                     <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>);
                 }
-                <span class="kw">let</span> (<span class="ident">encrypted_message_key</span>, <span class="ident">remaining</span>) <span class="op">=</span> <span class="ident">remaining</span>.<span class="ident">split_at</span>(<span class="number">32</span>);
-                <span class="kw">let</span> (<span class="ident">encrypted_authentication_tag</span>, <span class="ident">remaining</span>) <span class="op">=</span> <span class="ident">remaining</span>.<span class="ident">split_at</span>(<span class="number">16</span>);
-                <span class="kw">let</span> (<span class="ident">ephemeral_public</span>, <span class="ident">encrypted_message</span>) <span class="op">=</span> <span class="ident">remaining</span>.<span class="ident">split_at</span>(<span class="number">32</span>);
+                <span class="kw">let</span> (<span class="ident">encrypted_message_key</span>, <span class="ident">remaining</span>) <span class="op">=</span>
+                    <span class="ident">remaining</span>.<span class="ident">split_at</span>(<span class="ident">sealed_sender_v2::MESSAGE_KEY_LEN</span>);
+                <span class="kw">let</span> (<span class="ident">encrypted_authentication_tag</span>, <span class="ident">remaining</span>) <span class="op">=</span>
+                    <span class="ident">remaining</span>.<span class="ident">split_at</span>(<span class="ident">sealed_sender_v2::AUTH_TAG_LEN</span>);
+                <span class="kw">let</span> (<span class="ident">ephemeral_public</span>, <span class="ident">encrypted_message</span>) <span class="op">=</span>
+                    <span class="ident">remaining</span>.<span class="ident">split_at</span>(<span class="ident">curve::curve25519::PUBLIC_KEY_LENGTH</span>);
 
                 <span class="prelude-val">Ok</span>(<span class="self">Self</span><span class="ident">::V2</span> {
                     <span class="ident">ephemeral_public</span>: <span class="ident">PublicKey::from_djb_public_key_bytes</span>(<span class="ident">ephemeral_public</span>)<span class="question-mark">?</span>,
@@ -2084,6 +2135,9 @@ with this test certificate ID, Bad Things will happen.
     <span class="kw">const</span> <span class="ident">LABEL_DH</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;Sealed Sender v2: DH&quot;</span>;
     <span class="kw">const</span> <span class="ident">LABEL_DH_S</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="string">b&quot;Sealed Sender v2: DH-sender&quot;</span>;
 
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">MESSAGE_KEY_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">32</span>;
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">AUTH_TAG_LEN</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">16</span>;
+
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">DerivedKeys</span> {
         <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">e</span>: <span class="ident">PrivateKey</span>,
         <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">k</span>: <span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span>,
@@ -2111,7 +2165,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">direction</span>: <span class="ident">Direction</span>,
         <span class="ident">input</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="macro">assert!</span>(<span class="ident">input</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="number">32</span>);
+        <span class="macro">assert!</span>(<span class="ident">input</span>.<span class="ident">len</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">MESSAGE_KEY_LEN</span>);
 
         <span class="kw">let</span> <span class="ident">agreement</span> <span class="op">=</span> <span class="ident">priv_key</span>.<span class="ident">calculate_agreement</span>(<span class="ident">pub_key</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">agreement_key_input</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">direction</span> {
@@ -2128,7 +2182,8 @@ with this test certificate ID, Bad Things will happen.
         }
         .<span class="ident">concat</span>();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">HKDF::new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_secrets</span>(<span class="kw-2">&amp;</span><span class="ident">agreement_key_input</span>, <span class="ident">LABEL_DH</span>, <span class="number">32</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span>
+            <span class="ident">HKDF::new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_secrets</span>(<span class="kw-2">&amp;</span><span class="ident">agreement_key_input</span>, <span class="ident">LABEL_DH</span>, <span class="ident">MESSAGE_KEY_LEN</span>)<span class="question-mark">?</span>;
         <span class="ident">result</span>
             .<span class="ident">iter_mut</span>()
             .<span class="ident">zip</span>(<span class="ident">input</span>)
@@ -2158,7 +2213,7 @@ with this test certificate ID, Bad Things will happen.
             }
         }
 
-        <span class="ident">HKDF::new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_secrets</span>(<span class="kw-2">&amp;</span><span class="ident">agreement_key_input</span>, <span class="ident">LABEL_DH_S</span>, <span class="number">16</span>)
+        <span class="ident">HKDF::new</span>(<span class="number">3</span>)<span class="question-mark">?</span>.<span class="ident">derive_secrets</span>(<span class="kw-2">&amp;</span><span class="ident">agreement_key_input</span>, <span class="ident">LABEL_DH_S</span>, <span class="ident">AUTH_TAG_LEN</span>)
     }
 }
 
@@ -2176,7 +2231,7 @@ with this test certificate ID, Bad Things will happen.
         ));
     }
 
-    <span class="kw">let</span> <span class="ident">m</span>: [<span class="ident">u8</span>; <span class="number">32</span>] <span class="op">=</span> <span class="ident">rng</span>.<span class="ident">gen</span>();
+    <span class="kw">let</span> <span class="ident">m</span>: [<span class="ident">u8</span>; <span class="ident">sealed_sender_v2::MESSAGE_KEY_LEN</span>] <span class="op">=</span> <span class="ident">rng</span>.<span class="ident">gen</span>();
     <span class="kw">let</span> <span class="ident">keys</span> <span class="op">=</span> <span class="ident">sealed_sender_v2::DerivedKeys::calculate</span>(<span class="kw-2">&amp;</span><span class="ident">m</span>);
     <span class="kw">let</span> <span class="ident">e_pub</span> <span class="op">=</span> <span class="ident">keys</span>.<span class="ident">e</span>.<span class="ident">public_key</span>()<span class="question-mark">?</span>;
 
@@ -2204,7 +2259,8 @@ with this test certificate ID, Bad Things will happen.
         .<span class="ident">expect</span>(<span class="string">&quot;cannot fail encoding to Vec&quot;</span>);
 
     <span class="kw">let</span> <span class="ident">our_identity</span> <span class="op">=</span> <span class="ident">identity_store</span>.<span class="ident">get_identity_key_pair</span>(<span class="ident">ctx</span>).<span class="kw">await</span><span class="question-mark">?</span>;
-    <span class="kw">for</span> (<span class="ident">destination</span>, <span class="ident">session</span>) <span class="kw">in</span> <span class="ident">destinations</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">destination_sessions</span>) {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">previous_their_identity</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+    <span class="kw">for</span> (<span class="kw-2">&amp;</span><span class="ident">destination</span>, <span class="ident">session</span>) <span class="kw">in</span> <span class="ident">destinations</span>.<span class="ident">iter</span>().<span class="ident">zip</span>(<span class="ident">destination_sessions</span>) {
         <span class="kw">let</span> <span class="ident">their_uuid</span> <span class="op">=</span> <span class="ident">Uuid::parse_str</span>(<span class="ident">destination</span>.<span class="ident">name</span>()).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
             <span class="ident">SignalProtocolError::InvalidArgument</span>(<span class="macro">format!</span>(
                 <span class="string">&quot;multi-recipient sealed sender requires UUID recipients (not {})&quot;</span>,
@@ -2217,38 +2273,66 @@ with this test certificate ID, Bad Things will happen.
             .<span class="kw">await</span><span class="question-mark">?</span>
             .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">SignalProtocolError::SessionNotFound</span>(<span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">destination</span>)))<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">their_registration_id</span> <span class="op">=</span> <span class="ident">session</span>.<span class="ident">remote_registration_id</span>()<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">their_registration_id</span> <span class="op">=</span> <span class="ident">u16::try_from</span>(<span class="ident">their_registration_id</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
+        <span class="kw">let</span> <span class="ident">their_registration_id</span> <span class="op">=</span> <span class="ident">session</span>.<span class="ident">remote_registration_id</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
             <span class="ident">SignalProtocolError::InvalidState</span>(
-                <span class="string">&quot;remote_registration_id&quot;</span>,
+                <span class="string">&quot;sealed_sender_multi_recipient_encrypt&quot;</span>,
                 <span class="macro">format!</span>(
-                    <span class="string">&quot;{} has too-high registration ID {:#X}&quot;</span>,
-                    <span class="ident">destination</span>, <span class="ident">their_registration_id</span>
+                    <span class="macro">concat!</span>(
+                        <span class="string">&quot;cannot get registration ID from session with {} &quot;</span>,
+                        <span class="string">&quot;(maybe it was recently archived)&quot;</span>
+                    ),
+                    <span class="ident">destination</span>
                 ),
             )
         })<span class="question-mark">?</span>;
+        <span class="comment">// Valid registration IDs fit in 14 bits.</span>
+        <span class="comment">// TODO: move this into a RegistrationId strong type.</span>
+        <span class="kw">if</span> <span class="ident">their_registration_id</span> <span class="op">&amp;</span> <span class="number">0x3FFF</span> <span class="op">!</span><span class="op">=</span> <span class="ident">their_registration_id</span> {
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidRegistrationId</span>(
+                <span class="ident">destination</span>.<span class="ident">clone</span>(),
+                <span class="ident">their_registration_id</span>,
+            ));
+        }
+        <span class="kw">let</span> <span class="ident">their_registration_id</span> <span class="op">=</span>
+            <span class="ident">u16::try_from</span>(<span class="ident">their_registration_id</span>).<span class="ident">expect</span>(<span class="string">&quot;just checked range&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">c_i</span> <span class="op">=</span> <span class="ident">sealed_sender_v2::apply_agreement_xor</span>(
-            <span class="kw-2">&amp;</span><span class="ident">keys</span>.<span class="ident">e</span>,
-            <span class="ident">their_identity</span>.<span class="ident">public_key</span>(),
-            <span class="ident">Direction::Sending</span>,
-            <span class="kw-2">&amp;</span><span class="ident">m</span>,
-        )<span class="question-mark">?</span>;
-
-        <span class="kw">let</span> <span class="ident">at_i</span> <span class="op">=</span> <span class="ident">sealed_sender_v2::compute_authentication_tag</span>(
-            <span class="ident">our_identity</span>.<span class="ident">private_key</span>(),
-            <span class="ident">their_identity</span>.<span class="ident">public_key</span>(),
-            <span class="ident">Direction::Sending</span>,
-            <span class="kw-2">&amp;</span><span class="ident">e_pub</span>,
-            <span class="kw-2">&amp;</span><span class="ident">c_i</span>,
-        )<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">end_of_previous_recipient_data</span> <span class="op">=</span> <span class="ident">serialized</span>.<span class="ident">len</span>();
 
         <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="ident">their_uuid</span>.<span class="ident">as_bytes</span>());
         <span class="ident">prost::encode_length_delimiter</span>(<span class="ident">destination</span>.<span class="ident">device_id</span>() <span class="kw">as</span> <span class="ident">usize</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;cannot fail encoding to Vec&quot;</span>);
         <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">their_registration_id</span>.<span class="ident">to_be_bytes</span>());
-        <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">c_i</span>);
-        <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">at_i</span>);
+
+        <span class="kw">if</span> <span class="prelude-val">Some</span>(<span class="ident">their_identity</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">previous_their_identity</span> {
+            <span class="comment">// We often send to the same user multiple times, once per device.</span>
+            <span class="comment">// Since the encoding of the message key and attachment tag only depends</span>
+            <span class="comment">// on the identity key, we can reuse the work from the previous destination.</span>
+            <span class="kw">let</span> <span class="ident">start_of_previous_recipient_c_and_at</span> <span class="op">=</span> <span class="ident">end_of_previous_recipient_data</span>
+                <span class="op">-</span> <span class="ident">sealed_sender_v2::MESSAGE_KEY_LEN</span>
+                <span class="op">-</span> <span class="ident">sealed_sender_v2::AUTH_TAG_LEN</span>;
+            <span class="ident">serialized</span>.<span class="ident">extend_from_within</span>(
+                <span class="ident">start_of_previous_recipient_c_and_at</span>..<span class="ident">end_of_previous_recipient_data</span>,
+            )
+        } <span class="kw">else</span> {
+            <span class="kw">let</span> <span class="ident">c_i</span> <span class="op">=</span> <span class="ident">sealed_sender_v2::apply_agreement_xor</span>(
+                <span class="kw-2">&amp;</span><span class="ident">keys</span>.<span class="ident">e</span>,
+                <span class="ident">their_identity</span>.<span class="ident">public_key</span>(),
+                <span class="ident">Direction::Sending</span>,
+                <span class="kw-2">&amp;</span><span class="ident">m</span>,
+            )<span class="question-mark">?</span>;
+            <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">c_i</span>);
+
+            <span class="kw">let</span> <span class="ident">at_i</span> <span class="op">=</span> <span class="ident">sealed_sender_v2::compute_authentication_tag</span>(
+                <span class="ident">our_identity</span>.<span class="ident">private_key</span>(),
+                <span class="ident">their_identity</span>.<span class="ident">public_key</span>(),
+                <span class="ident">Direction::Sending</span>,
+                <span class="kw-2">&amp;</span><span class="ident">e_pub</span>,
+                <span class="kw-2">&amp;</span><span class="ident">c_i</span>,
+            )<span class="question-mark">?</span>;
+            <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">at_i</span>);
+        }
+
+        <span class="ident">previous_their_identity</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">their_identity</span>);
     }
 
     <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="ident">e_pub</span>.<span class="ident">public_key_bytes</span>()<span class="question-mark">?</span>);
@@ -2294,7 +2378,10 @@ with this test certificate ID, Bad Things will happen.
         <span class="comment">// Skip registration ID.</span>
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">advance</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">remaining</span>, <span class="number">2</span>)<span class="question-mark">?</span>;
         <span class="comment">// Read C_i and AT_i.</span>
-        <span class="kw">let</span> <span class="ident">c_and_at</span> <span class="op">=</span> <span class="ident">advance</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">remaining</span>, <span class="number">32</span> <span class="op">+</span> <span class="number">16</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">c_and_at</span> <span class="op">=</span> <span class="ident">advance</span>(
+            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">remaining</span>,
+            <span class="ident">sealed_sender_v2::MESSAGE_KEY_LEN</span> <span class="op">+</span> <span class="ident">sealed_sender_v2::AUTH_TAG_LEN</span>,
+        )<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_message</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">data</span>[<span class="number">0</span>]];
         <span class="ident">next_message</span>.<span class="ident">extend_from_slice</span>(<span class="ident">c_and_at</span>);
@@ -2591,5 +2678,4 @@ with this test certificate ID, Bad Things will happen.
     <span class="prelude-val">Ok</span>(())
 }
 </pre></div>
-</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_protocol" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
-    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>
+</section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_protocol" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script></body></html>
