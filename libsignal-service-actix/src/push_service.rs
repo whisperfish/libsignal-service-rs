@@ -438,7 +438,7 @@ impl PushService for AwcPushService {
                 .expect("infallible Read instance");
             form.add_stream(
                 "file",
-                &filename,
+                filename,
                 "application/octet-stream",
                 futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
             );

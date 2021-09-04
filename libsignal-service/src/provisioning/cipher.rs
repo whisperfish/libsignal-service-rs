@@ -42,7 +42,7 @@ impl CipherMode {
     fn public(&self) -> &PublicKey {
         match self {
             CipherMode::DecryptAndEncrypt(pair) => &pair.public_key,
-            CipherMode::EncryptOnly(pub_key) => &pub_key,
+            CipherMode::EncryptOnly(pub_key) => pub_key,
         }
     }
 }
@@ -103,10 +103,10 @@ impl ProvisioningCipher {
         let mac_key = &shared_secrets[32..];
         let iv: [u8; IV_LENGTH] = rng.gen();
 
-        let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(&aes_key, &iv)
+        let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_key, &iv)
             .expect("initalization of CBC/AES/PKCS7");
         let ciphertext = cipher.encrypt_vec(&msg);
-        let mut mac = Hmac::<Sha256>::new_varkey(&mac_key)
+        let mut mac = Hmac::<Sha256>::new_varkey(mac_key)
             .expect("HMAC can take any size key");
         mac.update(&[VERSION]);
         mac.update(&iv);
@@ -166,9 +166,9 @@ impl ProvisioningCipher {
         let parts1 = &shared_secrets[0..32];
         let parts2 = &shared_secrets[32..];
 
-        let mut verifier = Hmac::<Sha256>::new_varkey(&parts2)
+        let mut verifier = Hmac::<Sha256>::new_varkey(parts2)
             .expect("HMAC can take any size key");
-        verifier.update(&iv_and_cipher_text);
+        verifier.update(iv_and_cipher_text);
         let our_mac = verifier.finalize().into_bytes();
         debug_assert_eq!(our_mac.len(), mac.len());
         if &our_mac[..32] != mac {
@@ -180,7 +180,7 @@ impl ProvisioningCipher {
         // libsignal-service-java uses Pkcs5,
         // but that should not matter.
         // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-        let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(&parts1, &iv)
+        let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(parts1, iv)
             .expect("initalization of CBC/AES/PKCS7");
         let input = cipher.decrypt_vec(cipher_text).map_err(|e| {
             ProvisioningError::InvalidData {
@@ -201,7 +201,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let cipher = ProvisioningCipher::generate(&mut rng)?;
         let encrypt_cipher =
-            ProvisioningCipher::from_public(cipher.public_key().clone());
+            ProvisioningCipher::from_public(*cipher.public_key());
 
         assert_eq!(
             cipher.public_key(),

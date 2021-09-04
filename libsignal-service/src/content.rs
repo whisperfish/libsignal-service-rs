@@ -39,6 +39,9 @@ impl Content {
         // The Java version also assumes only one content type at a time.
         // It's a bit sad that we cannot really match here, we've got no
         // r#type() method.
+        // Allow the manual map (if let Some -> option.map(||)), because it
+        // reduces the git diff when more types would be added.
+        #[allow(clippy::manual_map)]
         if let Some(msg) = p.data_message {
             Some(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.sync_message {
@@ -56,7 +59,7 @@ impl Content {
 }
 
 #[derive(Clone, Debug)]
-#[allow(clippy::clippy::large_enum_variant)]
+#[allow(clippy::large_enum_variant)]
 pub enum ContentBody {
     DataMessage(DataMessage),
     SynchronizeMessage(SyncMessage),

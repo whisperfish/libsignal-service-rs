@@ -347,7 +347,7 @@ where
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
-                        Some(&recipient),
+                        Some(recipient),
                         Some(message.clone()),
                         timestamp,
                         &results,
@@ -708,7 +708,7 @@ where
         {
             info!("establishing new session with {:?}", recipient_address);
             let pre_keys =
-                self.service.get_pre_keys(&recipient, device_id).await?;
+                self.service.get_pre_keys(recipient, device_id).await?;
             for pre_key_bundle in pre_keys {
                 if recipient.matches(&self.local_address)
                     && self.device_id == pre_key_bundle.device_id()?

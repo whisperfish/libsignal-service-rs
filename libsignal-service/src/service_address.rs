@@ -45,7 +45,7 @@ impl ServiceAddress {
         }
         if let Some(e164) = &self.e164() {
             sub_device_sessions
-                .extend(session_store.get_sub_device_sessions(&e164).await?);
+                .extend(session_store.get_sub_device_sessions(e164).await?);
         }
         Ok(sub_device_sessions)
     }

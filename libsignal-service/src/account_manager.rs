@@ -75,7 +75,7 @@ impl<Service: PushService> AccountManager<Service> {
     /// Equivalent to Java's RefreshPreKeysJob
     ///
     /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
-    #[allow(clippy::clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub async fn update_pre_key_bundle<R: rand::Rng + rand::CryptoRng>(
         &mut self,
         identity_store: &dyn IdentityKeyStore,
@@ -358,7 +358,6 @@ impl<Service: PushService> AccountManager<Service> {
     ) -> Result<Option<String>, ProfileManagerError> {
         let profile_key = self
             .profile_key
-            .clone()
             .expect("set profile key in AccountManager");
         let profile_key = ProfileKey::create(profile_key);
         let profile_cipher = ProfileCipher::from(profile_key);

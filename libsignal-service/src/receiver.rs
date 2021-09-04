@@ -75,7 +75,7 @@ impl<Service: PushService> MessageReceiver<Service> {
             let mut retries = 0;
 
             let mut stream = loop {
-                let r = self.service.get_attachment(&blob).await;
+                let r = self.service.get_attachment(blob).await;
                 match r {
                     Ok(stream) => break stream,
                     Err(ServiceError::Timeout { .. }) => {
@@ -104,7 +104,7 @@ impl<Service: PushService> MessageReceiver<Service> {
                 "key material for attachments is ought to be 64 bytes"
             );
             let mut key = [0u8; 64];
-            key.copy_from_slice(&key_material);
+            key.copy_from_slice(key_material);
 
             decrypt_in_place(key, &mut ciphertext)
                 .expect("attachment decryption");

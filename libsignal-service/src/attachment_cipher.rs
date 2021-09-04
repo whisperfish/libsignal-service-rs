@@ -44,7 +44,7 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
     // Compute and append MAC
     let mut mac = Hmac::<Sha256>::new_varkey(mac_half)
         .expect("fixed length key material");
-    mac.update(&buffer);
+    mac.update(buffer);
     buffer.extend(mac.finalize().into_bytes());
 }
 
@@ -65,13 +65,13 @@ pub fn decrypt_in_place(
     // Compute and append MAC
     let mut mac = Hmac::<Sha256>::new_varkey(mac_half)
         .expect("fixed length key material");
-    mac.update(&buffer);
+    mac.update(buffer);
     mac.verify(their_mac)
         .map_err(|_| AttachmentCipherError::MacError)?;
 
     let (iv, buffer) = buffer.split_at_mut(16);
 
-    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_half, &iv)
+    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_half, iv)
         .expect("fixed length key material");
 
     let plaintext_slice = cipher

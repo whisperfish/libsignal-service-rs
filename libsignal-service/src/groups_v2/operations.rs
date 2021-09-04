@@ -157,7 +157,7 @@ impl GroupOperations {
 
     fn decrypt_title(&self, ciphertext: &[u8]) -> String {
         use group_attribute_blob::Content;
-        match self.decrypt_blob(&ciphertext).content {
+        match self.decrypt_blob(ciphertext).content {
             Some(Content::Title(title)) => title,
             _ => "".into(), // TODO: return an error here?
         }
@@ -165,7 +165,7 @@ impl GroupOperations {
 
     fn decrypt_description(&self, ciphertext: &[u8]) -> String {
         use group_attribute_blob::Content;
-        match self.decrypt_blob(&ciphertext).content {
+        match self.decrypt_blob(ciphertext).content {
             Some(Content::Description(title)) => title,
             _ => "".into(), // TODO: return an error here?
         }

@@ -107,7 +107,7 @@ impl ProfileCipher {
             .map_err(|_| ProfileCipherError::EncryptionError)?;
 
         let mut concat = Vec::with_capacity(nonce.len() + bytes.len());
-        concat.extend_from_slice(&nonce);
+        concat.extend_from_slice(nonce);
         concat.extend_from_slice(&bytes);
         Ok(concat)
     }

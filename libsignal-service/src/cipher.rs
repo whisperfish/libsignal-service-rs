@@ -244,7 +244,7 @@ where
         } else {
             let session_record = self
                 .session_store
-                .load_session(&address, None)
+                .load_session(address, None)
                 .await?
                 .ok_or_else(|| {
                     SignalProtocolError::SessionNotFound(format!("{}", address))
@@ -255,7 +255,7 @@ where
 
             let message = message_encrypt(
                 &padded_content,
-                &address,
+                address,
                 &mut self.session_store,
                 &mut self.identity_key_store,
                 None,
@@ -288,7 +288,7 @@ struct Plaintext {
     data: Vec<u8>,
 }
 
-#[allow(clippy::clippy::comparison_chain)]
+#[allow(clippy::comparison_chain)]
 fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     if version < 2 {
         Err(ServiceError::InvalidFrameError {
@@ -317,7 +317,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     }
 }
 
-#[allow(clippy::clippy::comparison_chain)]
+#[allow(clippy::comparison_chain)]
 fn strip_padding(
     version: u32,
     contents: &mut Vec<u8>,

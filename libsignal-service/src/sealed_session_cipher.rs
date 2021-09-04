@@ -270,7 +270,7 @@ where
         .concat();
 
         let ephemeral_keys = self.calculate_ephemeral_keys(
-            &their_identity.public_key(),
+            their_identity.public_key(),
             &ephemeral.private_key,
             &ephemeral_salt,
         )?;
@@ -288,8 +288,8 @@ where
         .concat();
 
         let static_keys = self.calculate_static_keys(
-            &their_identity.public_key(),
-            &our_identity.private_key(),
+            their_identity.public_key(),
+            our_identity.private_key(),
             &static_salt,
         )?;
 
@@ -332,7 +332,7 @@ where
 
         let ephemeral_keys = self.calculate_ephemeral_keys(
             &wrapper.ephemeral,
-            &our_identity.private_key(),
+            our_identity.private_key(),
             &ephemeral_salt,
         )?;
 
@@ -347,7 +347,7 @@ where
             [ephemeral_keys.chain_key, wrapper.encrypted_static].concat();
         let static_keys = self.calculate_static_keys(
             &static_key,
-            &our_identity.private_key(),
+            our_identity.private_key(),
             &static_salt,
         )?;
 
@@ -417,7 +417,7 @@ where
         let mut ciphertext = plaintext.to_vec();
         cipher.apply_keystream(&mut ciphertext);
 
-        let mut mac = Hmac::<Sha256>::new_varkey(&mac_key)
+        let mut mac = Hmac::<Sha256>::new_varkey(mac_key)
             .map_err(|_| MacError::InvalidKeyLength)?;
         mac.update(&ciphertext);
         let our_mac = mac.finalize().into_bytes();
@@ -441,9 +441,9 @@ where
         let (ciphertext_part1, their_mac) =
             ciphertext.split_at(ciphertext.len() - 10);
 
-        let mut verifier = Hmac::<Sha256>::new_varkey(&mac_key)
+        let mut verifier = Hmac::<Sha256>::new_varkey(mac_key)
             .map_err(|_| MacError::InvalidKeyLength)?;
-        verifier.update(&ciphertext_part1);
+        verifier.update(ciphertext_part1);
         let digest = verifier.finalize().into_bytes();
         let our_mac = &digest[..10];
 
@@ -1052,12 +1052,12 @@ mod tests {
             .private_key
             .calculate_signature(&sender_certificate_bytes, csprng)?;
 
-        Ok(SenderCertificate::try_from(
+        SenderCertificate::try_from(
             crate::proto::SenderCertificate {
                 certificate: Some(sender_certificate_bytes),
                 signature: Some(sender_certificate_signature.into_vec()),
             },
-        )?)
+        )
     }
 
     async fn initialize_session<R: rand::Rng + rand::CryptoRng>(

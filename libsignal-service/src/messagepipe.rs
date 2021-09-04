@@ -229,7 +229,7 @@ impl<WS: WebSocketService> MessagePipe<WS> {
                     };
                     Some(Envelope::decrypt(
                         body,
-                        &self.credentials.signaling_key.as_ref().expect(
+                        self.credentials.signaling_key.as_ref().expect(
                             "signaling_key required to decrypt envelopes",
                         ),
                         request.is_signal_key_encrypted(),
