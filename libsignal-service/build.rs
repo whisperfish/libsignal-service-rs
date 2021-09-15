@@ -28,5 +28,7 @@ fn main() {
         })
         .collect();
 
-    prost_build::compile_protos(&input, &[protobuf]).unwrap();
+    let mut config = prost_build::Config::new();
+    config.type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]");
+    config.compile_protos(&input, &[protobuf]).unwrap();
 }
