@@ -1052,12 +1052,10 @@ mod tests {
             .private_key
             .calculate_signature(&sender_certificate_bytes, csprng)?;
 
-        SenderCertificate::try_from(
-            crate::proto::SenderCertificate {
-                certificate: Some(sender_certificate_bytes),
-                signature: Some(sender_certificate_signature.into_vec()),
-            },
-        )
+        SenderCertificate::try_from(crate::proto::SenderCertificate {
+            certificate: Some(sender_certificate_bytes),
+            signature: Some(sender_certificate_signature.into_vec()),
+        })
     }
 
     async fn initialize_session<R: rand::Rng + rand::CryptoRng>(
