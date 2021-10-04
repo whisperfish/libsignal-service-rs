@@ -356,9 +356,8 @@ impl<Service: PushService> AccountManager<Service> {
         about_emoji: Option<String>,
         avatar: Option<&'s mut C>,
     ) -> Result<Option<String>, ProfileManagerError> {
-        let profile_key = self
-            .profile_key
-            .expect("set profile key in AccountManager");
+        let profile_key =
+            self.profile_key.expect("set profile key in AccountManager");
         let profile_key = ProfileKey::create(profile_key);
         let profile_cipher = ProfileCipher::from(profile_key);
 
