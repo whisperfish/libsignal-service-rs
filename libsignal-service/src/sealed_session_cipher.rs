@@ -10,7 +10,7 @@ use libsignal_protocol::{
     error::SignalProtocolError, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, CiphertextMessageType, IdentityKeyStore, KeyPair,
     PreKeySignalMessage, PreKeyStore, PrivateKey, ProtocolAddress, PublicKey,
-    SessionStore, SignalMessage, SignedPreKeyStore, HKDF,
+    SessionStore, SignalMessage, SignedPreKeyStore,
 };
 use log::error;
 use phonenumber::PhoneNumber;
@@ -372,13 +372,11 @@ where
         private_key: &PrivateKey,
         salt: &[u8],
     ) -> Result<EphemeralKeys, SealedSessionError> {
-        let ephemeral_secret = private_key.calculate_agreement(public_key)?;
-        let ephemeral_derived = HKDF::new(3)?.derive_salted_secrets(
-            &ephemeral_secret,
-            salt,
-            &[],
-            96,
-        )?;
+        let shared_secret = private_key.calculate_agreement(public_key)?;
+        let mut ephemeral_derived = [0; 96];
+        hkdf::Hkdf::<sha2::Sha256>::new(Some(salt), &shared_secret)
+            .expand(&[], &mut ephemeral_derived)
+            .expect("valid output length");
         let ephemeral_keys = EphemeralKeys {
             chain_key: ephemeral_derived[0..32].into(),
             cipher_key: ephemeral_derived[32..64].into(),
@@ -394,12 +392,10 @@ where
         salt: &[u8],
     ) -> Result<StaticKeys, SealedSessionError> {
         let static_secret = private_key.calculate_agreement(public_key)?;
-        let static_derived = HKDF::new(3)?.derive_salted_secrets(
-            &static_secret,
-            salt,
-            &[],
-            96,
-        )?;
+        let mut static_derived = [0; 96];
+        hkdf::Hkdf::<sha2::Sha256>::new(Some(salt), &static_secret)
+            .expand(&[], &mut static_derived)
+            .expect("valid output length");
         Ok(StaticKeys {
             cipher_key: static_derived[32..64].into(),
             mac_key: static_derived[64..96].into(),
