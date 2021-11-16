@@ -87,7 +87,7 @@ impl Envelope {
             // Verify MAC
             use hmac::{Hmac, Mac, NewMac};
             use sha2::Sha256;
-            let mut verifier = Hmac::<Sha256>::new_varkey(mac_key)
+            let mut verifier = Hmac::<Sha256>::new_from_slice(mac_key)
                 .expect("Hmac can take any size key");
             verifier.update(input_for_mac);
             // XXX: possible timing attack, but we need the bytes for a
