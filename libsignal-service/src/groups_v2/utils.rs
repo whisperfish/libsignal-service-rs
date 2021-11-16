@@ -13,6 +13,6 @@ pub fn derive_v2_migration_master_key(
     let mut bytes = [0; GROUP_MASTER_KEY_LEN];
     hkdf::Hkdf::<sha2::Sha256>::new(None, group_id)
         .expand(b"GV2 Migration", &mut bytes)
-        .expect("valid output length"); // TODO
+        .expect("valid output length");
     Ok(GroupMasterKey::new(bytes))
 }
