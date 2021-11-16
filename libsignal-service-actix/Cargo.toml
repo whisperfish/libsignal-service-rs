@@ -23,7 +23,6 @@ serde = "1.0"
 log = "0.4"
 rand = "0.7"
 
-failure = "0.1"
 thiserror = "1.0"
 async-trait = "0.1"
 base64 = "0.13"
@@ -38,3 +37,4 @@ qrcode = "0.12"
 rand = "0.7"
 structopt = "0.3"
 tokio = { version = "1", features=["macros"] }
+anyhow = "1.0"
