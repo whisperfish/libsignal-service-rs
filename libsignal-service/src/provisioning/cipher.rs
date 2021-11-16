@@ -91,13 +91,11 @@ impl ProvisioningCipher {
         let mut rng = rand::thread_rng();
         let our_key_pair = libsignal_protocol::KeyPair::generate(&mut rng);
         let agreement = our_key_pair.calculate_agreement(self.public_key())?;
-        let hkdf = libsignal_protocol::HKDF::new(3)?;
 
-        let shared_secrets = hkdf.derive_secrets(
-            &agreement,
-            b"TextSecure Provisioning Message",
-            64,
-        )?;
+        let mut shared_secrets = [0; 64];
+        hkdf::Hkdf::<sha2::Sha256>::new(None, &agreement)
+            .expand(b"TextSecure Provisioning Message", &mut shared_secrets)
+            .expect("valid output length");
 
         let aes_key = &shared_secrets[0..32];
         let mac_key = &shared_secrets[32..];
@@ -155,13 +153,11 @@ impl ProvisioningCipher {
         debug_assert_eq!(mac.len(), 32);
 
         let agreement = key_pair.calculate_agreement(&master_ephemeral)?;
-        let hkdf = libsignal_protocol::HKDF::new(3)?;
 
-        let shared_secrets = hkdf.derive_secrets(
-            &agreement,
-            b"TextSecure Provisioning Message",
-            64,
-        )?;
+        let mut shared_secrets = [0; 64];
+        hkdf::Hkdf::<sha2::Sha256>::new(None, &agreement)
+            .expand(b"TextSecure Provisioning Message", &mut shared_secrets)
+            .expect("valid output length");
 
         let parts1 = &shared_secrets[0..32];
         let parts2 = &shared_secrets[32..];
