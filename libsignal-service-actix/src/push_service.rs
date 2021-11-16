@@ -1,12 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use actix_http::{
-    client::{ConnectError, SendRequestError},
-    http::{HeaderValue, Method},
-};
 use awc::{
-    error::PayloadError, http::StatusCode, Client, ClientRequest,
-    ClientResponse, Connector,
+    error::{ConnectError, PayloadError, SendRequestError},
+    http::StatusCode,
+    http::{HeaderValue, Method},
+    Client, ClientRequest, ClientResponse, Connector,
 };
 use bytes::Bytes;
 use futures::prelude::*;
