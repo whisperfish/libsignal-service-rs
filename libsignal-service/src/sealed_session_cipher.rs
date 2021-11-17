@@ -413,7 +413,7 @@ where
         let mut ciphertext = plaintext.to_vec();
         cipher.apply_keystream(&mut ciphertext);
 
-        let mut mac = Hmac::<Sha256>::new_varkey(mac_key)
+        let mut mac = Hmac::<Sha256>::new_from_slice(mac_key)
             .map_err(|_| MacError::InvalidKeyLength)?;
         mac.update(&ciphertext);
         let our_mac = mac.finalize().into_bytes();
@@ -437,7 +437,7 @@ where
         let (ciphertext_part1, their_mac) =
             ciphertext.split_at(ciphertext.len() - 10);
 
-        let mut verifier = Hmac::<Sha256>::new_varkey(mac_key)
+        let mut verifier = Hmac::<Sha256>::new_from_slice(mac_key)
             .map_err(|_| MacError::InvalidKeyLength)?;
         verifier.update(ciphertext_part1);
         let digest = verifier.finalize().into_bytes();

@@ -1,12 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
-use actix_http::{
-    client::{ConnectError, SendRequestError},
-    http::{HeaderValue, Method},
-};
 use awc::{
-    error::PayloadError, http::StatusCode, Client, ClientRequest,
-    ClientResponse, Connector,
+    error::{ConnectError, PayloadError, SendRequestError},
+    http::StatusCode,
+    http::{HeaderValue, Method},
+    Client, ClientRequest, ClientResponse, Connector,
 };
 use bytes::Bytes;
 use futures::prelude::*;
@@ -507,14 +505,22 @@ impl PushService for AwcPushService {
 /// * 65s timeout on HTTP request
 /// * provided user-agent
 fn get_client(cfg: &ServiceConfiguration, user_agent: String) -> Client {
-    let mut ssl_config = rustls::ClientConfig::new();
+    use rustls::internal::msgs::codec::Codec;
+
+    let root_cert =
+        rustls::Certificate::read_bytes(cfg.certificate_authority.as_bytes())
+            .expect("invalid root certificate");
+    let mut root_certs = rustls::RootCertStore::empty();
+    root_certs
+        .add(&root_cert)
+        .expect("invalid root certificate");
+
+    let mut ssl_config = rustls::ClientConfig::builder()
+        .with_safe_defaults()
+        .with_root_certificates(root_certs)
+        .with_no_client_auth();
     ssl_config.alpn_protocols = vec![b"http/1.1".to_vec()];
-    ssl_config
-        .root_store
-        .add_pem_file(&mut std::io::Cursor::new(
-            cfg.certificate_authority.clone(),
-        ))
-        .unwrap();
+
     let connector = Connector::new()
         .rustls(Arc::new(ssl_config))
         .timeout(Duration::from_secs(10)); // https://github.com/actix/actix-web/issues/1047

@@ -17,7 +17,7 @@
 //! accountManager.setPreKeys(identityKey.getPublicKey(), lastResortKey, signedPreKeyRecord, oneTimePreKeys);
 //! ```
 
-use failure::Error;
+use anyhow::Error;
 use libsignal_service::{
     configuration::*, provisioning::ProvisioningManager, USER_AGENT,
 };
