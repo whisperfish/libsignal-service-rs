@@ -205,7 +205,7 @@
     <span class="ident">buffer</span>.<span class="ident">truncate</span>(<span class="number">16</span> <span class="op">+</span> <span class="ident">ciphertext_len</span>);
 
     <span class="comment">// Compute and append MAC</span>
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_varkey</span>(<span class="ident">mac_half</span>)
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_from_slice</span>(<span class="ident">mac_half</span>)
         .<span class="ident">expect</span>(<span class="string">&quot;fixed length key material&quot;</span>);
     <span class="ident">mac</span>.<span class="ident">update</span>(<span class="ident">buffer</span>);
     <span class="ident">buffer</span>.<span class="ident">extend</span>(<span class="ident">mac</span>.<span class="ident">finalize</span>().<span class="ident">into_bytes</span>());
@@ -226,7 +226,7 @@
     <span class="kw">let</span> (<span class="ident">buffer</span>, <span class="ident">their_mac</span>) <span class="op">=</span> <span class="ident">ciphertext</span>.<span class="ident">split_at_mut</span>(<span class="ident">ciphertext_len</span> <span class="op">-</span> <span class="number">32</span>);
 
     <span class="comment">// Compute and append MAC</span>
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_varkey</span>(<span class="ident">mac_half</span>)
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_from_slice</span>(<span class="ident">mac_half</span>)
         .<span class="ident">expect</span>(<span class="string">&quot;fixed length key material&quot;</span>);
     <span class="ident">mac</span>.<span class="ident">update</span>(<span class="ident">buffer</span>);
     <span class="ident">mac</span>.<span class="ident">verify</span>(<span class="ident">their_mac</span>)
