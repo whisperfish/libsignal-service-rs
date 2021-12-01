@@ -139,7 +139,7 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
                     {
                         let uuid: ProvisioningUuid =
                             prost::Message::decode(Bytes::from(body.unwrap()))?;
-                        let mut provisioning_url = Url::parse("tsdevice://")
+                        let mut provisioning_url = Url::parse("sgnl://linkdevice")
                             .map_err(|e| ProvisioningError::WsError {
                                 reason: e.to_string(),
                             })?;
