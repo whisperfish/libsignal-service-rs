@@ -505,15 +505,15 @@ impl PushService for AwcPushService {
 /// * 65s timeout on HTTP request
 /// * provided user-agent
 fn get_client(cfg: &ServiceConfiguration, user_agent: String) -> Client {
-    use rustls::internal::msgs::codec::Codec;
+    let mut cert_bytes = std::io::Cursor::new(&cfg.certificate_authority);
+    let roots =
+        rustls_pemfile::certs(&mut cert_bytes).expect("parseable PEM files");
+    let roots = roots.iter().map(|v| rustls::Certificate(v.clone()));
 
-    let root_cert =
-        rustls::Certificate::read_bytes(cfg.certificate_authority.as_bytes())
-            .expect("invalid root certificate");
     let mut root_certs = rustls::RootCertStore::empty();
-    root_certs
-        .add(&root_cert)
-        .expect("invalid root certificate");
+    for root in roots {
+        root_certs.add(&root).unwrap();
+    }
 
     let mut ssl_config = rustls::ClientConfig::builder()
         .with_safe_defaults()
@@ -531,4 +531,21 @@ fn get_client(cfg: &ServiceConfiguration, user_agent: String) -> Client {
         .timeout(Duration::from_secs(65)); // as in Signal-Android
 
     client.finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use libsignal_service::configuration::SignalServers;
+
+    #[test]
+    fn create_clients() {
+        let configs = &[SignalServers::Staging, SignalServers::Production];
+
+        for cfg in configs {
+            let _ = super::get_client(
+                &cfg.into(),
+                "libsignal-service test".to_string(),
+            );
+        }
+    }
 }

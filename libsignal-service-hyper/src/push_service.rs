@@ -64,6 +64,7 @@ impl HyperPushService {
     }
 
     fn tls_config(cfg: &ServiceConfiguration) -> rustls::ClientConfig {
+        // This will fail to compile against rustls 0.20, see service-actix push_service get_client
         let mut tls_config = rustls::ClientConfig::new();
         tls_config.alpn_protocols = vec![b"http/1.1".to_vec()];
         tls_config
@@ -470,5 +471,23 @@ impl PushService for HyperPushService {
             credentials.as_ref(),
         )
         .await?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use libsignal_service::configuration::SignalServers;
+
+    #[test]
+    fn create_clients() {
+        let configs = &[SignalServers::Staging, SignalServers::Production];
+
+        for cfg in configs {
+            let _ = super::HyperPushService::new(
+                cfg,
+                None,
+                "libsignal-service test".to_string(),
+            );
+        }
     }
 }
