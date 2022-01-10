@@ -124,7 +124,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_proto</span>(
         <span class="ident">contact_details</span>: <span class="ident"><span class="kw">crate</span>::proto::ContactDetails</span>,
         <span class="ident">avatar_data</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Bytes</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">ParseContactError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">ParseContactError</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">address</span>: <span class="ident">ServiceAddress::parse</span>(
                 <span class="ident">contact_details</span>.<span class="ident">number</span>.<span class="ident">as_deref</span>(),

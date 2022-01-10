@@ -144,7 +144,7 @@
 
 <span class="kw">impl</span> <span class="ident">ServiceAddress</span> {
     <span class="doccomment">/// Formats the phone number, if present, as E164</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">e164</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">e164</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">phonenumber</span>
             .<span class="ident">as_ref</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">pn</span><span class="op">|</span> <span class="ident">pn</span>.<span class="ident">format</span>().<span class="ident">mode</span>(<span class="ident">phonenumber::Mode::E164</span>).<span class="ident">to_string</span>())
@@ -153,7 +153,7 @@
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">sub_device_sessions</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">session_store</span>: <span class="kw-2">&amp;</span><span class="kw">dyn</span> <span class="ident">SessionStoreExt</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sub_device_sessions</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">uuid</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">uuid</span> {
             <span class="ident">sub_device_sessions</span>.<span class="ident">extend</span>(
@@ -174,11 +174,11 @@
     <span class="kw">fn</span> <span class="ident">fmt</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">std::fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std::fmt::Error</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">std::fmt::Error</span><span class="op">&gt;</span> {
         <span class="kw">match</span> (<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">uuid</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">phonenumber</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">relay</span>) {
-            (<span class="kw">_</span>, <span class="prelude-val">Some</span>(<span class="ident">e164</span>), <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;ServiceAddress({})&quot;</span>, <span class="ident">e164</span>),
-            (<span class="prelude-val">Some</span>(<span class="ident">uuid</span>), <span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;ServiceAddress({})&quot;</span>, <span class="ident">uuid</span>),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;ServiceAddress(INVALID)&quot;</span>),
+            (<span class="kw">_</span>, <span class="prelude-val">Some</span>(<span class="ident">e164</span>), <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;ServiceAddress({})&quot;</span>, <span class="ident">e164</span>),
+            (<span class="prelude-val">Some</span>(<span class="ident">uuid</span>), <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;ServiceAddress({})&quot;</span>, <span class="ident">uuid</span>),
+            <span class="kw">_</span> =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;ServiceAddress(INVALID)&quot;</span>),
         }
     }
 }
@@ -187,7 +187,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">parse</span>(
         <span class="ident">e164</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
         <span class="ident">uuid</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ServiceAddress</span>, <span class="ident">ParseServiceAddressError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ServiceAddress</span>, <span class="ident">ParseServiceAddressError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">phonenumber</span> <span class="op">=</span>
             <span class="ident">e164</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">phonenumber::parse</span>(<span class="prelude-val">None</span>, <span class="ident">s</span>)).<span class="ident">transpose</span>()<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">uuid</span>.<span class="ident">map</span>(<span class="ident">Uuid::parse_str</span>).<span class="ident">transpose</span>()<span class="question-mark">?</span>;
@@ -200,7 +200,7 @@
     }
 
     <span class="doccomment">/// Returns uuid if present, e164 otherwise.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">identifier</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">identifier</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">String</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">uuid</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">uuid</span> {
             <span class="kw">return</span> <span class="ident">uuid</span>.<span class="ident">to_string</span>();
         } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e164</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">e164</span>() {
@@ -211,14 +211,14 @@
         );
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        (<span class="self">self</span>.<span class="ident">phonenumber</span>.<span class="ident">is_some</span>() <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">phonenumber</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">phonenumber</span>)
-            <span class="op">|</span><span class="op">|</span> (<span class="self">self</span>.<span class="ident">uuid</span>.<span class="ident">is_some</span>() <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">uuid</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">uuid</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
+        (<span class="self">self</span>.<span class="ident">phonenumber</span>.<span class="ident">is_some</span>() <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">phonenumber</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">phonenumber</span>)
+            <span class="op">|</span><span class="op">|</span> (<span class="self">self</span>.<span class="ident">uuid</span>.<span class="ident">is_some</span>() <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">uuid</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">uuid</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">Uuid</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ServiceAddress</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">uuid</span>: <span class="ident">Uuid</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">uuid</span>: <span class="ident">Uuid</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">ServiceAddress</span> {
             <span class="ident">uuid</span>: <span class="prelude-val">Some</span>(<span class="ident">uuid</span>),
             <span class="ident">phonenumber</span>: <span class="prelude-val">None</span>,
@@ -228,7 +228,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">PhoneNumber</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ServiceAddress</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">phone_number</span>: <span class="ident">PhoneNumber</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">phone_number</span>: <span class="ident">PhoneNumber</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">ServiceAddress</span> {
             <span class="ident">uuid</span>: <span class="prelude-val">None</span>,
             <span class="ident">phonenumber</span>: <span class="prelude-val">Some</span>(<span class="ident">phone_number</span>),

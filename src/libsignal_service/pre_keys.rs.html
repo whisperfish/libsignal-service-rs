@@ -88,7 +88,7 @@
 <span class="kw">impl</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">PreKeyRecord</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">PreKeyEntity</span> {
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SignalProtocolError</span>;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">key</span>: <span class="ident">PreKeyRecord</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">key</span>: <span class="ident">PreKeyRecord</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">PreKeyEntity</span> {
             <span class="ident">key_id</span>: <span class="ident">key</span>.<span class="ident">id</span>()<span class="question-mark">?</span>,
             <span class="ident">public_key</span>: <span class="ident">key</span>.<span class="ident">key_pair</span>()<span class="question-mark">?</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>().<span class="ident">to_vec</span>(),
@@ -119,7 +119,7 @@
 <span class="kw">impl</span> <span class="ident">TryFrom</span><span class="op">&lt;</span><span class="ident">SignedPreKeyRecord</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SignedPreKey</span> {
     <span class="kw">type</span> <span class="ident">Error</span> <span class="op">=</span> <span class="ident">SignalProtocolError</span>;
 
-    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">key</span>: <span class="ident">SignedPreKeyRecord</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">try_from</span>(<span class="ident">key</span>: <span class="ident">SignedPreKeyRecord</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident"><span class="self">Self</span>::Error</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">SignedPreKey</span> {
             <span class="ident">key_id</span>: <span class="ident">key</span>.<span class="ident">id</span>()<span class="question-mark">?</span>,
             <span class="ident">public_key</span>: <span class="ident">key</span>.<span class="ident">key_pair</span>()<span class="question-mark">?</span>.<span class="ident">public_key</span>,

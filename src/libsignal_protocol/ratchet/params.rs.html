@@ -149,7 +149,7 @@
         <span class="ident">their_signed_pre_key</span>: <span class="ident">PublicKey</span>,
         <span class="ident">their_one_time_pre_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span>,
         <span class="ident">their_ratchet_key</span>: <span class="ident">PublicKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">our_identity_key_pair</span>,
             <span class="ident">our_base_key_pair</span>,
@@ -161,32 +161,32 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_identity_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">IdentityKeyPair</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_identity_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">IdentityKeyPair</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">our_identity_key_pair</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_base_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">KeyPair</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_base_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">KeyPair</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">our_base_key_pair</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">their_identity_key</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_signed_pre_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_signed_pre_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">their_signed_pre_key</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_one_time_pre_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_one_time_pre_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">their_one_time_pre_key</span>.<span class="ident">as_ref</span>()
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_ratchet_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_ratchet_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">their_ratchet_key</span>
     }
 }
@@ -209,7 +209,7 @@
         <span class="ident">our_ratchet_key_pair</span>: <span class="ident">KeyPair</span>,
         <span class="ident">their_identity_key</span>: <span class="ident">IdentityKey</span>,
         <span class="ident">their_base_key</span>: <span class="ident">PublicKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">our_identity_key_pair</span>,
             <span class="ident">our_signed_pre_key_pair</span>,
@@ -221,32 +221,32 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_identity_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">IdentityKeyPair</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_identity_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">IdentityKeyPair</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">our_identity_key_pair</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_signed_pre_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">KeyPair</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_signed_pre_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">KeyPair</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">our_signed_pre_key_pair</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_one_time_pre_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">KeyPair</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_one_time_pre_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">KeyPair</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">our_one_time_pre_key_pair</span>.<span class="ident">as_ref</span>()
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_ratchet_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">KeyPair</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">our_ratchet_key_pair</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">KeyPair</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">our_ratchet_key_pair</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">IdentityKey</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">their_identity_key</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">their_base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">their_base_key</span>
     }
 }

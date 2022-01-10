@@ -235,7 +235,7 @@ free standing.
     <span class="ident">pre_key_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">PreKeyStore</span>,
     <span class="ident">signed_prekey_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">SignedPreKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">their_identity_key</span> <span class="op">=</span> <span class="ident">message</span>.<span class="ident">identity_key</span>();
 
     <span class="kw">if</span> <span class="op">!</span><span class="ident">identity_store</span>
@@ -278,7 +278,7 @@ free standing.
     <span class="ident">pre_key_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">PreKeyStore</span>,
     <span class="ident">identity_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">IdentityKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">session_record</span>.<span class="ident">has_session_state</span>(
         <span class="ident">message</span>.<span class="ident">message_version</span>() <span class="kw">as</span> <span class="ident">u32</span>,
         <span class="kw-2">&amp;</span><span class="ident">message</span>.<span class="ident">base_key</span>().<span class="ident">serialize</span>(),
@@ -337,7 +337,7 @@ free standing.
     <span class="ident">bundle</span>: <span class="kw-2">&amp;</span><span class="ident">PreKeyBundle</span>,
     <span class="kw-2">mut</span> <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">their_identity_key</span> <span class="op">=</span> <span class="ident">bundle</span>.<span class="ident">identity_key</span>()<span class="question-mark">?</span>;
 
     <span class="kw">if</span> <span class="op">!</span><span class="ident">identity_store</span>

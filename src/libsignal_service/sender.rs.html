@@ -926,7 +926,7 @@
         <span class="ident">identity_key_store</span>: <span class="ident">I</span>,
         <span class="ident">local_address</span>: <span class="ident">ServiceAddress</span>,
         <span class="ident">device_id</span>: <span class="ident">u32</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="ident">MessageSender</span> {
             <span class="ident">service</span>,
             <span class="ident">cipher</span>,
@@ -945,7 +945,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">spec</span>: <span class="ident">AttachmentSpec</span>,
         <span class="kw-2">mut</span> <span class="ident">contents</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentPointer</span>, <span class="ident">AttachmentUploadError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentPointer</span>, <span class="ident">AttachmentUploadError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">len</span> <span class="op">=</span> <span class="ident">contents</span>.<span class="ident">len</span>();
         <span class="comment">// Encrypt</span>
         <span class="kw">let</span> (<span class="ident">key</span>, <span class="ident">iv</span>) <span class="op">=</span> {
@@ -999,11 +999,11 @@
             <span class="ident">digest</span>: <span class="prelude-val">Some</span>(<span class="ident">digest</span>),
             <span class="ident">file_name</span>: <span class="ident">spec</span>.<span class="ident">file_name</span>,
             <span class="ident">flags</span>: <span class="prelude-val">Some</span>(
-                <span class="kw">if</span> <span class="ident">spec</span>.<span class="ident">voice_note</span> <span class="op">=</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
+                <span class="kw">if</span> <span class="ident">spec</span>.<span class="ident">voice_note</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="ident">AttachmentPointerFlags::VoiceMessage</span> <span class="kw">as</span> <span class="ident">u32</span>
                 } <span class="kw">else</span> {
                     <span class="number">0</span>
-                } <span class="op">|</span> <span class="kw">if</span> <span class="ident">spec</span>.<span class="ident">borderless</span> <span class="op">=</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
+                } <span class="op">|</span> <span class="kw">if</span> <span class="ident">spec</span>.<span class="ident">borderless</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="ident">AttachmentPointerFlags::Borderless</span> <span class="kw">as</span> <span class="ident">u32</span>
                 } <span class="kw">else</span> {
                     <span class="number">0</span>
@@ -1031,7 +1031,7 @@
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">upload_group_details</span><span class="op">&lt;</span><span class="ident">Groups</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">groups</span>: <span class="ident">Groups</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentPointer</span>, <span class="ident">AttachmentUploadError</span><span class="op">&gt;</span>
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentPointer</span>, <span class="ident">AttachmentUploadError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">Groups</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">GroupDetails</span><span class="op">&gt;</span>,
     {
@@ -1065,7 +1065,7 @@
     <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">upload_contact_details</span><span class="op">&lt;</span><span class="ident">Contacts</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">contacts</span>: <span class="ident">Contacts</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentPointer</span>, <span class="ident">AttachmentUploadError</span><span class="op">&gt;</span>
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">AttachmentPointer</span>, <span class="ident">AttachmentUploadError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">Contacts</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">ContactDetails</span><span class="op">&gt;</span>,
     {
@@ -1101,15 +1101,15 @@
         <span class="ident">message</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">ContentBody</span><span class="op">&gt;</span>,
         <span class="ident">timestamp</span>: <span class="ident">u64</span>,
         <span class="ident">online</span>: <span class="ident">bool</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SendMessageResult</span> {
+    ) -&gt; <span class="ident">SendMessageResult</span> {
         <span class="kw">let</span> <span class="ident">content_body</span> <span class="op">=</span> <span class="ident">message</span>.<span class="ident">into</span>();
 
         <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::proto::data_message::Flags</span>;
         <span class="kw">let</span> <span class="ident">end_session</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">content_body</span> {
-            <span class="ident">ContentBody::DataMessage</span>(<span class="ident">message</span>) <span class="op">=</span><span class="op">&gt;</span> {
-                <span class="ident">message</span>.<span class="ident">flags</span> <span class="op">=</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Flags::EndSession</span> <span class="kw">as</span> <span class="ident">u32</span>)
+            <span class="ident">ContentBody::DataMessage</span>(<span class="ident">message</span>) =&gt; {
+                <span class="ident">message</span>.<span class="ident">flags</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">Flags::EndSession</span> <span class="kw">as</span> <span class="ident">u32</span>)
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
+            <span class="kw">_</span> =&gt; <span class="bool-val">false</span>,
         };
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="macro">vec!</span>[
@@ -1128,7 +1128,7 @@
             (
                 <span class="ident">ContentBody::DataMessage</span>(<span class="ident">message</span>),
                 <span class="prelude-val">Ok</span>(<span class="ident">SentMessage</span> { <span class="ident">needs_sync</span>, .. }),
-            ) <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">needs_sync</span> <span class="op">=</span><span class="op">&gt;</span> {
+            ) <span class="kw">if</span> <span class="kw-2">*</span><span class="ident">needs_sync</span> =&gt; {
                 <span class="macro">log::debug!</span>(<span class="string">&quot;sending multi-device sync message&quot;</span>);
                 <span class="kw">let</span> <span class="ident">sync_message</span> <span class="op">=</span> <span class="self">self</span>
                     .<span class="ident">create_multi_device_sent_transcript_content</span>(
@@ -1146,7 +1146,7 @@
                 )
                 .<span class="kw">await</span><span class="question-mark">?</span>;
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (),
+            <span class="kw">_</span> =&gt; (),
         }
 
         <span class="kw">if</span> <span class="ident">end_session</span> {
@@ -1172,7 +1172,7 @@
         <span class="ident">message</span>: <span class="ident"><span class="kw">crate</span>::proto::DataMessage</span>,
         <span class="ident">timestamp</span>: <span class="ident">u64</span>,
         <span class="ident">online</span>: <span class="ident">bool</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SendMessageResult</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SendMessageResult</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">content_body</span>: <span class="ident">ContentBody</span> <span class="op">=</span> <span class="ident">message</span>.<span class="ident">clone</span>().<span class="ident">into</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="macro">vec!</span>[];
 
@@ -1190,10 +1190,10 @@
                 .<span class="kw">await</span>;
 
             <span class="kw">match</span> <span class="ident">result</span> {
-                <span class="prelude-val">Ok</span>(<span class="ident">SentMessage</span> { <span class="ident">needs_sync</span>, .. }) <span class="kw">if</span> <span class="ident">needs_sync</span> <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Ok</span>(<span class="ident">SentMessage</span> { <span class="ident">needs_sync</span>, .. }) <span class="kw">if</span> <span class="ident">needs_sync</span> =&gt; {
                     <span class="ident">needs_sync_in_results</span> <span class="op">=</span> <span class="bool-val">true</span>;
                 }
-                <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> (),
+                <span class="kw">_</span> =&gt; (),
             };
 
             <span class="ident">results</span>.<span class="ident">push</span>(<span class="ident">result</span>);
@@ -1233,7 +1233,7 @@
         <span class="ident">content_body</span>: <span class="kw-2">&amp;</span><span class="ident">ContentBody</span>,
         <span class="ident">timestamp</span>: <span class="ident">u64</span>,
         <span class="ident">online</span>: <span class="ident">bool</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SendMessageResult</span> {
+    ) -&gt; <span class="ident">SendMessageResult</span> {
         <span class="kw">use</span> <span class="ident">prost::Message</span>;
         <span class="kw">let</span> <span class="ident">content</span> <span class="op">=</span> <span class="ident">content_body</span>.<span class="ident">clone</span>().<span class="ident">into_proto</span>();
         <span class="kw">let</span> <span class="ident">content_bytes</span> <span class="op">=</span> <span class="ident">content</span>.<span class="ident">encode_to_vec</span>();
@@ -1252,7 +1252,7 @@
             };
 
             <span class="kw">match</span> <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">send_messages</span>(<span class="ident">messages</span>).<span class="kw">await</span> {
-                <span class="prelude-val">Ok</span>(<span class="ident">SendMessageResponse</span> { <span class="ident">needs_sync</span> }) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Ok</span>(<span class="ident">SendMessageResponse</span> { <span class="ident">needs_sync</span> }) =&gt; {
                     <span class="macro">log::debug!</span>(<span class="string">&quot;message sent!&quot;</span>);
                     <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">SentMessage</span> {
                         <span class="ident">recipient</span>,
@@ -1260,7 +1260,7 @@
                         <span class="ident">needs_sync</span>,
                     });
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">ServiceError::MismatchedDevicesException</span>(<span class="kw-2">ref</span> <span class="ident">m</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Err</span>(<span class="ident">ServiceError::MismatchedDevicesException</span>(<span class="kw-2">ref</span> <span class="ident">m</span>)) =&gt; {
                     <span class="macro">log::debug!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">m</span>);
                     <span class="kw">for</span> <span class="ident">extra_device_id</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">m</span>.<span class="ident">extra_devices</span> {
                         <span class="macro">log::debug!</span>(
@@ -1316,7 +1316,7 @@
                         })<span class="question-mark">?</span>;
                     }
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">ServiceError::StaleDevices</span>(<span class="kw-2">ref</span> <span class="ident">m</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Err</span>(<span class="ident">ServiceError::StaleDevices</span>(<span class="kw-2">ref</span> <span class="ident">m</span>)) =&gt; {
                     <span class="macro">log::debug!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">m</span>);
                     <span class="kw">for</span> <span class="ident">extra_device_id</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">m</span>.<span class="ident">stale_devices</span> {
                         <span class="macro">log::debug!</span>(
@@ -1341,7 +1341,7 @@
                         }
                     }
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">MessageSenderError::ServiceError</span>(<span class="ident">e</span>)),
+                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">MessageSenderError::ServiceError</span>(<span class="ident">e</span>)),
             }
         }
 
@@ -1358,7 +1358,7 @@
         <span class="comment">//     because it allows us to add the avatar content.</span>
         <span class="ident">groups</span>: <span class="ident">Groups</span>,
         <span class="ident">online</span>: <span class="ident">bool</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MessageSenderError</span><span class="op">&gt;</span>
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MessageSenderError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">Groups</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">GroupDetails</span><span class="op">&gt;</span>,
     {
@@ -1392,7 +1392,7 @@
         <span class="ident">contacts</span>: <span class="ident">Contacts</span>,
         <span class="ident">online</span>: <span class="ident">bool</span>,
         <span class="ident">complete</span>: <span class="ident">bool</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MessageSenderError</span><span class="op">&gt;</span>
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">MessageSenderError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">Contacts</span>: <span class="ident">IntoIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">ContactDetails</span><span class="op">&gt;</span>,
     {
@@ -1424,7 +1424,7 @@
         <span class="ident">recipient</span>: <span class="kw-2">&amp;</span><span class="ident">ServiceAddress</span>,
         <span class="ident">unidentified_access</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">UnidentifiedAccess</span><span class="op">&gt;</span>,
         <span class="ident">content</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">OutgoingPushMessage</span><span class="op">&gt;</span>, <span class="ident">MessageSenderError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">OutgoingPushMessage</span><span class="op">&gt;</span>, <span class="ident">MessageSenderError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">messages</span> <span class="op">=</span> <span class="macro">vec!</span>[];
 
         <span class="kw">let</span> <span class="ident">myself</span> <span class="op">=</span> <span class="ident">recipient</span>.<span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">local_address</span>);
@@ -1476,7 +1476,7 @@
         <span class="ident">unidentified_access</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">UnidentifiedAccess</span><span class="op">&gt;</span>,
         <span class="ident">device_id</span>: <span class="ident">u32</span>,
         <span class="ident">content</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">OutgoingPushMessage</span>, <span class="ident">MessageSenderError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">OutgoingPushMessage</span>, <span class="ident">MessageSenderError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">recipient_address</span> <span class="op">=</span> <span class="ident">get_preferred_protocol_address</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session_store</span>,
             <span class="ident">recipient</span>,
@@ -1496,7 +1496,7 @@
                 <span class="self">self</span>.<span class="ident">service</span>.<span class="ident">get_pre_keys</span>(<span class="ident">recipient</span>, <span class="ident">device_id</span>).<span class="kw">await</span><span class="question-mark">?</span>;
             <span class="kw">for</span> <span class="ident">pre_key_bundle</span> <span class="kw">in</span> <span class="ident">pre_keys</span> {
                 <span class="kw">if</span> <span class="ident">recipient</span>.<span class="ident">matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">local_address</span>)
-                    <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">device_id</span> <span class="op">=</span><span class="op">=</span> <span class="ident">pre_key_bundle</span>.<span class="ident">device_id</span>()<span class="question-mark">?</span>
+                    <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">device_id</span> <span class="op">==</span> <span class="ident">pre_key_bundle</span>.<span class="ident">device_id</span>()<span class="question-mark">?</span>
                 {
                     <span class="macro">trace!</span>(<span class="string">&quot;not establishing a session with myself!&quot;</span>);
                     <span class="kw">continue</span>;
@@ -1534,7 +1534,7 @@
         <span class="ident">data_message</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident"><span class="kw">crate</span>::proto::DataMessage</span><span class="op">&gt;</span>,
         <span class="ident">timestamp</span>: <span class="ident">u64</span>,
         <span class="ident">send_message_results</span>: <span class="kw-2">&amp;</span>[<span class="ident">SendMessageResult</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ContentBody</span> {
+    ) -&gt; <span class="ident">ContentBody</span> {
         <span class="kw">use</span> <span class="ident">sync_message::sent::UnidentifiedDeliveryStatus</span>;
         <span class="kw">let</span> <span class="ident">unidentified_status</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">UnidentifiedDeliveryStatus</span><span class="op">&gt;</span> <span class="op">=</span>
             <span class="ident">send_message_results</span>

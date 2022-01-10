@@ -65,14 +65,14 @@
 <span class="kw">impl</span> <span class="ident">WebSocketRequestMessage</span> {
     <span class="doccomment">/// Equivalent of</span>
     <span class="doccomment">/// `SignalServiceMessagePipe::isSignalServiceEnvelope(WebSocketMessage)`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_signal_service_envelope</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">verb</span>.<span class="ident">as_deref</span>() <span class="op">=</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="string">&quot;PUT&quot;</span>)
-            <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">as_deref</span>() <span class="op">=</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="string">&quot;/api/v1/message&quot;</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_signal_service_envelope</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">verb</span>.<span class="ident">as_deref</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="string">&quot;PUT&quot;</span>)
+            <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">path</span>.<span class="ident">as_deref</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="string">&quot;/api/v1/message&quot;</span>)
     }
 
     <span class="doccomment">/// Equivalent of</span>
     <span class="doccomment">/// `SignalServiceMessagePipe::isSignalKeyEncrypted(WebSocketMessage)`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_signal_key_encrypted</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_signal_key_encrypted</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">headers</span>.<span class="ident">is_empty</span>() {
             <span class="kw">return</span> <span class="bool-val">true</span>;
         }
@@ -102,7 +102,7 @@
 <span class="kw">impl</span> <span class="ident">WebSocketResponseMessage</span> {
     <span class="doccomment">/// Equivalent of</span>
     <span class="doccomment">/// `SignalServiceMessagePipe::isSignalServiceEnvelope(WebSocketMessage)`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_request</span>(<span class="ident">msg</span>: <span class="kw-2">&amp;</span><span class="ident">WebSocketRequestMessage</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_request</span>(<span class="ident">msg</span>: <span class="kw-2">&amp;</span><span class="ident">WebSocketRequestMessage</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">if</span> <span class="ident">msg</span>.<span class="ident">is_signal_service_envelope</span>() {
             <span class="ident">WebSocketResponseMessage</span> {
                 <span class="ident">id</span>: <span class="ident">msg</span>.<span class="ident">id</span>,

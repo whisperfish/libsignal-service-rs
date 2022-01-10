@@ -434,7 +434,7 @@
     <span class="kw">pub</span> <span class="ident">video</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">fetches_messages</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">pin</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
-    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_optional_base64&quot;</span>)]</span>
+    <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">default</span>, <span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_optional_base64&quot;</span>)]</span>
     <span class="kw">pub</span> <span class="ident">unidentified_access_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="kw">pub</span> <span class="ident">unrestricted_unidentified_access</span>: <span class="ident">bool</span>,
     <span class="kw">pub</span> <span class="ident">discoverable_by_phone_number</span>: <span class="ident">bool</span>,
@@ -457,7 +457,7 @@
         <span class="ident">signaling_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
         <span class="ident">registration_id</span>: <span class="ident">u32</span>,
         <span class="ident">unidentified_access_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">signaling_key</span>,
             <span class="ident">supports_sms</span>: <span class="bool-val">false</span>,
@@ -476,7 +476,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_without_unidentified_access</span>(
         <span class="ident">signaling_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
         <span class="ident">registration_id</span>: <span class="ident">u32</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">signaling_key</span>,
             <span class="ident">supports_sms</span>: <span class="bool-val">false</span>,
@@ -530,7 +530,7 @@
         <span class="ident">push_service</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">P</span>,
         <span class="ident">phone_number</span>: <span class="ident">PhoneNumber</span>,
         <span class="ident">password</span>: <span class="ident">String</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">push_service</span>,
             <span class="ident">phone_number</span>,
@@ -542,7 +542,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">captcha</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
         <span class="ident">challenge</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>
             .<span class="ident">push_service</span>
             .<span class="ident">get_json</span>(
@@ -555,15 +555,15 @@
             )
             .<span class="kw">await</span>
         {
-            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::JsonDecodeError</span> { .. }) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="ident">r</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
+            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::JsonDecodeError</span> { .. }) =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="ident">r</span> =&gt; <span class="ident">r</span>,
         };
         <span class="kw">match</span> <span class="ident">res</span> {
-            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">VerificationCodeResponse::Issued</span>),
-            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::UnhandledResponseCode</span> { <span class="ident">http_code</span>: <span class="number">402</span> }) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">VerificationCodeResponse::Issued</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::UnhandledResponseCode</span> { <span class="ident">http_code</span>: <span class="number">402</span> }) =&gt; {
                 <span class="prelude-val">Ok</span>(<span class="ident">VerificationCodeResponse::CaptchaRequired</span>)
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">e</span>),
         }
     }
 
@@ -571,7 +571,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">captcha</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
         <span class="ident">challenge</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VerificationCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">res</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>
             .<span class="ident">push_service</span>
             .<span class="ident">get_json</span>(
@@ -584,15 +584,15 @@
             )
             .<span class="kw">await</span>
         {
-            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::JsonDecodeError</span> { .. }) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(()),
-            <span class="ident">r</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">r</span>,
+            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::JsonDecodeError</span> { .. }) =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="ident">r</span> =&gt; <span class="ident">r</span>,
         };
         <span class="kw">match</span> <span class="ident">res</span> {
-            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">VerificationCodeResponse::Issued</span>),
-            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::UnhandledResponseCode</span> { <span class="ident">http_code</span>: <span class="number">402</span> }) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">VerificationCodeResponse::Issued</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">ServiceError::UnhandledResponseCode</span> { <span class="ident">http_code</span>: <span class="number">402</span> }) =&gt; {
                 <span class="prelude-val">Ok</span>(<span class="ident">VerificationCodeResponse::CaptchaRequired</span>)
             }
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
+            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">e</span>),
         }
     }
 
@@ -600,7 +600,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">confirm_code</span>: <span class="ident">u32</span>,
         <span class="ident">confirm_verification_message</span>: <span class="ident">ConfirmCodeMessage</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ConfirmCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ConfirmCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">push_service</span>
             .<span class="ident">put_json</span>(
                 <span class="ident">Endpoint::Service</span>,
@@ -615,7 +615,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">confirm_code</span>: <span class="ident">u32</span>,
         <span class="ident">confirm_code_message</span>: <span class="ident">ConfirmDeviceMessage</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">DeviceId</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">DeviceId</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">push_service</span>
             .<span class="ident">put_json</span>(
                 <span class="ident">Endpoint::Service</span>,
@@ -631,7 +631,7 @@
         <span class="ident">msg_type</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="ident">captcha</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
         <span class="ident">challenge</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
+    ) -&gt; <span class="ident">String</span> {
         <span class="kw">let</span> <span class="ident">phone_number</span> <span class="op">=</span>
             <span class="self">self</span>.<span class="ident">phone_number</span>.<span class="ident">format</span>().<span class="ident">mode</span>(<span class="ident">phonenumber::Mode::E164</span>);
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">cl</span>) <span class="op">=</span> <span class="ident">challenge</span> {
@@ -649,7 +649,7 @@
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">auth_override</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">HttpAuthOverride</span> {
+    <span class="kw">fn</span> <span class="ident">auth_override</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">HttpAuthOverride</span> {
         <span class="kw">let</span> <span class="ident">credentials</span> <span class="op">=</span> <span class="ident">ServiceCredentials</span> {
             <span class="ident">uuid</span>: <span class="prelude-val">None</span>,
             <span class="ident">phonenumber</span>: <span class="self">self</span>.<span class="ident">phone_number</span>.<span class="ident">clone</span>(),
@@ -673,7 +673,7 @@
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">P</span>: <span class="ident">PushService</span><span class="op">&gt;</span> <span class="ident">LinkingManager</span><span class="op">&lt;</span><span class="ident">P</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">push_service</span>: <span class="ident">P</span>, <span class="ident">password</span>: <span class="ident">String</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">push_service</span>: <span class="ident">P</span>, <span class="ident">password</span>: <span class="ident">String</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">push_service</span>,
             <span class="ident">password</span>,
@@ -686,7 +686,7 @@
         <span class="ident">signaling_key</span>: <span class="ident">SignalingKey</span>,
         <span class="ident">device_name</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="kw-2">mut</span> <span class="ident">tx</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">SecondaryDeviceProvisioning</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
         <span class="comment">// open a websocket without authentication, to receive a tsurl://</span>
         <span class="kw">let</span> (<span class="ident">ws</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">push_service</span>
@@ -701,12 +701,12 @@
         <span class="macro">pin_mut!</span>(<span class="ident">provision_stream</span>);
         <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">step</span>) <span class="op">=</span> <span class="ident">provision_stream</span>.<span class="ident">next</span>().<span class="kw">await</span> {
             <span class="kw">match</span> <span class="ident">step</span> {
-                <span class="prelude-val">Ok</span>(<span class="ident">ProvisioningStep::Url</span>(<span class="ident">url</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Ok</span>(<span class="ident">ProvisioningStep::Url</span>(<span class="ident">url</span>)) =&gt; {
                     <span class="ident">tx</span>.<span class="ident">send</span>(<span class="ident">SecondaryDeviceProvisioning::Url</span>(<span class="ident">url</span>))
                         .<span class="kw">await</span>
                         .<span class="ident">expect</span>(<span class="string">&quot;failed to send provisioning Url in channel&quot;</span>);
                 }
-                <span class="prelude-val">Ok</span>(<span class="ident">ProvisioningStep::Message</span>(<span class="ident">message</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                <span class="prelude-val">Ok</span>(<span class="ident">ProvisioningStep::Message</span>(<span class="ident">message</span>)) =&gt; {
                     <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">message</span>
                         .<span class="ident">uuid</span>
                         .<span class="ident">ok_or</span>(<span class="ident">ProvisioningError::InvalidData</span> {
@@ -797,7 +797,7 @@
                         <span class="string">&quot;failed to send provisioning message in rx channel&quot;</span>,
                     );
                 }
-                <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
+                <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>),
             }
         }
 

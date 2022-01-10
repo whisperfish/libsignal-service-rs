@@ -160,7 +160,7 @@
 <span class="kw">use</span> <span class="ident">sha2::Sha256</span>;
 <span class="kw">use</span> <span class="ident">subtle::ConstantTimeEq</span>;
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_ctr_encrypt</span>(<span class="ident">ptext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_ctr_encrypt</span>(<span class="ident">ptext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCipherCryptographicParameters</span>(
             <span class="number">32</span>, <span class="number">0</span>,
@@ -175,27 +175,27 @@
     <span class="prelude-val">Ok</span>(<span class="ident">ctext</span>)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_ctr_decrypt</span>(<span class="ident">ctext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_ctr_decrypt</span>(<span class="ident">ctext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="ident">aes_256_ctr_encrypt</span>(<span class="ident">ctext</span>, <span class="ident">key</span>)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_cbc_encrypt</span>(<span class="ident">ptext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">iv</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_cbc_encrypt</span>(<span class="ident">ptext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">iv</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">match</span> <span class="ident">Cbc</span>::<span class="op">&lt;</span><span class="ident">Aes256</span>, <span class="ident">Pkcs7</span><span class="op">&gt;</span><span class="ident">::new_from_slices</span>(<span class="ident">key</span>, <span class="ident">iv</span>) {
-        <span class="prelude-val">Ok</span>(<span class="ident">mode</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">mode</span>.<span class="ident">encrypt_vec</span>(<span class="ident">ptext</span>)),
-        <span class="prelude-val">Err</span>(<span class="ident">block_modes::InvalidKeyIvLength</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(
+        <span class="prelude-val">Ok</span>(<span class="ident">mode</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="ident">mode</span>.<span class="ident">encrypt_vec</span>(<span class="ident">ptext</span>)),
+        <span class="prelude-val">Err</span>(<span class="ident">block_modes::InvalidKeyIvLength</span>) =&gt; <span class="prelude-val">Err</span>(
             <span class="ident">SignalProtocolError::InvalidCipherCryptographicParameters</span>(<span class="ident">key</span>.<span class="ident">len</span>(), <span class="ident">iv</span>.<span class="ident">len</span>()),
         ),
     }
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_cbc_decrypt</span>(<span class="ident">ctext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">iv</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">aes_256_cbc_decrypt</span>(<span class="ident">ctext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">iv</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">ctext</span>.<span class="ident">is_empty</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">ctext</span>.<span class="ident">len</span>() <span class="op">%</span> <span class="number">16</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCiphertext</span>);
     }
 
     <span class="kw">let</span> <span class="ident">mode</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">Cbc</span>::<span class="op">&lt;</span><span class="ident">Aes256</span>, <span class="ident">Pkcs7</span><span class="op">&gt;</span><span class="ident">::new_from_slices</span>(<span class="ident">key</span>, <span class="ident">iv</span>) {
-        <span class="prelude-val">Ok</span>(<span class="ident">mode</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">mode</span>,
-        <span class="prelude-val">Err</span>(<span class="ident">block_modes::InvalidKeyIvLength</span>) <span class="op">=</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Ok</span>(<span class="ident">mode</span>) =&gt; <span class="ident">mode</span>,
+        <span class="prelude-val">Err</span>(<span class="ident">block_modes::InvalidKeyIvLength</span>) =&gt; {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCipherCryptographicParameters</span>(
                 <span class="ident">key</span>.<span class="ident">len</span>(),
                 <span class="ident">iv</span>.<span class="ident">len</span>(),
@@ -207,7 +207,7 @@
         .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidCiphertext</span>)
 }
 
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">hmac_sha256</span>(<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">input</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">hmac_sha256</span>(<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">input</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">hmac</span> <span class="op">=</span>
         <span class="ident">Hmac</span>::<span class="op">&lt;</span><span class="ident">Sha256</span><span class="op">&gt;</span><span class="ident">::new_from_slice</span>(<span class="ident">key</span>).<span class="ident">expect</span>(<span class="string">&quot;HMAC-SHA256 should accept any size key&quot;</span>);
     <span class="ident">hmac</span>.<span class="ident">update</span>(<span class="ident">input</span>);
@@ -218,7 +218,7 @@
     <span class="ident">msg</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">cipher_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">mac_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">ctext</span> <span class="op">=</span> <span class="ident">aes_256_ctr_encrypt</span>(<span class="ident">msg</span>, <span class="ident">cipher_key</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident">hmac_sha256</span>(<span class="ident">mac_key</span>, <span class="kw-2">&amp;</span><span class="ident">ctext</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="ident">ctext</span>.<span class="ident">len</span>() <span class="op">+</span> <span class="number">10</span>);
@@ -231,7 +231,7 @@
     <span class="ident">ctext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">cipher_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">mac_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">ctext</span>.<span class="ident">len</span>() <span class="op">&lt;</span> <span class="number">10</span> {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCiphertext</span>);
     }
@@ -249,7 +249,7 @@
     <span class="kw">use</span> <span class="ident"><span class="kw">super</span>::Result</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">aes_cbc_test</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">aes_cbc_test</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">hex::decode</span>(<span class="string">&quot;4e22eb16d964779994222e82192ce9f747da72dc4abe49dfdeeb71d0ffe3796e&quot;</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;valid hex&quot;</span>);
         <span class="kw">let</span> <span class="ident">iv</span> <span class="op">=</span> <span class="ident">hex::decode</span>(<span class="string">&quot;6f8a557ddc0a140c878063a6d5f31d3d&quot;</span>).<span class="ident">expect</span>(<span class="string">&quot;valid hex&quot;</span>);
@@ -278,7 +278,7 @@
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">aes_ctr_test</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">aes_ctr_test</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">hex::decode</span>(<span class="string">&quot;603DEB1015CA71BE2B73AEF0857D77811F352C073B6108D72D9810A30914DFF4&quot;</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;valid hex&quot;</span>);
         <span class="kw">let</span> <span class="ident">ptext</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">35</span>];

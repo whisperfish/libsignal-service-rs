@@ -1760,7 +1760,7 @@ with this test certificate ID, Bad Things will happen.
 <span class="kw">const</span> <span class="ident">REVOKED_SERVER_CERTIFICATE_KEY_IDS</span>: <span class="kw-2">&amp;</span>[<span class="ident">u32</span>] <span class="op">=</span> <span class="kw-2">&amp;</span>[<span class="number">0xDEADC357</span>];
 
 <span class="kw">impl</span> <span class="ident">ServerCertificate</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::ServerCertificate::decode</span>(<span class="ident">data</span>)<span class="question-mark">?</span>;
 
         <span class="kw">if</span> <span class="ident">pb</span>.<span class="ident">certificate</span>.<span class="ident">is_none</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">pb</span>.<span class="ident">signature</span>.<span class="ident">is_none</span>() {
@@ -1798,7 +1798,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">key</span>: <span class="ident">PublicKey</span>,
         <span class="ident">trust_root</span>: <span class="kw-2">&amp;</span><span class="ident">PrivateKey</span>,
         <span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">certificate_pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::server_certificate::Certificate</span> {
             <span class="ident">id</span>: <span class="prelude-val">Some</span>(<span class="ident">key_id</span>),
             <span class="ident">key</span>: <span class="prelude-val">Some</span>(<span class="ident">key</span>.<span class="ident">serialize</span>().<span class="ident">to_vec</span>()),
@@ -1823,14 +1823,14 @@ with this test certificate ID, Bad Things will happen.
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">proto::sealed_sender::ServerCertificate</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">proto::sealed_sender::ServerCertificate</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">proto::sealed_sender::ServerCertificate</span> {
             <span class="ident">certificate</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">certificate</span>.<span class="ident">clone</span>()),
             <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">signature</span>.<span class="ident">clone</span>()),
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trust_root</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trust_root</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">REVOKED_SERVER_CERTIFICATE_KEY_IDS</span>.<span class="ident">contains</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">key_id</span>()<span class="question-mark">?</span>) {
             <span class="macro">log::error!</span>(
                 <span class="string">&quot;received server certificate with revoked ID {:x}&quot;</span>,
@@ -1841,23 +1841,23 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">trust_root</span>.<span class="ident">verify_signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">certificate</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">signature</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">key_id</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">key</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">certificate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">certificate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">certificate</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">signature</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>)
     }
 }
@@ -1876,7 +1876,7 @@ with this test certificate ID, Bad Things will happen.
 }
 
 <span class="kw">impl</span> <span class="ident">SenderCertificate</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::SenderCertificate::decode</span>(<span class="ident">data</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">certificate</span> <span class="op">=</span> <span class="ident">pb</span>
             .<span class="ident">certificate</span>
@@ -1932,7 +1932,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">signer</span>: <span class="ident">ServerCertificate</span>,
         <span class="ident">signer_key</span>: <span class="kw-2">&amp;</span><span class="ident">PrivateKey</span>,
         <span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">certificate_pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::sender_certificate::Certificate</span> {
             <span class="ident">sender_uuid</span>: <span class="prelude-val">Some</span>(<span class="ident">sender_uuid</span>.<span class="ident">clone</span>()),
             <span class="ident">sender_e164</span>: <span class="ident">sender_e164</span>.<span class="ident">clone</span>(),
@@ -1965,20 +1965,20 @@ with this test certificate ID, Bad Things will happen.
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">from_protobuf</span>(<span class="ident">pb</span>: <span class="kw-2">&amp;</span><span class="ident">proto::sealed_sender::SenderCertificate</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">from_protobuf</span>(<span class="ident">pb</span>: <span class="kw-2">&amp;</span><span class="ident">proto::sealed_sender::SenderCertificate</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bits</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="ident">pb</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">bits</span>)<span class="question-mark">?</span>;
         <span class="ident"><span class="self">Self</span>::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">bits</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">proto::sealed_sender::SenderCertificate</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">proto::sealed_sender::SenderCertificate</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">proto::sealed_sender::SenderCertificate</span> {
             <span class="ident">certificate</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">certificate</span>.<span class="ident">clone</span>()),
             <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">signature</span>.<span class="ident">clone</span>()),
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trust_root</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>, <span class="ident">validation_time</span>: <span class="ident">u64</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trust_root</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>, <span class="ident">validation_time</span>: <span class="ident">u64</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">signer</span>.<span class="ident">validate</span>(<span class="ident">trust_root</span>)<span class="question-mark">?</span> {
             <span class="macro">log::error!</span>(<span class="string">&quot;received server certificate not signed by trust root&quot;</span>);
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
@@ -2005,67 +2005,67 @@ with this test certificate ID, Bad Things will happen.
         <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">ServerCertificate</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signer</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">ServerCertificate</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">signer</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">key</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_device_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_device_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sender_device_id</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_uuid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_uuid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">sender_uuid</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_e164</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_e164</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sender_e164</span>.<span class="ident">as_deref</span>())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">expiration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">expiration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u64</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">expiration</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">certificate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">certificate</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">certificate</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signature</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">signature</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">ProtoMessageType</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">CiphertextMessageType</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">message_type</span>: <span class="ident">ProtoMessageType</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">message_type</span>: <span class="ident">ProtoMessageType</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">message_type</span> {
-            <span class="ident">ProtoMessageType::Message</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::Whisper</span>,
-            <span class="ident">ProtoMessageType::PrekeyMessage</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::PreKey</span>,
-            <span class="ident">ProtoMessageType::SenderkeyMessage</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::SenderKey</span>,
-            <span class="ident">ProtoMessageType::PlaintextContent</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::Plaintext</span>,
+            <span class="ident">ProtoMessageType::Message</span> =&gt; <span class="ident"><span class="self">Self</span>::Whisper</span>,
+            <span class="ident">ProtoMessageType::PrekeyMessage</span> =&gt; <span class="ident"><span class="self">Self</span>::PreKey</span>,
+            <span class="ident">ProtoMessageType::SenderkeyMessage</span> =&gt; <span class="ident"><span class="self">Self</span>::SenderKey</span>,
+            <span class="ident">ProtoMessageType::PlaintextContent</span> =&gt; <span class="ident"><span class="self">Self</span>::Plaintext</span>,
         };
         <span class="comment">// Keep raw values in sync from now on, for efficient codegen.</span>
-        <span class="macro">assert!</span>(<span class="ident">result</span> <span class="op">=</span><span class="op">=</span> <span class="ident"><span class="self">Self</span>::PreKey</span> <span class="op">|</span><span class="op">|</span> <span class="ident">message_type</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">=</span><span class="op">=</span> <span class="ident">result</span> <span class="kw">as</span> <span class="ident">i32</span>);
+        <span class="macro">assert!</span>(<span class="ident">result</span> <span class="op">==</span> <span class="ident"><span class="self">Self</span>::PreKey</span> <span class="op">|</span><span class="op">|</span> <span class="ident">message_type</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">==</span> <span class="ident">result</span> <span class="kw">as</span> <span class="ident">i32</span>);
         <span class="ident">result</span>
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">CiphertextMessageType</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ProtoMessageType</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">message_type</span>: <span class="ident">CiphertextMessageType</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">message_type</span>: <span class="ident">CiphertextMessageType</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">message_type</span> {
-            <span class="ident">CiphertextMessageType::PreKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::PrekeyMessage</span>,
-            <span class="ident">CiphertextMessageType::Whisper</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::Message</span>,
-            <span class="ident">CiphertextMessageType::SenderKey</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::SenderkeyMessage</span>,
-            <span class="ident">CiphertextMessageType::Plaintext</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident"><span class="self">Self</span>::PlaintextContent</span>,
+            <span class="ident">CiphertextMessageType::PreKey</span> =&gt; <span class="ident"><span class="self">Self</span>::PrekeyMessage</span>,
+            <span class="ident">CiphertextMessageType::Whisper</span> =&gt; <span class="ident"><span class="self">Self</span>::Message</span>,
+            <span class="ident">CiphertextMessageType::SenderKey</span> =&gt; <span class="ident"><span class="self">Self</span>::SenderkeyMessage</span>,
+            <span class="ident">CiphertextMessageType::Plaintext</span> =&gt; <span class="ident"><span class="self">Self</span>::PlaintextContent</span>,
         };
         <span class="comment">// Keep raw values in sync from now on, for efficient codegen.</span>
-        <span class="macro">assert!</span>(<span class="ident">result</span> <span class="op">=</span><span class="op">=</span> <span class="ident"><span class="self">Self</span>::PrekeyMessage</span> <span class="op">|</span><span class="op">|</span> <span class="ident">message_type</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">=</span><span class="op">=</span> <span class="ident">result</span> <span class="kw">as</span> <span class="ident">i32</span>);
+        <span class="macro">assert!</span>(<span class="ident">result</span> <span class="op">==</span> <span class="ident"><span class="self">Self</span>::PrekeyMessage</span> <span class="op">|</span><span class="op">|</span> <span class="ident">message_type</span> <span class="kw">as</span> <span class="ident">i32</span> <span class="op">==</span> <span class="ident">result</span> <span class="kw">as</span> <span class="ident">i32</span>);
         <span class="ident">result</span>
     }
 }
@@ -2079,40 +2079,40 @@ with this test certificate ID, Bad Things will happen.
 }
 
 <span class="kw">impl</span> <span class="ident">ContentHint</span> {
-    <span class="kw">fn</span> <span class="ident">to_proto</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="self">self</span> <span class="op">=</span><span class="op">=</span> <span class="ident">ContentHint::Default</span> {
+    <span class="kw">fn</span> <span class="ident">to_proto</span>(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">i32</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="self">self</span> <span class="op">==</span> <span class="ident">ContentHint::Default</span> {
             <span class="prelude-val">None</span>
         } <span class="kw">else</span> {
             <span class="prelude-val">Some</span>(<span class="ident">u32::from</span>(<span class="self">self</span>) <span class="kw">as</span> <span class="ident">i32</span>)
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">to_u32</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+    <span class="kw">pub</span> <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">to_u32</span>(<span class="self">self</span>) -&gt; <span class="ident">u32</span> {
         <span class="kw">use</span> <span class="ident">proto::sealed_sender::unidentified_sender_message::message::ContentHint</span> <span class="kw">as</span> <span class="ident">ProtoContentHint</span>;
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">ContentHint::Default</span> <span class="op">=</span><span class="op">&gt;</span> <span class="number">0</span>,
-            <span class="ident">ContentHint::Resendable</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtoContentHint::Resendable</span> <span class="kw">as</span> <span class="ident">u32</span>,
-            <span class="ident">ContentHint::Implicit</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ProtoContentHint::Implicit</span> <span class="kw">as</span> <span class="ident">u32</span>,
-            <span class="ident">ContentHint::Unknown</span>(<span class="ident">value</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">value</span>,
+            <span class="ident">ContentHint::Default</span> =&gt; <span class="number">0</span>,
+            <span class="ident">ContentHint::Resendable</span> =&gt; <span class="ident">ProtoContentHint::Resendable</span> <span class="kw">as</span> <span class="ident">u32</span>,
+            <span class="ident">ContentHint::Implicit</span> =&gt; <span class="ident">ProtoContentHint::Implicit</span> <span class="kw">as</span> <span class="ident">u32</span>,
+            <span class="ident">ContentHint::Unknown</span>(<span class="ident">value</span>) =&gt; <span class="ident">value</span>,
         }
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ContentHint</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">raw_value</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">raw_value</span>: <span class="ident">u32</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">use</span> <span class="ident">proto::sealed_sender::unidentified_sender_message::message::ContentHint</span> <span class="kw">as</span> <span class="ident">ProtoContentHint</span>;
         <span class="macro">assert!</span>(<span class="op">!</span><span class="ident">ProtoContentHint::is_valid</span>(<span class="number">0</span>));
         <span class="kw">match</span> <span class="ident">ProtoContentHint::from_i32</span>(<span class="ident">raw_value</span> <span class="kw">as</span> <span class="ident">i32</span>) {
-            <span class="prelude-val">None</span> <span class="kw">if</span> <span class="ident">raw_value</span> <span class="op">=</span><span class="op">=</span> <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ContentHint::Default</span>,
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ContentHint::Unknown</span>(<span class="ident">raw_value</span>),
-            <span class="prelude-val">Some</span>(<span class="ident">ProtoContentHint::Resendable</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ContentHint::Resendable</span>,
-            <span class="prelude-val">Some</span>(<span class="ident">ProtoContentHint::Implicit</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">ContentHint::Implicit</span>,
+            <span class="prelude-val">None</span> <span class="kw">if</span> <span class="ident">raw_value</span> <span class="op">==</span> <span class="number">0</span> =&gt; <span class="ident">ContentHint::Default</span>,
+            <span class="prelude-val">None</span> =&gt; <span class="ident">ContentHint::Unknown</span>(<span class="ident">raw_value</span>),
+            <span class="prelude-val">Some</span>(<span class="ident">ProtoContentHint::Resendable</span>) =&gt; <span class="ident">ContentHint::Resendable</span>,
+            <span class="prelude-val">Some</span>(<span class="ident">ProtoContentHint::Implicit</span>) =&gt; <span class="ident">ContentHint::Implicit</span>,
         }
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">ContentHint</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">u32</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">hint</span>: <span class="ident">ContentHint</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">hint</span>: <span class="ident">ContentHint</span>) -&gt; <span class="self">Self</span> {
         <span class="ident">hint</span>.<span class="ident">to_u32</span>()
     }
 }
@@ -2126,7 +2126,7 @@ with this test certificate ID, Bad Things will happen.
 }
 
 <span class="kw">impl</span> <span class="ident">UnidentifiedSenderMessageContent</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::unidentified_sender_message::Message::decode</span>(<span class="ident">data</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">msg_type</span> <span class="op">=</span> <span class="ident">pb</span>
@@ -2173,7 +2173,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">contents</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
         <span class="ident">content_hint</span>: <span class="ident">ContentHint</span>,
         <span class="ident">group_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">proto_msg_type</span> <span class="op">=</span> <span class="ident">ProtoMessageType::from</span>(<span class="ident">msg_type</span>);
         <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::unidentified_sender_message::Message</span> {
             <span class="ident">content</span>: <span class="prelude-val">Some</span>(<span class="ident">contents</span>.<span class="ident">clone</span>()),
@@ -2201,27 +2201,27 @@ with this test certificate ID, Bad Things will happen.
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">msg_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CiphertextMessageType</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">msg_type</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">CiphertextMessageType</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">msg_type</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">SenderCertificate</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">SenderCertificate</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">sender</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">contents</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">contents</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">contents</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">content_hint</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ContentHint</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">content_hint</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ContentHint</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">content_hint</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">group_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">group_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">group_id</span>.<span class="ident">as_deref</span>())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialized</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">serialized</span>)
     }
 }
@@ -2244,7 +2244,7 @@ with this test certificate ID, Bad Things will happen.
 <span class="kw">const</span> <span class="ident">SEALED_SENDER_V2_VERSION</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">2</span>;
 
 <span class="kw">impl</span> <span class="ident">UnidentifiedSenderMessage</span> {
-    <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">data</span>.<span class="ident">is_empty</span>() {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidSealedSenderMessage</span>(
                 <span class="string">&quot;Message was empty&quot;</span>.<span class="ident">to_owned</span>(),
@@ -2257,7 +2257,7 @@ with this test certificate ID, Bad Things will happen.
         );
 
         <span class="kw">match</span> <span class="ident">version</span> {
-            <span class="number">0</span> <span class="op">|</span> <span class="ident">SEALED_SENDER_V1_VERSION</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="number">0</span> <span class="op">|</span> <span class="ident">SEALED_SENDER_V1_VERSION</span> =&gt; {
                 <span class="comment">// XXX should we really be accepted version == 0 here?</span>
                 <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::UnidentifiedSenderMessage::decode</span>(<span class="kw-2">&amp;</span><span class="ident">data</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
 
@@ -2279,7 +2279,7 @@ with this test certificate ID, Bad Things will happen.
                     <span class="ident">encrypted_message</span>,
                 })
             }
-            <span class="ident">SEALED_SENDER_V2_VERSION</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">SEALED_SENDER_V2_VERSION</span> =&gt; {
                 <span class="comment">// Uses a flat representation: C || AT || E.pub || ciphertext</span>
                 <span class="kw">let</span> <span class="ident">remaining</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">data</span>[<span class="number">1</span>..];
                 <span class="kw">if</span> <span class="ident">remaining</span>.<span class="ident">len</span>()
@@ -2303,7 +2303,7 @@ with this test certificate ID, Bad Things will happen.
                     <span class="ident">encrypted_message</span>: <span class="ident">encrypted_message</span>.<span class="ident">into</span>(),
                 })
             }
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnknownSealedSenderVersion</span>(<span class="ident">version</span>)),
+            <span class="kw">_</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnknownSealedSenderVersion</span>(<span class="ident">version</span>)),
         }
     }
 }
@@ -2332,12 +2332,12 @@ with this test certificate ID, Bad Things will happen.
             <span class="ident">our_keys</span>: <span class="kw-2">&amp;</span><span class="ident">KeyPair</span>,
             <span class="ident">their_public</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
             <span class="ident">direction</span>: <span class="ident">Direction</span>,
-        ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="ident">our_pub_key</span> <span class="op">=</span> <span class="ident">our_keys</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>();
             <span class="kw">let</span> <span class="ident">their_pub_key</span> <span class="op">=</span> <span class="ident">their_public</span>.<span class="ident">serialize</span>();
             <span class="kw">let</span> <span class="ident">ephemeral_salt</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">direction</span> {
-                <span class="ident">Direction::Sending</span> <span class="op">=</span><span class="op">&gt;</span> [<span class="ident">SALT_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">their_pub_key</span>, <span class="kw-2">&amp;</span><span class="ident">our_pub_key</span>],
-                <span class="ident">Direction::Receiving</span> <span class="op">=</span><span class="op">&gt;</span> [<span class="ident">SALT_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">our_pub_key</span>, <span class="kw-2">&amp;</span><span class="ident">their_pub_key</span>],
+                <span class="ident">Direction::Sending</span> =&gt; [<span class="ident">SALT_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">their_pub_key</span>, <span class="kw-2">&amp;</span><span class="ident">our_pub_key</span>],
+                <span class="ident">Direction::Receiving</span> =&gt; [<span class="ident">SALT_PREFIX</span>, <span class="kw-2">&amp;</span><span class="ident">our_pub_key</span>, <span class="kw-2">&amp;</span><span class="ident">their_pub_key</span>],
             }
             .<span class="ident">concat</span>();
 
@@ -2357,10 +2357,10 @@ with this test certificate ID, Bad Things will happen.
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
     <span class="kw">impl</span> <span class="ident">PartialEq</span> <span class="kw">for</span> <span class="ident">EphemeralKeys</span> {
-        <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-            <span class="self">self</span>.<span class="ident">chain_key</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">chain_key</span>
-                <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">cipher_key</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">cipher_key</span>
-                <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">mac_key</span> <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">mac_key</span>
+        <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; <span class="ident">bool</span> {
+            <span class="self">self</span>.<span class="ident">chain_key</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">chain_key</span>
+                <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">cipher_key</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">cipher_key</span>
+                <span class="op">&amp;&amp;</span> <span class="self">self</span>.<span class="ident">mac_key</span> <span class="op">==</span> <span class="ident">other</span>.<span class="ident">mac_key</span>
         }
     }
 
@@ -2369,7 +2369,7 @@ with this test certificate ID, Bad Things will happen.
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
     <span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">EphemeralKeys</span> {
-        <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt::Result</span> {
+        <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) -&gt; <span class="ident">fmt::Result</span> {
             <span class="macro">write!</span>(
                 <span class="ident">f</span>,
                 <span class="string">&quot;EphemeralKeys {{ chain_key: {:?}, cipher_key: {:?}, mac_key: {:?} }}&quot;</span>,
@@ -2392,7 +2392,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="ident">their_key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
             <span class="ident">chain_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>],
             <span class="ident">ctext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-        ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
             <span class="kw">let</span> <span class="ident">salt</span> <span class="op">=</span> [<span class="ident">chain_key</span>, <span class="ident">ctext</span>].<span class="ident">concat</span>();
 
             <span class="kw">let</span> <span class="ident">shared_secret</span> <span class="op">=</span> <span class="ident">our_keys</span>.<span class="ident">private_key</span>().<span class="ident">calculate_agreement</span>(<span class="ident">their_key</span>)<span class="question-mark">?</span>;
@@ -2412,7 +2412,7 @@ with this test certificate ID, Bad Things will happen.
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_agreement_and_authentication</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">test_agreement_and_authentication</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="comment">// The sender and recipient each have a long-term identity key pair.</span>
         <span class="kw">let</span> <span class="ident">sender_identity</span> <span class="op">=</span> <span class="ident">IdentityKeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rand::thread_rng</span>());
         <span class="kw">let</span> <span class="ident">recipient_identity</span> <span class="op">=</span> <span class="ident">IdentityKeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rand::thread_rng</span>());
@@ -2497,7 +2497,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="ident">identity_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">IdentityKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
     <span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">message_encrypt</span>(<span class="ident">ptext</span>, <span class="ident">destination</span>, <span class="ident">session_store</span>, <span class="ident">identity_store</span>, <span class="ident">ctx</span>).<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">usmc</span> <span class="op">=</span> <span class="ident">UnidentifiedSenderMessageContent::new</span>(
         <span class="ident">message</span>.<span class="ident">message_type</span>(),
@@ -2565,7 +2565,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="ident">identity_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">IdentityKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
     <span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">our_identity</span> <span class="op">=</span> <span class="ident">identity_store</span>.<span class="ident">get_identity_key_pair</span>(<span class="ident">ctx</span>).<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">their_identity</span> <span class="op">=</span> <span class="ident">identity_store</span>
         .<span class="ident">get_identity</span>(<span class="ident">destination</span>, <span class="ident">ctx</span>)
@@ -2633,7 +2633,7 @@ with this test certificate ID, Bad Things will happen.
 
     <span class="kw">impl</span> <span class="ident">DerivedKeys</span> {
         <span class="doccomment">/// Derive a set of ephemeral keys from a slice of random bytes `m`.</span>
-        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">calculate</span>(<span class="ident">m</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">DerivedKeys</span> {
+        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">calculate</span>(<span class="ident">m</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">DerivedKeys</span> {
             <span class="kw">let</span> <span class="ident">kdf</span> <span class="op">=</span> <span class="ident">hkdf::Hkdf</span>::<span class="op">&lt;</span><span class="ident">sha2::Sha256</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="prelude-val">None</span>, <span class="ident">m</span>);
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">r</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">64</span>];
             <span class="ident">kdf</span>.<span class="ident">expand</span>(<span class="ident">LABEL_R</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">r</span>).<span class="ident">expect</span>(<span class="string">&quot;valid output length&quot;</span>);
@@ -2657,15 +2657,15 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">their_key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
         <span class="ident">direction</span>: <span class="ident">Direction</span>,
         <span class="ident">input</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="ident">MESSAGE_KEY_LEN</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">MESSAGE_KEY_LEN</span>]<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">MESSAGE_KEY_LEN</span>]<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">agreement</span> <span class="op">=</span> <span class="ident">our_keys</span>.<span class="ident">calculate_agreement</span>(<span class="ident">their_key</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">agreement_key_input</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">direction</span> {
-            <span class="ident">Direction::Sending</span> <span class="op">=</span><span class="op">&gt;</span> [
+            <span class="ident">Direction::Sending</span> =&gt; [
                 <span class="ident">agreement</span>,
                 <span class="ident">our_keys</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>(),
                 <span class="ident">their_key</span>.<span class="ident">serialize</span>(),
             ],
-            <span class="ident">Direction::Receiving</span> <span class="op">=</span><span class="op">&gt;</span> [
+            <span class="ident">Direction::Receiving</span> =&gt; [
                 <span class="ident">agreement</span>,
                 <span class="ident">their_key</span>.<span class="ident">serialize</span>(),
                 <span class="ident">our_keys</span>.<span class="ident">public_key</span>.<span class="ident">serialize</span>(),
@@ -2698,7 +2698,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">direction</span>: <span class="ident">Direction</span>,
         <span class="ident">ephemeral_pub_key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
         <span class="ident">encrypted_message_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="ident">MESSAGE_KEY_LEN</span>],
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">AUTH_TAG_LEN</span>]<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="ident">AUTH_TAG_LEN</span>]<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">agreement</span> <span class="op">=</span> <span class="ident">our_keys</span>
             .<span class="ident">private_key</span>()
             .<span class="ident">calculate_agreement</span>(<span class="ident">their_key</span>.<span class="ident">public_key</span>())<span class="question-mark">?</span>;
@@ -2706,11 +2706,11 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">agreement_key_input</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">ephemeral_pub_key</span>.<span class="ident">serialize</span>());
         <span class="ident">agreement_key_input</span>.<span class="ident">extend_from_slice</span>(<span class="ident">encrypted_message_key</span>);
         <span class="kw">match</span> <span class="ident">direction</span> {
-            <span class="ident">Direction::Sending</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">Direction::Sending</span> =&gt; {
                 <span class="ident">agreement_key_input</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">our_keys</span>.<span class="ident">public_key</span>().<span class="ident">serialize</span>());
                 <span class="ident">agreement_key_input</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">their_key</span>.<span class="ident">serialize</span>());
             }
-            <span class="ident">Direction::Receiving</span> <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">Direction::Receiving</span> =&gt; {
                 <span class="ident">agreement_key_input</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">their_key</span>.<span class="ident">serialize</span>());
                 <span class="ident">agreement_key_input</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">our_keys</span>.<span class="ident">public_key</span>().<span class="ident">serialize</span>());
             }
@@ -2724,7 +2724,7 @@ with this test certificate ID, Bad Things will happen.
     }
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_agreement_and_authentication</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">test_agreement_and_authentication</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="comment">// The sender and recipient each have a long-term identity key pair.</span>
         <span class="kw">let</span> <span class="ident">sender_identity</span> <span class="op">=</span> <span class="ident">IdentityKeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rand::thread_rng</span>());
         <span class="kw">let</span> <span class="ident">recipient_identity</span> <span class="op">=</span> <span class="ident">IdentityKeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rand::thread_rng</span>());
@@ -2935,7 +2935,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="ident">identity_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">IdentityKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
     <span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">if</span> <span class="ident">destinations</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">destination_sessions</span>.<span class="ident">len</span>() {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidArgument</span>(
             <span class="string">&quot;must have the same number of destination sessions as addresses&quot;</span>.<span class="ident">to_string</span>(),
@@ -3020,7 +3020,7 @@ with this test certificate ID, Bad Things will happen.
             .<span class="ident">expect</span>(<span class="string">&quot;cannot fail encoding to Vec&quot;</span>);
         <span class="ident">serialized</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">their_registration_id</span>.<span class="ident">to_be_bytes</span>());
 
-        <span class="kw">if</span> <span class="prelude-val">Some</span>(<span class="ident">their_identity</span>) <span class="op">=</span><span class="op">=</span> <span class="ident">previous_their_identity</span> {
+        <span class="kw">if</span> <span class="prelude-val">Some</span>(<span class="ident">their_identity</span>) <span class="op">==</span> <span class="ident">previous_their_identity</span> {
             <span class="comment">// We often send to the same user multiple times, once per device.</span>
             <span class="comment">// Since the encoding of the message key and attachment tag only depends</span>
             <span class="comment">// on the identity key, we can reuse the work from the previous destination.</span>
@@ -3069,13 +3069,13 @@ with this test certificate ID, Bad Things will happen.
 <span class="doccomment">/// **[Routing messages to recipients]**).</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// [Routing messages to recipients]: sealed_sender_multi_recipient_encrypt#routing-messages-to-recipients</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sealed_sender_multi_recipient_fan_out</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sealed_sender_multi_recipient_fan_out</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">data</span>[<span class="number">0</span>] <span class="op">&gt;</span><span class="op">&gt;</span> <span class="number">4</span>;
     <span class="kw">if</span> <span class="ident">version</span> <span class="op">!</span><span class="op">=</span> <span class="ident">SEALED_SENDER_V2_VERSION</span> {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::UnknownSealedSenderVersion</span>(<span class="ident">version</span>));
     }
 
-    <span class="kw">fn</span> <span class="ident">advance</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">u8</span>], <span class="ident">n</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">advance</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">u8</span>], <span class="ident">n</span>: <span class="ident">usize</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> [<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">n</span> <span class="op">&gt;</span> <span class="ident">buf</span>.<span class="ident">len</span>() {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>);
         }
@@ -3083,7 +3083,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw-2">*</span><span class="ident">buf</span> <span class="op">=</span> <span class="ident">remaining</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">prefix</span>)
     }
-    <span class="kw">fn</span> <span class="ident">decode_varint</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">decode_varint</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">prost::decode_length_delimiter</span>(<span class="kw-2">*</span><span class="ident">buf</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">advance</span>(<span class="ident">buf</span>, <span class="ident">prost::length_delimiter_len</span>(<span class="ident">result</span>))
             .<span class="ident">expect</span>(<span class="string">&quot;just decoded that many bytes&quot;</span>);
@@ -3130,7 +3130,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="ident">ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">identity_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">IdentityKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">UnidentifiedSenderMessageContent</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">UnidentifiedSenderMessageContent</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">our_identity</span> <span class="op">=</span> <span class="ident">identity_store</span>.<span class="ident">get_identity_key_pair</span>(<span class="ident">ctx</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="kw">match</span> <span class="ident">UnidentifiedSenderMessage::deserialize</span>(<span class="ident">ciphertext</span>)<span class="question-mark">?</span> {
@@ -3138,7 +3138,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="ident">ephemeral_public</span>,
             <span class="ident">encrypted_static</span>,
             <span class="ident">encrypted_message</span>,
-        } <span class="op">=</span><span class="op">&gt;</span> {
+        } =&gt; {
             <span class="kw">let</span> <span class="ident">eph_keys</span> <span class="op">=</span> <span class="ident">sealed_sender_v1::EphemeralKeys::calculate</span>(
                 <span class="kw-2">&amp;</span><span class="ident">our_identity</span>.<span class="ident">into</span>(),
                 <span class="kw-2">&amp;</span><span class="ident">ephemeral_public</span>,
@@ -3181,7 +3181,7 @@ with this test certificate ID, Bad Things will happen.
             <span class="ident">encrypted_message_key</span>,
             <span class="ident">authentication_tag</span>,
             <span class="ident">encrypted_message</span>,
-        } <span class="op">=</span><span class="op">&gt;</span> {
+        } =&gt; {
             <span class="kw">let</span> <span class="ident">encrypted_message_key</span>: [<span class="ident">u8</span>; <span class="ident">sealed_sender_v2::MESSAGE_KEY_LEN</span>] <span class="op">=</span>
                 <span class="ident">encrypted_message_key</span>.<span class="ident">as_ref</span>().<span class="ident">try_into</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
                     <span class="ident">SignalProtocolError::InvalidSealedSenderMessage</span>(<span class="macro">format!</span>(
@@ -3251,19 +3251,19 @@ with this test certificate ID, Bad Things will happen.
 }
 
 <span class="kw">impl</span> <span class="ident">SealedSenderDecryptionResult</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_uuid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_uuid</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sender_uuid</span>.<span class="ident">as_ref</span>())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_e164</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_e164</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">sender_e164</span>.<span class="ident">as_deref</span>())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">device_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">device_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">device_id</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">message</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">message</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">message</span>.<span class="ident">as_ref</span>())
     }
 }
@@ -3288,7 +3288,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="ident">pre_key_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">PreKeyStore</span>,
     <span class="ident">signed_pre_key_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">SignedPreKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SealedSenderDecryptionResult</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SealedSenderDecryptionResult</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">usmc</span> <span class="op">=</span> <span class="ident">sealed_sender_decrypt_to_usmc</span>(<span class="ident">ciphertext</span>, <span class="ident">identity_store</span>, <span class="ident">ctx</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="kw">if</span> <span class="op">!</span><span class="ident">usmc</span>.<span class="ident">sender</span>()<span class="question-mark">?</span>.<span class="ident">validate</span>(<span class="ident">trust_root</span>, <span class="ident">timestamp</span>)<span class="question-mark">?</span> {
@@ -3297,14 +3297,14 @@ with this test certificate ID, Bad Things will happen.
         ));
     }
 
-    <span class="kw">let</span> <span class="ident">is_local_uuid</span> <span class="op">=</span> <span class="ident">local_uuid</span> <span class="op">=</span><span class="op">=</span> <span class="ident">usmc</span>.<span class="ident">sender</span>()<span class="question-mark">?</span>.<span class="ident">sender_uuid</span>()<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">is_local_uuid</span> <span class="op">=</span> <span class="ident">local_uuid</span> <span class="op">==</span> <span class="ident">usmc</span>.<span class="ident">sender</span>()<span class="question-mark">?</span>.<span class="ident">sender_uuid</span>()<span class="question-mark">?</span>;
 
     <span class="kw">let</span> <span class="ident">is_local_e164</span> <span class="op">=</span> <span class="kw">match</span> (<span class="ident">local_e164</span>, <span class="ident">usmc</span>.<span class="ident">sender</span>()<span class="question-mark">?</span>.<span class="ident">sender_e164</span>()<span class="question-mark">?</span>) {
-        (<span class="prelude-val">Some</span>(<span class="ident">l</span>), <span class="prelude-val">Some</span>(<span class="ident">s</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">l</span> <span class="op">=</span><span class="op">=</span> <span class="ident">s</span>,
-        (<span class="kw">_</span>, <span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="bool-val">false</span>,
+        (<span class="prelude-val">Some</span>(<span class="ident">l</span>), <span class="prelude-val">Some</span>(<span class="ident">s</span>)) =&gt; <span class="ident">l</span> <span class="op">==</span> <span class="ident">s</span>,
+        (<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
     };
 
-    <span class="kw">if</span> (<span class="ident">is_local_e164</span> <span class="op">|</span><span class="op">|</span> <span class="ident">is_local_uuid</span>) <span class="op">&amp;&amp;</span> <span class="ident">usmc</span>.<span class="ident">sender</span>()<span class="question-mark">?</span>.<span class="ident">sender_device_id</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">local_device_id</span> {
+    <span class="kw">if</span> (<span class="ident">is_local_e164</span> <span class="op">|</span><span class="op">|</span> <span class="ident">is_local_uuid</span>) <span class="op">&amp;&amp;</span> <span class="ident">usmc</span>.<span class="ident">sender</span>()<span class="question-mark">?</span>.<span class="ident">sender_device_id</span>()<span class="question-mark">?</span> <span class="op">==</span> <span class="ident">local_device_id</span> {
         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::SealedSenderSelfSend</span>);
     }
 
@@ -3316,7 +3316,7 @@ with this test certificate ID, Bad Things will happen.
     );
 
     <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">usmc</span>.<span class="ident">msg_type</span>()<span class="question-mark">?</span> {
-        <span class="ident">CiphertextMessageType::Whisper</span> <span class="op">=</span><span class="op">&gt;</span> {
+        <span class="ident">CiphertextMessageType::Whisper</span> =&gt; {
             <span class="kw">let</span> <span class="ident">ctext</span> <span class="op">=</span> <span class="ident">SignalMessage::try_from</span>(<span class="ident">usmc</span>.<span class="ident">contents</span>()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
             <span class="ident">session_cipher::message_decrypt_signal</span>(
                 <span class="kw-2">&amp;</span><span class="ident">ctext</span>,
@@ -3328,7 +3328,7 @@ with this test certificate ID, Bad Things will happen.
             )
             .<span class="kw">await</span><span class="question-mark">?</span>
         }
-        <span class="ident">CiphertextMessageType::PreKey</span> <span class="op">=</span><span class="op">&gt;</span> {
+        <span class="ident">CiphertextMessageType::PreKey</span> =&gt; {
             <span class="kw">let</span> <span class="ident">ctext</span> <span class="op">=</span> <span class="ident">PreKeySignalMessage::try_from</span>(<span class="ident">usmc</span>.<span class="ident">contents</span>()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
             <span class="ident">session_cipher::message_decrypt_prekey</span>(
                 <span class="kw-2">&amp;</span><span class="ident">ctext</span>,
@@ -3342,7 +3342,7 @@ with this test certificate ID, Bad Things will happen.
             )
             .<span class="kw">await</span><span class="question-mark">?</span>
         }
-        <span class="ident">msg_type</span> <span class="op">=</span><span class="op">&gt;</span> {
+        <span class="ident">msg_type</span> =&gt; {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidSealedSenderMessage</span>(<span class="macro">format!</span>(
                 <span class="string">&quot;Unexpected message type {}&quot;</span>,
                 <span class="ident">msg_type</span> <span class="kw">as</span> <span class="ident">i32</span>,
@@ -3359,7 +3359,7 @@ with this test certificate ID, Bad Things will happen.
 }
 
 <span class="attribute">#[<span class="ident">test</span>]</span>
-<span class="kw">fn</span> <span class="ident">test_lossless_round_trip</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">test_lossless_round_trip</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">trust_root</span> <span class="op">=</span> <span class="ident">PrivateKey::deserialize</span>(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">32</span>])<span class="question-mark">?</span>;
 
     <span class="comment">// To test a hypothetical addition of a new field:</span>

@@ -227,7 +227,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">MessageKeys</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">derive_keys</span>(<span class="ident">input_key_material</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">counter</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">derive_keys</span>(<span class="ident">input_key_material</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">counter</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">okm</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">80</span>];
         <span class="ident">hkdf::Hkdf</span>::<span class="op">&lt;</span><span class="ident">sha2::Sha256</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="prelude-val">None</span>, <span class="ident">input_key_material</span>)
             .<span class="ident">expand</span>(<span class="string">b&quot;WhisperMessageKeys&quot;</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">okm</span>)
@@ -241,7 +241,7 @@
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">cipher_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">mac_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">iv</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">counter</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">cipher_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">mac_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">iv</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">counter</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">mac_key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidMacKeyLength</span>(<span class="ident">mac_key</span>.<span class="ident">len</span>()));
         }
@@ -261,22 +261,22 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cipher_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cipher_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cipher_key</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mac_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">mac_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">mac_key</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iv</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">16</span>] {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iv</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">16</span>] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">iv</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">counter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">counter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
         <span class="self">self</span>.<span class="ident">counter</span>
     }
 }
@@ -291,7 +291,7 @@
     <span class="kw">const</span> <span class="ident">MESSAGE_KEY_SEED</span>: [<span class="ident">u8</span>; <span class="number">1</span>] <span class="op">=</span> [<span class="number">0x01u8</span>];
     <span class="kw">const</span> <span class="ident">CHAIN_KEY_SEED</span>: [<span class="ident">u8</span>; <span class="number">1</span>] <span class="op">=</span> [<span class="number">0x02u8</span>];
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">index</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>], <span class="ident">index</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidChainKeyLength</span>(<span class="ident">key</span>.<span class="ident">len</span>()));
         }
@@ -303,30 +303,30 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">key</span>
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">u32</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
         <span class="self">self</span>.<span class="ident">index</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">key</span>: <span class="self">self</span>.<span class="ident">calculate_base_material</span>(<span class="ident"><span class="self">Self</span>::CHAIN_KEY_SEED</span>)<span class="question-mark">?</span>,
             <span class="ident">index</span>: <span class="self">self</span>.<span class="ident">index</span> <span class="op">+</span> <span class="number">1</span>,
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">message_keys</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MessageKeys</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">message_keys</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MessageKeys</span><span class="op">&gt;</span> {
         <span class="ident">MessageKeys::derive_keys</span>(
             <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">calculate_base_material</span>(<span class="ident"><span class="self">Self</span>::MESSAGE_KEY_SEED</span>)<span class="question-mark">?</span>,
             <span class="self">self</span>.<span class="ident">index</span>,
         )
     }
 
-    <span class="kw">fn</span> <span class="ident">calculate_base_material</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">seed</span>: [<span class="ident">u8</span>; <span class="number">1</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">calculate_base_material</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">seed</span>: [<span class="ident">u8</span>; <span class="number">1</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">32</span>]<span class="op">&gt;</span> {
         <span class="ident">crypto::hmac_sha256</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">key</span>, <span class="kw-2">&amp;</span><span class="ident">seed</span>)
     }
 }
@@ -337,7 +337,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">RootKey</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidRootKeyLength</span>(<span class="ident">key</span>.<span class="ident">len</span>()));
         }
@@ -346,7 +346,7 @@
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>; <span class="number">32</span>] {
         <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">key</span>
     }
 
@@ -354,7 +354,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">their_ratchet_key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
         <span class="ident">our_ratchet_key</span>: <span class="kw-2">&amp;</span><span class="ident">PrivateKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">RootKey</span>, <span class="ident">ChainKey</span>)<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="ident">RootKey</span>, <span class="ident">ChainKey</span>)<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">shared_secret</span> <span class="op">=</span> <span class="ident">our_ratchet_key</span>.<span class="ident">calculate_agreement</span>(<span class="ident">their_ratchet_key</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">derived_secret_bytes</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">64</span>];
         <span class="ident">hkdf::Hkdf</span>::<span class="op">&lt;</span><span class="ident">sha2::Sha256</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">key</span>), <span class="kw-2">&amp;</span><span class="ident">shared_secret</span>)
@@ -374,7 +374,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">fmt::Display</span> <span class="kw">for</span> <span class="ident">RootKey</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">fmt::Result</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span>) -&gt; <span class="ident">fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">hex::encode</span>(<span class="self">self</span>.<span class="ident">key</span>))
     }
 }
@@ -384,7 +384,7 @@
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_chain_key_derivation</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">test_chain_key_derivation</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">seed</span> <span class="op">=</span> [
             <span class="number">0x8au8</span>, <span class="number">0xb7</span>, <span class="number">0x2d</span>, <span class="number">0x6f</span>, <span class="number">0x4c</span>, <span class="number">0xc5</span>, <span class="number">0xac</span>, <span class="number">0x0d</span>, <span class="number">0x38</span>, <span class="number">0x7e</span>, <span class="number">0xaf</span>, <span class="number">0x46</span>, <span class="number">0x33</span>, <span class="number">0x78</span>,
             <span class="number">0xdd</span>, <span class="number">0xb2</span>, <span class="number">0x8e</span>, <span class="number">0xdd</span>, <span class="number">0x07</span>, <span class="number">0x38</span>, <span class="number">0x5b</span>, <span class="number">0x1c</span>, <span class="number">0xb0</span>, <span class="number">0x12</span>, <span class="number">0x50</span>, <span class="number">0xc7</span>, <span class="number">0x15</span>, <span class="number">0x98</span>,

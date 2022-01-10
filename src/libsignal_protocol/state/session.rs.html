@@ -665,7 +665,7 @@
         <span class="ident">pre_key_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span>,
         <span class="ident">signed_pre_key_id</span>: <span class="ident">SignedPreKeyId</span>,
         <span class="ident">base_key</span>: <span class="ident">PublicKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">pre_key_id</span>,
             <span class="ident">signed_pre_key_id</span>,
@@ -673,15 +673,15 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">pre_key_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">pre_key_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">pre_key_id</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">signed_pre_key_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignedPreKeyId</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">signed_pre_key_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignedPreKeyId</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">signed_pre_key_id</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">base_key</span>)
     }
 }
@@ -692,105 +692,105 @@
 }
 
 <span class="kw">impl</span> <span class="ident">SessionState</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">session</span>: <span class="ident">SessionStructure</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">session</span>: <span class="ident">SessionStructure</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">session</span> }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">alice_base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">alice_base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="comment">// Check the length before returning?</span>
         <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session</span>.<span class="ident">alice_base_key</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_alice_base_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_alice_base_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="comment">// Should we check the length?</span>
         <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">alice_base_key</span> <span class="op">=</span> <span class="ident">key</span>.<span class="ident">to_vec</span>();
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">session_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">session_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">session_version</span> {
-            <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="number">2</span>),
-            <span class="ident">v</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">v</span>),
+            <span class="number">0</span> =&gt; <span class="prelude-val">Ok</span>(<span class="number">2</span>),
+            <span class="ident">v</span> =&gt; <span class="prelude-val">Ok</span>(<span class="ident">v</span>),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">remote_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">IdentityKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">remote_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">IdentityKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">remote_identity_public</span>.<span class="ident">len</span>() {
-            <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-            <span class="kw">_</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">IdentityKey::decode</span>(
+            <span class="number">0</span> =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
+            <span class="kw">_</span> =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">IdentityKey::decode</span>(
                 <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session</span>.<span class="ident">remote_identity_public</span>,
             )<span class="question-mark">?</span>)),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">remote_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">remote_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">remote_identity_key</span>()<span class="question-mark">?</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">k</span><span class="op">|</span> <span class="ident">k</span>.<span class="ident">serialize</span>().<span class="ident">to_vec</span>()))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">local_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">IdentityKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">local_identity_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">IdentityKey</span><span class="op">&gt;</span> {
         <span class="ident">IdentityKey::decode</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session</span>.<span class="ident">local_identity_public</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">local_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">local_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">local_identity_key</span>()<span class="question-mark">?</span>.<span class="ident">serialize</span>().<span class="ident">to_vec</span>())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">session_with_self</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">session_with_self</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">remote_id</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">remote_identity_key_bytes</span>()<span class="question-mark">?</span> {
             <span class="kw">let</span> <span class="ident">local_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">local_identity_key_bytes</span>()<span class="question-mark">?</span>;
-            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">remote_id</span> <span class="op">=</span><span class="op">=</span> <span class="ident">local_id</span>);
+            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="ident">remote_id</span> <span class="op">==</span> <span class="ident">local_id</span>);
         }
 
         <span class="comment">// If remote ID is not set then we can&#39;t be sure but treat as non-self</span>
         <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">previous_counter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">previous_counter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">session</span>.<span class="ident">previous_counter</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_previous_counter</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ctr</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_previous_counter</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ctr</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">previous_counter</span> <span class="op">=</span> <span class="ident">ctr</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">root_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RootKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">root_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">RootKey</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">root_key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>);
         }
         <span class="ident">RootKey::new</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">session</span>.<span class="ident">root_key</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_root_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">root_key</span>: <span class="kw-2">&amp;</span><span class="ident">RootKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_root_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">root_key</span>: <span class="kw-2">&amp;</span><span class="ident">RootKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">root_key</span> <span class="op">=</span> <span class="ident">root_key</span>.<span class="ident">key</span>().<span class="ident">to_vec</span>();
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_ratchet_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_ratchet_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">sender_chain</span> {
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>),
-            <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">c</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>.<span class="ident">sender_ratchet_key</span>),
+            <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>),
+            <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">c</span>) =&gt; <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>.<span class="ident">sender_ratchet_key</span>),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_ratchet_key_for_logging</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_ratchet_key_for_logging</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">sender_ratchet_key</span>()<span class="question-mark">?</span>
             .<span class="ident">public_key_bytes</span>()
             .<span class="ident">map</span>(<span class="ident">hex::encode</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_ratchet_private_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PrivateKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_ratchet_private_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PrivateKey</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">sender_chain</span> {
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>),
-            <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">c</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">PrivateKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>.<span class="ident">sender_ratchet_key_private</span>),
+            <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>),
+            <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">c</span>) =&gt; <span class="ident">PrivateKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">c</span>.<span class="ident">sender_ratchet_key_private</span>),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_sender_chain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_sender_chain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">session</span>.<span class="ident">sender_chain</span>.<span class="ident">is_some</span>())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">all_receiver_chain_logging_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">all_receiver_chain_logging_info</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="macro">vec!</span>[];
         <span class="kw">for</span> <span class="ident">chain</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">receiver_chains</span>.<span class="ident">iter</span>() {
             <span class="kw">let</span> <span class="ident">sender_ratchet_public</span> <span class="op">=</span> <span class="ident">chain</span>.<span class="ident">sender_ratchet_key</span>.<span class="ident">clone</span>();
@@ -805,7 +805,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_receiver_chain</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">session_structure::Chain</span>, <span class="ident">usize</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">session_structure::Chain</span>, <span class="ident">usize</span>)<span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">sender_bytes</span> <span class="op">=</span> <span class="ident">sender</span>.<span class="ident">serialize</span>();
 
         <span class="kw">for</span> (<span class="ident">idx</span>, <span class="ident">chain</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">receiver_chains</span>.<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
@@ -816,7 +816,7 @@
             */</span>
             <span class="kw">let</span> <span class="ident">this_point</span> <span class="op">=</span> <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">chain</span>.<span class="ident">sender_ratchet_key</span>)<span class="question-mark">?</span>.<span class="ident">serialize</span>();
 
-            <span class="kw">if</span> <span class="ident">this_point</span> <span class="op">=</span><span class="op">=</span> <span class="ident">sender_bytes</span> {
+            <span class="kw">if</span> <span class="ident">this_point</span> <span class="op">==</span> <span class="ident">sender_bytes</span> {
                 <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((<span class="ident">chain</span>.<span class="ident">clone</span>(), <span class="ident">idx</span>)));
             }
         }
@@ -824,12 +824,12 @@
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_receiver_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_receiver_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">get_receiver_chain</span>(<span class="ident">sender</span>)<span class="question-mark">?</span> {
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
-            <span class="prelude-val">Some</span>((<span class="ident">chain</span>, <span class="kw">_</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="kw">match</span> <span class="ident">chain</span>.<span class="ident">chain_key</span> {
-                <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>),
-                <span class="prelude-val">Some</span>(<span class="ident">c</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>),
+            <span class="prelude-val">Some</span>((<span class="ident">chain</span>, <span class="kw">_</span>)) =&gt; <span class="kw">match</span> <span class="ident">chain</span>.<span class="ident">chain_key</span> {
+                <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>),
+                <span class="prelude-val">Some</span>(<span class="ident">c</span>) =&gt; {
                     <span class="kw">if</span> <span class="ident">c</span>.<span class="ident">key</span>.<span class="ident">len</span>() <span class="op">!</span><span class="op">=</span> <span class="number">32</span> {
                         <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>);
                     }
@@ -843,7 +843,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
         <span class="ident">chain_key</span>: <span class="kw-2">&amp;</span><span class="ident">ChainKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">chain_key</span> <span class="op">=</span> <span class="ident">session_structure::chain::ChainKey</span> {
             <span class="ident">index</span>: <span class="ident">chain_key</span>.<span class="ident">index</span>(),
             <span class="ident">key</span>: <span class="ident">chain_key</span>.<span class="ident">key</span>().<span class="ident">to_vec</span>(),
@@ -875,7 +875,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">KeyPair</span>,
         <span class="ident">next_chain_key</span>: <span class="kw-2">&amp;</span><span class="ident">ChainKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">chain_key</span> <span class="op">=</span> <span class="ident">session_structure::chain::ChainKey</span> {
             <span class="ident">index</span>: <span class="ident">next_chain_key</span>.<span class="ident">index</span>(),
             <span class="ident">key</span>: <span class="ident">next_chain_key</span>.<span class="ident">key</span>().<span class="ident">to_vec</span>(),
@@ -893,7 +893,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_sender_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ChainKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_sender_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ChainKey</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">sender_chain</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">sender_chain</span>.<span class="ident">as_ref</span>().<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
             <span class="ident">SignalProtocolError::InvalidState</span>(<span class="string">&quot;get_sender_chain_key&quot;</span>, <span class="string">&quot;No chain&quot;</span>.<span class="ident">to_owned</span>())
         })<span class="question-mark">?</span>;
@@ -905,11 +905,11 @@
         <span class="ident">ChainKey::new</span>(<span class="kw-2">&amp;</span><span class="ident">chain_key</span>.<span class="ident">key</span>, <span class="ident">chain_key</span>.<span class="ident">index</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_sender_chain_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_sender_chain_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">get_sender_chain_key</span>()<span class="question-mark">?</span>.<span class="ident">key</span>().<span class="ident">to_vec</span>())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_sender_chain_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">next_chain_key</span>: <span class="kw-2">&amp;</span><span class="ident">ChainKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_sender_chain_key</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">next_chain_key</span>: <span class="kw-2">&amp;</span><span class="ident">ChainKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">chain_key</span> <span class="op">=</span> <span class="ident">session_structure::chain::ChainKey</span> {
             <span class="ident">index</span>: <span class="ident">next_chain_key</span>.<span class="ident">index</span>(),
             <span class="ident">key</span>: <span class="ident">next_chain_key</span>.<span class="ident">key</span>().<span class="ident">to_vec</span>(),
@@ -918,13 +918,13 @@
         <span class="comment">// Is it actually valid to call this function with sender_chain == None?</span>
 
         <span class="kw">let</span> <span class="ident">new_chain</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">sender_chain</span>.<span class="ident">take</span>() {
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">session_structure::Chain</span> {
+            <span class="prelude-val">None</span> =&gt; <span class="ident">session_structure::Chain</span> {
                 <span class="ident">sender_ratchet_key</span>: <span class="macro">vec!</span>[],
                 <span class="ident">sender_ratchet_key_private</span>: <span class="macro">vec!</span>[],
                 <span class="ident">chain_key</span>: <span class="prelude-val">Some</span>(<span class="ident">chain_key</span>),
                 <span class="ident">message_keys</span>: <span class="macro">vec!</span>[],
             },
-            <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">c</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">c</span>) =&gt; {
                 <span class="ident">c</span>.<span class="ident">chain_key</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">chain_key</span>);
                 <span class="ident">c</span>
             }
@@ -939,13 +939,13 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
         <span class="ident">counter</span>: <span class="ident">u32</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MessageKeys</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">MessageKeys</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">chain_and_index</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_receiver_chain</span>(<span class="ident">sender</span>)<span class="question-mark">?</span> {
             <span class="kw">let</span> <span class="ident">message_key_idx</span> <span class="op">=</span> <span class="ident">chain_and_index</span>
                 .<span class="number">0</span>
                 .<span class="ident">message_keys</span>
                 .<span class="ident">iter</span>()
-                .<span class="ident">position</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">index</span> <span class="op">=</span><span class="op">=</span> <span class="ident">counter</span>);
+                .<span class="ident">position</span>(<span class="op">|</span><span class="ident">m</span><span class="op">|</span> <span class="ident">m</span>.<span class="ident">index</span> <span class="op">==</span> <span class="ident">counter</span>);
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">position</span>) <span class="op">=</span> <span class="ident">message_key_idx</span> {
                 <span class="kw">let</span> <span class="ident">message_key</span> <span class="op">=</span> <span class="ident">chain_and_index</span>.<span class="number">0</span>.<span class="ident">message_keys</span>.<span class="ident">remove</span>(<span class="ident">position</span>);
 
@@ -969,7 +969,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
         <span class="ident">message_keys</span>: <span class="kw-2">&amp;</span><span class="ident">MessageKeys</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">new_keys</span> <span class="op">=</span> <span class="ident">session_structure::chain::MessageKey</span> {
             <span class="ident">cipher_key</span>: <span class="ident">message_keys</span>.<span class="ident">cipher_key</span>().<span class="ident">to_vec</span>(),
             <span class="ident">mac_key</span>: <span class="ident">message_keys</span>.<span class="ident">mac_key</span>().<span class="ident">to_vec</span>(),
@@ -999,7 +999,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
         <span class="ident">chain_key</span>: <span class="kw-2">&amp;</span><span class="ident">ChainKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">chain_and_index</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_receiver_chain</span>(<span class="ident">sender</span>)<span class="question-mark">?</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">updated_chain</span> <span class="op">=</span> <span class="ident">chain_and_index</span>.<span class="number">0</span>;
             <span class="ident">updated_chain</span>.<span class="ident">chain_key</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">session_structure::chain::ChainKey</span> {
@@ -1022,7 +1022,7 @@
         <span class="ident">pre_key_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PreKeyId</span><span class="op">&gt;</span>,
         <span class="ident">signed_pre_key_id</span>: <span class="ident">SignedPreKeyId</span>,
         <span class="ident">base_key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">pending</span> <span class="op">=</span> <span class="ident">session_structure::PendingPreKey</span> {
             <span class="ident">pre_key_id</span>: <span class="ident">pre_key_id</span>.<span class="ident">unwrap_or</span>(<span class="number">0</span>),
             <span class="ident">signed_pre_key_id</span>: <span class="ident">signed_pre_key_id</span> <span class="kw">as</span> <span class="ident">i32</span>,
@@ -1034,12 +1034,12 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">unacknowledged_pre_key_message_items</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">UnacknowledgedPreKeyMessageItems</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">UnacknowledgedPreKeyMessageItems</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">pending_pre_key</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">pending_pre_key</span> {
             <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">UnacknowledgedPreKeyMessageItems::new</span>(
                 <span class="kw">match</span> <span class="ident">pending_pre_key</span>.<span class="ident">pre_key_id</span> {
-                    <span class="number">0</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">None</span>,
-                    <span class="ident">v</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Some</span>(<span class="ident">v</span>),
+                    <span class="number">0</span> =&gt; <span class="prelude-val">None</span>,
+                    <span class="ident">v</span> =&gt; <span class="prelude-val">Some</span>(<span class="ident">v</span>),
                 },
                 <span class="ident">pending_pre_key</span>.<span class="ident">signed_pre_key_id</span> <span class="kw">as</span> <span class="ident">SignedPreKeyId</span>,
                 <span class="ident">PublicKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">pending_pre_key</span>.<span class="ident">base_key</span>)<span class="question-mark">?</span>,
@@ -1049,44 +1049,44 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">clear_unacknowledged_pre_key_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">clear_unacknowledged_pre_key_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">pending_pre_key</span> <span class="op">=</span> <span class="prelude-val">None</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_remote_registration_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">registration_id</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_remote_registration_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">registration_id</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">remote_registration_id</span> <span class="op">=</span> <span class="ident">registration_id</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">remote_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">remote_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">session</span>.<span class="ident">remote_registration_id</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_local_registration_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">registration_id</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_local_registration_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">registration_id</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session</span>.<span class="ident">local_registration_id</span> <span class="op">=</span> <span class="ident">registration_id</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">local_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">local_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">session</span>.<span class="ident">local_registration_id</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">SessionStructure</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SessionState</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">value</span>: <span class="ident">SessionStructure</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SessionState</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">value</span>: <span class="ident">SessionStructure</span>) -&gt; <span class="ident">SessionState</span> {
         <span class="ident">SessionState::new</span>(<span class="ident">value</span>)
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">SessionState</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SessionStructure</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">value</span>: <span class="ident">SessionState</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SessionStructure</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">value</span>: <span class="ident">SessionState</span>) -&gt; <span class="ident">SessionStructure</span> {
         <span class="ident">value</span>.<span class="ident">session</span>
     }
 }
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">SessionState</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">SessionStructure</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">SessionState</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">SessionStructure</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">value</span>: <span class="kw-2">&amp;</span><span class="ident">SessionState</span>) -&gt; <span class="ident">SessionStructure</span> {
         <span class="ident">value</span>.<span class="ident">session</span>.<span class="ident">clone</span>()
     }
 }
@@ -1098,21 +1098,21 @@
 }
 
 <span class="kw">impl</span> <span class="ident">SessionRecord</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_fresh</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_fresh</span>() -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">current_session</span>: <span class="prelude-val">None</span>,
             <span class="ident">previous_sessions</span>: <span class="ident">Vec::new</span>(),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">state</span>: <span class="ident">SessionState</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">state</span>: <span class="ident">SessionState</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">current_session</span>: <span class="prelude-val">Some</span>(<span class="ident">state</span>),
             <span class="ident">previous_sessions</span>: <span class="ident">Vec::new</span>(),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">record</span> <span class="op">=</span> <span class="ident">RecordStructure::decode</span>(<span class="ident">bytes</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
@@ -1121,7 +1121,7 @@
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_single_session_state</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_single_session_state</span>(<span class="ident">bytes</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">session</span> <span class="op">=</span> <span class="ident">SessionState::new</span>(<span class="ident">SessionStructure::decode</span>(<span class="ident">bytes</span>)<span class="question-mark">?</span>);
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">current_session</span>: <span class="prelude-val">Some</span>(<span class="ident">session</span>),
@@ -1129,10 +1129,10 @@
         })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">has_session_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">version</span>: <span class="ident">u32</span>, <span class="ident">alice_base_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">has_session_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">version</span>: <span class="ident">u32</span>, <span class="ident">alice_base_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">current_session</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">current_session</span> {
-            <span class="kw">if</span> <span class="ident">current_session</span>.<span class="ident">session_version</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">version</span>
-                <span class="op">&amp;&amp;</span> <span class="ident">alice_base_key</span> <span class="op">=</span><span class="op">=</span> <span class="ident">current_session</span>.<span class="ident">alice_base_key</span>()<span class="question-mark">?</span>
+            <span class="kw">if</span> <span class="ident">current_session</span>.<span class="ident">session_version</span>()<span class="question-mark">?</span> <span class="op">==</span> <span class="ident">version</span>
+                <span class="op">&amp;&amp;</span> <span class="ident">alice_base_key</span> <span class="op">==</span> <span class="ident">current_session</span>.<span class="ident">alice_base_key</span>()<span class="question-mark">?</span>
             {
                 <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
             }
@@ -1140,8 +1140,8 @@
 
         <span class="kw">for</span> <span class="ident">previous</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">previous_session_states</span>() {
             <span class="kw">let</span> <span class="ident">previous</span> <span class="op">=</span> <span class="ident">previous</span><span class="question-mark">?</span>;
-            <span class="kw">if</span> <span class="ident">previous</span>.<span class="ident">session_version</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">version</span>
-                <span class="op">&amp;&amp;</span> <span class="ident">alice_base_key</span> <span class="op">=</span><span class="op">=</span> <span class="ident">previous</span>.<span class="ident">alice_base_key</span>()<span class="question-mark">?</span>
+            <span class="kw">if</span> <span class="ident">previous</span>.<span class="ident">session_version</span>()<span class="question-mark">?</span> <span class="op">==</span> <span class="ident">version</span>
+                <span class="op">&amp;&amp;</span> <span class="ident">alice_base_key</span> <span class="op">==</span> <span class="ident">previous</span>.<span class="ident">alice_base_key</span>()<span class="question-mark">?</span>
             {
                 <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
             }
@@ -1150,11 +1150,11 @@
         <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_current_session_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_current_session_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">current_session</span>.<span class="ident">is_some</span>()
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">session_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">SessionState</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">session_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">SessionState</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">session</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">current_session</span> {
             <span class="prelude-val">Ok</span>(<span class="ident">session</span>)
         } <span class="kw">else</span> {
@@ -1165,7 +1165,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">session_state_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">SessionState</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">session_state_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">SessionState</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">session</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">current_session</span> {
             <span class="prelude-val">Ok</span>(<span class="ident">session</span>)
         } <span class="kw">else</span> {
@@ -1176,14 +1176,14 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_session_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">session</span>: <span class="ident">SessionState</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_session_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">session</span>: <span class="ident">SessionState</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">current_session</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">session</span>);
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">previous_session_states</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SessionState</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
+    ) -&gt; <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SessionState</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
         <span class="self">self</span>.<span class="ident">previous_sessions</span>
             .<span class="ident">iter</span>()
             .<span class="ident">map</span>(<span class="op">|</span><span class="ident">bytes</span><span class="op">|</span> <span class="prelude-val">Ok</span>(<span class="ident">SessionStructure::decode</span>(<span class="kw-2">&amp;</span><span class="ident">bytes</span>[..])<span class="question-mark">?</span>.<span class="ident">into</span>()))
@@ -1193,7 +1193,7 @@
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">old_session</span>: <span class="ident">usize</span>,
         <span class="ident">updated_session</span>: <span class="ident">SessionState</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">old_session</span> <span class="op">&gt;</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">previous_sessions</span>.<span class="ident">len</span>() {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidState</span>(
                 <span class="string">&quot;promote_old_session&quot;</span>,
@@ -1204,13 +1204,13 @@
         <span class="self">self</span>.<span class="ident">promote_state</span>(<span class="ident">updated_session</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">promote_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">new_state</span>: <span class="ident">SessionState</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">promote_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">new_state</span>: <span class="ident">SessionState</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">archive_current_state</span>()<span class="question-mark">?</span>;
         <span class="self">self</span>.<span class="ident">current_session</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">new_state</span>);
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">archive_current_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">archive_current_state</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">current_session</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">current_session</span>.<span class="ident">take</span>() {
             <span class="kw">if</span> <span class="self">self</span>.<span class="ident">previous_sessions</span>.<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">consts::ARCHIVED_STATES_MAX_LENGTH</span> {
                 <span class="self">self</span>.<span class="ident">previous_sessions</span>.<span class="ident">pop</span>();
@@ -1224,7 +1224,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">record</span> <span class="op">=</span> <span class="ident">RecordStructure</span> {
             <span class="ident">current_session</span>: <span class="self">self</span>.<span class="ident">current_session</span>.<span class="ident">as_ref</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="ident">s</span>.<span class="ident">into</span>()),
             <span class="ident">previous_sessions</span>: <span class="self">self</span>.<span class="ident">previous_sessions</span>.<span class="ident">clone</span>(),
@@ -1232,49 +1232,49 @@
         <span class="prelude-val">Ok</span>(<span class="ident">record</span>.<span class="ident">encode_to_vec</span>())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remote_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remote_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">remote_registration_id</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">local_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">local_registration_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">local_registration_id</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">session_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">session_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">session_version</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">local_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">local_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">local_identity_key_bytes</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remote_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remote_identity_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">remote_identity_key_bytes</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_sender_chain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_sender_chain</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">current_session</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">session</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">session</span>.<span class="ident">has_sender_chain</span>(),
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
+            <span class="prelude-val">Some</span>(<span class="ident">session</span>) =&gt; <span class="ident">session</span>.<span class="ident">has_sender_chain</span>(),
+            <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">alice_base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">alice_base_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">alice_base_key</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_receiver_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_receiver_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ChainKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">get_receiver_chain_key</span>(<span class="ident">sender</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sender_chain_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_sender_chain_key_bytes</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">session_state</span>()<span class="question-mark">?</span>.<span class="ident">get_sender_chain_key_bytes</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">current_ratchet_key_matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">current_ratchet_key_matches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">current_session</span> {
-            <span class="prelude-val">Some</span>(<span class="ident">session</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="ident">session</span>.<span class="ident">sender_ratchet_key</span>()<span class="question-mark">?</span> <span class="op">=</span><span class="op">=</span> <span class="ident">key</span>),
-            <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
+            <span class="prelude-val">Some</span>(<span class="ident">session</span>) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="ident">session</span>.<span class="ident">sender_ratchet_key</span>()<span class="question-mark">?</span> <span class="op">==</span> <span class="ident">key</span>),
+            <span class="prelude-val">None</span> =&gt; <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>),
         }
     }
 }

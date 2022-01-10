@@ -245,13 +245,13 @@
 }
 
 <span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">CipherMode</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">fmt::Error</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">CipherMode::DecryptAndEncrypt</span>(<span class="ident">key_pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">f</span>
+            <span class="ident">CipherMode::DecryptAndEncrypt</span>(<span class="ident">key_pair</span>) =&gt; <span class="ident">f</span>
                 .<span class="ident">debug_tuple</span>(<span class="string">&quot;CipherMode::DecryptAndEncrypt&quot;</span>)
                 .<span class="ident">field</span>(<span class="kw-2">&amp;</span><span class="ident">key_pair</span>.<span class="ident">public_key</span>)
                 .<span class="ident">finish</span>(),
-            <span class="ident">CipherMode::EncryptOnly</span>(<span class="ident">public</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">f</span>
+            <span class="ident">CipherMode::EncryptOnly</span>(<span class="ident">public</span>) =&gt; <span class="ident">f</span>
                 .<span class="ident">debug_tuple</span>(<span class="string">&quot;CipherMode::EncryptOnly&quot;</span>)
                 .<span class="ident">field</span>(<span class="kw-2">&amp;</span><span class="ident">public</span>)
                 .<span class="ident">finish</span>(),
@@ -260,10 +260,10 @@
 }
 
 <span class="kw">impl</span> <span class="ident">CipherMode</span> {
-    <span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
+    <span class="kw">fn</span> <span class="ident">public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">CipherMode::DecryptAndEncrypt</span>(<span class="ident">pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">pair</span>.<span class="ident">public_key</span>,
-            <span class="ident">CipherMode::EncryptOnly</span>(<span class="ident">pub_key</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">pub_key</span>,
+            <span class="ident">CipherMode::DecryptAndEncrypt</span>(<span class="ident">pair</span>) =&gt; <span class="kw-2">&amp;</span><span class="ident">pair</span>.<span class="ident">public_key</span>,
+            <span class="ident">CipherMode::EncryptOnly</span>(<span class="ident">pub_key</span>) =&gt; <span class="ident">pub_key</span>,
         }
     }
 }
@@ -277,7 +277,7 @@
 
 <span class="kw">impl</span> <span class="ident">ProvisioningCipher</span> {
     <span class="doccomment">/// Generate a random key pair</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">generate</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">rng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">R</span>: <span class="ident">rand::Rng</span> <span class="op">+</span> <span class="ident">rand::CryptoRng</span>,
     {
@@ -287,26 +287,26 @@
         })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_public</span>(<span class="ident">key</span>: <span class="ident">PublicKey</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_public</span>(<span class="ident">key</span>: <span class="ident">PublicKey</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">key_material</span>: <span class="ident">CipherMode::EncryptOnly</span>(<span class="ident">key</span>),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_key_pair</span>(<span class="ident">key_pair</span>: <span class="ident">KeyPair</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_key_pair</span>(<span class="ident">key_pair</span>: <span class="ident">KeyPair</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">key_material</span>: <span class="ident">CipherMode::DecryptAndEncrypt</span>(<span class="ident">key_pair</span>),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">public_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">PublicKey</span> {
         <span class="self">self</span>.<span class="ident">key_material</span>.<span class="ident">public</span>()
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">encrypt</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">msg</span>: <span class="ident">ProvisionMessage</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ProvisionEnvelope</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ProvisionEnvelope</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">encode_to_vec</span>();
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>();
@@ -347,10 +347,10 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">decrypt</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">provision_envelope</span>: <span class="ident">ProvisionEnvelope</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ProvisionMessage</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ProvisionMessage</span>, <span class="ident">ProvisioningError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">key_pair</span> <span class="op">=</span> <span class="kw">match</span> <span class="self">self</span>.<span class="ident">key_material</span> {
-            <span class="ident">CipherMode::DecryptAndEncrypt</span>(<span class="kw-2">ref</span> <span class="ident">key_pair</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">key_pair</span>,
-            <span class="ident">CipherMode::EncryptOnly</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> {
+            <span class="ident">CipherMode::DecryptAndEncrypt</span>(<span class="kw-2">ref</span> <span class="ident">key_pair</span>) =&gt; <span class="ident">key_pair</span>,
+            <span class="ident">CipherMode::EncryptOnly</span>(<span class="kw">_</span>) =&gt; {
                 <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ProvisioningError::EncryptOnlyProvisioningCipher</span>);
             }
         };
@@ -414,7 +414,7 @@
     <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
     <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">encrypt_provisioning_roundtrip</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">encrypt_provisioning_roundtrip</span>() -&gt; <span class="ident">anyhow::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">rng</span> <span class="op">=</span> <span class="ident">rand::thread_rng</span>();
         <span class="kw">let</span> <span class="ident">cipher</span> <span class="op">=</span> <span class="ident">ProvisioningCipher::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">rng</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">encrypt_cipher</span> <span class="op">=</span>

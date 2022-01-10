@@ -262,7 +262,7 @@
     <span class="ident">plaintext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
     <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyMessage</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyMessage</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">record</span> <span class="op">=</span> <span class="ident">sender_key_store</span>
         .<span class="ident">load_sender_key</span>(<span class="ident">sender</span>, <span class="ident">distribution_id</span>, <span class="ident">ctx</span>)
         .<span class="kw">await</span><span class="question-mark">?</span>
@@ -300,7 +300,7 @@
     <span class="ident">state</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">SenderKeyState</span>,
     <span class="ident">iteration</span>: <span class="ident">u32</span>,
     <span class="ident">distribution_id</span>: <span class="ident">Uuid</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderMessageKey</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderMessageKey</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">sender_chain_key</span> <span class="op">=</span> <span class="ident">state</span>.<span class="ident">sender_chain_key</span>()<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">current_iteration</span> <span class="op">=</span> <span class="ident">sender_chain_key</span>.<span class="ident">iteration</span>()<span class="question-mark">?</span>;
 
@@ -349,7 +349,7 @@
     <span class="ident">sender_key_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">SenderKeyStore</span>,
     <span class="ident">sender</span>: <span class="kw-2">&amp;</span><span class="ident">ProtocolAddress</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">skm</span> <span class="op">=</span> <span class="ident">SenderKeyMessage::try_from</span>(<span class="ident">skm_bytes</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">record</span> <span class="op">=</span> <span class="ident">sender_key_store</span>
         .<span class="ident">load_sender_key</span>(<span class="ident">sender</span>, <span class="ident">skm</span>.<span class="ident">distribution_id</span>(), <span class="ident">ctx</span>)
@@ -395,7 +395,7 @@
     <span class="ident">skdm</span>: <span class="kw-2">&amp;</span><span class="ident">SenderKeyDistributionMessage</span>,
     <span class="ident">sender_key_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">SenderKeyStore</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="ident">distribution_id</span> <span class="op">=</span> <span class="ident">skdm</span>.<span class="ident">distribution_id</span>()<span class="question-mark">?</span>;
     <span class="macro">log::info!</span>(
         <span class="string">&quot;{} Processing SenderKey distribution {} with chain ID {}&quot;</span>,
@@ -429,7 +429,7 @@
     <span class="ident">sender_key_store</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw">dyn</span> <span class="ident">SenderKeyStore</span>,
     <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
     <span class="ident">ctx</span>: <span class="ident">Context</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyDistributionMessage</span><span class="op">&gt;</span> {
+) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyDistributionMessage</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sender_key_record</span> <span class="op">=</span> <span class="ident">sender_key_store</span>
         .<span class="ident">load_sender_key</span>(<span class="ident">sender</span>, <span class="ident">distribution_id</span>, <span class="ident">ctx</span>)
         .<span class="kw">await</span><span class="question-mark">?</span>

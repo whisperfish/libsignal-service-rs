@@ -1345,7 +1345,7 @@
     <span class="ident">uuidLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCommitmentOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCommitmentLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1358,8 +1358,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1371,7 +1371,7 @@
     <span class="ident">uuidLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyVersionOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyVersionLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKey</span>, <span class="ident">profileKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1384,8 +1384,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1393,7 +1393,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ProfileKeyCommitment_checkValidContents</span>(
     <span class="ident">profileKeyCommitment</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCommitmentLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_commitment</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCommitment</span>, <span class="ident">profileKeyCommitmentLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
@@ -1403,8 +1403,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1414,7 +1414,7 @@
     <span class="ident">randomnessLen</span>: <span class="ident">u32</span>,
     <span class="ident">groupSecretParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1426,8 +1426,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1437,7 +1437,7 @@
     <span class="ident">groupMasterKeyLen</span>: <span class="ident">u32</span>,
     <span class="ident">groupSecretParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_master_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupMasterKey</span>, <span class="ident">groupMasterKeyLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1449,8 +1449,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1458,7 +1458,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_GroupSecretParams_checkValidContents</span>(
     <span class="ident">groupSecretParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1467,8 +1467,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1478,7 +1478,7 @@
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
     <span class="ident">groupMasterKeyOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupMasterKeyLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1489,8 +1489,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1500,7 +1500,7 @@
     <span class="ident">groupSecretParamsLen</span>: <span class="ident">u32</span>,
     <span class="ident">groupPublicParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupPublicParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1512,8 +1512,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1525,7 +1525,7 @@
     <span class="ident">uuidLen</span>: <span class="ident">u32</span>,
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1537,8 +1537,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1550,7 +1550,7 @@
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
     <span class="ident">uuidOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1562,8 +1562,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1577,7 +1577,7 @@
     <span class="ident">uuidLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1597,8 +1597,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1612,7 +1612,7 @@
     <span class="ident">uuidLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1632,8 +1632,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1647,7 +1647,7 @@
     <span class="ident">plaintextLen</span>: <span class="ident">u32</span>,
     <span class="ident">blobCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">blobCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1666,8 +1666,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1679,7 +1679,7 @@
     <span class="ident">blobCiphertextLen</span>: <span class="ident">u32</span>,
     <span class="ident">plaintextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">plaintextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupSecretParams</span>, <span class="ident">groupSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1692,8 +1692,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1703,7 +1703,7 @@
     <span class="ident">randomnessLen</span>: <span class="ident">u32</span>,
     <span class="ident">serverSecretParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">serverSecretParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1715,8 +1715,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1724,7 +1724,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ServerSecretParams_checkValidContents</span>(
     <span class="ident">serverSecretParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">serverSecretParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1733,8 +1733,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1744,7 +1744,7 @@
     <span class="ident">serverSecretParamsLen</span>: <span class="ident">u32</span>,
     <span class="ident">serverPublicParamsOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">serverPublicParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1756,8 +1756,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1771,7 +1771,7 @@
     <span class="ident">messageLen</span>: <span class="ident">u32</span>,
     <span class="ident">notarySignatureOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">notarySignatureLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1790,8 +1790,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1806,7 +1806,7 @@
     <span class="ident">authCredentialResponseLen</span>: <span class="ident">u32</span>,
     <span class="ident">authCredentialOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1828,8 +1828,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1845,7 +1845,7 @@
     <span class="ident">authCredentialLen</span>: <span class="ident">u32</span>,
     <span class="ident">authCredentialPresentationOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1872,8 +1872,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1889,7 +1889,7 @@
     <span class="ident">profileKeyLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCredentialRequestContextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestContextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1915,8 +1915,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1930,7 +1930,7 @@
     <span class="ident">profileKeyCredentialResponseLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCredentialOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -1959,8 +1959,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1976,7 +1976,7 @@
     <span class="ident">profileKeyCredentialLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCredentialPresentationOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2004,8 +2004,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2020,7 +2020,7 @@
     <span class="ident">redemptionTime</span>: <span class="ident">u32</span>,
     <span class="ident">authCredentialResponseOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialResponseLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2045,8 +2045,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2058,7 +2058,7 @@
     <span class="ident">groupPublicParamsLen</span>: <span class="ident">u32</span>,
     <span class="ident">authCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2079,8 +2079,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2098,7 +2098,7 @@
     <span class="ident">profileKeyCommitmentLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCredentialResponseOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialResponseLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2132,8 +2132,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2145,7 +2145,7 @@
     <span class="ident">groupPublicParamsLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverSecretParams</span>, <span class="ident">serverSecretParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2166,8 +2166,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2175,7 +2175,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_GroupPublicParams_checkValidContents</span>(
     <span class="ident">groupPublicParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">groupPublicParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2184,8 +2184,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2195,7 +2195,7 @@
     <span class="ident">groupPublicParamsLen</span>: <span class="ident">u32</span>,
     <span class="ident">groupIdentifierOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">groupIdentifierLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">groupPublicParams</span>, <span class="ident">groupPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2206,8 +2206,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2215,7 +2215,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ServerPublicParams_checkValidContents</span>(
     <span class="ident">serverPublicParams</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">serverPublicParamsLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2224,8 +2224,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2237,7 +2237,7 @@
     <span class="ident">messageLen</span>: <span class="ident">u32</span>,
     <span class="ident">notarySignature</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">notarySignatureLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">serverPublicParams</span>, <span class="ident">serverPublicParamsLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2253,8 +2253,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2262,7 +2262,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_AuthCredentialResponse_checkValidContents</span>(
     <span class="ident">authCredentialResponse</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialResponseLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_response</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(<span class="ident">authCredentialResponse</span>, <span class="ident">authCredentialResponseLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
@@ -2272,8 +2272,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2281,7 +2281,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_AuthCredential_checkValidContents</span>(
     <span class="ident">authCredential</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">authCredential</span>, <span class="ident">authCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2290,8 +2290,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2299,7 +2299,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_AuthCredentialPresentation_checkValidContents</span>(
     <span class="ident">authCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2312,8 +2312,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2323,7 +2323,7 @@
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2341,8 +2341,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2352,7 +2352,7 @@
     <span class="ident">authCredentialPresentationLen</span>: <span class="ident">u32</span>,
     <span class="ident">redemptionTimeOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">redemptionTimeLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2370,8 +2370,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2379,7 +2379,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ProfileKeyCredentialRequestContext_checkValidContents</span>(
     <span class="ident">profileKeyCredentialRequestContext</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestContextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2394,8 +2394,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2405,7 +2405,7 @@
     <span class="ident">profileKeyCredentialRequestContextLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCredentialRequestOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2427,8 +2427,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2436,7 +2436,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ProfileKeyCredentialRequest_checkValidContents</span>(
     <span class="ident">profileKeyCredentialRequest</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialRequestLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2449,8 +2449,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2458,7 +2458,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ProfileKeyCredentialResponse_checkValidContents</span>(
     <span class="ident">profileKeyCredentialResponse</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialResponseLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_response</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2471,8 +2471,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2480,7 +2480,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ProfileKeyCredential_checkValidContents</span>(
     <span class="ident">profileKeyCredential</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCredential</span>, <span class="ident">profileKeyCredentialLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
@@ -2490,8 +2490,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2499,7 +2499,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ProfileKeyCredentialPresentation_checkValidContents</span>(
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2514,8 +2514,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2525,7 +2525,7 @@
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
     <span class="ident">uuidCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2543,8 +2543,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2554,7 +2554,7 @@
     <span class="ident">profileKeyCredentialPresentationLen</span>: <span class="ident">u32</span>,
     <span class="ident">profileKeyCiphertextOut</span>: <span class="kw-2">*</span><span class="kw-2">mut</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(
@@ -2573,8 +2573,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2582,7 +2582,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_UuidCiphertext_checkValidContents</span>(
     <span class="ident">uuidCiphertext</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">uuidCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuidCiphertext</span>, <span class="ident">uuidCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2591,8 +2591,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2600,7 +2600,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_ProfileKeyCiphertext_checkValidContents</span>(
     <span class="ident">profileKeyCiphertext</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">profileKeyCiphertextLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> {
             <span class="ident">slice::from_raw_parts</span>(<span class="ident">profileKeyCiphertext</span>, <span class="ident">profileKeyCiphertextLen</span> <span class="kw">as</span> <span class="ident">usize</span>)
@@ -2610,8 +2610,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2619,7 +2619,7 @@
 <span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_Randomness_checkValidContents</span>(
     <span class="ident">randomness</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>,
     <span class="ident">randomnessLen</span>: <span class="ident">u32</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span>
             <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">randomness</span>, <span class="ident">randomnessLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
@@ -2628,13 +2628,13 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
 <span class="attribute">#[<span class="ident">no_mangle</span>]</span>
-<span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_Uuid_checkValidContents</span>(<span class="ident">uuid</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">uuidLen</span>: <span class="ident">u32</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+<span class="kw">pub</span> <span class="kw">extern</span> <span class="string">&quot;C&quot;</span> <span class="kw">fn</span> <span class="ident">FFI_Uuid_checkValidContents</span>(<span class="ident">uuid</span>: <span class="kw-2">*</span><span class="kw">const</span> <span class="ident">u8</span>, <span class="ident">uuidLen</span>: <span class="ident">u32</span>) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">uuid</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] <span class="op">=</span> <span class="kw">unsafe</span> { <span class="ident">slice::from_raw_parts</span>(<span class="ident">uuid</span>, <span class="ident">uuidLen</span> <span class="kw">as</span> <span class="ident">usize</span>) };
 
@@ -2642,8 +2642,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 </code></pre></div>

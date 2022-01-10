@@ -1596,7 +1596,7 @@
 <span class="comment">// lifetime checker won&#39;t let us.</span>
 <span class="kw">use</span> <span class="ident">jni::sys::jbyteArray</span>;
 
-<span class="kw">fn</span> <span class="ident">u8toi8</span>(<span class="ident">input</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">i8</span><span class="op">&gt;</span> {
+<span class="kw">fn</span> <span class="ident">u8toi8</span>(<span class="ident">input</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">i8</span><span class="op">&gt;</span> {
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">out</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">i8</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Default::default</span>();
     <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="ident">i</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">input</span> {
         <span class="ident">out</span>.<span class="ident">push</span>(<span class="ident">i</span> <span class="kw">as</span> <span class="ident">i8</span>);
@@ -1611,7 +1611,7 @@
     <span class="ident">profileKey</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCommitmentOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKey</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">uuid</span>).<span class="ident">unwrap</span>();
@@ -1634,8 +1634,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1646,7 +1646,7 @@
     <span class="ident">profileKey</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyVersionOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKey</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">uuid</span>).<span class="ident">unwrap</span>();
@@ -1668,8 +1668,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1678,7 +1678,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCommitment</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_commitment</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCommitment</span>).<span class="ident">unwrap</span>();
 
@@ -1691,8 +1691,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1702,7 +1702,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">randomness</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">groupSecretParamsOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">group_secret_params</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -1722,8 +1722,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1733,7 +1733,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">groupMasterKey</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">groupSecretParamsOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_master_key</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupMasterKey</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">group_secret_params</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -1753,8 +1753,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1763,7 +1763,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
 
@@ -1775,8 +1775,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1786,7 +1786,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">groupMasterKeyOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">group_master_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -1804,8 +1804,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1815,7 +1815,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">groupPublicParamsOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">group_public_params</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -1835,8 +1835,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1847,7 +1847,7 @@
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuidCiphertextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">uuid</span>).<span class="ident">unwrap</span>();
@@ -1869,8 +1869,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1881,7 +1881,7 @@
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuidCiphertext</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuidOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">uuidCiphertext</span>).<span class="ident">unwrap</span>();
@@ -1902,8 +1902,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1915,7 +1915,7 @@
     <span class="ident">profileKey</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCiphertextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">profile_key</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKey</span>).<span class="ident">unwrap</span>();
@@ -1943,8 +1943,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1956,7 +1956,7 @@
     <span class="ident">profileKeyCiphertext</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCiphertext</span>).<span class="ident">unwrap</span>();
@@ -1980,8 +1980,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -1993,7 +1993,7 @@
     <span class="ident">randomness</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">plaintext</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">blobCiphertextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
@@ -2017,8 +2017,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2029,7 +2029,7 @@
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">blobCiphertext</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">plaintextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">blob_ciphertext</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">blobCiphertext</span>).<span class="ident">unwrap</span>();
@@ -2050,8 +2050,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2061,7 +2061,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">randomness</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">serverSecretParamsOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">server_secret_params</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -2081,8 +2081,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2091,7 +2091,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">serverSecretParams</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverSecretParams</span>).<span class="ident">unwrap</span>();
 
@@ -2103,8 +2103,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2114,7 +2114,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">serverSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">serverPublicParamsOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">server_public_params</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -2134,8 +2134,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2147,7 +2147,7 @@
     <span class="ident">randomness</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">message</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">notarySignatureOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
@@ -2171,8 +2171,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2185,7 +2185,7 @@
     <span class="ident">redemptionTime</span>: <span class="ident">jint</span>,
     <span class="ident">authCredentialResponse</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">authCredentialOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverPublicParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">uuid</span>).<span class="ident">unwrap</span>();
@@ -2211,8 +2211,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2225,7 +2225,7 @@
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">authCredential</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">authCredentialPresentationOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverPublicParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
@@ -2256,8 +2256,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2270,7 +2270,7 @@
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKey</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredentialRequestContextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverPublicParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
@@ -2305,8 +2305,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2318,7 +2318,7 @@
     <span class="ident">profileKeyCredentialRequestContext</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredentialResponse</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredentialOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverPublicParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span> <span class="op">=</span> <span class="ident">env</span>
@@ -2350,8 +2350,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2364,7 +2364,7 @@
     <span class="ident">groupSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredential</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredentialPresentationOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverPublicParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
@@ -2399,8 +2399,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2413,7 +2413,7 @@
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">redemptionTime</span>: <span class="ident">jint</span>,
     <span class="ident">authCredentialResponseOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
@@ -2443,8 +2443,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2455,7 +2455,7 @@
     <span class="ident">serverSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">groupPublicParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">authCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">group_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupPublicParams</span>).<span class="ident">unwrap</span>();
@@ -2474,8 +2474,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2489,7 +2489,7 @@
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCommitment</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredentialResponseOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
@@ -2525,8 +2525,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2537,7 +2537,7 @@
     <span class="ident">serverSecretParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">groupPublicParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_secret_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverSecretParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">group_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupPublicParams</span>).<span class="ident">unwrap</span>();
@@ -2557,8 +2557,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2567,7 +2567,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">groupPublicParams</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupPublicParams</span>).<span class="ident">unwrap</span>();
 
@@ -2579,8 +2579,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2590,7 +2590,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">groupPublicParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">groupIdentifierOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">group_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">groupPublicParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">group_identifier</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span> <span class="op">=</span>
@@ -2610,8 +2610,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2620,7 +2620,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">serverPublicParams</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverPublicParams</span>).<span class="ident">unwrap</span>();
 
@@ -2632,8 +2632,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2644,7 +2644,7 @@
     <span class="ident">serverPublicParams</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">message</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">notarySignature</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">server_public_params</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">serverPublicParams</span>).<span class="ident">unwrap</span>();
         <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">message</span>).<span class="ident">unwrap</span>();
@@ -2662,8 +2662,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2672,7 +2672,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">authCredentialResponse</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_response</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">authCredentialResponse</span>).<span class="ident">unwrap</span>();
 
@@ -2685,8 +2685,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2695,7 +2695,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">authCredential</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">authCredential</span>).<span class="ident">unwrap</span>();
 
@@ -2707,8 +2707,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2717,7 +2717,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">authCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span> <span class="op">=</span>
             <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">authCredentialPresentation</span>).<span class="ident">unwrap</span>();
@@ -2731,8 +2731,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2742,7 +2742,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">authCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuidCiphertextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span> <span class="op">=</span>
             <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">authCredentialPresentation</span>).<span class="ident">unwrap</span>();
@@ -2763,8 +2763,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2774,7 +2774,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">authCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">redemptionTimeOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">auth_credential_presentation</span> <span class="op">=</span>
             <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">authCredentialPresentation</span>).<span class="ident">unwrap</span>();
@@ -2795,8 +2795,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2805,7 +2805,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredentialRequestContext</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span> <span class="op">=</span> <span class="ident">env</span>
             .<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredentialRequestContext</span>)
@@ -2821,8 +2821,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2832,7 +2832,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredentialRequestContext</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCredentialRequestOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request_context</span> <span class="op">=</span> <span class="ident">env</span>
             .<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredentialRequestContext</span>)
@@ -2861,8 +2861,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2871,7 +2871,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredentialRequest</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_request</span> <span class="op">=</span>
             <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredentialRequest</span>).<span class="ident">unwrap</span>();
@@ -2886,8 +2886,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2896,7 +2896,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredentialResponse</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_response</span> <span class="op">=</span> <span class="ident">env</span>
             .<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredentialResponse</span>)
@@ -2912,8 +2912,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2922,7 +2922,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredential</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredential</span>).<span class="ident">unwrap</span>();
 
@@ -2935,8 +2935,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2945,7 +2945,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span> <span class="op">=</span> <span class="ident">env</span>
             .<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredentialPresentation</span>)
@@ -2961,8 +2961,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -2972,7 +2972,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">uuidCiphertextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span> <span class="op">=</span> <span class="ident">env</span>
             .<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredentialPresentation</span>)
@@ -2994,8 +2994,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -3005,7 +3005,7 @@
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCredentialPresentation</span>: <span class="ident">jbyteArray</span>,
     <span class="ident">profileKeyCiphertextOut</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span> <span class="op">=</span> <span class="ident">env</span>
             .<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCredentialPresentation</span>)
@@ -3031,8 +3031,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -3041,7 +3041,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">uuidCiphertext</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">uuidCiphertext</span>).<span class="ident">unwrap</span>();
 
@@ -3053,8 +3053,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -3063,7 +3063,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">profileKeyCiphertext</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">profileKeyCiphertext</span>).<span class="ident">unwrap</span>();
 
@@ -3076,8 +3076,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -3086,7 +3086,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">randomness</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">randomness</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">randomness</span>).<span class="ident">unwrap</span>();
 
@@ -3098,8 +3098,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 
@@ -3108,7 +3108,7 @@
     <span class="ident">env</span>: <span class="ident">JNIEnv</span>,
     <span class="ident">_class</span>: <span class="ident">JClass</span>,
     <span class="ident">uuid</span>: <span class="ident">jbyteArray</span>,
-) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">i32</span> {
+) -&gt; <span class="ident">i32</span> {
     <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">panic::catch_unwind</span>(<span class="op">|</span><span class="op">|</span> {
         <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="ident">env</span>.<span class="ident">convert_byte_array</span>(<span class="ident">uuid</span>).<span class="ident">unwrap</span>();
 
@@ -3120,8 +3120,8 @@
     });
 
     <span class="kw">match</span> <span class="ident">result</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">result</span>,
-        <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
+        <span class="prelude-val">Ok</span>(<span class="ident">result</span>) =&gt; <span class="ident">result</span>,
+        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="ident">FFI_RETURN_INTERNAL_ERROR</span>,
     }
 }
 </code></pre></div>
