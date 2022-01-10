@@ -31,7 +31,7 @@ pub struct ConfirmCodeMessage {
     pub video: bool,
     pub fetches_messages: bool,
     pub pin: Option<String>,
-    #[serde(with = "serde_optional_base64")]
+    #[serde(default, with = "serde_optional_base64")]
     pub unidentified_access_key: Option<Vec<u8>>,
     pub unrestricted_unidentified_access: bool,
     pub discoverable_by_phone_number: bool,

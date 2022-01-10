@@ -186,9 +186,9 @@ pub struct EnvelopeEntity {
     pub source: Option<String>,
     pub source_uuid: Option<String>,
     pub source_device: u32,
-    #[serde(with = "serde_optional_base64")]
+    #[serde(default, with = "serde_optional_base64")]
     pub message: Option<Vec<u8>>,
-    #[serde(with = "serde_optional_base64")]
+    #[serde(default, with = "serde_optional_base64")]
     pub content: Option<Vec<u8>>,
     pub server_timestamp: u64,
     pub guid: String,
