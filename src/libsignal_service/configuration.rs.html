@@ -301,7 +301,7 @@ MIID7zCCAtegAwIBAgIJAIm6LatK5PNiMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYDVQQGEwJVUzETMBEG
             <span class="comment">// configuration with the Signal API staging endpoints</span>
             <span class="comment">// see: https://github.com/signalapp/Signal-Desktop/blob/master/config/default.json</span>
             <span class="ident">SignalServers::Staging</span> =&gt; <span class="ident">ServiceConfiguration</span> {
-                <span class="ident">service_url</span>: <span class="string">&quot;https://textsecure-service-staging.whispersystems.org&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
+                <span class="ident">service_url</span>: <span class="string">&quot;https://chat.staging.signal.org&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
                 <span class="ident">storage_url</span>:<span class="string">&quot;https://storage-staging.signal.org&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
                 <span class="ident">cdn_urls</span>: {
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
@@ -320,7 +320,7 @@ MIID7zCCAtegAwIBAgIJAIm6LatK5PNiMA0GCSqGSIb3DQEBBQUAMIGNMQswCQYDVQQGEwJVUzETMBEG
             <span class="comment">// https://github.com/signalapp/Signal-Desktop/blob/master/config/production.json</span>
             <span class="ident">SignalServers::Production</span> =&gt; <span class="ident">ServiceConfiguration</span> {
                 <span class="ident">service_url</span>:
-                    <span class="string">&quot;https://textsecure-service.whispersystems.org&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
+                    <span class="string">&quot;https://chat.signal.org&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
                 <span class="ident">storage_url</span>: <span class="string">&quot;https://storage.signal.org&quot;</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>(),
                 <span class="ident">cdn_urls</span>: {
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">map</span> <span class="op">=</span> <span class="ident">HashMap::new</span>();
