@@ -121,7 +121,7 @@ impl From<&SignalServers> for ServiceConfiguration {
             // configuration with the Signal API staging endpoints
             // see: https://github.com/signalapp/Signal-Desktop/blob/master/config/default.json
             SignalServers::Staging => ServiceConfiguration {
-                service_url: "https://textsecure-service-staging.whispersystems.org".parse().unwrap(),
+                service_url: "https://chat.staging.signal.org".parse().unwrap(),
                 storage_url:"https://storage-staging.signal.org".parse().unwrap(),
                 cdn_urls: {
                     let mut map = HashMap::new();
@@ -140,7 +140,7 @@ impl From<&SignalServers> for ServiceConfiguration {
             // https://github.com/signalapp/Signal-Desktop/blob/master/config/production.json
             SignalServers::Production => ServiceConfiguration {
                 service_url:
-                    "https://textsecure-service.whispersystems.org".parse().unwrap(),
+                    "https://chat.signal.org".parse().unwrap(),
                 storage_url: "https://storage.signal.org".parse().unwrap(),
                 cdn_urls: {
                     let mut map = HashMap::new();
