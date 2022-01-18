@@ -86,6 +86,8 @@ pub struct DeviceInfo {
 pub struct AccountAttributes {
     #[serde(default, with = "serde_optional_base64")]
     pub signaling_key: Option<Vec<u8>>,
+    #[serde(rename = "name", skip_serializing_if = "Option::is_none")]
+    pub device_name: Option<String>,
     pub registration_id: u32,
     pub voice: bool,
     pub video: bool,
