@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Duration};
 use awc::{
     error::{ConnectError, PayloadError, SendRequestError},
     http::StatusCode,
-    http::{HeaderValue, Method},
+    http::{header::HeaderValue, Method},
     Client, ClientRequest, ClientResponse, Connector,
 };
 use bytes::Bytes;
