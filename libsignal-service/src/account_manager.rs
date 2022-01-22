@@ -16,8 +16,7 @@ use crate::{
     proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
     provisioning::{ProvisioningCipher, ProvisioningError},
     push_service::{
-        AccountAttributes, DeviceCapabilities, HttpAuthOverride, PushService,
-        ServiceError,
+        AccountAttributes, HttpAuthOverride, PushService, ServiceError,
     },
 };
 
@@ -396,36 +395,10 @@ impl<Service: PushService> AccountManager<Service> {
     /// Set profile attributes
     ///
     /// Signal Android does not allow unsetting voice/video.
-    #[allow(clippy::too_many_arguments)]
     pub async fn set_account_attributes(
         &mut self,
-        signaling_key: Option<Vec<u8>>,
-        registration_id: u32,
-        voice: bool,
-        video: bool,
-        fetches_messages: bool,
-        pin: Option<String>,
-        registration_lock: Option<String>,
-        unidentified_access_key: Option<Vec<u8>>,
-        unrestricted_unidentified_access: bool,
-        discoverable_by_phone_number: bool,
-        capabilities: DeviceCapabilities,
+        attributes: AccountAttributes,
     ) -> Result<(), ServiceError> {
-        let attribs = AccountAttributes {
-            signaling_key,
-            registration_id,
-            voice,
-            video,
-            fetches_messages,
-            pin,
-            registration_lock,
-            unidentified_access_key,
-            unrestricted_unidentified_access,
-            discoverable_by_phone_number,
-
-            capabilities,
-        };
-        self.service.set_account_attributes(attribs).await?;
-        Ok(())
+        self.service.set_account_attributes(attributes).await
     }
 }

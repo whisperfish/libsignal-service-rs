@@ -46,7 +46,8 @@ pub struct ConfirmDeviceMessage {
     pub supports_sms: bool,
     pub fetches_messages: bool,
     pub registration_id: u32,
-    pub name: String,
+    // FIXME: the name goes back here when we send this via the websocket
+    //pub name: String,
 }
 
 impl ConfirmCodeMessage {
@@ -281,7 +282,6 @@ impl<P: PushService> LinkingManager<P> {
         &mut self,
         csprng: &mut R,
         signaling_key: SignalingKey,
-        device_name: &str,
         mut tx: Sender<SecondaryDeviceProvisioning>,
     ) -> Result<(), ProvisioningError> {
         // open a websocket without authentication, to receive a tsurl://
@@ -373,7 +373,6 @@ impl<P: PushService> LinkingManager<P> {
                                 supports_sms: false,
                                 fetches_messages: true,
                                 registration_id,
-                                name: device_name.to_string(),
                             },
                         )
                         .await?;
