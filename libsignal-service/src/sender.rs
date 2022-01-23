@@ -127,7 +127,7 @@ pub enum MessageSenderError {
 impl<Service, S, I, SP, P, R> MessageSender<Service, S, I, SP, P, R>
 where
     Service: PushService + Clone,
-    S: SessionStore + SessionStoreExt + Clone,
+    S: SessionStore + SessionStoreExt + Sync + Clone,
     I: IdentityKeyStore + Clone,
     SP: SignedPreKeyStore + Clone,
     P: PreKeyStore + Clone,

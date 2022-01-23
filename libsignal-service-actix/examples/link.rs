@@ -54,7 +54,6 @@ async fn main() -> Result<(), Error> {
         provision_manager.provision_secondary_device(
             &mut csprng,
             signaling_key,
-            &args.device_name,
             tx,
         ),
         async move {

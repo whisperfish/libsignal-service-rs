@@ -526,8 +526,8 @@ fn get_client(cfg: &ServiceConfiguration, user_agent: String) -> Client {
         .timeout(Duration::from_secs(10)); // https://github.com/actix/actix-web/issues/1047
     let client = awc::ClientBuilder::new()
         .connector(connector)
-        .header("X-Signal-Agent", user_agent.clone())
-        .header("User-Agent", user_agent)
+        .add_default_header(("X-Signal-Agent", user_agent.clone()))
+        .add_default_header(("User-Agent", user_agent))
         .timeout(Duration::from_secs(65)); // as in Signal-Android
 
     client.finish()

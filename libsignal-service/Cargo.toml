@@ -40,7 +40,7 @@ prost-build = "0.9"
 
 [dev-dependencies]
 anyhow = "1.0"
-tokio = { version = "1.0", features = [ "macros" ] }
+tokio = { version = "1.0", features = [ "rt", "macros" ] }
 
 rustls = "0.20"
 
