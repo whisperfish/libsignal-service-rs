@@ -482,7 +482,7 @@ where
                 )
                 .await?;
                 msg.as_slice().to_vec()
-            }
+            },
             CiphertextMessageType::PreKey => {
                 let msg = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&content[..])?,
@@ -496,7 +496,7 @@ where
                 )
                 .await?;
                 msg.as_slice().to_vec()
-            }
+            },
             _ => unreachable!("unknown message from unidentified sender type"),
         };
 
@@ -532,24 +532,24 @@ impl UnidentifiedSenderMessageContent {
                     r#type: match message::Type::from_i32(message_type) {
                         Some(message::Type::Message) => {
                             CiphertextMessageType::Whisper
-                        }
+                        },
                         Some(message::Type::PrekeyMessage) => {
                             CiphertextMessageType::PreKey
-                        }
+                        },
                         t => {
                             return Err(
                                 SealedSessionError::InvalidMetadataMessageError(
                                     format!("Wrong message type ({:?})", t),
                                 ),
                             )
-                        }
+                        },
                     },
                     sender_certificate: SenderCertificate::try_from(
                         sender_certificate,
                     )?,
                     content,
                 })
-            }
+            },
             _ => Err(SealedSessionError::InvalidMetadataMessageError(
                 "Missing fields".into(),
             )),
@@ -570,7 +570,7 @@ impl UnidentifiedSenderMessageContent {
                             "unknown ciphertext message type".into(),
                         ),
                     )
-                }
+                },
             } as i32),
             sender_certificate: Some(crate::proto::SenderCertificate {
                 certificate: Some(self.sender_certificate.certificate),
@@ -629,10 +629,10 @@ impl SenderCertificate {
                             certificate,
                             signature,
                         })
-                    }
+                    },
                     _ => Err(SealedSessionError::InvalidCertificate),
                 }
-            }
+            },
             _ => Err(SealedSessionError::InvalidCertificate),
         }
     }
@@ -666,7 +666,7 @@ impl ServerCertificate {
                     }),
                     _ => Err(SealedSessionError::InvalidCertificate),
                 }
-            }
+            },
             _ => Err(SealedSessionError::InvalidCertificate),
         }
     }
@@ -690,7 +690,7 @@ impl CertificateValidator {
         ) {
             Err(_) | Ok(false) => {
                 return Err(SealedSessionError::InvalidCertificate)
-            }
+            },
             _ => (),
         };
 
@@ -700,7 +700,7 @@ impl CertificateValidator {
         {
             Err(_) | Ok(false) => {
                 return Err(SealedSessionError::InvalidCertificate)
-            }
+            },
             _ => (),
         }
 

@@ -46,7 +46,7 @@ pub trait SessionStoreExt: SessionStore {
             {
                 Ok(()) => {
                     count += 1;
-                }
+                },
                 Err(SignalProtocolError::SessionNotFound(_)) => (),
                 Err(e) => return Err(e),
             }
@@ -58,7 +58,7 @@ pub trait SessionStoreExt: SessionStore {
             {
                 Ok(()) => {
                     count += 1;
-                }
+                },
                 Err(SignalProtocolError::SessionNotFound(_)) => (),
                 Err(e) => return Err(e),
             }

@@ -194,7 +194,7 @@ impl TungsteniteWebSocket {
             Ok(()) => (),
             Err(e) => {
                 log::warn!("Processing task terminated with error: {:?}", e)
-            }
+            },
         }));
 
         Ok((

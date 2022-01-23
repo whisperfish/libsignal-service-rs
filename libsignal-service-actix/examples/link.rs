@@ -70,7 +70,7 @@ async fn main() -> Result<(), Error> {
                         let path = std::env::temp_dir().join("device-link.png");
                         image.save(&path)?;
                         opener::open(path)?;
-                    }
+                    },
                     SecondaryDeviceProvisioning::NewDeviceRegistration {
                         phone_number: _,
                         device_id: _,
@@ -82,7 +82,7 @@ async fn main() -> Result<(), Error> {
                     } => {
                         log::info!("successfully registered device {}", &uuid);
                         // here you would store all of this data somehow to use it later!
-                    }
+                    },
                 }
             }
             Result::Ok::<(), Error>(())

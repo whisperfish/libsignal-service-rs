@@ -160,7 +160,7 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
             Ok(_) => Ok(VerificationCodeResponse::Issued),
             Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
                 Ok(VerificationCodeResponse::CaptchaRequired)
-            }
+            },
             Err(e) => Err(e),
         }
     }
@@ -189,7 +189,7 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
             Ok(_) => Ok(VerificationCodeResponse::Issued),
             Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
                 Ok(VerificationCodeResponse::CaptchaRequired)
-            }
+            },
             Err(e) => Err(e),
         }
     }
@@ -302,7 +302,7 @@ impl<P: PushService> LinkingManager<P> {
                     tx.send(SecondaryDeviceProvisioning::Url(url))
                         .await
                         .expect("failed to send provisioning Url in channel");
-                }
+                },
                 Ok(ProvisioningStep::Message(message)) => {
                     let uuid = message
                         .uuid
@@ -392,7 +392,7 @@ impl<P: PushService> LinkingManager<P> {
                     .expect(
                         "failed to send provisioning message in rx channel",
                     );
-                }
+                },
                 Err(e) => return Err(e),
             }
         }

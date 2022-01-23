@@ -131,7 +131,7 @@ impl ProvisioningCipher {
             CipherMode::DecryptAndEncrypt(ref key_pair) => key_pair,
             CipherMode::EncryptOnly(_) => {
                 return Err(ProvisioningError::EncryptOnlyProvisioningCipher);
-            }
+            },
         };
         let master_ephemeral = PublicKey::deserialize(
             &provision_envelope.public_key.expect("no public key"),

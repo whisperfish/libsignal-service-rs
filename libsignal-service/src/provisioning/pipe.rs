@@ -139,9 +139,11 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
                     {
                         let uuid: ProvisioningUuid =
                             prost::Message::decode(Bytes::from(body.unwrap()))?;
-                        let mut provisioning_url = Url::parse("sgnl://linkdevice")
-                            .map_err(|e| ProvisioningError::WsError {
-                                reason: e.to_string(),
+                        let mut provisioning_url =
+                            Url::parse("sgnl://linkdevice").map_err(|e| {
+                                ProvisioningError::WsError {
+                                    reason: e.to_string(),
+                                }
                             })?;
                         provisioning_url
                             .query_pairs_mut()
@@ -159,7 +161,7 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
                         self.send_ok_response(id).await?;
 
                         Ok(Some(ProvisioningStep::Url(provisioning_url)))
-                    }
+                    },
                     // step 2: once the QR code is scanned by the (already
                     // validated) main device
                     // we get a ProvisionMessage, that contains a bunch of
@@ -183,12 +185,12 @@ impl<WS: WebSocketService> ProvisioningPipe<WS> {
                         self.send_ok_response(id).await?;
 
                         Ok(Some(ProvisioningStep::Message(provision_message)))
-                    }
+                    },
                     _ => Err(ProvisioningError::WsError {
                         reason: "Incorrect request".into(),
                     }),
                 }
-            }
+            },
             _ => Err(ProvisioningError::WsError {
                 reason: "Incorrect request".into(),
             }),

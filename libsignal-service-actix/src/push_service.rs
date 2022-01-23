@@ -58,10 +58,10 @@ impl AwcPushService {
                 } else {
                     builder
                 }
-            }
+            },
             HttpAuthOverride::Identified(HttpAuth { username, password }) => {
                 builder.basic_auth(username, password)
-            }
+            },
             HttpAuthOverride::Unidentified => builder,
         };
         Ok(builder)
@@ -78,11 +78,11 @@ impl AwcPushService {
             StatusCode::NO_CONTENT => Ok(()),
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
-            }
+            },
             StatusCode::PAYLOAD_TOO_LARGE => {
                 // This is 413 and means rate limit exceeded for Signal.
                 Err(ServiceError::RateLimitExceeded)
-            }
+            },
             StatusCode::CONFLICT => {
                 let mismatched_devices =
                     response.json().await.map_err(|e| {
@@ -97,7 +97,7 @@ impl AwcPushService {
                 Err(ServiceError::MismatchedDevicesException(
                     mismatched_devices,
                 ))
-            }
+            },
             StatusCode::GONE => {
                 let stale_devices = response.json().await.map_err(|e| {
                     log::error!("Failed to decode HTTP 410 response: {}", e);
@@ -106,7 +106,7 @@ impl AwcPushService {
                     }
                 })?;
                 Err(ServiceError::StaleDevices(stale_devices))
-            }
+            },
             // XXX: fill in rest from PushServiceSocket
             code => {
                 let contents = response.body().await;
@@ -114,7 +114,7 @@ impl AwcPushService {
                 Err(ServiceError::UnhandledResponseCode {
                     http_code: code.as_u16(),
                 })
-            }
+            },
         }
     }
 }
@@ -144,7 +144,7 @@ impl PushService for AwcPushService {
                     ServiceError::Timeout {
                         reason: e.to_string(),
                     }
-                }
+                },
                 _ => ServiceError::SendError {
                     reason: e.to_string(),
                 },
@@ -205,7 +205,7 @@ impl PushService for AwcPushService {
                     ServiceError::Timeout {
                         reason: e.to_string(),
                     }
-                }
+                },
                 _ => ServiceError::SendError {
                     reason: e.to_string(),
                 },
