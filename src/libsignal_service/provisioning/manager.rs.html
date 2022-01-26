@@ -368,39 +368,6 @@
 <span id="367">367</span>
 <span id="368">368</span>
 <span id="369">369</span>
-<span id="370">370</span>
-<span id="371">371</span>
-<span id="372">372</span>
-<span id="373">373</span>
-<span id="374">374</span>
-<span id="375">375</span>
-<span id="376">376</span>
-<span id="377">377</span>
-<span id="378">378</span>
-<span id="379">379</span>
-<span id="380">380</span>
-<span id="381">381</span>
-<span id="382">382</span>
-<span id="383">383</span>
-<span id="384">384</span>
-<span id="385">385</span>
-<span id="386">386</span>
-<span id="387">387</span>
-<span id="388">388</span>
-<span id="389">389</span>
-<span id="390">390</span>
-<span id="391">391</span>
-<span id="392">392</span>
-<span id="393">393</span>
-<span id="394">394</span>
-<span id="395">395</span>
-<span id="396">396</span>
-<span id="397">397</span>
-<span id="398">398</span>
-<span id="399">399</span>
-<span id="400">400</span>
-<span id="401">401</span>
-<span id="402">402</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel::mpsc::Sender</span>, <span class="ident">pin_mut</span>, <span class="ident">SinkExt</span>, <span class="ident">StreamExt</span>};
 <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">PrivateKey</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">phonenumber::PhoneNumber</span>;
@@ -416,8 +383,8 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">configuration</span>::{<span class="ident">Endpoint</span>, <span class="ident">ServiceCredentials</span>, <span class="ident">SignalingKey</span>},
     <span class="ident">push_service</span>::{
-        <span class="ident">DeviceCapabilities</span>, <span class="ident">DeviceId</span>, <span class="ident">HttpAuthOverride</span>, <span class="ident">PushService</span>,
-        <span class="ident">ServiceError</span>,
+        <span class="ident">AccountAttributes</span>, <span class="ident">DeviceCapabilities</span>, <span class="ident">DeviceId</span>, <span class="ident">HttpAuthOverride</span>,
+        <span class="ident">PushService</span>, <span class="ident">ServiceError</span>,
     },
     <span class="ident">utils</span>::{<span class="ident">serde_base64</span>, <span class="ident">serde_optional_base64</span>},
 };
@@ -453,47 +420,6 @@
     <span class="comment">//pub name: String,</span>
 }
 
-<span class="kw">impl</span> <span class="ident">ConfirmCodeMessage</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
-        <span class="ident">signaling_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-        <span class="ident">registration_id</span>: <span class="ident">u32</span>,
-        <span class="ident">unidentified_access_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">signaling_key</span>,
-            <span class="ident">supports_sms</span>: <span class="bool-val">false</span>,
-            <span class="ident">registration_id</span>,
-            <span class="ident">voice</span>: <span class="bool-val">false</span>,
-            <span class="ident">video</span>: <span class="bool-val">false</span>,
-            <span class="ident">fetches_messages</span>: <span class="bool-val">true</span>,
-            <span class="ident">pin</span>: <span class="prelude-val">None</span>,
-            <span class="ident">unidentified_access_key</span>: <span class="prelude-val">Some</span>(<span class="ident">unidentified_access_key</span>),
-            <span class="ident">unrestricted_unidentified_access</span>: <span class="bool-val">false</span>,
-            <span class="ident">discoverable_by_phone_number</span>: <span class="bool-val">true</span>,
-            <span class="ident">capabilities</span>: <span class="ident">DeviceCapabilities::default</span>(),
-        }
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_without_unidentified_access</span>(
-        <span class="ident">signaling_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
-        <span class="ident">registration_id</span>: <span class="ident">u32</span>,
-    ) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">signaling_key</span>,
-            <span class="ident">supports_sms</span>: <span class="bool-val">false</span>,
-            <span class="ident">registration_id</span>,
-            <span class="ident">voice</span>: <span class="bool-val">false</span>,
-            <span class="ident">video</span>: <span class="bool-val">false</span>,
-            <span class="ident">fetches_messages</span>: <span class="bool-val">true</span>,
-            <span class="ident">pin</span>: <span class="prelude-val">None</span>,
-            <span class="ident">unidentified_access_key</span>: <span class="prelude-val">None</span>,
-            <span class="ident">unrestricted_unidentified_access</span>: <span class="bool-val">false</span>,
-            <span class="ident">discoverable_by_phone_number</span>: <span class="bool-val">true</span>,
-            <span class="ident">capabilities</span>: <span class="ident">DeviceCapabilities::default</span>(),
-        }
-    }
-}
-
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ConfirmCodeResponse</span> {
@@ -505,6 +431,14 @@
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">VerificationCodeResponse</span> {
     <span class="ident">CaptchaRequired</span>,
     <span class="ident">Issued</span>,
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Deserialize</span>)]</span>
+<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">VerifyAccountResponse</span> {
+    <span class="kw">pub</span> <span class="ident">uuid</span>: <span class="ident">Uuid</span>,
+    <span class="kw">pub</span> <span class="ident">pni</span>: <span class="ident">String</span>,
+    <span class="kw">pub</span> <span class="ident">storage_capable</span>: <span class="ident">bool</span>,
 }
 
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ProvisioningManager</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">P</span>: <span class="ident">PushService</span> <span class="op">+</span> <span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
@@ -600,14 +534,14 @@
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">confirm_verification_code</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">confirm_code</span>: <span class="ident">u32</span>,
-        <span class="ident">confirm_verification_message</span>: <span class="ident">ConfirmCodeMessage</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">ConfirmCodeResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
+        <span class="ident">account_attributes</span>: <span class="ident">AccountAttributes</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">VerifyAccountResponse</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">push_service</span>
             .<span class="ident">put_json</span>(
                 <span class="ident">Endpoint::Service</span>,
                 <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/v1/accounts/code/{}&quot;</span>, <span class="ident">confirm_code</span>),
                 <span class="self">self</span>.<span class="ident">auth_override</span>(),
-                <span class="ident">confirm_verification_message</span>,
+                <span class="ident">account_attributes</span>,
             )
             .<span class="kw">await</span>
     }
