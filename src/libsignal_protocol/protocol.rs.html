@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `&#x2F;home&#x2F;runner&#x2F;.cargo&#x2F;git&#x2F;checkouts&#x2F;libsignal-client-20b116e5080385e2&#x2F;e4c31a6&#x2F;rust&#x2F;protocol&#x2F;src&#x2F;protocol.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>protocol.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">   1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `&#x2F;home&#x2F;runner&#x2F;.cargo&#x2F;git&#x2F;checkouts&#x2F;libsignal-client-20b116e5080385e2&#x2F;e4c31a6&#x2F;rust&#x2F;protocol&#x2F;src&#x2F;protocol.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>protocol.rs - source</title><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled ><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+    <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"><style type="text/css">#crate-search{background-image:url("../../down-arrow.svg");}</style></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu" role="button">&#9776;</div><a href='../../libsignal_protocol/index.html'><div class='logo-container rust-logo'><img src='../../rust-logo.png' alt='logo'></div></a></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu" title="themes"><img width="18" height="18" alt="Pick another theme!" src="../../brush.svg"></button><div id="theme-choices" role="menu"></div></div><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><button type="button" id="help-button" title="help">?</button><a id="settings-menu" href="../../settings.html" title="settings"><img width="18" height="18" alt="Change settings" src="../../wheel.svg"></a></div></form></nav><section id="main" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">   1</span>
 <span id="2">   2</span>
 <span id="3">   3</span>
 <span id="4">   4</span>
@@ -1145,7 +1146,7 @@
         };
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">message</span>.<span class="ident">encoded_len</span>() <span class="op">+</span> <span class="ident"><span class="self">Self</span>::MAC_LENGTH</span>];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span>;
-        <span class="ident">message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..<span class="ident">message</span>.<span class="ident">encoded_len</span>() <span class="op">+</span> <span class="number">1</span>])<span class="question-mark">?</span>;
+        <span class="ident">message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..<span class="ident">message</span>.<span class="ident">encoded_len</span>() <span class="op">+</span> <span class="number">1</span>])<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">msg_len_for_mac</span> <span class="op">=</span> <span class="ident">serialized</span>.<span class="ident">len</span>() <span class="op">-</span> <span class="ident"><span class="self">Self</span>::MAC_LENGTH</span>;
         <span class="kw">let</span> <span class="ident">mac</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::compute_mac</span>(
             <span class="ident">sender_identity_key</span>,
@@ -1320,7 +1321,7 @@
         };
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>()];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">CIPHERTEXT_MESSAGE_CURRENT_VERSION</span>;
-        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
+        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">message_version</span>,
             <span class="ident">registration_id</span>,
@@ -1449,7 +1450,7 @@
         <span class="ident">chain_id</span>: <span class="ident">u32</span>,
         <span class="ident">iteration</span>: <span class="ident">u32</span>,
         <span class="ident">ciphertext</span>: <span class="ident">Box</span><span class="op">&lt;</span>[<span class="ident">u8</span>]<span class="op">&gt;</span>,
-        <span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">R</span>,
+        <span class="ident">csprng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">R</span>,
         <span class="ident">signature_key</span>: <span class="kw-2">&amp;</span><span class="ident">PrivateKey</span>,
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">proto_message</span> <span class="op">=</span> <span class="ident">proto::wire::SenderKeyMessage</span> {
@@ -1461,7 +1462,7 @@
         <span class="kw">let</span> <span class="ident">proto_message_len</span> <span class="op">=</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span> <span class="op">+</span> <span class="ident"><span class="self">Self</span>::SIGNATURE_LEN</span>];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span>;
-        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..<span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span>])<span class="question-mark">?</span>;
+        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..<span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span>])<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">signature</span> <span class="op">=</span>
             <span class="ident">signature_key</span>.<span class="ident">calculate_signature</span>(<span class="kw-2">&amp;</span><span class="ident">serialized</span>[..<span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span>], <span class="ident">csprng</span>)<span class="question-mark">?</span>;
         <span class="ident">serialized</span>[<span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message_len</span>..].<span class="ident">copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">signature</span>[..]);
@@ -1597,7 +1598,7 @@
         };
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="number">0u8</span>; <span class="number">1</span> <span class="op">+</span> <span class="ident">proto_message</span>.<span class="ident">encoded_len</span>()];
         <span class="ident">serialized</span>[<span class="number">0</span>] <span class="op">=</span> ((<span class="ident">message_version</span> <span class="op">&amp;</span> <span class="number">0xF</span>) <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>) <span class="op">|</span> <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span>;
-        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
+        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">message_version</span>,
@@ -1748,7 +1749,7 @@
         };
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident"><span class="self">Self</span>::PLAINTEXT_CONTEXT_IDENTIFIER_BYTE</span>];
         <span class="ident">proto_structure</span>
-            .<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>)
+            .<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;can always encode to a Vec&quot;</span>);
         <span class="ident">serialized</span>.<span class="ident">push</span>(<span class="ident"><span class="self">Self</span>::PADDING_BOUNDARY_BYTE</span>);
         <span class="self">Self</span> {
@@ -1813,7 +1814,7 @@
             <span class="ident">device_id</span>: <span class="prelude-val">Some</span>(<span class="ident">original_sender_device_id</span>),
         };
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">Vec::new</span>();
-        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">serialized</span>)<span class="question-mark">?</span>;
+        <span class="ident">proto_message</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
             <span class="ident">ratchet_key</span>,
@@ -1893,16 +1894,16 @@
     <span class="kw">use</span> <span class="ident">rand::rngs::OsRng</span>;
     <span class="kw">use</span> <span class="ident">rand</span>::{<span class="ident">CryptoRng</span>, <span class="ident">Rng</span>};
 
-    <span class="kw">fn</span> <span class="ident">create_signal_message</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">csprng</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignalMessage</span><span class="op">&gt;</span>
+    <span class="kw">fn</span> <span class="ident">create_signal_message</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">csprng</span>: <span class="kw-2">&amp;mut</span> <span class="ident">T</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignalMessage</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="ident">T</span>: <span class="ident">Rng</span> <span class="op">+</span> <span class="ident">CryptoRng</span>,
     {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mac_key</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">32</span>];
-        <span class="ident">csprng</span>.<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">mac_key</span>);
+        <span class="ident">csprng</span>.<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">mac_key</span>);
         <span class="kw">let</span> <span class="ident">mac_key</span> <span class="op">=</span> <span class="ident">mac_key</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ciphertext</span> <span class="op">=</span> [<span class="number">0u8</span>; <span class="number">20</span>];
-        <span class="ident">csprng</span>.<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ciphertext</span>);
+        <span class="ident">csprng</span>.<span class="ident">fill_bytes</span>(<span class="kw-2">&amp;mut</span> <span class="ident">ciphertext</span>);
         <span class="kw">let</span> <span class="ident">ciphertext</span> <span class="op">=</span> <span class="ident">ciphertext</span>;
 
         <span class="kw">let</span> <span class="ident">sender_ratchet_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="ident">csprng</span>);
@@ -1933,7 +1934,7 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_signal_message_serialize_deserialize</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">deser_message</span> <span class="op">=</span>
             <span class="ident">SignalMessage::try_from</span>(<span class="ident">message</span>.<span class="ident">as_ref</span>()).<span class="ident">expect</span>(<span class="string">&quot;should deserialize without error&quot;</span>);
         <span class="ident">assert_signal_message_equals</span>(<span class="kw-2">&amp;</span><span class="ident">message</span>, <span class="kw-2">&amp;</span><span class="ident">deser_message</span>);
@@ -1943,9 +1944,9 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_pre_key_signal_message_serialize_deserialize</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">pre_key_signal_message</span> <span class="op">=</span> <span class="ident">PreKeySignalMessage::new</span>(
             <span class="number">3</span>,
             <span class="number">365</span>,
@@ -1996,14 +1997,14 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_sender_key_message_serialize_deserialize</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">signature_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">signature_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>);
         <span class="kw">let</span> <span class="ident">sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage::new</span>(
             <span class="ident">SENDERKEY_MESSAGE_CURRENT_VERSION</span>,
             <span class="ident">Uuid::from_u128</span>(<span class="number">0xd1d1d1d1_7000_11eb_b32a_33b8a8a487a6</span>),
             <span class="number">42</span>,
             <span class="number">7</span>,
             [<span class="number">1u8</span>, <span class="number">2</span>, <span class="number">3</span>].<span class="ident">into</span>(),
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
+            <span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>,
             <span class="kw-2">&amp;</span><span class="ident">signature_key_pair</span>.<span class="ident">private_key</span>,
         )<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">deser_sender_key_message</span> <span class="op">=</span> <span class="ident">SenderKeyMessage::try_from</span>(<span class="ident">sender_key_message</span>.<span class="ident">as_ref</span>())
@@ -2034,9 +2035,9 @@
     <span class="attribute">#[<span class="ident">test</span>]</span>
     <span class="kw">fn</span> <span class="ident">test_decryption_error_message</span>() -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">OsRng</span>;
-        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>);
-        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">identity_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">base_key_pair</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>);
+        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="ident">create_signal_message</span>(<span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">timestamp</span> <span class="op">=</span> <span class="number">0x2_0000_0001</span>;
         <span class="kw">let</span> <span class="ident">device_id</span> <span class="op">=</span> <span class="number">0x8086_2021</span>;
 
@@ -2088,7 +2089,7 @@
             <span class="number">1</span>,
             <span class="number">2</span>,
             <span class="ident">Box::from</span>(<span class="string">b&quot;test&quot;</span>.<span class="ident">to_owned</span>()),
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>,
+            <span class="kw-2">&amp;mut</span> <span class="ident">csprng</span>,
             <span class="kw-2">&amp;</span><span class="ident">base_key_pair</span>.<span class="ident">private_key</span>,
         )<span class="question-mark">?</span>;
 
@@ -2118,5 +2119,4 @@
 }
 </code></pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_protocol" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
-    <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script>
 </body></html>
