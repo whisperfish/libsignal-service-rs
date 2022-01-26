@@ -6,6 +6,7 @@ pub use cipher::ProvisioningCipher;
 pub use manager::{
     ConfirmCodeMessage, ConfirmCodeResponse, LinkingManager,
     ProvisioningManager, SecondaryDeviceProvisioning, VerificationCodeResponse,
+    VerifyAccountResponse,
 };
 
 use crate::prelude::ServiceError;
