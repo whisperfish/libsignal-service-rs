@@ -13,8 +13,8 @@ use super::{
 use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalingKey},
     push_service::{
-        DeviceCapabilities, DeviceId, HttpAuthOverride, PushService,
-        ServiceError,
+        AccountAttributes, DeviceCapabilities, DeviceId, HttpAuthOverride,
+        PushService, ServiceError,
     },
     utils::{serde_base64, serde_optional_base64},
 };
@@ -50,47 +50,6 @@ pub struct ConfirmDeviceMessage {
     //pub name: String,
 }
 
-impl ConfirmCodeMessage {
-    pub fn new(
-        signaling_key: Vec<u8>,
-        registration_id: u32,
-        unidentified_access_key: Vec<u8>,
-    ) -> Self {
-        Self {
-            signaling_key,
-            supports_sms: false,
-            registration_id,
-            voice: false,
-            video: false,
-            fetches_messages: true,
-            pin: None,
-            unidentified_access_key: Some(unidentified_access_key),
-            unrestricted_unidentified_access: false,
-            discoverable_by_phone_number: true,
-            capabilities: DeviceCapabilities::default(),
-        }
-    }
-
-    pub fn new_without_unidentified_access(
-        signaling_key: Vec<u8>,
-        registration_id: u32,
-    ) -> Self {
-        Self {
-            signaling_key,
-            supports_sms: false,
-            registration_id,
-            voice: false,
-            video: false,
-            fetches_messages: true,
-            pin: None,
-            unidentified_access_key: None,
-            unrestricted_unidentified_access: false,
-            discoverable_by_phone_number: true,
-            capabilities: DeviceCapabilities::default(),
-        }
-    }
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmCodeResponse {
@@ -102,6 +61,14 @@ pub struct ConfirmCodeResponse {
 pub enum VerificationCodeResponse {
     CaptchaRequired,
     Issued,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyAccountResponse {
+    pub uuid: Uuid,
+    pub pni: String,
+    pub storage_capable: bool,
 }
 
 pub struct ProvisioningManager<'a, P: PushService + 'a> {
@@ -197,14 +164,14 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
     pub async fn confirm_verification_code(
         &mut self,
         confirm_code: u32,
-        confirm_verification_message: ConfirmCodeMessage,
-    ) -> Result<ConfirmCodeResponse, ServiceError> {
+        account_attributes: AccountAttributes,
+    ) -> Result<VerifyAccountResponse, ServiceError> {
         self.push_service
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/accounts/code/{}", confirm_code),
                 self.auth_override(),
-                confirm_verification_message,
+                account_attributes,
             )
             .await
     }
