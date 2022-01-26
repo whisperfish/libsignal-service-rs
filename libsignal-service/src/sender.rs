@@ -127,7 +127,7 @@ pub enum MessageSenderError {
 impl<Service, S, I, SP, P, R> MessageSender<Service, S, I, SP, P, R>
 where
     Service: PushService + Clone,
-    S: SessionStore + SessionStoreExt + Clone,
+    S: SessionStore + SessionStoreExt + Sync + Clone,
     I: IdentityKeyStore + Clone,
     SP: SignedPreKeyStore + Clone,
     P: PreKeyStore + Clone,
@@ -323,7 +323,7 @@ where
         let end_session = match &content_body {
             ContentBody::DataMessage(message) => {
                 message.flags == Some(Flags::EndSession as u32)
-            }
+            },
             _ => false,
         };
 
@@ -360,7 +360,7 @@ where
                     false,
                 )
                 .await?;
-            }
+            },
             _ => (),
         }
 
@@ -407,7 +407,7 @@ where
             match result {
                 Ok(SentMessage { needs_sync, .. }) if needs_sync => {
                     needs_sync_in_results = true;
-                }
+                },
                 _ => (),
             };
 
@@ -474,7 +474,7 @@ where
                         unidentified: unidentified_access.is_some(),
                         needs_sync,
                     });
-                }
+                },
                 Err(ServiceError::MismatchedDevicesException(ref m)) => {
                     log::debug!("{:?}", m);
                     for extra_device_id in &m.extra_devices {
@@ -520,7 +520,7 @@ where
                             }
                         })?;
                     }
-                }
+                },
                 Err(ServiceError::StaleDevices(ref m)) => {
                     log::debug!("{:?}", m);
                     for extra_device_id in &m.stale_devices {
@@ -535,7 +535,7 @@ where
                             )
                             .await?;
                     }
-                }
+                },
                 Err(e) => return Err(MessageSenderError::ServiceError(e)),
             }
         }

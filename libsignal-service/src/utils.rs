@@ -35,7 +35,7 @@ pub mod serde_optional_base64 {
         match bytes {
             Some(bytes) => {
                 serializer.serialize_str(&base64::encode(bytes.as_ref()))
-            }
+            },
             None => serializer.serialize_none(),
         }
     }

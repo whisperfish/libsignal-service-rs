@@ -42,16 +42,16 @@ impl std::convert::TryFrom<EnvelopeEntity> for Envelope {
             // Valid source
             Ok(source) if entity.source_device > 0 => {
                 Ok(Envelope::new_with_source(entity, source))
-            }
+            },
             // No source
             Ok(_) | Err(NoSenderError) => Ok(Envelope::new_from_entity(entity)),
             // Source specified, but unparsable
             Err(InvalidPhoneNumber(e)) => {
                 Err(EnvelopeParseError::InvalidPhoneNumber(e))
-            }
+            },
             Err(InvalidUuidError(e)) => {
                 Err(EnvelopeParseError::InvalidUuidError(e))
-            }
+            },
         }
     }
 }

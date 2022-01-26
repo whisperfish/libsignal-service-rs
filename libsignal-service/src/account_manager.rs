@@ -92,7 +92,7 @@ impl<Service: PushService> AccountManager<Service> {
                 // Additionally, the second PUT request will fail if this really comes down to an
                 // authorization failure.
                 0
-            }
+            },
             Err(e) => return Err(e),
         };
         log::trace!("Remaining pre-keys on server: {}", prekey_count);

@@ -509,10 +509,10 @@ pub trait PushService: MaybeSend {
                 // exist.
                 self.get_attachment_by_id(&format!("{}", id), ptr.cdn_number())
                     .await
-            }
+            },
             AttachmentIdentifier::CdnKey(key) => {
                 self.get_attachment_by_id(key, ptr.cdn_number()).await
-            }
+            },
         }
     }
 
@@ -644,7 +644,7 @@ pub trait PushService: MaybeSend {
             (1, None) => format!("/v2/keys/{}/*", destination.identifier()),
             (device_id, None) => {
                 format!("/v2/keys/{}/{}", destination.identifier(), device_id)
-            }
+            },
             (1, Some(relay)) => format!(
                 "/v2/keys/{}/*?relay={}",
                 destination.identifier(),
@@ -763,21 +763,21 @@ pub trait PushService: MaybeSend {
             (Ok(_url), Some(_avatar)) => {
                 // FIXME
                 unreachable!("Uploading avatar unimplemented");
-            }
+            },
             // FIXME cleanup when #54883 is stable and MSRV:
             // or-patterns syntax is experimental
             // see issue #54883 <https://github.com/rust-lang/rust/issues/54883> for more information
             (Err(ServiceError::JsonDecodeError { .. }), None) => {
                 // OWS sends an empty string when there's no attachment
                 Ok(None)
-            }
+            },
             (Err(e), _) => Err(e),
             (Ok(_resp), None) => {
                 log::warn!(
                     "No avatar supplied but got avatar upload URL. Ignoring"
                 );
                 Ok(None)
-            }
+            },
         }
     }
 }

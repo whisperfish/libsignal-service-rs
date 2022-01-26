@@ -154,7 +154,7 @@ where
 
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
-            }
+            },
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
@@ -194,7 +194,7 @@ where
 
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
-            }
+            },
             Type::UnidentifiedSender => {
                 let DecryptionResult {
                     sender_uuid,
@@ -219,7 +219,7 @@ where
                 };
                 strip_padding(version, &mut data)?;
                 Plaintext { metadata, data }
-            }
+            },
             _ => {
                 // else
                 return Err(ServiceError::InvalidFrameError {
@@ -228,7 +228,7 @@ where
                         envelope.r#type()
                     ),
                 });
-            }
+            },
         };
         Ok(plaintext)
     }

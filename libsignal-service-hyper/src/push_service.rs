@@ -101,13 +101,13 @@ impl HyperPushService {
                         .unwrap()
                         .typed_insert(Authorization::basic(username, password));
                 }
-            }
+            },
             HttpAuthOverride::Identified(HttpAuth { username, password }) => {
                 builder
                     .headers_mut()
                     .unwrap()
                     .typed_insert(Authorization::basic(&username, &password));
-            }
+            },
             HttpAuthOverride::Unidentified => (),
         };
 
@@ -136,11 +136,11 @@ impl HyperPushService {
             StatusCode::NO_CONTENT => Ok(response),
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
-            }
+            },
             StatusCode::PAYLOAD_TOO_LARGE => {
                 // This is 413 and means rate limit exceeded for Signal.
                 Err(ServiceError::RateLimitExceeded)
-            }
+            },
             StatusCode::CONFLICT => {
                 let mismatched_devices =
                     Self::json(&mut response).await.map_err(|e| {
@@ -155,7 +155,7 @@ impl HyperPushService {
                 Err(ServiceError::MismatchedDevicesException(
                     mismatched_devices,
                 ))
-            }
+            },
             StatusCode::GONE => {
                 let stale_devices =
                     Self::json(&mut response).await.map_err(|e| {
@@ -168,7 +168,7 @@ impl HyperPushService {
                         }
                     })?;
                 Err(ServiceError::StaleDevices(stale_devices))
-            }
+            },
             // XXX: fill in rest from PushServiceSocket
             code => {
                 log::trace!(
@@ -178,7 +178,7 @@ impl HyperPushService {
                 Err(ServiceError::UnhandledResponseCode {
                     http_code: code.as_u16(),
                 })
-            }
+            },
         }
     }
 

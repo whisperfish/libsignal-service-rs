@@ -34,11 +34,11 @@ async fn main() {
     match registration_result {
         VerificationCodeResponse::Issued => {
             println!("Registration request was sent");
-        }
+        },
         VerificationCodeResponse::CaptchaRequired => {
             println!("Captcha was wrong or not provided.");
             // Here you would go back to entering the Captcha
-        }
+        },
     }
 
     let confirmation_code = let_user_enter_confirmation_code();

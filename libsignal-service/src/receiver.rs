@@ -86,7 +86,7 @@ impl<Service: PushService> MessageReceiver<Service> {
                                 reason: "too many retries".into(),
                             });
                         }
-                    }
+                    },
                     Err(e) => return Err(e),
                 }
             };

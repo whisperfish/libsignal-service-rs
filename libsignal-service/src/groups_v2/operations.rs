@@ -179,7 +179,7 @@ impl GroupOperations {
         match self.decrypt_blob(ciphertext).content {
             Some(Content::DisappearingMessagesDuration(duration)) => {
                 Some(DecryptedTimer { duration })
-            }
+            },
             _ => None,
         }
     }

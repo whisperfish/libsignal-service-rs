@@ -161,7 +161,7 @@ impl AwcWebSocket {
             Ok(()) => (),
             Err(e) => {
                 log::warn!("Processing task terminated with error: {:?}", e)
-            }
+            },
         }));
 
         Ok((
