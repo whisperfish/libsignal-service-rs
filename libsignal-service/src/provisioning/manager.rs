@@ -19,24 +19,6 @@ use crate::{
     utils::{serde_base64, serde_optional_base64},
 };
 
-/// Message received after confirming the SMS/voice code on registration.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConfirmCodeMessage {
-    #[serde(with = "serde_base64")]
-    pub signaling_key: Vec<u8>,
-    pub supports_sms: bool,
-    pub registration_id: u32,
-    pub voice: bool,
-    pub video: bool,
-    pub fetches_messages: bool,
-    pub pin: Option<String>,
-    #[serde(default, with = "serde_optional_base64")]
-    pub unidentified_access_key: Option<Vec<u8>>,
-    pub unrestricted_unidentified_access: bool,
-    pub discoverable_by_phone_number: bool,
-    pub capabilities: DeviceCapabilities,
-}
 /// Message received when linking a new secondary device.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,13 +30,6 @@ pub struct ConfirmDeviceMessage {
     pub registration_id: u32,
     // FIXME: the name goes back here when we send this via the websocket
     //pub name: String,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ConfirmCodeResponse {
-    pub uuid: Uuid,
-    pub storage_capable: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
