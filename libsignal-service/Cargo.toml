@@ -35,6 +35,8 @@ uuid = { version = "0.8", features = [ "serde" ] }
 phonenumber = "0.3"
 hkdf = "0.11"
 
+desan = { version = "0.1.0", git = "https://gitlab.com/whisperfish/desan.git", features = ["uuid"] }
+
 [build-dependencies]
 prost-build = "0.9"
 

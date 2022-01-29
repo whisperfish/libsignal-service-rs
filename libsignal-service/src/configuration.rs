@@ -24,7 +24,7 @@ pub struct ServiceConfiguration {
 
 pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 
-#[derive(Clone)]
+#[derive(Clone, desan::SanitizeDebug)]
 pub struct ServiceCredentials {
     pub uuid: Option<uuid::Uuid>,
     pub phonenumber: phonenumber::PhoneNumber,

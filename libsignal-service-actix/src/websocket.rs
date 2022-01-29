@@ -137,15 +137,25 @@ impl AwcWebSocket {
         url.set_scheme("wss").expect("valid https base url");
 
         if let Some(credentials) = credentials {
+            log::trace!(
+                "Will start websocket at {:?} with credentials {:?}",
+                url,
+                credentials
+            );
+
             url.query_pairs_mut()
                 .append_pair("login", credentials.login().as_ref())
                 .append_pair(
                     "password",
                     credentials.password.as_ref().expect("a password"),
                 );
+        } else {
+            log::trace!(
+                "Will start websocket at {:?} without credentials",
+                url
+            );
         }
 
-        log::trace!("Will start websocket at {:?}", url);
         let (response, framed) = client.ws(url.as_str()).connect().await?;
 
         log::debug!("WebSocket connected: {:?}", response);
