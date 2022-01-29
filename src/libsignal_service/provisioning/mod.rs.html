@@ -38,16 +38,14 @@
 <span id="37">37</span>
 <span id="38">38</span>
 <span id="39">39</span>
-<span id="40">40</span>
 </pre><pre class="rust"><code><span class="kw">mod</span> <span class="ident">cipher</span>;
 <span class="kw">mod</span> <span class="ident">manager</span>;
 <span class="kw">mod</span> <span class="ident">pipe</span>;
 
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">cipher::ProvisioningCipher</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">manager</span>::{
-    <span class="ident">ConfirmCodeMessage</span>, <span class="ident">ConfirmCodeResponse</span>, <span class="ident">LinkingManager</span>,
-    <span class="ident">ProvisioningManager</span>, <span class="ident">SecondaryDeviceProvisioning</span>, <span class="ident">VerificationCodeResponse</span>,
-    <span class="ident">VerifyAccountResponse</span>,
+    <span class="ident">LinkingManager</span>, <span class="ident">ProvisioningManager</span>, <span class="ident">SecondaryDeviceProvisioning</span>,
+    <span class="ident">VerificationCodeResponse</span>, <span class="ident">VerifyAccountResponse</span>,
 };
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::prelude::ServiceError</span>;
