@@ -22,6 +22,8 @@ pub struct AwcWebSocket {
 pub enum AwcWebSocketError {
     #[error("Could not connect to the Signal Server")]
     ConnectionError(#[from] awc::error::WsClientError),
+    #[error("Error during Websocket connection")]
+    ProtocolError(#[from] WsProtocolError),
 }
 
 impl From<AwcWebSocketError> for ServiceError {
@@ -38,16 +40,28 @@ impl From<AwcWebSocketError> for ServiceError {
                     reason: e.to_string(),
                 },
             },
+            AwcWebSocketError::ProtocolError(e) => match e {
+                WsProtocolError::Io(e) => match e.kind() {
+                    std::io::ErrorKind::UnexpectedEof => {
+                        ServiceError::WsClosing {
+                            reason: format!(
+                                "WebSocket closing due to unexpected EOF: {}",
+                                e
+                            ),
+                        }
+                    },
+                    _ => ServiceError::WsError {
+                        reason: format!(
+                            "IO error during WebSocket connection: {}",
+                            e
+                        ),
+                    },
+                },
+                e => ServiceError::WsError {
+                    reason: e.to_string(),
+                },
+            },
         }
-    }
-}
-
-impl From<WsProtocolError> for AwcWebSocketError {
-    fn from(e: WsProtocolError) -> AwcWebSocketError {
-        todo!("error conversion {:?}", e)
-        // return Some(Err(ServiceError::WsError {
-        //     reason: e.to_string(),
-        // }));
     }
 }
 
