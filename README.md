@@ -6,6 +6,14 @@
 A Rust version of the [libsignal-service-java][lsj] library for communicating
 with Signal servers.
 
+## Supported Rust versions
+
+`libsignal-service-rs` is used mostly by [Whisperfish](https://gitlab.com/whisperfish/whisperfish/),
+a SailfishOS application.
+The SailfishOS Rust compiler is relatively old, and therefore the MSRV maps on the compiler for that operating system,
+including some lag.
+At moment of writing, this is **Rust 1.52.1**.
+
 ## Contributing
 
 We're actively trying to make `libsignal-service-rs` fully functional.
