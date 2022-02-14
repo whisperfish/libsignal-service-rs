@@ -51,11 +51,12 @@ jobs:
     strategy:
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
+        toolchain: ["stable", "1.52.1"]
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.toolchain }}
       - uses: actions-rs/cargo@v1
         with:
           command: build
