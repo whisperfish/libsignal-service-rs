@@ -340,8 +340,8 @@ fn strip_padding(
 }
 
 /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
-pub async fn get_preferred_protocol_address(
-    session_store: &dyn SessionStore,
+pub async fn get_preferred_protocol_address<S: SessionStore>(
+    session_store: &S,
     address: &ServiceAddress,
     device_id: u32,
 ) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {

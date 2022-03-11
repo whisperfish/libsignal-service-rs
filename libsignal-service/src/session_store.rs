@@ -1,6 +1,8 @@
-use libsignal_protocol::{ProtocolAddress, SessionStore, SignalProtocolError};
+use libsignal_protocol::{
+    Context, ProtocolAddress, SessionStore, SignalProtocolError,
+};
 
-use crate::ServiceAddress;
+use crate::{push_service::DEFAULT_DEVICE_ID, ServiceAddress};
 
 /// This is additional functions required to handle
 /// session deletion. It might be a candidate for inclusion into
@@ -65,5 +67,49 @@ pub trait SessionStoreExt: SessionStore {
         }
 
         Ok(count)
+    }
+
+    // #[async_trait] sadly doesn't work here,
+    // because calls to libsignal_protocol are unsend.
+    fn compute_safety_number<'s>(
+        &'s self,
+        local_address: &'s ServiceAddress,
+        address: &'s ServiceAddress,
+        context: Context,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<String, SignalProtocolError>,
+                > + 's,
+        >,
+    >
+    where
+        Self: Sized + libsignal_protocol::IdentityKeyStore,
+    {
+        Box::pin(async move {
+            let addr = crate::cipher::get_preferred_protocol_address(
+                self,
+                address,
+                DEFAULT_DEVICE_ID,
+            )
+            .await?;
+            let ident = self
+                .get_identity(&addr, context)
+                .await?
+                .ok_or(SignalProtocolError::UntrustedIdentity(addr))?;
+            let local = self
+                .get_identity_key_pair(context)
+                .await
+                .expect("valid local identity");
+            let fp = libsignal_protocol::Fingerprint::new(
+                2,
+                5200,
+                local_address.e164_or_uuid().as_bytes(),
+                local.identity_key(),
+                address.e164_or_uuid().as_bytes(),
+                &ident,
+            )?;
+            fp.display_string()
+        })
     }
 }
