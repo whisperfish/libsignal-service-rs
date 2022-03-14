@@ -96,6 +96,18 @@ impl ServiceAddress {
         (self.phonenumber.is_some() && self.phonenumber == other.phonenumber)
             || (self.uuid.is_some() && self.uuid == other.uuid)
     }
+
+    /// Returns e164 if present, uuid otherwise.
+    pub fn e164_or_uuid(&self) -> String {
+        if let Some(e164) = self.e164() {
+            return e164;
+        } else if let Some(ref uuid) = self.uuid {
+            return uuid.to_string();
+        }
+        unreachable!(
+            "an address requires either a UUID or a E164 phone number"
+        );
+    }
 }
 
 impl From<Uuid> for ServiceAddress {
