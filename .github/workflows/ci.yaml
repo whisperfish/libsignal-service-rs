@@ -31,6 +31,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
     steps:
@@ -49,6 +50,7 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
         toolchain: ["stable", "1.52.1"]
