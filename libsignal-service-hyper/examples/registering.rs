@@ -3,10 +3,13 @@ use std::str::FromStr;
 use libsignal_service::configuration::{ServiceCredentials, SignalServers};
 use libsignal_service::prelude::phonenumber::PhoneNumber;
 use libsignal_service::provisioning::{
-    generate_registration_id, ConfirmCodeMessage, ConfirmCodeResponse,
-    ProvisioningManager, VerificationCodeResponse,
+    generate_registration_id, ProvisioningManager, VerificationCodeResponse,
+    VerifyAccountResponse,
 };
-use libsignal_service::push_service::{PushService, ServiceError};
+use libsignal_service::push_service::{
+    AccountAttributes, DeviceCapabilities, ProfileKey, PushService,
+    ServiceError,
+};
 use libsignal_service::USER_AGENT;
 
 use libsignal_service_hyper::prelude::HyperPushService;
@@ -73,17 +76,34 @@ pub async fn register_user<'a, T: PushService>(
 async fn confirm_registration<'a, T: PushService>(
     manager: &mut ProvisioningManager<'a, T>,
     confirmation_code: u32,
-) -> Result<ConfirmCodeResponse, ServiceError> {
+) -> Result<VerifyAccountResponse, ServiceError> {
     let registration_id = generate_registration_id(&mut rand::thread_rng());
     let signaling_key = generate_signaling_key();
+    let mut profile_key = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut profile_key);
+    let profile_key = ProfileKey(profile_key);
 
     manager
         .confirm_verification_code(
             confirmation_code,
-            ConfirmCodeMessage::new_without_unidentified_access(
-                signaling_key.to_vec(),
+            AccountAttributes {
+                signaling_key: Some(signaling_key.to_vec()),
                 registration_id,
-            ),
+                voice: false,
+                video: false,
+                fetches_messages: true,
+                pin: None,
+                registration_lock: None,
+                unidentified_access_key: Some(profile_key.derive_access_key()),
+                unrestricted_unidentified_access: false, // TODO: make this configurable?
+                discoverable_by_phone_number: true,
+                capabilities: DeviceCapabilities {
+                    uuid: true,
+                    gv2: true,
+                    storage: false,
+                    gv1_migration: true,
+                },
+            },
         )
         .await
 }

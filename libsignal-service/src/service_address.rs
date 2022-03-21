@@ -31,9 +31,9 @@ impl ServiceAddress {
             .map(|pn| pn.format().mode(phonenumber::Mode::E164).to_string())
     }
 
-    pub async fn sub_device_sessions(
+    pub async fn sub_device_sessions<S: SessionStoreExt>(
         &self,
-        session_store: &dyn SessionStoreExt,
+        session_store: &S,
     ) -> Result<Vec<u32>, ServiceError> {
         let mut sub_device_sessions = Vec::new();
         if let Some(uuid) = &self.uuid {
