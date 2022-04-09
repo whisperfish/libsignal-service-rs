@@ -12,22 +12,24 @@ base64 = "0.13"
 bytes = "1.0"
 futures = "0.3"
 log = "0.4"
-mpart-async = "0.5"
+mpart-async = "0.6"
 serde = "1.0"
 serde_json = "1.0"
 thiserror = "1.0"
 url = "2.1"
 
 hyper = { version = "0.14", features = [ "client", "stream" ] }
-hyper-rustls = "0.22"
+hyper-rustls = "0.23"
 hyper-timeout = "0.4"
 headers = "0.3"
 
 # for websocket support
-async-tungstenite = { version = "0.15", features = [ "tokio-rustls-native-certs" ] }
+async-tungstenite = { version = "0.17", features = [ "tokio-rustls-native-certs" ] }
 
 tokio = { version = "1.0", features = [ "macros" ] }
-tokio-rustls = "0.22"
+tokio-rustls = "0.23"
+
+rustls-pemfile = "0.3"
 
 [dev-dependencies]
 env_logger = "0.9"

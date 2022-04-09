@@ -85,7 +85,7 @@ impl Envelope {
             debug_assert_eq!(iv.len(), IV_LENGTH);
 
             // Verify MAC
-            use hmac::{Hmac, Mac, NewMac};
+            use hmac::{Hmac, Mac};
             use sha2::Sha256;
             let mut verifier = Hmac::<Sha256>::new_from_slice(mac_key)
                 .expect("Hmac can take any size key");

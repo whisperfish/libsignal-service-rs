@@ -5,7 +5,7 @@ use aes::{
     Aes256Ctr,
 };
 
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     error::SignalProtocolError, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, CiphertextMessageType, IdentityKeyStore, KeyPair,

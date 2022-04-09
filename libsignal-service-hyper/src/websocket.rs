@@ -138,6 +138,7 @@ where
 
                         break;
                     },
+                    Message::Frame(_f) => unreachable!("handled internally in Tungstenite")
                 };
 
                 // Match SendError
