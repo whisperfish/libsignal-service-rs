@@ -504,9 +504,7 @@ where
             .session_store
             .load_session(&sender, None)
             .await?
-            .ok_or_else(|| {
-                SignalProtocolError::SessionNotFound(format!("{}", sender))
-            })?
+            .ok_or_else(|| SignalProtocolError::SessionNotFound(sender))?
             .session_version()?;
 
         Ok(DecryptionResult {

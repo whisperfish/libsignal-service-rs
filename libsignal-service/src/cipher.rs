@@ -146,10 +146,7 @@ where
                     .load_session(&sender, None)
                     .await?
                     .ok_or_else(|| {
-                        SignalProtocolError::SessionNotFound(format!(
-                            "{}",
-                            sender
-                        ))
+                        SignalProtocolError::SessionNotFound(sender)
                     })?;
 
                 strip_padding(session_record.session_version()?, &mut data)?;
@@ -186,10 +183,7 @@ where
                     .load_session(&sender, None)
                     .await?
                     .ok_or_else(|| {
-                        SignalProtocolError::SessionNotFound(format!(
-                            "{}",
-                            sender
-                        ))
+                        SignalProtocolError::SessionNotFound(sender)
                     })?;
 
                 strip_padding(session_record.session_version()?, &mut data)?;
@@ -247,7 +241,7 @@ where
                 .load_session(address, None)
                 .await?
                 .ok_or_else(|| {
-                    SignalProtocolError::SessionNotFound(format!("{}", address))
+                    SignalProtocolError::SessionNotFound(address.clone())
                 })?;
 
             let padded_content =
