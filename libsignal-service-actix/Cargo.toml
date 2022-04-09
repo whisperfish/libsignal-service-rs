@@ -30,6 +30,10 @@ base64 = "0.13"
 
 phonenumber = "0.3"
 
+# Pin this for 1.52.1 compat
+proc-macro2 = { version = "=1.0.26", optional = true }
+quote = { version = "=1.0.10", optional = true }
+
 [dev-dependencies]
 env_logger = "0.9"
 image = { version = "0.23", default-features = false, features = ["png"] }
@@ -39,3 +43,6 @@ rand = "0.7"
 structopt = "0.3"
 tokio = { version = "1", features=["macros"] }
 anyhow = "1.0"
+
+[features]
+rust-1-52 = ["proc-macro2", "quote"]

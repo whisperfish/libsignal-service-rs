@@ -50,7 +50,11 @@ jobs:
       fail-fast: false
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
-        toolchain: ["stable", "1.52.1"]
+        toolchain: ["stable", "nightly"]
+        include:
+          - project: "libsignal-service-actix"
+            toolchain: "1.52.1"
+            features: "rust-1-52"
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1
@@ -60,7 +64,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml
+          args: --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
       - uses: actions-rs/cargo@v1
         with:
           command: test
