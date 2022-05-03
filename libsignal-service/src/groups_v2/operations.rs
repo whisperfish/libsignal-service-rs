@@ -1,21 +1,77 @@
 use bytes::Bytes;
 use prost::Message;
+use uuid::Uuid;
 use zkgroup::{
     groups::GroupSecretParams,
     profiles::{ProfileKey, ProfileKeyCredentialPresentation},
 };
 
-use crate::proto::{
-    group_attribute_blob, DecryptedGroup, DecryptedMember,
+use crate::{proto::{
+    group_attribute_blob, DecryptedGroup, DecryptedGroupChange, DecryptedMember,
     DecryptedPendingMember, DecryptedRequestingMember, DecryptedTimer,
     Group as EncryptedGroup, GroupAttributeBlob, Member as EncryptedMember,
-    PendingMember as EncryptedPendingMember,
-    RequestingMember as EncryptedRequestingMember,
-};
+    GroupChange, group_change::Actions as EncryptedGroupChangeActions,
+    member::Role, MemberBanned,
+}};
 
 pub(crate) struct GroupOperations {
     group_secret_params: GroupSecretParams,
 }
+
+pub struct DecryptedAddMembersAction {
+    added: DecryptedMember,
+    join_from_invite_link: bool,
+}
+
+pub struct MemberWithRole {
+    user_id: Uuid,
+    role: Role,
+}
+
+pub struct MemberWithProfileKey {
+    uuid: Uuid,
+    profile_key: ProfileKey,
+}
+
+pub struct DecryptedMemberPendingProfileKey {
+    added_by_user_id: Uuid,
+    timestamp: u32,
+    member: Member,
+}
+
+pub struct Member {
+    user_id: Uuid,
+    profile_key: ProfileKey,
+    role: Role,
+}
+
+pub struct DecryptedMemberPendingAdminApproval {
+
+}
+
+#[derive(Default)]
+pub struct DecryptedGroupChangeActions {
+    version: u32,
+    source_uuid: Uuid,
+    add_members: Vec<DecryptedAddMembersAction>,
+    delete_members: Vec<Uuid>,
+    modify_member_roles: Vec<MemberWithRole>,
+    modify_member_profile_keys: Vec<MemberWithProfileKey>,
+    add_pending_members: Vec<DecryptedMemberPendingProfileKey>,
+    delete_pending_member: Vec<Uuid>,
+    promote_pending_members: Vec<MemberWithProfileKey>,
+    modify_title: Vec<GroupAttributeBlob>,
+    modify_disappearing_messages_timer: Vec<GroupAttributeBlob>,
+    add_member_pending_admin_approvals: Vec<DecryptedMemberPendingAdminApproval>,
+    delete_member_pending_admin_approvals: Vec<Uuid>,
+    promote_member_pending_admin_approvals: Vec<MemberWithRole>,
+    modify_invite_link_password: Option<String>,
+    modify_description: Option<GroupAttributeBlob>,
+    modify_announcements_only: bool,
+    add_members_banned: Vec<MemberBanned>,
+    delete_members_banned: Vec<Uuid>,
+}
+
 
 #[derive(Debug, thiserror::Error)]
 pub enum GroupDecryptionError {
@@ -87,15 +143,28 @@ impl GroupOperations {
         })
     }
 
-    fn decrypt_pending_member(
+    fn decrypt_group_change(
         &self,
-        member: EncryptedPendingMember,
-    ) -> Result<DecryptedPendingMember, GroupDecryptionError> {
-        let inner_member =
-            member.member.ok_or(GroupDecryptionError::WrongBlob)?;
+        group_change: GroupChange,
+    ) -> Result<DecryptedGroupChange, GroupDecryptionError> {
+        let actions: EncryptedGroupChangeActions = Message::decode(group_change.actions.into())?;
+
+        let uuid = self.decrypt_uuid(&actions.source_uuid)?;
+
+        let add_members: Vec<DecryptedMember> = actions.add_members.into_iter().filter_map(|add_member| {
+            self.decrypt_member(add_member.added?).ok()
+        }).collect();
+
+        let delete_members: Vec<[u8; 16]> = actions.delete_members.into_iter().filter_map(|delete_member| {
+            self.decrypt_uuid(&delete_member.deleted_user_id).ok()
+        }).collect();
+
+        let modify_member_roles: Vec<DecryptedMemberRole> = actions.modify_member_roles.into_iter().filter_map(|modify_member| {
+            self.decrypt_uuid(&modify_member.user_id).ok()
+        }).collect();
+
         // "Unknown" UUID with zeroes in case of errors, see: UuidUtil.java:16
-        let uuid = self.decrypt_uuid(&inner_member.user_id).unwrap_or_default();
-        let added_by = self.decrypt_uuid(&member.added_by_user_id)?;
+        // let added_by = self.decrypt_uuid(&member.added_by_user_id)?;
 
         Ok(DecryptedPendingMember {
             uuid: uuid.to_vec(),
