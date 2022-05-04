@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["api",""],["common",""],["crypto",""],["ffi",""]]});
+initSidebarItems({"mod":[["api",""],["common",""],["crypto",""]]});

@@ -1,1 +1,1 @@
-initSidebarItems({"mod":[["auth",""],["groups",""],["profiles",""],["server_params",""]]});
+initSidebarItems({"mod":[["auth",""],["groups",""],["profiles",""],["receipts",""],["server_params",""]]});

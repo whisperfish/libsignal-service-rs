@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["UidStruct",""]]});
+initSidebarItems({"struct":[["PointDecodeFailure",""],["UidStruct",""]]});
