@@ -4,3 +4,9 @@ members = [
     "libsignal-service-actix",
     "libsignal-service-hyper",
 ]
+
+[patch.crates-io]
+"curve25519-dalek" = { git = 'https://github.com/whisperfish/curve25519-dalek', branch = 'lizard2-update' }
+
+[patch.'https://github.com/signalapp/curve25519-dalek']
+"curve25519-dalek" = { git = 'https://github.com/whisperfish/curve25519-dalek', branch = 'lizard2-update' }
