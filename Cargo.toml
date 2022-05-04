@@ -10,4 +10,3 @@ members = [
 
 [patch.'https://github.com/signalapp/curve25519-dalek']
 "curve25519-dalek" = { git = 'https://github.com/whisperfish/curve25519-dalek', branch = 'lizard2-update' }
-curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', branch = '3.0.0-lizard2' }
