@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/5104d19/rust/protocol/src/sealed_sender.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sealed_sender.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/bd30563/rust/protocol/src/sealed_sender.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sealed_sender.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
     <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../libsignal_protocol/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"></h2>
     </nav>
@@ -1715,6 +1715,33 @@
 <span id="1710">1710</span>
 <span id="1711">1711</span>
 <span id="1712">1712</span>
+<span id="1713">1713</span>
+<span id="1714">1714</span>
+<span id="1715">1715</span>
+<span id="1716">1716</span>
+<span id="1717">1717</span>
+<span id="1718">1718</span>
+<span id="1719">1719</span>
+<span id="1720">1720</span>
+<span id="1721">1721</span>
+<span id="1722">1722</span>
+<span id="1723">1723</span>
+<span id="1724">1724</span>
+<span id="1725">1725</span>
+<span id="1726">1726</span>
+<span id="1727">1727</span>
+<span id="1728">1728</span>
+<span id="1729">1729</span>
+<span id="1730">1730</span>
+<span id="1731">1731</span>
+<span id="1732">1732</span>
+<span id="1733">1733</span>
+<span id="1734">1734</span>
+<span id="1735">1735</span>
+<span id="1736">1736</span>
+<span id="1737">1737</span>
+<span id="1738">1738</span>
+<span id="1739">1739</span>
 </pre><pre class="rust"><code><span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
@@ -2437,7 +2464,8 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw-2">&amp;</span><span class="ident">sender_identity</span>.<span class="ident">public_key</span>().<span class="ident">serialize</span>(),
             <span class="kw-2">&amp;</span><span class="ident">sender_eph_keys</span>.<span class="ident">cipher_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">sender_eph_keys</span>.<span class="ident">mac_key</span>,
-        )<span class="question-mark">?</span>;
+        )
+        .<span class="ident">expect</span>(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
 
         <span class="comment">// Generate another cipher and MAC key.</span>
         <span class="kw">let</span> <span class="ident">sender_static_keys</span> <span class="op">=</span> <span class="ident">StaticKeys::calculate</span>(
@@ -2452,7 +2480,8 @@ with this test certificate ID, Bad Things will happen.
             <span class="ident">sender_message_contents</span>,
             <span class="kw-2">&amp;</span><span class="ident">sender_static_keys</span>.<span class="ident">cipher_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">sender_static_keys</span>.<span class="ident">mac_key</span>,
-        )<span class="question-mark">?</span>;
+        )
+        .<span class="ident">expect</span>(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
 
         <span class="comment">// The message recipient calculates the ephemeral key and the sender&#39;s public key.</span>
         <span class="kw">let</span> <span class="ident">recipient_eph_keys</span> <span class="op">=</span> <span class="ident">EphemeralKeys::calculate</span>(
@@ -2466,7 +2495,8 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw-2">&amp;</span><span class="ident">sender_static_key_ctext</span>,
             <span class="kw-2">&amp;</span><span class="ident">recipient_eph_keys</span>.<span class="ident">cipher_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">recipient_eph_keys</span>.<span class="ident">mac_key</span>,
-        )<span class="question-mark">?</span>;
+        )
+        .<span class="ident">expect</span>(<span class="string">&quot;should decrypt successfully&quot;</span>);
         <span class="kw">let</span> <span class="ident">sender_public_key</span>: <span class="ident">PublicKey</span> <span class="op">=</span> <span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">recipient_message_key_bytes</span>[..])<span class="question-mark">?</span>;
         <span class="macro">assert_eq!</span>(<span class="ident">sender_identity</span>.<span class="ident">public_key</span>(), <span class="kw-2">&amp;</span><span class="ident">sender_public_key</span>);
 
@@ -2481,7 +2511,8 @@ with this test certificate ID, Bad Things will happen.
             <span class="kw-2">&amp;</span><span class="ident">sender_message_data</span>,
             <span class="kw-2">&amp;</span><span class="ident">recipient_static_keys</span>.<span class="ident">cipher_key</span>,
             <span class="kw-2">&amp;</span><span class="ident">recipient_static_keys</span>.<span class="ident">mac_key</span>,
-        )<span class="question-mark">?</span>;
+        )
+        .<span class="ident">expect</span>(<span class="string">&quot;should decrypt successfully&quot;</span>);
         <span class="macro">assert_eq!</span>(<span class="ident">recipient_message_contents</span>, <span class="ident">sender_message_contents</span>);
 
         <span class="prelude-val">Ok</span>(())
@@ -2589,7 +2620,8 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw-2">&amp;</span><span class="ident">our_identity</span>.<span class="ident">public_key</span>().<span class="ident">serialize</span>(),
         <span class="kw-2">&amp;</span><span class="ident">eph_keys</span>.<span class="ident">cipher_key</span>,
         <span class="kw-2">&amp;</span><span class="ident">eph_keys</span>.<span class="ident">mac_key</span>,
-    )<span class="question-mark">?</span>;
+    )
+    .<span class="ident">expect</span>(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
 
     <span class="kw">let</span> <span class="ident">static_keys</span> <span class="op">=</span> <span class="ident">sealed_sender_v1::StaticKeys::calculate</span>(
         <span class="kw-2">&amp;</span><span class="ident">our_identity</span>,
@@ -2602,7 +2634,8 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">usmc</span>.<span class="ident">serialized</span>()<span class="question-mark">?</span>,
         <span class="kw-2">&amp;</span><span class="ident">static_keys</span>.<span class="ident">cipher_key</span>,
         <span class="kw-2">&amp;</span><span class="ident">static_keys</span>.<span class="ident">mac_key</span>,
-    )<span class="question-mark">?</span>;
+    )
+    .<span class="ident">expect</span>(<span class="string">&quot;just generated these keys, they should be correct&quot;</span>);
 
     <span class="kw">let</span> <span class="ident">version</span> <span class="op">=</span> <span class="ident">SEALED_SENDER_V1_VERSION</span>;
     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="macro">vec!</span>[<span class="ident">version</span> <span class="op">|</span> (<span class="ident">version</span> <span class="op">&lt;</span><span class="op">&lt;</span> <span class="number">4</span>)];
@@ -3150,11 +3183,20 @@ with this test certificate ID, Bad Things will happen.
                 <span class="ident">Direction::Receiving</span>,
             )<span class="question-mark">?</span>;
 
-            <span class="kw">let</span> <span class="ident">message_key_bytes</span> <span class="op">=</span> <span class="ident">crypto::aes256_ctr_hmacsha256_decrypt</span>(
+            <span class="kw">let</span> <span class="ident">message_key_bytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">crypto::aes256_ctr_hmacsha256_decrypt</span>(
                 <span class="kw-2">&amp;</span><span class="ident">encrypted_static</span>,
                 <span class="kw-2">&amp;</span><span class="ident">eph_keys</span>.<span class="ident">cipher_key</span>,
                 <span class="kw-2">&amp;</span><span class="ident">eph_keys</span>.<span class="ident">mac_key</span>,
-            )<span class="question-mark">?</span>;
+            ) {
+                <span class="prelude-val">Ok</span>(<span class="ident">plaintext</span>) =&gt; <span class="ident">plaintext</span>,
+                <span class="prelude-val">Err</span>(<span class="ident">crypto::DecryptionError::BadKeyOrIv</span>) =&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">&quot;just derived these keys; they should be valid&quot;</span>);
+                }
+                <span class="prelude-val">Err</span>(<span class="ident">crypto::DecryptionError::BadCiphertext</span>(<span class="ident">msg</span>)) =&gt; {
+                    <span class="macro">log::error!</span>(<span class="string">&quot;failed to decrypt Sealed sender v1 message key: {}&quot;</span>, <span class="ident">msg</span>);
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCiphertext</span>);
+                }
+            };
 
             <span class="kw">let</span> <span class="ident">static_key</span> <span class="op">=</span> <span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">message_key_bytes</span>[..])<span class="question-mark">?</span>;
 
@@ -3165,11 +3207,23 @@ with this test certificate ID, Bad Things will happen.
                 <span class="kw-2">&amp;</span><span class="ident">encrypted_static</span>,
             )<span class="question-mark">?</span>;
 
-            <span class="kw">let</span> <span class="ident">message_bytes</span> <span class="op">=</span> <span class="ident">crypto::aes256_ctr_hmacsha256_decrypt</span>(
+            <span class="kw">let</span> <span class="ident">message_bytes</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">crypto::aes256_ctr_hmacsha256_decrypt</span>(
                 <span class="kw-2">&amp;</span><span class="ident">encrypted_message</span>,
                 <span class="kw-2">&amp;</span><span class="ident">static_keys</span>.<span class="ident">cipher_key</span>,
                 <span class="kw-2">&amp;</span><span class="ident">static_keys</span>.<span class="ident">mac_key</span>,
-            )<span class="question-mark">?</span>;
+            ) {
+                <span class="prelude-val">Ok</span>(<span class="ident">plaintext</span>) =&gt; <span class="ident">plaintext</span>,
+                <span class="prelude-val">Err</span>(<span class="ident">crypto::DecryptionError::BadKeyOrIv</span>) =&gt; {
+                    <span class="macro">unreachable!</span>(<span class="string">&quot;just derived these keys; they should be valid&quot;</span>);
+                }
+                <span class="prelude-val">Err</span>(<span class="ident">crypto::DecryptionError::BadCiphertext</span>(<span class="ident">msg</span>)) =&gt; {
+                    <span class="macro">log::error!</span>(
+                        <span class="string">&quot;failed to decrypt Sealed sender v1 message contents: {}&quot;</span>,
+                        <span class="ident">msg</span>
+                    );
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCiphertext</span>);
+                }
+            };
 
             <span class="kw">let</span> <span class="ident">usmc</span> <span class="op">=</span> <span class="ident">UnidentifiedSenderMessageContent::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">message_bytes</span>)<span class="question-mark">?</span>;
 
@@ -3369,7 +3423,7 @@ with this test certificate ID, Bad Things will happen.
 
     <span class="comment">// To test a hypothetical addition of a new field:</span>
     <span class="comment">//</span>
-    <span class="comment">// Step 1: tempororarily add a new field to the .proto.</span>
+    <span class="comment">// Step 1: temporarily add a new field to the .proto.</span>
     <span class="comment">//</span>
     <span class="comment">//    --- a/rust/protocol/src/proto/sealed_sender.proto</span>
     <span class="comment">//    +++ b/rust/protocol/src/proto/sealed_sender.proto</span>
