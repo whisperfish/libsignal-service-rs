@@ -5,7 +5,6 @@ mod account_manager;
 pub mod attachment_cipher;
 pub mod cipher;
 pub mod profile_cipher;
-pub mod sealed_session_cipher;
 
 pub mod configuration;
 pub mod content;
@@ -86,8 +85,8 @@ pub mod prelude {
         pub use libsignal_protocol::{
             Context, Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore,
             KeyPair, PreKeyRecord, PreKeyStore, PrivateKey, ProtocolAddress,
-            PublicKey, SessionRecord, SessionStore, SignalProtocolError,
-            SignedPreKeyRecord, SignedPreKeyStore,
+            PublicKey, SenderCertificate, SessionRecord, SessionStore,
+            SignalProtocolError, SignedPreKeyRecord, SignedPreKeyStore,
         };
     }
 }

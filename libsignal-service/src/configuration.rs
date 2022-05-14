@@ -1,14 +1,12 @@
 use std::{collections::HashMap, str::FromStr};
 
-use libsignal_protocol::PublicKey;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use zkgroup::ServerPublicParams;
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    push_service::{HttpAuth, ServiceError, DEFAULT_DEVICE_ID},
-    sealed_session_cipher::{CertificateValidator, SealedSessionError},
+    push_service::{HttpAuth, DEFAULT_DEVICE_ID},
 };
 
 #[derive(Clone)]
@@ -160,15 +158,6 @@ impl From<&SignalServers> for ServiceConfiguration {
 }
 
 impl ServiceConfiguration {
-    pub fn credentials_validator(
-        &self,
-    ) -> Result<CertificateValidator, ServiceError> {
-        Ok(CertificateValidator::new(PublicKey::deserialize(
-            &base64::decode(&self.unidentified_sender_trust_root)
-                .map_err(|_| SealedSessionError::InvalidCertificate)?,
-        )?))
-    }
-
     pub fn base_url(&self, endpoint: Endpoint) -> &Url {
         match endpoint {
             Endpoint::Service => &self.service_url,
