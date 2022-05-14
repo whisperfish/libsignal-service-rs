@@ -9,16 +9,17 @@ edition = "2018"
 # the Send requirement in libsignal-service needs to be lifted by enabling `unsend-futures`.
 libsignal-service = { path = "../libsignal-service", features = ["unsend-futures"] }
 
-awc = { version = "=3.0.0-beta.19", features=["rustls"] }
-actix = "0.12"
-actix-http = "=3.0.0-beta.19"
+awc = { version = "3.0", features=["rustls"] }
+actix = "0.13"
+actix-http = "3.0"
 actix-rt = "2.4"
+# mpart-async 0.6 requires Rust 2021, violating MSRV = 1.52
 mpart-async = "0.5"
 serde_json = "1.0"
 futures = "0.3"
 bytes = "1"
 rustls = "0.20"
-rustls-pemfile = "0.2"
+rustls-pemfile = "0.3"
 url = "2.1"
 serde = "1.0"
 log = "0.4"
@@ -30,6 +31,10 @@ base64 = "0.13"
 
 phonenumber = "0.3"
 
+# Pin this for 1.52.1 compat
+proc-macro2 = { version = "=1.0.26", optional = true }
+quote = { version = "=1.0.10", optional = true }
+
 [dev-dependencies]
 env_logger = "0.9"
 image = { version = "0.23", default-features = false, features = ["png"] }
@@ -39,3 +44,6 @@ rand = "0.7"
 structopt = "0.3"
 tokio = { version = "1", features=["macros"] }
 anyhow = "1.0"
+
+[features]
+rust-1-52 = ["proc-macro2", "quote"]

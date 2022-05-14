@@ -3,7 +3,7 @@ use std::fmt::{self, Debug};
 use aes::Aes256;
 use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 use bytes::Bytes;
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use libsignal_protocol::{KeyPair, PublicKey};
 use prost::Message;
 use rand::Rng;

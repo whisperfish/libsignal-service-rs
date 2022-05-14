@@ -64,15 +64,21 @@ impl HyperPushService {
     }
 
     fn tls_config(cfg: &ServiceConfiguration) -> rustls::ClientConfig {
-        // This will fail to compile against rustls 0.20, see service-actix push_service get_client
-        let mut tls_config = rustls::ClientConfig::new();
+        let mut cert_bytes = std::io::Cursor::new(&cfg.certificate_authority);
+        let roots = rustls_pemfile::certs(&mut cert_bytes)
+            .expect("parseable PEM files");
+        let roots = roots.iter().map(|v| rustls::Certificate(v.clone()));
+
+        let mut root_certs = rustls::RootCertStore::empty();
+        for root in roots {
+            root_certs.add(&root).unwrap();
+        }
+
+        let mut tls_config = rustls::ClientConfig::builder()
+            .with_safe_defaults()
+            .with_root_certificates(root_certs)
+            .with_no_client_auth();
         tls_config.alpn_protocols = vec![b"http/1.1".to_vec()];
-        tls_config
-            .root_store
-            .add_pem_file(&mut std::io::Cursor::new(
-                cfg.certificate_authority.clone(),
-            ))
-            .expect("invalid TLS certificate authority");
         tls_config
     }
 
