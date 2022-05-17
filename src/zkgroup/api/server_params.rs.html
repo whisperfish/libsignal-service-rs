@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/bd30563/rust/zkgroup/src/api/server_params.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>server_params.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><script defer src="../../../main.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/916269c/rust/zkgroup/src/api/server_params.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>server_params.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script src="../../../crates.js"></script><script defer src="../../../main.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script>
     <noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../zkgroup/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"></h2>
     </nav>
@@ -644,6 +644,300 @@
 <span id="639">639</span>
 <span id="640">640</span>
 <span id="641">641</span>
+<span id="642">642</span>
+<span id="643">643</span>
+<span id="644">644</span>
+<span id="645">645</span>
+<span id="646">646</span>
+<span id="647">647</span>
+<span id="648">648</span>
+<span id="649">649</span>
+<span id="650">650</span>
+<span id="651">651</span>
+<span id="652">652</span>
+<span id="653">653</span>
+<span id="654">654</span>
+<span id="655">655</span>
+<span id="656">656</span>
+<span id="657">657</span>
+<span id="658">658</span>
+<span id="659">659</span>
+<span id="660">660</span>
+<span id="661">661</span>
+<span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
+<span id="666">666</span>
+<span id="667">667</span>
+<span id="668">668</span>
+<span id="669">669</span>
+<span id="670">670</span>
+<span id="671">671</span>
+<span id="672">672</span>
+<span id="673">673</span>
+<span id="674">674</span>
+<span id="675">675</span>
+<span id="676">676</span>
+<span id="677">677</span>
+<span id="678">678</span>
+<span id="679">679</span>
+<span id="680">680</span>
+<span id="681">681</span>
+<span id="682">682</span>
+<span id="683">683</span>
+<span id="684">684</span>
+<span id="685">685</span>
+<span id="686">686</span>
+<span id="687">687</span>
+<span id="688">688</span>
+<span id="689">689</span>
+<span id="690">690</span>
+<span id="691">691</span>
+<span id="692">692</span>
+<span id="693">693</span>
+<span id="694">694</span>
+<span id="695">695</span>
+<span id="696">696</span>
+<span id="697">697</span>
+<span id="698">698</span>
+<span id="699">699</span>
+<span id="700">700</span>
+<span id="701">701</span>
+<span id="702">702</span>
+<span id="703">703</span>
+<span id="704">704</span>
+<span id="705">705</span>
+<span id="706">706</span>
+<span id="707">707</span>
+<span id="708">708</span>
+<span id="709">709</span>
+<span id="710">710</span>
+<span id="711">711</span>
+<span id="712">712</span>
+<span id="713">713</span>
+<span id="714">714</span>
+<span id="715">715</span>
+<span id="716">716</span>
+<span id="717">717</span>
+<span id="718">718</span>
+<span id="719">719</span>
+<span id="720">720</span>
+<span id="721">721</span>
+<span id="722">722</span>
+<span id="723">723</span>
+<span id="724">724</span>
+<span id="725">725</span>
+<span id="726">726</span>
+<span id="727">727</span>
+<span id="728">728</span>
+<span id="729">729</span>
+<span id="730">730</span>
+<span id="731">731</span>
+<span id="732">732</span>
+<span id="733">733</span>
+<span id="734">734</span>
+<span id="735">735</span>
+<span id="736">736</span>
+<span id="737">737</span>
+<span id="738">738</span>
+<span id="739">739</span>
+<span id="740">740</span>
+<span id="741">741</span>
+<span id="742">742</span>
+<span id="743">743</span>
+<span id="744">744</span>
+<span id="745">745</span>
+<span id="746">746</span>
+<span id="747">747</span>
+<span id="748">748</span>
+<span id="749">749</span>
+<span id="750">750</span>
+<span id="751">751</span>
+<span id="752">752</span>
+<span id="753">753</span>
+<span id="754">754</span>
+<span id="755">755</span>
+<span id="756">756</span>
+<span id="757">757</span>
+<span id="758">758</span>
+<span id="759">759</span>
+<span id="760">760</span>
+<span id="761">761</span>
+<span id="762">762</span>
+<span id="763">763</span>
+<span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
+<span id="777">777</span>
+<span id="778">778</span>
+<span id="779">779</span>
+<span id="780">780</span>
+<span id="781">781</span>
+<span id="782">782</span>
+<span id="783">783</span>
+<span id="784">784</span>
+<span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
+<span id="797">797</span>
+<span id="798">798</span>
+<span id="799">799</span>
+<span id="800">800</span>
+<span id="801">801</span>
+<span id="802">802</span>
+<span id="803">803</span>
+<span id="804">804</span>
+<span id="805">805</span>
+<span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
+<span id="880">880</span>
+<span id="881">881</span>
+<span id="882">882</span>
+<span id="883">883</span>
+<span id="884">884</span>
+<span id="885">885</span>
+<span id="886">886</span>
+<span id="887">887</span>
+<span id="888">888</span>
+<span id="889">889</span>
+<span id="890">890</span>
+<span id="891">891</span>
+<span id="892">892</span>
+<span id="893">893</span>
+<span id="894">894</span>
+<span id="895">895</span>
+<span id="896">896</span>
+<span id="897">897</span>
+<span id="898">898</span>
+<span id="899">899</span>
+<span id="900">900</span>
+<span id="901">901</span>
+<span id="902">902</span>
+<span id="903">903</span>
+<span id="904">904</span>
+<span id="905">905</span>
+<span id="906">906</span>
+<span id="907">907</span>
+<span id="908">908</span>
+<span id="909">909</span>
+<span id="910">910</span>
+<span id="911">911</span>
+<span id="912">912</span>
+<span id="913">913</span>
+<span id="914">914</span>
+<span id="915">915</span>
+<span id="916">916</span>
+<span id="917">917</span>
+<span id="918">918</span>
+<span id="919">919</span>
+<span id="920">920</span>
+<span id="921">921</span>
+<span id="922">922</span>
+<span id="923">923</span>
+<span id="924">924</span>
+<span id="925">925</span>
+<span id="926">926</span>
+<span id="927">927</span>
+<span id="928">928</span>
+<span id="929">929</span>
+<span id="930">930</span>
+<span id="931">931</span>
+<span id="932">932</span>
+<span id="933">933</span>
+<span id="934">934</span>
+<span id="935">935</span>
 </pre><pre class="rust"><code><span class="comment">//</span>
 <span class="comment">// Copyright 2020 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
@@ -652,6 +946,7 @@
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::api</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::common::constants</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::common::errors</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::common::sho</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::common::simple_types</span>::<span class="kw-2">*</span>;
@@ -716,11 +1011,7 @@
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sign</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
-        <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">NotarySignatureBytes</span>, <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sign</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>, <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="ident">NotarySignatureBytes</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
             <span class="string">b&quot;Signal_ZKGroup_20200424_Random_ServerSecretParams_Sign&quot;</span>,
             <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
@@ -760,8 +1051,47 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_auth_credential_presentation</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
-        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::auth::AuthCredentialPresentation</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::auth::AnyAuthCredentialPresentation</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="ident">presentation</span> {
+            <span class="ident">api::auth::AnyAuthCredentialPresentation::V1</span>(<span class="ident">presentation_v1</span>) =&gt; {
+                <span class="ident">presentation_v1</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+                    <span class="self">self</span>.<span class="ident">auth_credentials_key_pair</span>,
+                    <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>,
+                    <span class="ident">presentation_v1</span>.<span class="ident">ciphertext</span>,
+                    <span class="ident">presentation_v1</span>.<span class="ident">redemption_time</span>,
+                )
+            }
+
+            <span class="ident">api::auth::AnyAuthCredentialPresentation::V2</span>(<span class="ident">presentation_v2</span>) =&gt; {
+                <span class="ident">presentation_v2</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+                    <span class="self">self</span>.<span class="ident">auth_credentials_key_pair</span>,
+                    <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>,
+                    <span class="ident">presentation_v2</span>.<span class="ident">ciphertext</span>,
+                    <span class="ident">presentation_v2</span>.<span class="ident">redemption_time</span>,
+                )
+            }
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_auth_credential_presentation_v1</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::auth::AuthCredentialPresentationV1</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
+        <span class="ident">presentation</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+            <span class="self">self</span>.<span class="ident">auth_credentials_key_pair</span>,
+            <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>,
+            <span class="ident">presentation</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">presentation</span>.<span class="ident">redemption_time</span>,
+        )
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_auth_credential_presentation_v2</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::auth::AuthCredentialPresentationV2</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="ident">presentation</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
             <span class="self">self</span>.<span class="ident">auth_credentials_key_pair</span>,
             <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>,
@@ -773,8 +1103,57 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_profile_key_credential_presentation</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
-        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::ProfileKeyCredentialPresentation</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::AnyProfileKeyCredentialPresentation</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">credentials_key_pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">profile_key_credentials_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">uid_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>;
+        <span class="kw">let</span> <span class="ident">profile_key_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">profile_key_enc_public_key</span>;
+        <span class="kw">match</span> <span class="ident">presentation</span> {
+            <span class="ident">api::profiles::AnyProfileKeyCredentialPresentation::V1</span>(<span class="ident">presentation_v1</span>) =&gt; {
+                <span class="ident">presentation_v1</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+                    <span class="ident">credentials_key_pair</span>,
+                    <span class="ident">presentation_v1</span>.<span class="ident">uid_enc_ciphertext</span>,
+                    <span class="ident">uid_enc_public_key</span>,
+                    <span class="ident">presentation_v1</span>.<span class="ident">profile_key_enc_ciphertext</span>,
+                    <span class="ident">profile_key_enc_public_key</span>,
+                )
+            }
+
+            <span class="ident">api::profiles::AnyProfileKeyCredentialPresentation::V2</span>(<span class="ident">presentation_v2</span>) =&gt; {
+                <span class="ident">presentation_v2</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+                    <span class="ident">credentials_key_pair</span>,
+                    <span class="ident">presentation_v2</span>.<span class="ident">uid_enc_ciphertext</span>,
+                    <span class="ident">uid_enc_public_key</span>,
+                    <span class="ident">presentation_v2</span>.<span class="ident">profile_key_enc_ciphertext</span>,
+                    <span class="ident">profile_key_enc_public_key</span>,
+                )
+            }
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_profile_key_credential_presentation_v1</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::ProfileKeyCredentialPresentationV1</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">credentials_key_pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">profile_key_credentials_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">uid_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>;
+        <span class="kw">let</span> <span class="ident">profile_key_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">profile_key_enc_public_key</span>;
+
+        <span class="ident">presentation</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+            <span class="ident">credentials_key_pair</span>,
+            <span class="ident">presentation</span>.<span class="ident">uid_enc_ciphertext</span>,
+            <span class="ident">uid_enc_public_key</span>,
+            <span class="ident">presentation</span>.<span class="ident">profile_key_enc_ciphertext</span>,
+            <span class="ident">profile_key_enc_public_key</span>,
+        )
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_profile_key_credential_presentation_v2</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::ProfileKeyCredentialPresentationV2</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">credentials_key_pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">profile_key_credentials_key_pair</span>;
         <span class="kw">let</span> <span class="ident">uid_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>;
         <span class="kw">let</span> <span class="ident">profile_key_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">profile_key_enc_public_key</span>;
@@ -791,8 +1170,60 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_pni_credential_presentation</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
-        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::PniCredentialPresentation</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::AnyPniCredentialPresentation</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">credentials_key_pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pni_credentials_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">uid_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>;
+        <span class="kw">let</span> <span class="ident">profile_key_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">profile_key_enc_public_key</span>;
+        <span class="kw">match</span> <span class="ident">presentation</span> {
+            <span class="ident">api::profiles::AnyPniCredentialPresentation::V1</span>(<span class="ident">presentation_v1</span>) =&gt; {
+                <span class="ident">presentation_v1</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+                    <span class="ident">credentials_key_pair</span>,
+                    <span class="ident">presentation_v1</span>.<span class="ident">aci_enc_ciphertext</span>,
+                    <span class="ident">uid_enc_public_key</span>,
+                    <span class="ident">presentation_v1</span>.<span class="ident">profile_key_enc_ciphertext</span>,
+                    <span class="ident">profile_key_enc_public_key</span>,
+                    <span class="ident">presentation_v1</span>.<span class="ident">pni_enc_ciphertext</span>,
+                )
+            }
+
+            <span class="ident">api::profiles::AnyPniCredentialPresentation::V2</span>(<span class="ident">presentation_v2</span>) =&gt; {
+                <span class="ident">presentation_v2</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+                    <span class="ident">credentials_key_pair</span>,
+                    <span class="ident">presentation_v2</span>.<span class="ident">aci_enc_ciphertext</span>,
+                    <span class="ident">uid_enc_public_key</span>,
+                    <span class="ident">presentation_v2</span>.<span class="ident">profile_key_enc_ciphertext</span>,
+                    <span class="ident">profile_key_enc_public_key</span>,
+                    <span class="ident">presentation_v2</span>.<span class="ident">pni_enc_ciphertext</span>,
+                )
+            }
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_pni_credential_presentation_v1</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::PniCredentialPresentationV1</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">credentials_key_pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pni_credentials_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">uid_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>;
+        <span class="kw">let</span> <span class="ident">profile_key_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">profile_key_enc_public_key</span>;
+
+        <span class="ident">presentation</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
+            <span class="ident">credentials_key_pair</span>,
+            <span class="ident">presentation</span>.<span class="ident">aci_enc_ciphertext</span>,
+            <span class="ident">uid_enc_public_key</span>,
+            <span class="ident">presentation</span>.<span class="ident">profile_key_enc_ciphertext</span>,
+            <span class="ident">profile_key_enc_public_key</span>,
+            <span class="ident">presentation</span>.<span class="ident">pni_enc_ciphertext</span>,
+        )
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_pni_credential_presentation_v2</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">group_public_params</span>: <span class="ident">api::groups::GroupPublicParams</span>,
+        <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::PniCredentialPresentationV2</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">credentials_key_pair</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pni_credentials_key_pair</span>;
         <span class="kw">let</span> <span class="ident">uid_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">uid_enc_public_key</span>;
         <span class="kw">let</span> <span class="ident">profile_key_enc_public_key</span> <span class="op">=</span> <span class="ident">group_public_params</span>.<span class="ident">profile_key_enc_public_key</span>;
@@ -813,7 +1244,7 @@
         <span class="ident">request</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::ProfileKeyCredentialRequest</span>,
         <span class="ident">uid_bytes</span>: <span class="ident">UidBytes</span>,
         <span class="ident">commitment</span>: <span class="ident">api::profiles::ProfileKeyCommitment</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::ProfileKeyCredentialResponse</span>, <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::ProfileKeyCredentialResponse</span>, <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
             <span class="string">b&quot;Signal_ZKGroup_20200424_Random_ServerSecretParams_IssueProfileKeyCredential&quot;</span>,
             <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
@@ -859,7 +1290,7 @@
         <span class="ident">uid_bytes</span>: <span class="ident">UidBytes</span>,
         <span class="ident">pni_bytes</span>: <span class="ident">UidBytes</span>,
         <span class="ident">commitment</span>: <span class="ident">api::profiles::ProfileKeyCommitment</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::PniCredentialResponse</span>, <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::PniCredentialResponse</span>, <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
             <span class="string">b&quot;Signal_ZKGroup_20211111_Random_ServerSecretParams_IssuePniCredential&quot;</span>,
             <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
@@ -944,7 +1375,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">verify_receipt_credential_presentation</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">presentation</span>: <span class="kw-2">&amp;</span><span class="ident">api::receipts::ReceiptCredentialPresentation</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="ident">presentation</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
             <span class="self">self</span>.<span class="ident">receipt_credentials_key_pair</span>,
             <span class="ident">presentation</span>.<span class="ident">get_receipt_struct</span>(),
@@ -957,7 +1388,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">message</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">signature</span>: <span class="ident">NotarySignatureBytes</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">sig_public_key</span>.<span class="ident">verify</span>(<span class="ident">message</span>, <span class="ident">signature</span>)
     }
 
@@ -966,7 +1397,7 @@
         <span class="ident">uid_bytes</span>: <span class="ident">UidBytes</span>,
         <span class="ident">redemption_time</span>: <span class="ident">RedemptionTime</span>,
         <span class="ident">response</span>: <span class="kw-2">&amp;</span><span class="ident">api::auth::AuthCredentialResponse</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::auth::AuthCredential</span>, <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::auth::AuthCredential</span>, <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">uid</span> <span class="op">=</span> <span class="ident">crypto::uid_struct::UidStruct::new</span>(<span class="ident">uid_bytes</span>);
         <span class="ident">response</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
             <span class="self">self</span>.<span class="ident">auth_credentials_public_key</span>,
@@ -988,7 +1419,21 @@
         <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
         <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
         <span class="ident">auth_credential</span>: <span class="ident">api::auth::AuthCredential</span>,
-    ) -&gt; <span class="ident">api::auth::AuthCredentialPresentation</span> {
+    ) -&gt; <span class="ident">api::auth::AnyAuthCredentialPresentation</span> {
+        <span class="kw">let</span> <span class="ident">presentation_v2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_auth_credential_presentation_v2</span>(
+            <span class="ident">randomness</span>,
+            <span class="ident">group_secret_params</span>,
+            <span class="ident">auth_credential</span>,
+        );
+        <span class="ident">api::auth::AnyAuthCredentialPresentation::V2</span>(<span class="ident">presentation_v2</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_auth_credential_presentation_v1</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
+        <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
+        <span class="ident">auth_credential</span>: <span class="ident">api::auth::AuthCredential</span>,
+    ) -&gt; <span class="ident">api::auth::AuthCredentialPresentationV1</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
             <span class="string">b&quot;Signal_ZKGroup_20200424_Random_ServerPublicParams_CreateAuthCredentialPresentation&quot;</span>,
             <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
@@ -996,7 +1441,7 @@
 
         <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_uid_struct</span>(<span class="ident">auth_credential</span>.<span class="ident">uid</span>);
 
-        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::AuthCredentialPresentationProof::new</span>(
+        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::AuthCredentialPresentationProofV1::new</span>(
             <span class="self">self</span>.<span class="ident">auth_credentials_public_key</span>,
             <span class="ident">group_secret_params</span>.<span class="ident">uid_enc_key_pair</span>,
             <span class="ident">auth_credential</span>.<span class="ident">credential</span>,
@@ -1006,8 +1451,39 @@
             <span class="kw-2">&amp;mut</span> <span class="ident">sho</span>,
         );
 
-        <span class="ident">api::auth::AuthCredentialPresentation</span> {
-            <span class="ident">reserved</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">api::auth::AuthCredentialPresentationV1</span> {
+            <span class="ident">reserved</span>: [<span class="ident">PRESENTATION_VERSION_1</span>],
+            <span class="ident">proof</span>,
+            <span class="ident">ciphertext</span>: <span class="ident">uuid_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">redemption_time</span>: <span class="ident">auth_credential</span>.<span class="ident">redemption_time</span>,
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_auth_credential_presentation_v2</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
+        <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
+        <span class="ident">auth_credential</span>: <span class="ident">api::auth::AuthCredential</span>,
+    ) -&gt; <span class="ident">api::auth::AuthCredentialPresentationV2</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
+            <span class="string">b&quot;Signal_ZKGroup_20220120_Random_ServerPublicParams_CreateAuthCredentialPresentationV2&quot;</span>,
+            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
+        );
+
+        <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_uid_struct</span>(<span class="ident">auth_credential</span>.<span class="ident">uid</span>);
+
+        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::AuthCredentialPresentationProofV2::new</span>(
+            <span class="self">self</span>.<span class="ident">auth_credentials_public_key</span>,
+            <span class="ident">group_secret_params</span>.<span class="ident">uid_enc_key_pair</span>,
+            <span class="ident">auth_credential</span>.<span class="ident">credential</span>,
+            <span class="ident">auth_credential</span>.<span class="ident">uid</span>,
+            <span class="ident">uuid_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">auth_credential</span>.<span class="ident">redemption_time</span>,
+            <span class="kw-2">&amp;mut</span> <span class="ident">sho</span>,
+        );
+
+        <span class="ident">api::auth::AuthCredentialPresentationV2</span> {
+            <span class="ident">version</span>: [<span class="ident">PRESENTATION_VERSION_2</span>],
             <span class="ident">proof</span>,
             <span class="ident">ciphertext</span>: <span class="ident">uuid_ciphertext</span>.<span class="ident">ciphertext</span>,
             <span class="ident">redemption_time</span>: <span class="ident">auth_credential</span>.<span class="ident">redemption_time</span>,
@@ -1080,7 +1556,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::ProfileKeyCredentialRequestContext</span>,
         <span class="ident">response</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::ProfileKeyCredentialResponse</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::ProfileKeyCredential</span>, <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::ProfileKeyCredential</span>, <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="ident">response</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
             <span class="self">self</span>.<span class="ident">profile_key_credentials_public_key</span>,
             <span class="ident">context</span>.<span class="ident">key_pair</span>.<span class="ident">get_public_key</span>(),
@@ -1105,7 +1581,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::PniCredentialRequestContext</span>,
         <span class="ident">response</span>: <span class="kw-2">&amp;</span><span class="ident">api::profiles::PniCredentialResponse</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::PniCredential</span>, <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::profiles::PniCredential</span>, <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="ident">response</span>.<span class="ident">proof</span>.<span class="ident">verify</span>(
             <span class="self">self</span>.<span class="ident">pni_credentials_public_key</span>,
             <span class="ident">context</span>.<span class="ident">key_pair</span>.<span class="ident">get_public_key</span>(),
@@ -1133,7 +1609,21 @@
         <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
         <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
         <span class="ident">profile_key_credential</span>: <span class="ident">api::profiles::ProfileKeyCredential</span>,
-    ) -&gt; <span class="ident">api::profiles::ProfileKeyCredentialPresentation</span> {
+    ) -&gt; <span class="ident">api::profiles::AnyProfileKeyCredentialPresentation</span> {
+        <span class="kw">let</span> <span class="ident">presentation_v2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_profile_key_credential_presentation_v2</span>(
+            <span class="ident">randomness</span>,
+            <span class="ident">group_secret_params</span>,
+            <span class="ident">profile_key_credential</span>,
+        );
+        <span class="ident">api::profiles::AnyProfileKeyCredentialPresentation::V2</span>(<span class="ident">presentation_v2</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_profile_key_credential_presentation_v1</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
+        <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
+        <span class="ident">profile_key_credential</span>: <span class="ident">api::profiles::ProfileKeyCredential</span>,
+    ) -&gt; <span class="ident">api::profiles::ProfileKeyCredentialPresentationV1</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
             <span class="string">b&quot;Signal_ZKGroup_20200424_Random_ServerPublicParams_CreateProfileKeyCredentialPresentation&quot;</span>,
             <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
@@ -1149,7 +1639,7 @@
             <span class="ident">profile_key_credential</span>.<span class="ident">uid_bytes</span>,
         );
 
-        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::ProfileKeyCredentialPresentationProof::new</span>(
+        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::ProfileKeyCredentialPresentationProofV1::new</span>(
             <span class="ident">uid_enc_key_pair</span>,
             <span class="ident">profile_key_enc_key_pair</span>,
             <span class="ident">credentials_public_key</span>,
@@ -1161,8 +1651,49 @@
             <span class="kw-2">&amp;mut</span> <span class="ident">sho</span>,
         );
 
-        <span class="ident">api::profiles::ProfileKeyCredentialPresentation</span> {
-            <span class="ident">reserved</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">api::profiles::ProfileKeyCredentialPresentationV1</span> {
+            <span class="ident">reserved</span>: [<span class="ident">PRESENTATION_VERSION_1</span>],
+            <span class="ident">proof</span>,
+            <span class="ident">uid_enc_ciphertext</span>: <span class="ident">uuid_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">profile_key_enc_ciphertext</span>: <span class="ident">profile_key_ciphertext</span>.<span class="ident">ciphertext</span>,
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_profile_key_credential_presentation_v2</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
+        <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
+        <span class="ident">profile_key_credential</span>: <span class="ident">api::profiles::ProfileKeyCredential</span>,
+    ) -&gt; <span class="ident">api::profiles::ProfileKeyCredentialPresentationV2</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
+            <span class="string">b&quot;Signal_ZKGroup_20220120_Random_ServerPublicParams_CreateProfileKeyCredentialPresentationV2&quot;</span>,
+            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
+        );
+
+        <span class="kw">let</span> <span class="ident">uid_enc_key_pair</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">uid_enc_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">profile_key_enc_key_pair</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">profile_key_enc_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">credentials_public_key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">profile_key_credentials_public_key</span>;
+
+        <span class="kw">let</span> <span class="ident">uuid_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_uuid</span>(<span class="ident">profile_key_credential</span>.<span class="ident">uid_bytes</span>);
+        <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_profile_key_bytes</span>(
+            <span class="ident">profile_key_credential</span>.<span class="ident">profile_key_bytes</span>,
+            <span class="ident">profile_key_credential</span>.<span class="ident">uid_bytes</span>,
+        );
+
+        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::ProfileKeyCredentialPresentationProofV2::new</span>(
+            <span class="ident">uid_enc_key_pair</span>,
+            <span class="ident">profile_key_enc_key_pair</span>,
+            <span class="ident">credentials_public_key</span>,
+            <span class="ident">profile_key_credential</span>.<span class="ident">credential</span>,
+            <span class="ident">uuid_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">profile_key_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">profile_key_credential</span>.<span class="ident">uid_bytes</span>,
+            <span class="ident">profile_key_credential</span>.<span class="ident">profile_key_bytes</span>,
+            <span class="kw-2">&amp;mut</span> <span class="ident">sho</span>,
+        );
+
+        <span class="ident">api::profiles::ProfileKeyCredentialPresentationV2</span> {
+            <span class="ident">version</span>: [<span class="ident">PRESENTATION_VERSION_2</span>],
             <span class="ident">proof</span>,
             <span class="ident">uid_enc_ciphertext</span>: <span class="ident">uuid_ciphertext</span>.<span class="ident">ciphertext</span>,
             <span class="ident">profile_key_enc_ciphertext</span>: <span class="ident">profile_key_ciphertext</span>.<span class="ident">ciphertext</span>,
@@ -1174,7 +1705,21 @@
         <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
         <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
         <span class="ident">pni_credential</span>: <span class="ident">api::profiles::PniCredential</span>,
-    ) -&gt; <span class="ident">api::profiles::PniCredentialPresentation</span> {
+    ) -&gt; <span class="ident">api::profiles::AnyPniCredentialPresentation</span> {
+        <span class="kw">let</span> <span class="ident">presentation_v2</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">create_pni_credential_presentation_v2</span>(
+            <span class="ident">randomness</span>,
+            <span class="ident">group_secret_params</span>,
+            <span class="ident">pni_credential</span>,
+        );
+        <span class="ident">api::profiles::AnyPniCredentialPresentation::V2</span>(<span class="ident">presentation_v2</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_pni_credential_presentation_v1</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
+        <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
+        <span class="ident">pni_credential</span>: <span class="ident">api::profiles::PniCredential</span>,
+    ) -&gt; <span class="ident">api::profiles::PniCredentialPresentationV1</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
             <span class="string">b&quot;Signal_ZKGroup_20211111_Random_ServerPublicParams_CreatePniCredentialPresentation&quot;</span>,
             <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
@@ -1189,7 +1734,7 @@
         <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>
             .<span class="ident">encrypt_profile_key_bytes</span>(<span class="ident">pni_credential</span>.<span class="ident">profile_key_bytes</span>, <span class="ident">pni_credential</span>.<span class="ident">aci_bytes</span>);
 
-        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::PniCredentialPresentationProof::new</span>(
+        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::PniCredentialPresentationProofV1::new</span>(
             <span class="ident">uid_enc_key_pair</span>,
             <span class="ident">profile_key_enc_key_pair</span>,
             <span class="ident">credentials_public_key</span>,
@@ -1203,8 +1748,51 @@
             <span class="kw-2">&amp;mut</span> <span class="ident">sho</span>,
         );
 
-        <span class="ident">api::profiles::PniCredentialPresentation</span> {
-            <span class="ident">reserved</span>: <span class="ident">Default::default</span>(),
+        <span class="ident">api::profiles::PniCredentialPresentationV1</span> {
+            <span class="ident">reserved</span>: [<span class="ident">PRESENTATION_VERSION_1</span>],
+            <span class="ident">proof</span>,
+            <span class="ident">aci_enc_ciphertext</span>: <span class="ident">aci_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">pni_enc_ciphertext</span>: <span class="ident">pni_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">profile_key_enc_ciphertext</span>: <span class="ident">profile_key_ciphertext</span>.<span class="ident">ciphertext</span>,
+        }
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">create_pni_credential_presentation_v2</span>(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        <span class="ident">randomness</span>: <span class="ident">RandomnessBytes</span>,
+        <span class="ident">group_secret_params</span>: <span class="ident">api::groups::GroupSecretParams</span>,
+        <span class="ident">pni_credential</span>: <span class="ident">api::profiles::PniCredential</span>,
+    ) -&gt; <span class="ident">api::profiles::PniCredentialPresentationV2</span> {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sho</span> <span class="op">=</span> <span class="ident">Sho::new</span>(
+            <span class="string">b&quot;Signal_ZKGroup_20220120_Random_ServerPublicParams_CreatePniCredentialPresentationV2&quot;</span>,
+            <span class="kw-2">&amp;</span><span class="ident">randomness</span>,
+        );
+
+        <span class="kw">let</span> <span class="ident">uid_enc_key_pair</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">uid_enc_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">profile_key_enc_key_pair</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">profile_key_enc_key_pair</span>;
+        <span class="kw">let</span> <span class="ident">credentials_public_key</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">pni_credentials_public_key</span>;
+
+        <span class="kw">let</span> <span class="ident">aci_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_uuid</span>(<span class="ident">pni_credential</span>.<span class="ident">aci_bytes</span>);
+        <span class="kw">let</span> <span class="ident">pni_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>.<span class="ident">encrypt_uuid</span>(<span class="ident">pni_credential</span>.<span class="ident">pni_bytes</span>);
+        <span class="kw">let</span> <span class="ident">profile_key_ciphertext</span> <span class="op">=</span> <span class="ident">group_secret_params</span>
+            .<span class="ident">encrypt_profile_key_bytes</span>(<span class="ident">pni_credential</span>.<span class="ident">profile_key_bytes</span>, <span class="ident">pni_credential</span>.<span class="ident">aci_bytes</span>);
+
+        <span class="kw">let</span> <span class="ident">proof</span> <span class="op">=</span> <span class="ident">crypto::proofs::PniCredentialPresentationProofV2::new</span>(
+            <span class="ident">uid_enc_key_pair</span>,
+            <span class="ident">profile_key_enc_key_pair</span>,
+            <span class="ident">credentials_public_key</span>,
+            <span class="ident">pni_credential</span>.<span class="ident">credential</span>,
+            <span class="ident">aci_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">pni_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">profile_key_ciphertext</span>.<span class="ident">ciphertext</span>,
+            <span class="ident">pni_credential</span>.<span class="ident">aci_bytes</span>,
+            <span class="ident">pni_credential</span>.<span class="ident">pni_bytes</span>,
+            <span class="ident">pni_credential</span>.<span class="ident">profile_key_bytes</span>,
+            <span class="kw-2">&amp;mut</span> <span class="ident">sho</span>,
+        );
+
+        <span class="ident">api::profiles::PniCredentialPresentationV2</span> {
+            <span class="ident">version</span>: [<span class="ident">PRESENTATION_VERSION_2</span>],
             <span class="ident">proof</span>,
             <span class="ident">aci_enc_ciphertext</span>: <span class="ident">aci_ciphertext</span>.<span class="ident">ciphertext</span>,
             <span class="ident">pni_enc_ciphertext</span>: <span class="ident">pni_ciphertext</span>.<span class="ident">ciphertext</span>,
@@ -1237,7 +1825,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="ident">context</span>: <span class="kw-2">&amp;</span><span class="ident">api::receipts::ReceiptCredentialRequestContext</span>,
         <span class="ident">response</span>: <span class="kw-2">&amp;</span><span class="ident">api::receipts::ReceiptCredentialResponse</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::receipts::ReceiptCredential</span>, <span class="ident">ZkGroupError</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">api::receipts::ReceiptCredential</span>, <span class="ident">ZkGroupVerificationFailure</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">receipt_struct</span> <span class="op">=</span> <span class="ident">crypto::receipt_struct::ReceiptStruct::new</span>(
             <span class="ident">context</span>.<span class="ident">receipt_serial_bytes</span>,
             <span class="ident">response</span>.<span class="ident">receipt_expiration_time</span>,

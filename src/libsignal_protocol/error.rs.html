@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/bd30563/rust/protocol/src/error.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>error.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/916269c/rust/protocol/src/error.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>error.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
     <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../libsignal_protocol/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"></h2>
     </nav>
@@ -95,13 +95,6 @@
 <span id="90">90</span>
 <span id="91">91</span>
 <span id="92">92</span>
-<span id="93">93</span>
-<span id="94">94</span>
-<span id="95">95</span>
-<span id="96">96</span>
-<span id="97">97</span>
-<span id="98">98</span>
-<span id="99">99</span>
 </pre><pre class="rust"><code><span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
@@ -111,6 +104,7 @@
 
 <span class="kw">use</span> <span class="ident">displaydoc::Display</span>;
 <span class="kw">use</span> <span class="ident">thiserror::Error</span>;
+<span class="kw">use</span> <span class="ident">uuid::Uuid</span>;
 
 <span class="kw">use</span> <span class="ident">std::panic::UnwindSafe</span>;
 
@@ -123,13 +117,6 @@
     <span class="doccomment">/// invalid state for call to {0} to succeed: {1}</span>
     <span class="ident">InvalidState</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">String</span>),
 
-    <span class="comment">// TODO: avoid duplicating error information in the Display impl and the #[from] or #[source]</span>
-    <span class="comment">// attribute if/when we switch to using an error reporting mechanism supporting stack traces:</span>
-    <span class="comment">// see https://github.com/yaahc/blog.rust-lang.org/blob/master/posts/inside-rust/2021-05-15-What-the-error-handling-project-group-is-working-towards.md#duplicate-information-issue</span>
-    <span class="doccomment">/// failed to decode protobuf: {0}</span>
-    <span class="ident">ProtobufDecodingError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">prost::DecodeError</span>),
-    <span class="doccomment">/// failed to encode protobuf: {0}</span>
-    <span class="ident">ProtobufEncodingError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">prost::EncodeError</span>),
     <span class="doccomment">/// protobuf encoding was invalid</span>
     <span class="ident">InvalidProtobufEncoding</span>,
 
@@ -167,25 +154,24 @@
 
     <span class="doccomment">/// invalid MAC key length &lt;{0}&gt;</span>
     <span class="ident">InvalidMacKeyLength</span>(<span class="ident">usize</span>),
-    <span class="doccomment">/// invalid ciphertext message</span>
-    <span class="ident">InvalidCiphertext</span>,
 
-    <span class="doccomment">/// no sender key state</span>
-    <span class="ident">NoSenderKeyState</span>,
+    <span class="doccomment">/// missing sender key state for distribution ID {distribution_id}</span>
+    <span class="ident">NoSenderKeyState</span> { <span class="ident">distribution_id</span>: <span class="ident">Uuid</span> },
 
-    <span class="doccomment">/// session with &#39;{0}&#39; not found</span>
-    <span class="ident">SessionNotFound</span>(<span class="ident">String</span>),
-    <span class="doccomment">/// invalid session structure</span>
-    <span class="ident">InvalidSessionStructure</span>,
+    <span class="doccomment">/// session with {0} not found</span>
+    <span class="ident">SessionNotFound</span>(<span class="ident"><span class="kw">crate</span>::ProtocolAddress</span>),
+    <span class="doccomment">/// invalid session: {0}</span>
+    <span class="ident">InvalidSessionStructure</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>),
+    <span class="doccomment">/// invalid sender key session with distribution ID {distribution_id}</span>
+    <span class="ident">InvalidSenderKeySession</span> { <span class="ident">distribution_id</span>: <span class="ident">Uuid</span> },
     <span class="doccomment">/// session for {0} has invalid registration ID {1:X}</span>
     <span class="ident">InvalidRegistrationId</span>(<span class="ident"><span class="kw">crate</span>::ProtocolAddress</span>, <span class="ident">u32</span>),
 
     <span class="doccomment">/// message with old counter {0} / {1}</span>
     <span class="ident">DuplicatedMessage</span>(<span class="ident">u32</span>, <span class="ident">u32</span>),
-    <span class="doccomment">/// invalid message {0}</span>
-    <span class="ident">InvalidMessage</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>),
-    <span class="doccomment">/// internal error {0}</span>
-    <span class="ident">InternalError</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>),
+    <span class="doccomment">/// invalid {0:?} message: {1}</span>
+    <span class="ident">InvalidMessage</span>(<span class="ident"><span class="kw">crate</span>::CiphertextMessageType</span>, <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>),
+
     <span class="doccomment">/// error while invoking an ffi callback: {0}</span>
     <span class="ident">FfiBindingError</span>(<span class="ident">String</span>),
     <span class="doccomment">/// error in method call &#39;{0}&#39;: {1}</span>
@@ -194,7 +180,7 @@
         <span class="attribute">#[<span class="ident">source</span>]</span> <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">std::error::Error</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">Sync</span> <span class="op">+</span> <span class="ident">UnwindSafe</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>,
     ),
 
-    <span class="doccomment">/// invalid sealed sender message {0}</span>
+    <span class="doccomment">/// invalid sealed sender message: {0}</span>
     <span class="ident">InvalidSealedSenderMessage</span>(<span class="ident">String</span>),
     <span class="doccomment">/// unknown sealed sender message version {0}</span>
     <span class="ident">UnknownSealedSenderVersion</span>(<span class="ident">u8</span>),

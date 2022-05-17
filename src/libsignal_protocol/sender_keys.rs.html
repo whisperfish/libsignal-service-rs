@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/bd30563/rust/protocol/src/sender_keys.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sender_keys.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/916269c/rust/protocol/src/sender_keys.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sender_keys.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
     <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../libsignal_protocol/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"></h2>
     </nav>
@@ -590,52 +590,8 @@
 <span id="585">585</span>
 <span id="586">586</span>
 <span id="587">587</span>
-<span id="588">588</span>
-<span id="589">589</span>
-<span id="590">590</span>
-<span id="591">591</span>
-<span id="592">592</span>
-<span id="593">593</span>
-<span id="594">594</span>
-<span id="595">595</span>
-<span id="596">596</span>
-<span id="597">597</span>
-<span id="598">598</span>
-<span id="599">599</span>
-<span id="600">600</span>
-<span id="601">601</span>
-<span id="602">602</span>
-<span id="603">603</span>
-<span id="604">604</span>
-<span id="605">605</span>
-<span id="606">606</span>
-<span id="607">607</span>
-<span id="608">608</span>
-<span id="609">609</span>
-<span id="610">610</span>
-<span id="611">611</span>
-<span id="612">612</span>
-<span id="613">613</span>
-<span id="614">614</span>
-<span id="615">615</span>
-<span id="616">616</span>
-<span id="617">617</span>
-<span id="618">618</span>
-<span id="619">619</span>
-<span id="620">620</span>
-<span id="621">621</span>
-<span id="622">622</span>
-<span id="623">623</span>
-<span id="624">624</span>
-<span id="625">625</span>
-<span id="626">626</span>
-<span id="627">627</span>
-<span id="628">628</span>
-<span id="629">629</span>
-<span id="630">630</span>
-<span id="631">631</span>
 </pre><pre class="rust"><code><span class="comment">//</span>
-<span class="comment">// Copyright 2020 Signal Messenger, LLC.</span>
+<span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="comment">//</span>
 
@@ -644,15 +600,24 @@
 
 <span class="kw">use</span> <span class="ident">itertools::Itertools</span>;
 <span class="kw">use</span> <span class="ident">prost::Message</span>;
-<span class="kw">use</span> <span class="ident">uuid::Uuid</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::consts</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::crypto::hmac_sha256</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::proto::storage</span> <span class="kw">as</span> <span class="ident">storage_proto</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">PrivateKey</span>, <span class="ident">PublicKey</span>, <span class="prelude-ty">Result</span>, <span class="ident">SignalProtocolError</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">PrivateKey</span>, <span class="ident">PublicKey</span>, <span class="ident">SignalProtocolError</span>};
+
+<span class="doccomment">/// A distinct error type to keep from accidentally propagating deserialization errors.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>)]</span>
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">InvalidSessionError</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>);
+
+<span class="kw">impl</span> <span class="ident">std::fmt::Display</span> <span class="kw">for</span> <span class="ident">InvalidSessionError</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">std::fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">fmt</span>(<span class="ident">f</span>)
+    }
+}
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SenderMessageKey</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">SenderMessageKey</span> {
     <span class="ident">iteration</span>: <span class="ident">u32</span>,
     <span class="ident">iv</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
     <span class="ident">cipher_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
@@ -660,55 +625,49 @@
 }
 
 <span class="kw">impl</span> <span class="ident">SenderMessageKey</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">iteration</span>: <span class="ident">u32</span>, <span class="ident">seed</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">iteration</span>: <span class="ident">u32</span>, <span class="ident">seed</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">derived</span> <span class="op">=</span> [<span class="number">0</span>; <span class="number">48</span>];
         <span class="ident">hkdf::Hkdf</span>::<span class="op">&lt;</span><span class="ident">sha2::Sha256</span><span class="op">&gt;</span><span class="ident">::new</span>(<span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="ident">seed</span>)
             .<span class="ident">expand</span>(<span class="string">b&quot;WhisperGroup&quot;</span>, <span class="kw-2">&amp;mut</span> <span class="ident">derived</span>)
             .<span class="ident">expect</span>(<span class="string">&quot;valid output length&quot;</span>);
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
+        <span class="self">Self</span> {
             <span class="ident">iteration</span>,
             <span class="ident">seed</span>,
             <span class="ident">iv</span>: <span class="ident">derived</span>[<span class="number">0</span>..<span class="number">16</span>].<span class="ident">to_vec</span>(),
             <span class="ident">cipher_key</span>: <span class="ident">derived</span>[<span class="number">16</span>..<span class="number">48</span>].<span class="ident">to_vec</span>(),
-        })
+        }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_protobuf</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">from_protobuf</span>(
         <span class="ident">smk</span>: <span class="ident">storage_proto::sender_key_state_structure::SenderMessageKey</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="self">Self</span> {
         <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">smk</span>.<span class="ident">iteration</span>, <span class="ident">smk</span>.<span class="ident">seed</span>)
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iteration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">iteration</span>)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">iteration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
+        <span class="self">self</span>.<span class="ident">iteration</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iv</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">iv</span>.<span class="ident">clone</span>())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">iv</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">iv</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cipher_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">cipher_key</span>.<span class="ident">clone</span>())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">cipher_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">cipher_key</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">seed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">seed</span>.<span class="ident">clone</span>())
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_protobuf</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">as_protobuf</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">storage_proto::sender_key_state_structure::SenderMessageKey</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(
-            <span class="ident">storage_proto::sender_key_state_structure::SenderMessageKey</span> {
-                <span class="ident">iteration</span>: <span class="self">self</span>.<span class="ident">iteration</span>,
-                <span class="ident">seed</span>: <span class="self">self</span>.<span class="ident">seed</span>.<span class="ident">clone</span>(),
-            },
-        )
+    ) -&gt; <span class="ident">storage_proto::sender_key_state_structure::SenderMessageKey</span> {
+        <span class="ident">storage_proto::sender_key_state_structure::SenderMessageKey</span> {
+            <span class="ident">iteration</span>: <span class="self">self</span>.<span class="ident">iteration</span>,
+            <span class="ident">seed</span>: <span class="self">self</span>.<span class="ident">seed</span>.<span class="ident">clone</span>(),
+        }
     }
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SenderChainKey</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">SenderChainKey</span> {
     <span class="ident">iteration</span>: <span class="ident">u32</span>,
     <span class="ident">chain_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
 }
@@ -717,29 +676,29 @@
     <span class="kw">const</span> <span class="ident">MESSAGE_KEY_SEED</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">0x01</span>;
     <span class="kw">const</span> <span class="ident">CHAIN_KEY_SEED</span>: <span class="ident">u8</span> <span class="op">=</span> <span class="number">0x02</span>;
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">iteration</span>: <span class="ident">u32</span>, <span class="ident">chain_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">iteration</span>: <span class="ident">u32</span>, <span class="ident">chain_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
+        <span class="self">Self</span> {
             <span class="ident">iteration</span>,
             <span class="ident">chain_key</span>,
-        })
+        }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iteration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">iteration</span>)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">iteration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
+        <span class="self">self</span>.<span class="ident">iteration</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">seed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">chain_key</span>.<span class="ident">clone</span>())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">seed</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[<span class="ident">u8</span>] {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">chain_key</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderChainKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">SenderChainKey</span> {
         <span class="ident">SenderChainKey::new</span>(
             <span class="self">self</span>.<span class="ident">iteration</span> <span class="op">+</span> <span class="number">1</span>,
             <span class="self">self</span>.<span class="ident">get_derivative</span>(<span class="ident"><span class="self">Self</span>::CHAIN_KEY_SEED</span>),
         )
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_message_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderMessageKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_message_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">SenderMessageKey</span> {
         <span class="ident">SenderMessageKey::new</span>(<span class="self">self</span>.<span class="ident">iteration</span>, <span class="self">self</span>.<span class="ident">get_derivative</span>(<span class="ident"><span class="self">Self</span>::MESSAGE_KEY_SEED</span>))
     }
 
@@ -748,33 +707,33 @@
         <span class="ident">hmac_sha256</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">chain_key</span>, <span class="kw-2">&amp;</span><span class="ident">label</span>).<span class="ident">to_vec</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">storage_proto::sender_key_state_structure::SenderChainKey</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">storage_proto::sender_key_state_structure::SenderChainKey</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">as_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">storage_proto::sender_key_state_structure::SenderChainKey</span> {
+        <span class="ident">storage_proto::sender_key_state_structure::SenderChainKey</span> {
             <span class="ident">iteration</span>: <span class="self">self</span>.<span class="ident">iteration</span>,
             <span class="ident">seed</span>: <span class="self">self</span>.<span class="ident">chain_key</span>.<span class="ident">clone</span>(),
-        })
+        }
     }
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SenderKeyState</span> {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">SenderKeyState</span> {
     <span class="ident">state</span>: <span class="ident">storage_proto::SenderKeyStateStructure</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">SenderKeyState</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">message_version</span>: <span class="ident">u8</span>,
         <span class="ident">chain_id</span>: <span class="ident">u32</span>,
         <span class="ident">iteration</span>: <span class="ident">u32</span>,
         <span class="ident">chain_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">signature_key</span>: <span class="ident">PublicKey</span>,
         <span class="ident">signature_private_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrivateKey</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyState</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="ident">SenderKeyState</span> {
         <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">storage_proto::SenderKeyStateStructure</span> {
             <span class="ident">message_version</span>: <span class="ident">message_version</span> <span class="kw">as</span> <span class="ident">u32</span>,
             <span class="ident">chain_id</span>,
             <span class="ident">sender_chain_key</span>: <span class="prelude-val">Some</span>(
-                <span class="ident">SenderChainKey::new</span>(<span class="ident">iteration</span>, <span class="ident">chain_key</span>.<span class="ident">to_vec</span>())<span class="question-mark">?</span>.<span class="ident">as_protobuf</span>()<span class="question-mark">?</span>,
+                <span class="ident">SenderChainKey::new</span>(<span class="ident">iteration</span>, <span class="ident">chain_key</span>.<span class="ident">to_vec</span>()).<span class="ident">as_protobuf</span>(),
             ),
             <span class="ident">sender_signing_key</span>: <span class="prelude-val">Some</span>(
                 <span class="ident">storage_proto::sender_key_state_structure::SenderSigningKey</span> {
@@ -788,90 +747,68 @@
             <span class="ident">sender_message_keys</span>: <span class="macro">vec!</span>[],
         };
 
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> { <span class="ident">state</span> })
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">state</span> <span class="op">=</span> <span class="ident">storage_proto::SenderKeyStateStructure::decode</span>(<span class="ident">buf</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span> { <span class="ident">state</span> })
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_protobuf</span>(<span class="ident">state</span>: <span class="ident">storage_proto::SenderKeyStateStructure</span>) -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">state</span> }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">state</span>.<span class="ident">encode_to_vec</span>())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">from_protobuf</span>(<span class="ident">state</span>: <span class="ident">storage_proto::SenderKeyStateStructure</span>) -&gt; <span class="self">Self</span> {
+        <span class="self">Self</span> { <span class="ident">state</span> }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">message_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">message_version</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">message_version</span> {
-            <span class="number">0</span> =&gt; <span class="prelude-val">Ok</span>(<span class="number">3</span>), <span class="comment">// the first SenderKey version</span>
-            <span class="ident">v</span> =&gt; <span class="prelude-val">Ok</span>(<span class="ident">v</span>),
+            <span class="number">0</span> =&gt; <span class="number">3</span>, <span class="comment">// the first SenderKey version</span>
+            <span class="ident">v</span> =&gt; <span class="ident">v</span>,
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">chain_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">state</span>.<span class="ident">chain_id</span>)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">chain_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">u32</span> {
+        <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">chain_id</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderChainKey</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">sender_chain</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">state</span>
-            .<span class="ident">sender_chain_key</span>
-            .<span class="ident">as_ref</span>()
-            .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
-        <span class="ident">SenderChainKey::new</span>(<span class="ident">sender_chain</span>.<span class="ident">iteration</span>, <span class="ident">sender_chain</span>.<span class="ident">seed</span>.<span class="ident">clone</span>())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_chain_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SenderChainKey</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">sender_chain</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_chain_key</span>.<span class="ident">as_ref</span>()<span class="question-mark">?</span>;
+        <span class="prelude-val">Some</span>(<span class="ident">SenderChainKey::new</span>(
+            <span class="ident">sender_chain</span>.<span class="ident">iteration</span>,
+            <span class="ident">sender_chain</span>.<span class="ident">seed</span>.<span class="ident">clone</span>(),
+        ))
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_sender_chain_key</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">chain_key</span>: <span class="ident">SenderChainKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_chain_key</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">chain_key</span>.<span class="ident">as_protobuf</span>()<span class="question-mark">?</span>);
-        <span class="prelude-val">Ok</span>(())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_sender_chain_key</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">chain_key</span>: <span class="ident">SenderChainKey</span>) {
+        <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_chain_key</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">chain_key</span>.<span class="ident">as_protobuf</span>());
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signing_key_public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">signing_key_public</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PublicKey</span>, <span class="ident">InvalidSessionError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">signing_key</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_signing_key</span> {
-            <span class="prelude-val">Ok</span>(<span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">signing_key</span>.<span class="ident">public</span>[..])<span class="question-mark">?</span>)
+            <span class="ident">PublicKey::try_from</span>(<span class="kw-2">&amp;</span><span class="ident">signing_key</span>.<span class="ident">public</span>[..])
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">InvalidSessionError</span>(<span class="string">&quot;invalid public signing key&quot;</span>))
         } <span class="kw">else</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)
+            <span class="prelude-val">Err</span>(<span class="ident">InvalidSessionError</span>(<span class="string">&quot;missing signing key&quot;</span>))
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">signing_key_private</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PrivateKey</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">signing_key_private</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">PrivateKey</span>, <span class="ident">InvalidSessionError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="ident">signing_key</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_signing_key</span> {
-            <span class="prelude-val">Ok</span>(<span class="ident">PrivateKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">signing_key</span>.<span class="ident">private</span>)<span class="question-mark">?</span>)
+            <span class="ident">PrivateKey::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">signing_key</span>.<span class="ident">private</span>)
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">InvalidSessionError</span>(<span class="string">&quot;invalid private signing key&quot;</span>))
         } <span class="kw">else</span> {
-            <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)
+            <span class="prelude-val">Err</span>(<span class="ident">InvalidSessionError</span>(<span class="string">&quot;missing signing key&quot;</span>))
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">has_sender_message_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">iteration</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
-        <span class="kw">for</span> <span class="ident">sender_message_key</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_message_keys</span> {
-            <span class="kw">if</span> <span class="ident">sender_message_key</span>.<span class="ident">iteration</span> <span class="op">==</span> <span class="ident">iteration</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
-            }
-        }
-        <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">as_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">storage_proto::SenderKeyStateStructure</span> {
+        <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">clone</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">storage_proto::SenderKeyStateStructure</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">state</span>.<span class="ident">clone</span>())
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_sender_message_key</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">sender_message_key</span>: <span class="kw-2">&amp;</span><span class="ident">SenderMessageKey</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">add_sender_message_key</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">sender_message_key</span>: <span class="kw-2">&amp;</span><span class="ident">SenderMessageKey</span>) {
         <span class="self">self</span>.<span class="ident">state</span>
             .<span class="ident">sender_message_keys</span>
-            .<span class="ident">push</span>(<span class="ident">sender_message_key</span>.<span class="ident">as_protobuf</span>()<span class="question-mark">?</span>);
+            .<span class="ident">push</span>(<span class="ident">sender_message_key</span>.<span class="ident">as_protobuf</span>());
         <span class="kw">while</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_message_keys</span>.<span class="ident">len</span>() <span class="op">&gt;</span> <span class="ident">consts::MAX_MESSAGE_KEYS</span> {
             <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_message_keys</span>.<span class="ident">remove</span>(<span class="number">0</span>);
         }
-        <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remove_sender_message_key</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">iteration</span>: <span class="ident">u32</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SenderMessageKey</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">remove_sender_message_key</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">iteration</span>: <span class="ident">u32</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SenderMessageKey</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">index</span>) <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">state</span>
             .<span class="ident">sender_message_keys</span>
@@ -879,9 +816,9 @@
             .<span class="ident">position</span>(<span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="ident">x</span>.<span class="ident">iteration</span> <span class="op">==</span> <span class="ident">iteration</span>)
         {
             <span class="kw">let</span> <span class="ident">smk</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">state</span>.<span class="ident">sender_message_keys</span>.<span class="ident">remove</span>(<span class="ident">index</span>);
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="ident">SenderMessageKey::from_protobuf</span>(<span class="ident">smk</span>)<span class="question-mark">?</span>))
+            <span class="prelude-val">Some</span>(<span class="ident">SenderMessageKey::from_protobuf</span>(<span class="ident">smk</span>))
         } <span class="kw">else</span> {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+            <span class="prelude-val">None</span>
         }
     }
 }
@@ -892,14 +829,15 @@
 }
 
 <span class="kw">impl</span> <span class="ident">SenderKeyRecord</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_empty</span>() -&gt; <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new_empty</span>() -&gt; <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">states</span>: <span class="ident">VecDeque::with_capacity</span>(<span class="ident">consts::MAX_SENDER_KEY_STATES</span>),
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyRecord</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">skr</span> <span class="op">=</span> <span class="ident">storage_proto::SenderKeyRecordStructure::decode</span>(<span class="ident">buf</span>)<span class="question-mark">?</span>;
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyRecord</span>, <span class="ident">SignalProtocolError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">skr</span> <span class="op">=</span> <span class="ident">storage_proto::SenderKeyRecordStructure::decode</span>(<span class="ident">buf</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">states</span> <span class="op">=</span> <span class="ident">VecDeque::with_capacity</span>(<span class="ident">skr</span>.<span class="ident">sender_key_states</span>.<span class="ident">len</span>());
         <span class="kw">for</span> <span class="ident">state</span> <span class="kw">in</span> <span class="ident">skr</span>.<span class="ident">sender_key_states</span> {
@@ -908,40 +846,39 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self</span> { <span class="ident">states</span> })
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">bool</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">states</span>.<span class="ident">is_empty</span>())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_key_state</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">SenderKeyState</span>, <span class="ident">InvalidSessionError</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">states</span>.<span class="ident">is_empty</span>() {
+            <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">states</span>[<span class="number">0</span>]);
+        }
+        <span class="prelude-val">Err</span>(<span class="ident">InvalidSessionError</span>(<span class="string">&quot;empty sender key state&quot;</span>))
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_key_state</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="ident">SenderKeyState</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_key_state_mut</span>(
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="ident">SenderKeyState</span>, <span class="ident">InvalidSessionError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="op">!</span><span class="self">self</span>.<span class="ident">states</span>.<span class="ident">is_empty</span>() {
             <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">states</span>[<span class="number">0</span>]);
         }
-        <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::NoSenderKeyState</span>)
+        <span class="prelude-val">Err</span>(<span class="ident">InvalidSessionError</span>(<span class="string">&quot;empty sender key state&quot;</span>))
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">sender_key_state_for_chain_id</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">sender_key_state_for_chain_id</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">chain_id</span>: <span class="ident">u32</span>,
-        <span class="ident">distribution_id</span>: <span class="ident">Uuid</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="ident">SenderKeyState</span><span class="op">&gt;</span> {
+    ) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="ident">SenderKeyState</span><span class="op">&gt;</span> {
         <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="number">0</span>..<span class="self">self</span>.<span class="ident">states</span>.<span class="ident">len</span>() {
-            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">states</span>[<span class="ident">i</span>].<span class="ident">chain_id</span>()<span class="question-mark">?</span> <span class="op">==</span> <span class="ident">chain_id</span> {
-                <span class="kw">return</span> <span class="prelude-val">Ok</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">states</span>[<span class="ident">i</span>]);
+            <span class="kw">if</span> <span class="self">self</span>.<span class="ident">states</span>[<span class="ident">i</span>].<span class="ident">chain_id</span>() <span class="op">==</span> <span class="ident">chain_id</span> {
+                <span class="kw">return</span> <span class="prelude-val">Some</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">states</span>[<span class="ident">i</span>]);
             }
         }
-        <span class="macro">log::error!</span>(
-            <span class="string">&quot;SenderKey distribution {} could not find chain ID {} (known chain IDs: {:?})&quot;</span>,
-            <span class="ident">distribution_id</span>,
-            <span class="ident">chain_id</span>,
-            <span class="self">self</span>.<span class="ident">states</span>
-                .<span class="ident">iter</span>()
-                .<span class="ident">map</span>(<span class="op">|</span><span class="ident">state</span><span class="op">|</span> <span class="ident">state</span>.<span class="ident">chain_id</span>().<span class="ident">expect</span>(<span class="string">&quot;accessed successfully above&quot;</span>))
-                .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>()
-        );
-        <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::NoSenderKeyState</span>)
+        <span class="prelude-val">None</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">add_sender_key_state</span>(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">chain_ids_for_logging</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">ExactSizeIterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">u32</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
+        <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">state</span><span class="op">|</span> <span class="ident">state</span>.<span class="ident">chain_id</span>())
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">add_sender_key_state</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">message_version</span>: <span class="ident">u8</span>,
         <span class="ident">chain_id</span>: <span class="ident">u32</span>,
@@ -949,7 +886,7 @@
         <span class="ident">chain_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">signature_key</span>: <span class="ident">PublicKey</span>,
         <span class="ident">signature_private_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrivateKey</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+    ) {
         <span class="kw">let</span> <span class="ident">existing_state</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">remove_state</span>(<span class="ident">chain_id</span>, <span class="ident">signature_key</span>);
 
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">remove_states_with_chain_id</span>(<span class="ident">chain_id</span>) <span class="op">&gt;</span> <span class="number">0</span> {
@@ -967,7 +904,7 @@
                 <span class="ident">chain_key</span>,
                 <span class="ident">signature_key</span>,
                 <span class="ident">signature_private_key</span>,
-            )<span class="question-mark">?</span>,
+            ),
             <span class="prelude-val">Some</span>(<span class="ident">state</span>) =&gt; <span class="ident">state</span>,
         };
 
@@ -976,8 +913,6 @@
         }
 
         <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">push_front</span>(<span class="ident">state</span>);
-
-        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Remove the state with the matching `chain_id` and `signature_key`.</span>
@@ -985,8 +920,7 @@
     <span class="doccomment">/// Skips any bad protobufs.</span>
     <span class="kw">fn</span> <span class="ident">remove_state</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">chain_id</span>: <span class="ident">u32</span>, <span class="ident">signature_key</span>: <span class="ident">PublicKey</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">SenderKeyState</span><span class="op">&gt;</span> {
         <span class="kw">let</span> (<span class="ident">index</span>, <span class="ident">_state</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">iter</span>().<span class="ident">find_position</span>(<span class="op">|</span><span class="ident">state</span><span class="op">|</span> {
-            <span class="ident">state</span>.<span class="ident">chain_id</span>().<span class="ident">ok</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">chain_id</span>)
-                <span class="op">&amp;&amp;</span> <span class="ident">state</span>.<span class="ident">signing_key_public</span>().<span class="ident">ok</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">signature_key</span>)
+            <span class="ident">state</span>.<span class="ident">chain_id</span>() <span class="op">==</span> <span class="ident">chain_id</span> <span class="op">&amp;&amp;</span> <span class="ident">state</span>.<span class="ident">signing_key_public</span>().<span class="ident">ok</span>() <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">signature_key</span>)
         })<span class="question-mark">?</span>;
 
         <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">remove</span>(<span class="ident">index</span>)
@@ -997,44 +931,23 @@
     <span class="doccomment">/// Skips any bad protobufs.</span>
     <span class="kw">fn</span> <span class="ident">remove_states_with_chain_id</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">chain_id</span>: <span class="ident">u32</span>) -&gt; <span class="ident">usize</span> {
         <span class="kw">let</span> <span class="ident">initial_length</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">len</span>();
-        <span class="self">self</span>.<span class="ident">states</span>
-            .<span class="ident">retain</span>(<span class="op">|</span><span class="ident">state</span><span class="op">|</span> <span class="ident">state</span>.<span class="ident">chain_id</span>().<span class="ident">ok</span>() <span class="op">!</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">chain_id</span>));
+        <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">state</span><span class="op">|</span> <span class="ident">state</span>.<span class="ident">chain_id</span>() <span class="op">!</span><span class="op">=</span> <span class="ident">chain_id</span>);
         <span class="ident">initial_length</span> <span class="op">-</span> <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">len</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set_sender_key_state</span>(
-        <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
-        <span class="ident">message_version</span>: <span class="ident">u8</span>,
-        <span class="ident">chain_id</span>: <span class="ident">u32</span>,
-        <span class="ident">iteration</span>: <span class="ident">u32</span>,
-        <span class="ident">chain_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
-        <span class="ident">signature_key</span>: <span class="ident">PublicKey</span>,
-        <span class="ident">signature_private_key</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">PrivateKey</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">states</span>.<span class="ident">clear</span>();
-        <span class="self">self</span>.<span class="ident">add_sender_key_state</span>(
-            <span class="ident">message_version</span>,
-            <span class="ident">chain_id</span>,
-            <span class="ident">iteration</span>,
-            <span class="ident">chain_key</span>,
-            <span class="ident">signature_key</span>,
-            <span class="ident">signature_private_key</span>,
-        )
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">storage_proto::SenderKeyRecordStructure</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">as_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">storage_proto::SenderKeyRecordStructure</span> {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">states</span> <span class="op">=</span> <span class="ident">Vec::with_capacity</span>(<span class="self">self</span>.<span class="ident">states</span>.<span class="ident">len</span>());
         <span class="kw">for</span> <span class="ident">state</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">states</span> {
-            <span class="ident">states</span>.<span class="ident">push</span>(<span class="ident">state</span>.<span class="ident">as_protobuf</span>()<span class="question-mark">?</span>);
+            <span class="ident">states</span>.<span class="ident">push</span>(<span class="ident">state</span>.<span class="ident">as_protobuf</span>());
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">storage_proto::SenderKeyRecordStructure</span> {
+        <span class="ident">storage_proto::SenderKeyRecordStructure</span> {
             <span class="ident">sender_key_states</span>: <span class="ident">states</span>,
-        })
+        }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">as_protobuf</span>()<span class="question-mark">?</span>.<span class="ident">encode_to_vec</span>())
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">serialize</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>, <span class="ident">SignalProtocolError</span><span class="op">&gt;</span> {
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.<span class="ident">as_protobuf</span>().<span class="ident">encode_to_vec</span>())
     }
 }
 
@@ -1071,8 +984,7 @@
         <span class="kw">fn</span> <span class="ident">add_sender_key_state_record</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">record_key</span>: (<span class="ident">PublicKey</span>, <span class="ident">u32</span>), <span class="ident">chain_key</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) {
             <span class="kw">let</span> (<span class="ident">public_key</span>, <span class="ident">chain_id</span>) <span class="op">=</span> <span class="ident">record_key</span>;
             <span class="self">self</span>.<span class="ident">sender_key_record</span>
-                .<span class="ident">add_sender_key_state</span>(<span class="number">1</span>, <span class="ident">chain_id</span>, <span class="number">1</span>, <span class="ident">chain_key</span>, <span class="ident">public_key</span>, <span class="prelude-val">None</span>)
-                .<span class="ident">expect</span>(<span class="string">&quot;to be able to add new state&quot;</span>);
+                .<span class="ident">add_sender_key_state</span>(<span class="number">1</span>, <span class="ident">chain_id</span>, <span class="number">1</span>, <span class="ident">chain_key</span>, <span class="ident">public_key</span>, <span class="prelude-val">None</span>);
         }
 
         <span class="kw">fn</span> <span class="ident">assert_number_of_states</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">expected</span>: <span class="ident">usize</span>) {
@@ -1089,7 +1001,7 @@
             <span class="kw">let</span> (<span class="ident">public_key</span>, <span class="ident">chain_id</span>) <span class="op">=</span> <span class="ident">record_key</span>;
             <span class="kw">let</span> <span class="ident">found_chain_key</span> <span class="op">=</span> <span class="self">self</span>
                 .<span class="ident">sender_key_record</span>
-                .<span class="ident">sender_key_state_for_chain_id</span>(<span class="ident">chain_id</span>, <span class="ident">Uuid::default</span>())
+                .<span class="ident">sender_key_state_for_chain_id</span>(<span class="ident">chain_id</span>)
                 .<span class="ident">expect</span>(<span class="string">&quot;Expect to find chain id&quot;</span>)
                 .<span class="ident">sender_chain_key</span>()
                 .<span class="ident">expect</span>(<span class="string">&quot;Expect to find chain key&quot;</span>)
@@ -1102,7 +1014,7 @@
                 .<span class="ident">states</span>
                 .<span class="ident">iter</span>()
                 .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">state</span><span class="op">|</span> {
-                    <span class="ident">state</span>.<span class="ident">chain_id</span>().<span class="ident">expect</span>(<span class="string">&quot;expect chain id&quot;</span>) <span class="op">==</span> <span class="ident">chain_id</span>
+                    <span class="ident">state</span>.<span class="ident">chain_id</span>() <span class="op">==</span> <span class="ident">chain_id</span>
                         <span class="op">&amp;&amp;</span> <span class="ident">state</span>.<span class="ident">signing_key_public</span>().<span class="ident">expect</span>(<span class="string">&quot;expect public key&quot;</span>) <span class="op">==</span> <span class="ident">public_key</span>
                 })
                 .<span class="ident">exactly_one</span>()
@@ -1125,7 +1037,7 @@
                 .<span class="ident">map</span>(<span class="op">|</span><span class="ident">state</span><span class="op">|</span> {
                     (
                         <span class="ident">state</span>.<span class="ident">signing_key_public</span>().<span class="ident">expect</span>(<span class="string">&quot;expect public key&quot;</span>),
-                        <span class="ident">state</span>.<span class="ident">chain_id</span>().<span class="ident">expect</span>(<span class="string">&quot;expect chain id&quot;</span>),
+                        <span class="ident">state</span>.<span class="ident">chain_id</span>(),
                     )
                 })
                 .<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw">_</span><span class="op">&gt;</span><span class="op">&gt;</span>();

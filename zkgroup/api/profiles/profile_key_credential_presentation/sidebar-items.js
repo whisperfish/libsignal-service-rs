@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["ProfileKeyCredentialPresentation",""]]});
+initSidebarItems({"enum":[["AnyProfileKeyCredentialPresentation",""]],"struct":[["ProfileKeyCredentialPresentationV1",""],["ProfileKeyCredentialPresentationV2",""]]});

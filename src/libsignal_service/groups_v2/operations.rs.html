@@ -232,11 +232,18 @@
 <span id="227">227</span>
 <span id="228">228</span>
 <span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
 <span class="kw">use</span> <span class="ident">prost::Message</span>;
 <span class="kw">use</span> <span class="ident">zkgroup</span>::{
     <span class="ident">groups::GroupSecretParams</span>,
-    <span class="ident">profiles</span>::{<span class="ident">ProfileKey</span>, <span class="ident">ProfileKeyCredentialPresentation</span>},
+    <span class="ident">profiles</span>::{<span class="ident">ProfileKey</span>, <span class="ident">ProfileKeyCredentialPresentationV1</span>},
 };
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::proto</span>::{
@@ -253,8 +260,10 @@
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">thiserror::Error</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">GroupDecryptionError</span> {
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;zero-knowledge group error&quot;</span>)]</span>
-    <span class="ident">ZkGroupError</span>,
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;zero-knowledge group deserialization failure&quot;</span>)]</span>
+    <span class="ident">ZkGroupDeserializationFailure</span>,
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;zero-knowledge group verification failure&quot;</span>)]</span>
+    <span class="ident">ZkGroupVerificationFailure</span>,
     <span class="attribute">#[<span class="ident">error</span>(<span class="ident">transparent</span>)]</span>
     <span class="ident">BincodeError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">bincode::Error</span>),
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;protobuf message decoding error: {0}&quot;</span>)]</span>
@@ -263,9 +272,15 @@
     <span class="ident">WrongBlob</span>,
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">zkgroup::ZkGroupError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GroupDecryptionError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="kw">_</span>: <span class="ident">zkgroup::ZkGroupError</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">GroupDecryptionError::ZkGroupError</span>
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">zkgroup::ZkGroupDeserializationFailure</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GroupDecryptionError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="kw">_</span>: <span class="ident">zkgroup::ZkGroupDeserializationFailure</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident">GroupDecryptionError::ZkGroupDeserializationFailure</span>
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">zkgroup::ZkGroupVerificationFailure</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GroupDecryptionError</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="kw">_</span>: <span class="ident">zkgroup::ZkGroupVerificationFailure</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident">GroupDecryptionError::ZkGroupVerificationFailure</span>
     }
 }
 
@@ -276,8 +291,7 @@
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>[<span class="ident">u8</span>; <span class="number">16</span>], <span class="ident">GroupDecryptionError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">bytes</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">group_secret_params</span>
-            .<span class="ident">decrypt_uuid</span>(<span class="ident">bincode::deserialize</span>(<span class="ident">uuid</span>)<span class="question-mark">?</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">GroupDecryptionError::ZkGroupError</span>)<span class="question-mark">?</span>;
+            .<span class="ident">decrypt_uuid</span>(<span class="ident">bincode::deserialize</span>(<span class="ident">uuid</span>)<span class="question-mark">?</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="ident">bytes</span>)
     }
 
@@ -302,7 +316,7 @@
                 <span class="self">self</span>.<span class="ident">decrypt_profile_key</span>(<span class="kw-2">&amp;</span><span class="ident">member</span>.<span class="ident">profile_key</span>, <span class="ident">uuid</span>)<span class="question-mark">?</span>;
             (<span class="ident">uuid</span>, <span class="ident">profile_key</span>)
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">ProfileKeyCredentialPresentation</span> <span class="op">=</span> <span class="ident">bincode::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">member</span>.<span class="ident">presentation</span>)<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">ProfileKeyCredentialPresentationV1</span> <span class="op">=</span> <span class="ident">bincode::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">member</span>.<span class="ident">presentation</span>)<span class="question-mark">?</span>;
             <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">group_secret_params</span>.<span class="ident">decrypt_uuid</span>(
                 <span class="ident">profile_key_credential_presentation</span>.<span class="ident">get_uuid_ciphertext</span>(),
             )<span class="question-mark">?</span>;
@@ -350,7 +364,7 @@
                 <span class="self">self</span>.<span class="ident">decrypt_profile_key</span>(<span class="kw-2">&amp;</span><span class="ident">member</span>.<span class="ident">profile_key</span>, <span class="ident">uuid</span>)<span class="question-mark">?</span>;
             (<span class="ident">uuid</span>, <span class="ident">profile_key</span>)
         } <span class="kw">else</span> {
-            <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">ProfileKeyCredentialPresentation</span> <span class="op">=</span> <span class="ident">bincode::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">member</span>.<span class="ident">presentation</span>)<span class="question-mark">?</span>;
+            <span class="kw">let</span> <span class="ident">profile_key_credential_presentation</span>: <span class="ident">ProfileKeyCredentialPresentationV1</span> <span class="op">=</span> <span class="ident">bincode::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">member</span>.<span class="ident">presentation</span>)<span class="question-mark">?</span>;
             <span class="kw">let</span> <span class="ident">uuid</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">group_secret_params</span>.<span class="ident">decrypt_uuid</span>(
                 <span class="ident">profile_key_credential_presentation</span>.<span class="ident">get_uuid_ciphertext</span>(),
             )<span class="question-mark">?</span>;
@@ -377,7 +391,7 @@
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">group_secret_params</span>
                 .<span class="ident">decrypt_blob</span>(<span class="ident">bytes</span>)
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">GroupDecryptionError::ZkGroupError</span>)
+                .<span class="ident">map_err</span>(<span class="ident">GroupDecryptionError::from</span>)
                 .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">b</span><span class="op">|</span> {
                     <span class="ident">GroupAttributeBlob::decode</span>(<span class="ident">Bytes::copy_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">b</span>[<span class="number">4</span>..]))
                         .<span class="ident">map_err</span>(<span class="ident">GroupDecryptionError::ProtobufDecodeError</span>)

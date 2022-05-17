@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/bd30563/rust/protocol/src/sealed_sender.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sealed_sender.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-client-20b116e5080385e2/916269c/rust/protocol/src/sealed_sender.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>sealed_sender.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
     <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../libsignal_protocol/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
         </a><h2 class="location"></h2>
     </nav>
@@ -1742,6 +1742,9 @@
 <span id="1737">1737</span>
 <span id="1738">1738</span>
 <span id="1739">1739</span>
+<span id="1740">1740</span>
+<span id="1741">1741</span>
+<span id="1742">1742</span>
 </pre><pre class="rust"><code><span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
@@ -1793,7 +1796,8 @@ with this test certificate ID, Bad Things will happen.
 
 <span class="kw">impl</span> <span class="ident">ServerCertificate</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::ServerCertificate::decode</span>(<span class="ident">data</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::ServerCertificate::decode</span>(<span class="ident">data</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
 
         <span class="kw">if</span> <span class="ident">pb</span>.<span class="ident">certificate</span>.<span class="ident">is_none</span>() <span class="op">|</span><span class="op">|</span> <span class="ident">pb</span>.<span class="ident">signature</span>.<span class="ident">is_none</span>() {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>);
@@ -1806,7 +1810,8 @@ with this test certificate ID, Bad Things will happen.
             .<span class="ident">signature</span>
             .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">certificate_data</span> <span class="op">=</span>
-            <span class="ident">proto::sealed_sender::server_certificate::Certificate::decode</span>(<span class="ident">certificate</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
+            <span class="ident">proto::sealed_sender::server_certificate::Certificate::decode</span>(<span class="ident">certificate</span>.<span class="ident">as_ref</span>())
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">key</span> <span class="op">=</span> <span class="ident">PublicKey::try_from</span>(
             <span class="kw-2">&amp;</span><span class="ident">certificate_data</span>
                 .<span class="ident">key</span>
@@ -1909,7 +1914,8 @@ with this test certificate ID, Bad Things will happen.
 
 <span class="kw">impl</span> <span class="ident">SenderCertificate</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::SenderCertificate::decode</span>(<span class="ident">data</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::SenderCertificate::decode</span>(<span class="ident">data</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">certificate</span> <span class="op">=</span> <span class="ident">pb</span>
             .<span class="ident">certificate</span>
             .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
@@ -1917,7 +1923,8 @@ with this test certificate ID, Bad Things will happen.
             .<span class="ident">signature</span>
             .<span class="ident">ok_or</span>(<span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="ident">certificate_data</span> <span class="op">=</span>
-            <span class="ident">proto::sealed_sender::sender_certificate::Certificate::decode</span>(<span class="ident">certificate</span>.<span class="ident">as_ref</span>())<span class="question-mark">?</span>;
+            <span class="ident">proto::sealed_sender::sender_certificate::Certificate::decode</span>(<span class="ident">certificate</span>.<span class="ident">as_ref</span>())
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">sender_device_id</span> <span class="op">=</span> <span class="ident">certificate_data</span>
             .<span class="ident">sender_device</span>
@@ -1994,19 +2001,6 @@ with this test certificate ID, Bad Things will happen.
             <span class="ident">serialized</span>,
             <span class="ident">certificate</span>,
             <span class="ident">signature</span>,
-        })
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">from_protobuf</span>(<span class="ident">pb</span>: <span class="kw-2">&amp;</span><span class="ident">proto::sealed_sender::SenderCertificate</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">bits</span> <span class="op">=</span> <span class="macro">vec!</span>[];
-        <span class="ident">pb</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="ident">bits</span>)<span class="question-mark">?</span>;
-        <span class="ident"><span class="self">Self</span>::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">bits</span>)
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_protobuf</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">proto::sealed_sender::SenderCertificate</span><span class="op">&gt;</span> {
-        <span class="prelude-val">Ok</span>(<span class="ident">proto::sealed_sender::SenderCertificate</span> {
-            <span class="ident">certificate</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">certificate</span>.<span class="ident">clone</span>()),
-            <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">signature</span>.<span class="ident">clone</span>()),
         })
     }
 
@@ -2159,7 +2153,8 @@ with this test certificate ID, Bad Things will happen.
 
 <span class="kw">impl</span> <span class="ident">UnidentifiedSenderMessageContent</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">deserialize</span>(<span class="ident">data</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::unidentified_sender_message::Message::decode</span>(<span class="ident">data</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::unidentified_sender_message::Message::decode</span>(<span class="ident">data</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">msg_type</span> <span class="op">=</span> <span class="ident">pb</span>
             .<span class="ident">r#type</span>
@@ -2178,7 +2173,7 @@ with this test certificate ID, Bad Things will happen.
             .<span class="ident">unwrap_or</span>(<span class="ident">ContentHint::Default</span>);
         <span class="kw">let</span> <span class="ident">group_id</span> <span class="op">=</span> <span class="ident">pb</span>.<span class="ident">group_id</span>;
 
-        <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">SenderCertificate::from_protobuf</span>(<span class="kw-2">&amp;</span><span class="ident">sender</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">sender</span> <span class="op">=</span> <span class="ident">SenderCertificate::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">sender</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">serialized</span> <span class="op">=</span> <span class="ident">data</span>.<span class="ident">to_vec</span>();
 
@@ -2210,7 +2205,7 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">let</span> <span class="ident">msg</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::unidentified_sender_message::Message</span> {
             <span class="ident">content</span>: <span class="prelude-val">Some</span>(<span class="ident">contents</span>.<span class="ident">clone</span>()),
             <span class="ident">r#type</span>: <span class="prelude-val">Some</span>(<span class="ident">proto_msg_type</span>.<span class="ident">into</span>()),
-            <span class="ident">sender_certificate</span>: <span class="prelude-val">Some</span>(<span class="ident">sender</span>.<span class="ident">to_protobuf</span>()<span class="question-mark">?</span>),
+            <span class="ident">sender_certificate</span>: <span class="prelude-val">Some</span>(<span class="ident">sender</span>.<span class="ident">serialized</span>()<span class="question-mark">?</span>.<span class="ident">to_vec</span>()),
             <span class="ident">content_hint</span>: <span class="ident">content_hint</span>.<span class="ident">to_proto</span>(),
             <span class="ident">group_id</span>: <span class="ident">group_id</span>.<span class="ident">as_ref</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">buf</span><span class="op">|</span> {
                 <span class="kw">if</span> <span class="ident">buf</span>.<span class="ident">is_empty</span>() {
@@ -2291,7 +2286,8 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">match</span> <span class="ident">version</span> {
             <span class="number">0</span> <span class="op">|</span> <span class="ident">SEALED_SENDER_V1_VERSION</span> =&gt; {
                 <span class="comment">// XXX should we really be accepted version == 0 here?</span>
-                <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::UnidentifiedSenderMessage::decode</span>(<span class="kw-2">&amp;</span><span class="ident">data</span>[<span class="number">1</span>..])<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">pb</span> <span class="op">=</span> <span class="ident">proto::sealed_sender::UnidentifiedSenderMessage::decode</span>(<span class="kw-2">&amp;</span><span class="ident">data</span>[<span class="number">1</span>..])
+                    .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
 
                 <span class="kw">let</span> <span class="ident">ephemeral_public</span> <span class="op">=</span> <span class="ident">pb</span>
                     .<span class="ident">ephemeral_public</span>
@@ -2606,7 +2602,7 @@ with this test certificate ID, Bad Things will happen.
     <span class="kw">let</span> <span class="ident">their_identity</span> <span class="op">=</span> <span class="ident">identity_store</span>
         .<span class="ident">get_identity</span>(<span class="ident">destination</span>, <span class="ident">ctx</span>)
         .<span class="kw">await</span><span class="question-mark">?</span>
-        .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">SignalProtocolError::SessionNotFound</span>(<span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">destination</span>)))<span class="question-mark">?</span>;
+        .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">SignalProtocolError::SessionNotFound</span>(<span class="ident">destination</span>.<span class="ident">clone</span>()))<span class="question-mark">?</span>;
 
     <span class="kw">let</span> <span class="ident">ephemeral</span> <span class="op">=</span> <span class="ident">KeyPair::generate</span>(<span class="ident">rng</span>);
 
@@ -2644,7 +2640,8 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">encrypted_static</span>: <span class="prelude-val">Some</span>(<span class="ident">static_key_ctext</span>),
         <span class="ident">encrypted_message</span>: <span class="prelude-val">Some</span>(<span class="ident">message_data</span>),
     };
-    <span class="ident">pb</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>)<span class="question-mark">?</span>; <span class="comment">// appends to buffer</span>
+    <span class="ident">pb</span>.<span class="ident">encode</span>(<span class="kw-2">&amp;mut</span> <span class="ident">serialized</span>)
+        .<span class="ident">expect</span>(<span class="string">&quot;can always append to Vec&quot;</span>);
 
     <span class="prelude-val">Ok</span>(<span class="ident">serialized</span>)
 }
@@ -2996,10 +2993,7 @@ with this test certificate ID, Bad Things will happen.
                     <span class="kw-2">&amp;mut</span> <span class="ident">ciphertext</span>,
                 )
             })
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">err</span><span class="op">|</span> {
-                <span class="macro">log::error!</span>(<span class="string">&quot;failed to encrypt using AES-GCM-SIV: {}&quot;</span>, <span class="ident">err</span>);
-                <span class="ident">SignalProtocolError::InternalError</span>(<span class="string">&quot;failed to encrypt using AES-GCM-SIV&quot;</span>)
-            })<span class="question-mark">?</span>;
+            .<span class="ident">expect</span>(<span class="string">&quot;AES-GCM-SIV encryption should not fail with a just-computed key&quot;</span>);
         <span class="comment">// AES-GCM-SIV expects the authentication tag to be at the end of the ciphertext</span>
         <span class="comment">// when decrypting.</span>
         <span class="ident">ciphertext</span>.<span class="ident">extend_from_slice</span>(<span class="kw-2">&amp;</span><span class="ident">symmetric_authentication_tag</span>);
@@ -3026,7 +3020,13 @@ with this test certificate ID, Bad Things will happen.
         <span class="kw">let</span> <span class="ident">their_identity</span> <span class="op">=</span> <span class="ident">identity_store</span>
             .<span class="ident">get_identity</span>(<span class="ident">destination</span>, <span class="ident">ctx</span>)
             .<span class="kw">await</span><span class="question-mark">?</span>
-            .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">SignalProtocolError::SessionNotFound</span>(<span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">destination</span>)))<span class="question-mark">?</span>;
+            .<span class="ident">ok_or_else</span>(<span class="op">|</span><span class="op">|</span> {
+                <span class="macro">log::error!</span>(<span class="string">&quot;missing identity key for {}&quot;</span>, <span class="ident">destination</span>);
+                <span class="comment">// Returned as a SessionNotFound error because (a) we don&#39;t have an identity error</span>
+                <span class="comment">// that includes the address, and (b) re-establishing the session should re-fetch</span>
+                <span class="comment">// the identity.</span>
+                <span class="ident">SignalProtocolError::SessionNotFound</span>(<span class="ident">destination</span>.<span class="ident">clone</span>())
+            })<span class="question-mark">?</span>;
 
         <span class="kw">let</span> <span class="ident">their_registration_id</span> <span class="op">=</span> <span class="ident">session</span>.<span class="ident">remote_registration_id</span>().<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> {
             <span class="ident">SignalProtocolError::InvalidState</span>(
@@ -3122,7 +3122,8 @@ with this test certificate ID, Bad Things will happen.
         <span class="prelude-val">Ok</span>(<span class="ident">prefix</span>)
     }
     <span class="kw">fn</span> <span class="ident">decode_varint</span>(<span class="ident">buf</span>: <span class="kw-2">&amp;mut</span> <span class="kw-2">&amp;</span>[<span class="ident">u8</span>]) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">prost::decode_length_delimiter</span>(<span class="kw-2">*</span><span class="ident">buf</span>)<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="ident">prost::decode_length_delimiter</span>(<span class="kw-2">*</span><span class="ident">buf</span>)
+            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">SignalProtocolError::InvalidProtobufEncoding</span>)<span class="question-mark">?</span>;
         <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">advance</span>(<span class="ident">buf</span>, <span class="ident">prost::length_delimiter_len</span>(<span class="ident">result</span>))
             .<span class="ident">expect</span>(<span class="string">&quot;just decoded that many bytes&quot;</span>);
         <span class="ident">result</span>
@@ -3193,8 +3194,10 @@ with this test certificate ID, Bad Things will happen.
                     <span class="macro">unreachable!</span>(<span class="string">&quot;just derived these keys; they should be valid&quot;</span>);
                 }
                 <span class="prelude-val">Err</span>(<span class="ident">crypto::DecryptionError::BadCiphertext</span>(<span class="ident">msg</span>)) =&gt; {
-                    <span class="macro">log::error!</span>(<span class="string">&quot;failed to decrypt Sealed sender v1 message key: {}&quot;</span>, <span class="ident">msg</span>);
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCiphertext</span>);
+                    <span class="macro">log::error!</span>(<span class="string">&quot;failed to decrypt sealed sender v1 message key: {}&quot;</span>, <span class="ident">msg</span>);
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidSealedSenderMessage</span>(
+                        <span class="string">&quot;failed to decrypt sealed sender v1 message key&quot;</span>.<span class="ident">to_owned</span>(),
+                    ));
                 }
             };
 
@@ -3218,10 +3221,12 @@ with this test certificate ID, Bad Things will happen.
                 }
                 <span class="prelude-val">Err</span>(<span class="ident">crypto::DecryptionError::BadCiphertext</span>(<span class="ident">msg</span>)) =&gt; {
                     <span class="macro">log::error!</span>(
-                        <span class="string">&quot;failed to decrypt Sealed sender v1 message contents: {}&quot;</span>,
+                        <span class="string">&quot;failed to decrypt sealed sender v1 message contents: {}&quot;</span>,
                         <span class="ident">msg</span>
                     );
-                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidCiphertext</span>);
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidSealedSenderMessage</span>(
+                        <span class="string">&quot;failed to decrypt sealed sender v1 message contents&quot;</span>.<span class="ident">to_owned</span>(),
+                    ));
                 }
             };
 
@@ -3402,10 +3407,10 @@ with this test certificate ID, Bad Things will happen.
             .<span class="kw">await</span><span class="question-mark">?</span>
         }
         <span class="ident">msg_type</span> =&gt; {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidSealedSenderMessage</span>(<span class="macro">format!</span>(
-                <span class="string">&quot;Unexpected message type {}&quot;</span>,
-                <span class="ident">msg_type</span> <span class="kw">as</span> <span class="ident">i32</span>,
-            )))
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">SignalProtocolError::InvalidMessage</span>(
+                <span class="ident">msg_type</span>,
+                <span class="string">&quot;unexpected message type for sealed_sender_decrypt&quot;</span>,
+            ));
         }
     };
 
@@ -3477,7 +3482,8 @@ with this test certificate ID, Bad Things will happen.
         <span class="ident">signature</span>: <span class="prelude-val">Some</span>(<span class="ident">certificate_signature</span>),
     };
 
-    <span class="kw">let</span> <span class="ident">sender_certificate</span> <span class="op">=</span> <span class="ident">SenderCertificate::from_protobuf</span>(<span class="kw-2">&amp;</span><span class="ident">sender_certificate_data</span>)<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">sender_certificate</span> <span class="op">=</span>
+        <span class="ident">SenderCertificate::deserialize</span>(<span class="kw-2">&amp;</span><span class="ident">sender_certificate_data</span>.<span class="ident">encode_to_vec</span>())<span class="question-mark">?</span>;
     <span class="macro">assert!</span>(<span class="ident">sender_certificate</span>.<span class="ident">validate</span>(<span class="kw-2">&amp;</span><span class="ident">trust_root</span>.<span class="ident">public_key</span>()<span class="question-mark">?</span>, <span class="number">31336</span>)<span class="question-mark">?</span>);
     <span class="prelude-val">Ok</span>(())
 }

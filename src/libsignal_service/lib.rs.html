@@ -95,7 +95,6 @@
 <span id="90">90</span>
 <span id="91">91</span>
 <span id="92">92</span>
-<span id="93">93</span>
 </pre><pre class="rust"><code><span class="attribute">#![<span class="ident">recursion_limit</span> <span class="op">=</span> <span class="string">&quot;256&quot;</span>]</span>
 <span class="attribute">#![<span class="ident">deny</span>(<span class="ident">clippy::dbg_macro</span>)]</span>
 
@@ -103,7 +102,6 @@
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">attachment_cipher</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">cipher</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">profile_cipher</span>;
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">sealed_session_cipher</span>;
 
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">configuration</span>;
 <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">content</span>;
@@ -184,8 +182,8 @@
         <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
             <span class="ident">Context</span>, <span class="ident">Direction</span>, <span class="ident">IdentityKey</span>, <span class="ident">IdentityKeyPair</span>, <span class="ident">IdentityKeyStore</span>,
             <span class="ident">KeyPair</span>, <span class="ident">PreKeyRecord</span>, <span class="ident">PreKeyStore</span>, <span class="ident">PrivateKey</span>, <span class="ident">ProtocolAddress</span>,
-            <span class="ident">PublicKey</span>, <span class="ident">SessionRecord</span>, <span class="ident">SessionStore</span>, <span class="ident">SignalProtocolError</span>,
-            <span class="ident">SignedPreKeyRecord</span>, <span class="ident">SignedPreKeyStore</span>,
+            <span class="ident">PublicKey</span>, <span class="ident">SenderCertificate</span>, <span class="ident">SessionRecord</span>, <span class="ident">SessionStore</span>,
+            <span class="ident">SignalProtocolError</span>, <span class="ident">SignedPreKeyRecord</span>, <span class="ident">SignedPreKeyStore</span>,
         };
     }
 }

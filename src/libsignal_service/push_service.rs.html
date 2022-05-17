@@ -781,11 +781,6 @@
 <span id="776">776</span>
 <span id="777">777</span>
 <span id="778">778</span>
-<span id="779">779</span>
-<span id="780">780</span>
-<span id="781">781</span>
-<span id="782">782</span>
-<span id="783">783</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryInto</span>, <span class="ident">fmt</span>, <span class="ident">ops::Deref</span>, <span class="ident">time::Duration</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1125,11 +1120,6 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;{0:?}&quot;</span>)]</span>
     <span class="ident">StaleDevices</span>(<span class="ident">StaleDevices</span>),
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;SealedSessionCipher error: {0}&quot;</span>)]</span>
-    <span class="ident">SealedSessionError</span>(
-        <span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident"><span class="kw">crate</span>::sealed_session_cipher::SealedSessionError</span>,
-    ),
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="ident">transparent</span>)]</span>
     <span class="ident">CredentialsCacheError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident"><span class="kw">crate</span>::groups_v2::CredentialsCacheError</span>),
