@@ -3,21 +3,19 @@ use std::convert::TryFrom;
 use block_modes::block_padding::{Iso7816, Padding};
 use libsignal_protocol::{
     message_decrypt_prekey, message_decrypt_signal, message_encrypt,
-    CiphertextMessageType, IdentityKeyStore, PreKeySignalMessage, PreKeyStore,
-    ProtocolAddress, SessionStore, SignalMessage, SignalProtocolError,
-    SignedPreKeyStore,
+    sealed_sender_decrypt, sealed_sender_encrypt, CiphertextMessageType,
+    IdentityKeyStore, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
+    PublicKey, SealedSenderDecryptionResult, SenderCertificate, SessionStore,
+    SignalMessage, SignalProtocolError, SignedPreKeyStore,
 };
 use prost::Message;
 use rand::{CryptoRng, Rng};
+use uuid::Uuid;
 
 use crate::{
     content::{Content, Metadata},
     envelope::Envelope,
     push_service::ServiceError,
-    sealed_session_cipher::UnidentifiedAccess,
-    sealed_session_cipher::{
-        CertificateValidator, DecryptionResult, SealedSessionCipher,
-    },
     sender::OutgoingPushMessage,
     ServiceAddress,
 };
@@ -32,7 +30,7 @@ pub struct ServiceCipher<S, I, SP, P, R> {
     signed_pre_key_store: SP,
     pre_key_store: P,
     csprng: R,
-    sealed_session_cipher: SealedSessionCipher<S, I, SP, P, R>,
+    trust_root: PublicKey,
 }
 
 impl<S, I, SP, P, R> ServiceCipher<S, I, SP, P, R>
@@ -49,22 +47,16 @@ where
         signed_pre_key_store: SP,
         pre_key_store: P,
         csprng: R,
-        certificate_validator: CertificateValidator,
+        trust_root: PublicKey,
+        // certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
-            session_store: session_store.clone(),
-            identity_key_store: identity_key_store.clone(),
-            signed_pre_key_store: signed_pre_key_store.clone(),
-            pre_key_store: pre_key_store.clone(),
-            csprng: csprng.clone(),
-            sealed_session_cipher: SealedSessionCipher::new(
-                session_store,
-                identity_key_store,
-                signed_pre_key_store,
-                pre_key_store,
-                csprng,
-                certificate_validator,
-            ),
+            session_store,
+            identity_key_store,
+            signed_pre_key_store,
+            pre_key_store,
+            csprng,
+            trust_root,
         }
     }
 
@@ -112,8 +104,12 @@ where
         };
 
         use crate::proto::envelope::Type;
-        let plaintext = match envelope.r#type() {
-            Type::PrekeyBundle => {
+        let plaintext = match (
+            envelope.r#type(),
+            envelope.source_uuid.as_ref(),
+            envelope.source_device,
+        ) {
+            (Type::PrekeyBundle, _, _) => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
@@ -146,16 +142,13 @@ where
                     .load_session(&sender, None)
                     .await?
                     .ok_or_else(|| {
-                        SignalProtocolError::SessionNotFound(format!(
-                            "{}",
-                            sender
-                        ))
+                        SignalProtocolError::SessionNotFound(sender)
                     })?;
 
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             },
-            Type::Ciphertext => {
+            (Type::Ciphertext, _, _) => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
@@ -186,29 +179,43 @@ where
                     .load_session(&sender, None)
                     .await?
                     .ok_or_else(|| {
-                        SignalProtocolError::SessionNotFound(format!(
-                            "{}",
-                            sender
-                        ))
+                        SignalProtocolError::SessionNotFound(sender)
                     })?;
 
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             },
-            Type::UnidentifiedSender => {
-                let DecryptionResult {
+            (Type::UnidentifiedSender, Some(uuid), Some(source_device)) => {
+                let SealedSenderDecryptionResult {
                     sender_uuid,
                     sender_e164,
                     device_id,
-                    padded_message: mut data,
-                    version,
-                } = self
-                    .sealed_session_cipher
-                    .decrypt(ciphertext, envelope.timestamp())
-                    .await?;
+                    message,
+                } = sealed_sender_decrypt(
+                    ciphertext,
+                    &self.trust_root,
+                    envelope.timestamp(),
+                    envelope.source_e164.clone(),
+                    uuid.clone(),
+                    source_device,
+                    &mut self.identity_key_store,
+                    &mut self.session_store,
+                    &mut self.pre_key_store,
+                    &mut self.signed_pre_key_store,
+                    None,
+                )
+                .await?;
+
                 let sender = ServiceAddress {
-                    phonenumber: sender_e164,
-                    uuid: sender_uuid,
+                    phonenumber: sender_e164
+                        .and_then(|n| phonenumber::parse(None, n).ok()),
+                    uuid: Some(Uuid::parse_str(&sender_uuid).map_err(
+                        |_| {
+                            SignalProtocolError::InvalidSealedSenderMessage(
+                                "invalid sender UUID".to_string(),
+                            )
+                        },
+                    )?),
                     relay: None,
                 };
                 let metadata = Metadata {
@@ -217,8 +224,10 @@ where
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
-                strip_padding(version, &mut data)?;
-                Plaintext { metadata, data }
+                Plaintext {
+                    metadata,
+                    data: message,
+                }
             },
             _ => {
                 // else
@@ -236,18 +245,46 @@ where
     pub(crate) async fn encrypt(
         &mut self,
         address: &ProtocolAddress,
-        unindentified_access: Option<&UnidentifiedAccess>,
+        unindentified_access: Option<&SenderCertificate>,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, ServiceError> {
-        if unindentified_access.is_some() {
-            unimplemented!("unidentified access is not implemented");
+        if let Some(unindentified_access) = unindentified_access {
+            let session_record = self
+                .session_store
+                .load_session(address, None)
+                .await?
+                .ok_or_else(|| {
+                    SignalProtocolError::SessionNotFound(address.clone())
+                })?;
+
+            let destination_registration_id =
+                session_record.remote_registration_id()?;
+
+            let message = sealed_sender_encrypt(
+                address,
+                unindentified_access,
+                content,
+                &mut self.session_store,
+                &mut self.identity_key_store,
+                None,
+                &mut self.csprng,
+            )
+            .await?;
+
+            use crate::proto::envelope::Type;
+            Ok(OutgoingPushMessage {
+                r#type: Type::UnidentifiedSender as u32,
+                destination_device_id: address.device_id(),
+                destination_registration_id,
+                content: base64::encode(message),
+            })
         } else {
             let session_record = self
                 .session_store
                 .load_session(address, None)
                 .await?
                 .ok_or_else(|| {
-                    SignalProtocolError::SessionNotFound(format!("{}", address))
+                    SignalProtocolError::SessionNotFound(address.clone())
                 })?;
 
             let padded_content =

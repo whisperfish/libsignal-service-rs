@@ -1,14 +1,19 @@
 [package]
 name = "libsignal-service"
 version = "0.1.0"
-authors = ["Michael Bryan <michaelfbryan@gmail.com>", "Shady Khalifa <shekohex@gmail.com>"]
+authors = [
+    "Ruben De Smet <ruben.de.smet@rubdos.be>",
+    "Gabriel Féron <g@leirbag.net>",
+    "Michael Bryan <michaelfbryan@gmail.com>",
+    "Shady Khalifa <shekohex@gmail.com>",
+]
 edition = "2018"
 license = "GPLv3"
 readme = "../README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", tag="v0.14.0" }
-zkgroup = { git = "https://github.com/signalapp/libsignal-client", tag = "v0.14.0" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", tag = "v0.16.0" }
+zkgroup = { git = "https://github.com/signalapp/libsignal-client", tag = "v0.16.0" }
 async-trait = "0.1"
 url = { version = "2.1", features = ["serde"] }
 base64 = "0.13"
@@ -16,7 +21,7 @@ bytes = "1"
 futures = "0.3"
 pin-project = "1.0"
 thiserror = "1.0"
-serde = {version = "1.0", features=["derive"]}
+serde = { version = "1.0", features = ["derive"] }
 prost = "0.10"
 http = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
@@ -31,7 +36,7 @@ aes-gcm = "0.9"
 block-modes = "0.8"
 rand = "0.7"
 
-uuid = { version = "0.8", features = [ "serde" ] }
+uuid = { version = "0.8", features = ["serde"] }
 phonenumber = "0.3"
 hkdf = "0.12"
 
@@ -40,7 +45,7 @@ prost-build = "0.10"
 
 [dev-dependencies]
 anyhow = "1.0"
-tokio = { version = "1.0", features = [ "rt", "macros" ] }
+tokio = { version = "1.0", features = ["rt", "macros"] }
 
 rustls = "0.20"
 

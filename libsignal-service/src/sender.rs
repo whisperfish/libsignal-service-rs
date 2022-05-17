@@ -3,7 +3,7 @@ use std::time::SystemTime;
 use chrono::prelude::*;
 use libsignal_protocol::{
     process_prekey_bundle, IdentityKeyStore, PreKeyStore, ProtocolAddress,
-    SessionStore, SignalProtocolError, SignedPreKeyStore,
+    SenderCertificate, SessionStore, SignalProtocolError, SignedPreKeyStore,
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
@@ -17,7 +17,6 @@ use crate::{
         AttachmentPointer, SyncMessage,
     },
     push_service::*,
-    sealed_session_cipher::UnidentifiedAccess,
     session_store::SessionStoreExt,
     ServiceAddress,
 };
@@ -312,7 +311,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&SenderCertificate>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -383,7 +382,7 @@ where
     pub async fn send_message_to_group(
         &mut self,
         recipients: impl AsRef<[ServiceAddress]>,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&SenderCertificate>,
         message: crate::proto::DataMessage,
         timestamp: u64,
         online: bool,
@@ -444,7 +443,7 @@ where
     async fn try_send_message(
         &mut self,
         recipient: ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&SenderCertificate>,
         content_body: &ContentBody,
         timestamp: u64,
         online: bool,
@@ -547,7 +546,7 @@ where
     pub async fn send_groups_details<Groups>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&SenderCertificate>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of GroupDetails directly,
         //     because it allows us to add the avatar content.
@@ -580,7 +579,7 @@ where
     pub async fn send_contact_details<Contacts>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&SenderCertificate>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of ContactDetails directly,
         //     because it allows us to add the avatar content.
@@ -617,7 +616,7 @@ where
     async fn create_encrypted_messages(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<UnidentifiedAccess>,
+        unidentified_access: Option<SenderCertificate>,
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
@@ -668,7 +667,7 @@ where
     async fn create_encrypted_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&SenderCertificate>,
         device_id: u32,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {

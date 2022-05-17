@@ -338,11 +338,6 @@ pub enum ServiceError {
     #[error("{0:?}")]
     StaleDevices(StaleDevices),
 
-    #[error("SealedSessionCipher error: {0}")]
-    SealedSessionError(
-        #[from] crate::sealed_session_cipher::SealedSessionError,
-    ),
-
     #[error(transparent)]
     CredentialsCacheError(#[from] crate::groups_v2::CredentialsCacheError),
 
