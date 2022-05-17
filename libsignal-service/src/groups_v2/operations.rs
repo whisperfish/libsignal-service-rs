@@ -3,7 +3,7 @@ use prost::Message;
 use uuid::Uuid;
 use zkgroup::{
     groups::GroupSecretParams,
-    profiles::{ProfileKey, ProfileKeyCredentialPresentation},
+    profiles::{ProfileKey, ProfileKeyCredentialPresentationV1},
 };
 
 use crate::{proto::{
@@ -75,8 +75,10 @@ pub struct DecryptedGroupChangeActions {
 
 #[derive(Debug, thiserror::Error)]
 pub enum GroupDecryptionError {
-    #[error("zero-knowledge group error")]
-    ZkGroupError,
+    #[error("zero-knowledge group deserialization failure")]
+    ZkGroupDeserializationFailure,
+    #[error("zero-knowledge group verification failure")]
+    ZkGroupVerificationFailure,
     #[error(transparent)]
     BincodeError(#[from] bincode::Error),
     #[error("protobuf message decoding error: {0}")]
@@ -85,9 +87,15 @@ pub enum GroupDecryptionError {
     WrongBlob,
 }
 
-impl From<zkgroup::ZkGroupError> for GroupDecryptionError {
-    fn from(_: zkgroup::ZkGroupError) -> Self {
-        GroupDecryptionError::ZkGroupError
+impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecryptionError {
+    fn from(_: zkgroup::ZkGroupDeserializationFailure) -> Self {
+        GroupDecryptionError::ZkGroupDeserializationFailure
+    }
+}
+
+impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecryptionError {
+    fn from(_: zkgroup::ZkGroupVerificationFailure) -> Self {
+        GroupDecryptionError::ZkGroupVerificationFailure
     }
 }
 
@@ -98,8 +106,7 @@ impl GroupOperations {
     ) -> Result<[u8; 16], GroupDecryptionError> {
         let bytes = self
             .group_secret_params
-            .decrypt_uuid(bincode::deserialize(uuid)?)
-            .map_err(|_| GroupDecryptionError::ZkGroupError)?;
+            .decrypt_uuid(bincode::deserialize(uuid)?)?;
         Ok(bytes)
     }
 
@@ -124,7 +131,7 @@ impl GroupOperations {
                 self.decrypt_profile_key(&member.profile_key, uuid)?;
             (uuid, profile_key)
         } else {
-            let profile_key_credential_presentation: ProfileKeyCredentialPresentation = bincode::deserialize(&member.presentation)?;
+            let profile_key_credential_presentation: ProfileKeyCredentialPresentationV1 = bincode::deserialize(&member.presentation)?;
             let uuid = self.group_secret_params.decrypt_uuid(
                 profile_key_credential_presentation.get_uuid_ciphertext(),
             )?;
@@ -185,7 +192,7 @@ impl GroupOperations {
                 self.decrypt_profile_key(&member.profile_key, uuid)?;
             (uuid, profile_key)
         } else {
-            let profile_key_credential_presentation: ProfileKeyCredentialPresentation = bincode::deserialize(&member.presentation)?;
+            let profile_key_credential_presentation: ProfileKeyCredentialPresentationV1 = bincode::deserialize(&member.presentation)?;
             let uuid = self.group_secret_params.decrypt_uuid(
                 profile_key_credential_presentation.get_uuid_ciphertext(),
             )?;
@@ -212,7 +219,7 @@ impl GroupOperations {
         } else {
             self.group_secret_params
                 .decrypt_blob(bytes)
-                .map_err(|_| GroupDecryptionError::ZkGroupError)
+                .map_err(GroupDecryptionError::from)
                 .and_then(|b| {
                     GroupAttributeBlob::decode(Bytes::copy_from_slice(&b[4..]))
                         .map_err(GroupDecryptionError::ProtobufDecodeError)

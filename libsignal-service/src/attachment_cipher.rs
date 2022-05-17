@@ -1,6 +1,6 @@
 use aes::Aes256;
 use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
-use hmac::{Hmac, Mac, NewMac};
+use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
@@ -66,7 +66,7 @@ pub fn decrypt_in_place(
     let mut mac = Hmac::<Sha256>::new_from_slice(mac_half)
         .expect("fixed length key material");
     mac.update(buffer);
-    mac.verify(their_mac)
+    mac.verify_slice(their_mac)
         .map_err(|_| AttachmentCipherError::MacError)?;
 
     let (iv, buffer) = buffer.split_at_mut(16);
