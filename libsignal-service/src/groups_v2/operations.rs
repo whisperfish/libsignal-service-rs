@@ -9,8 +9,9 @@ use zkgroup::{
 };
 
 use crate::proto::{
-    group_attribute_blob, group_change::Actions as EncryptedGroupChangeActions,
-    member::Role, AccessControl, Group as EncryptedGroup, GroupAttributeBlob,
+    access_control::AccessRequired, group_attribute_blob,
+    group_change::Actions as EncryptedGroupChangeActions, member::Role,
+    AccessControl, Group as EncryptedGroup, GroupAttributeBlob,
     GroupChange as EncryptedGroupChange, Member as EncryptedMember,
     MemberPendingAdminApproval, MemberPendingProfileKey,
 };
@@ -66,7 +67,7 @@ pub struct Group {
     pub pending_members: Vec<PendingMember>,
     pub requesting_members: Vec<RequestingMember>,
     pub invite_link_password: Vec<u8>,
-    pub description: String,
+    pub description: Option<String>,
 }
 
 #[derive(Clone)]
@@ -82,20 +83,24 @@ pub enum GroupChange {
     DeleteMember(Uuid),
     ModifyMemberRole { uuid: Uuid, role: Role },
     ModifyMemberProfileKey { uuid: Uuid, profile_key: ProfileKey },
+    // for open groups
     NewPendingMember(PendingMember),
     DeletePendingMember(Uuid),
     PromotePendingMember { uuid: Uuid, profile_key: ProfileKey },
-    NewTitle(Option<String>),
-    NewAvatar(String),
-    NewTimer(Option<Timer>),
-    NewAttributeAccess(i32),
-    NewMemberAccess(i32),
-    NewInviteLinkeAccess(i32),
+    // when admin control is enabled
     NewRequestingMember(RequestingMember),
     DeleteRequestingMember(Uuid),
     PromoteRequestingMember { uuid: Uuid, role: Role },
-    NewInviteLinkPassword(Vec<u8>),
-    NewDescription(Option<String>),
+    // group metadata
+    Title(String),
+    Avatar(String),
+    Timer(Option<Timer>),
+    Description(Option<String>),
+    AttributeAccess(AccessRequired),
+    MemberAccess(AccessRequired),
+    InviteLinkAccess(AccessRequired),
+    InviteLinkPassword(String),
+    AnnouncementOnly(bool),
 }
 
 #[derive(Clone, PartialEq)]
@@ -256,20 +261,21 @@ impl GroupOperations {
         }
     }
 
-    fn decrypt_title(&self, ciphertext: &[u8]) -> Option<String> {
+    fn decrypt_title(&self, ciphertext: &[u8]) -> String {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
-            Some(Content::Title(title)) if title.is_empty() => None,
-            Some(Content::Title(title)) => Some(title),
-            _ => None,
+            Some(Content::Title(title)) => title,
+            _ => "".into(),
         }
     }
 
-    fn decrypt_description(&self, ciphertext: &[u8]) -> String {
+    fn decrypt_description(&self, ciphertext: &[u8]) -> Option<String> {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
-            Some(Content::DescriptionText(title)) => title,
-            _ => "".into(), // TODO: return an error here?
+            Some(Content::DescriptionText(d)) => {
+                Some(d).filter(String::is_empty)
+            },
+            _ => None,
         }
     }
 
@@ -337,6 +343,8 @@ impl GroupOperations {
         })
     }
 
+    // TODO: switch to collecting Result<GroupChange> and explode when calling collect()
+    // instead of silently ignoring records we can't decrypt/parse
     pub fn decrypt_group_change(
         &self,
         group_change: EncryptedGroupChange,
@@ -405,39 +413,116 @@ impl GroupOperations {
                 Some(GroupChange::PromotePendingMember { uuid, profile_key })
             });
 
-        let mut changes: Vec<GroupChange> = new_members
-            .chain(delete_members)
-            .chain(modify_member_roles)
-            .chain(modify_member_profile_keys)
-            .chain(add_pending_members)
-            .chain(delete_pending_members)
-            .chain(promote_pending_members)
-            .collect();
+        let modify_title = actions
+            .modify_title
+            .into_iter()
+            .map(|m| GroupChange::Title(self.decrypt_title(&m.title)));
 
-        if let Some(modify_title) = actions.modify_title {
-            changes.push(GroupChange::NewTitle(
-                self.decrypt_title(&modify_title.title),
-            ));
-        }
+        let modify_avatar = actions
+            .modify_avatar
+            .into_iter()
+            .map(|m| GroupChange::Avatar(m.avatar));
 
-        if let Some(modify_avatar) = actions.modify_avatar {
-            changes.push(GroupChange::NewAvatar(modify_avatar.avatar))
-        }
+        let modify_description =
+            actions.modify_description.into_iter().map(|m| {
+                GroupChange::Description(
+                    self.decrypt_description(&m.description_bytes),
+                )
+            });
 
-        if let Some(modify_disappearing_messages_timer) =
-            actions.modify_disappearing_messages_timer
-        {
-            changes.push(GroupChange::NewTimer(
-                self.decrypt_disappearing_message_timer(
-                    &modify_disappearing_messages_timer.timer,
-                ),
-            ))
-        }
+        let modify_disappearing_messages_timer = actions
+            .modify_disappearing_messages_timer
+            .into_iter()
+            .map(|m| {
+                GroupChange::Timer(
+                    self.decrypt_disappearing_message_timer(&m.timer),
+                )
+            });
+
+        let modify_attributes_access = actions
+            .modify_attributes_access
+            .into_iter()
+            .filter_map(|m| {
+                Some(GroupChange::AttributeAccess(AccessRequired::from_i32(
+                    m.attributes_access,
+                )?))
+            });
+
+        let modify_member_access =
+            actions.modify_member_access.into_iter().filter_map(|m| {
+                Some(GroupChange::MemberAccess(AccessRequired::from_i32(
+                    m.members_access,
+                )?))
+            });
+
+        let modify_add_from_invite_link_access = actions
+            .modify_add_from_invite_link_access
+            .into_iter()
+            .filter_map(|m| {
+                Some(GroupChange::InviteLinkAccess(AccessRequired::from_i32(
+                    m.add_from_invite_link_access,
+                )?))
+            });
+
+        let add_member_pending_admin_approvals = actions
+            .add_member_pending_admin_approvals
+            .into_iter()
+            .filter_map(|m| self.decrypt_requesting_member(m.added?).ok());
+
+        let delete_member_pending_admin_approvals = actions
+            .delete_member_pending_admin_approvals
+            .into_iter()
+            .filter_map(|m| {
+                Some(GroupChange::DeleteRequestingMember(
+                    self.decrypt_uuid(&m.deleted_user_id).ok()?,
+                ))
+            });
+
+        let promote_member_pending_admin_approvals = actions
+            .promote_member_pending_admin_approvals
+            .into_iter()
+            .filter_map(|m| {
+                Some(GroupChange::PromoteRequestingMember {
+                    uuid: self.decrypt_uuid(&m.user_id).ok()?,
+                    role: Role::from_i32(m.role)?,
+                })
+            });
+
+        let modify_invite_link_password =
+            actions.modify_invite_link_password.into_iter().map(|m| {
+                GroupChange::InviteLinkPassword(base64::encode(
+                    &m.invite_link_password,
+                ))
+            });
+
+        let modify_announcements_only = actions
+            .modify_announcements_only
+            .into_iter()
+            .map(|m| GroupChange::AnnouncementOnly(m.announcements_only));
 
         Ok(GroupChanges {
             editor: uuid,
             version: actions.version,
-            changes,
+            changes: new_members
+                .chain(delete_members)
+                .chain(modify_member_roles)
+                .chain(modify_member_profile_keys)
+                .chain(add_pending_members)
+                .chain(delete_pending_members)
+                .chain(promote_pending_members)
+                .chain(modify_title)
+                .chain(modify_avatar)
+                .chain(modify_disappearing_messages_timer)
+                .chain(modify_attributes_access)
+                .chain(modify_description)
+                .chain(modify_member_access)
+                .chain(modify_add_from_invite_link_access)
+                .chain(add_member_pending_admin_approvals)
+                .chain(delete_member_pending_admin_approvals)
+                .chain(promote_member_pending_admin_approvals)
+                .chain(modify_invite_link_password)
+                .chain(modify_announcements_only)
+                .collect(),
         })
     }
 }
