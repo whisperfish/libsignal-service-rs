@@ -1,3 +1,5 @@
+use std::iter;
+
 use bytes::Bytes;
 use prost::Message;
 use uuid::Uuid;
@@ -78,32 +80,20 @@ pub struct GroupChanges {
 pub enum GroupChange {
     NewMember(Member),
     DeleteMember(Uuid),
-    ModifyMemberRole {
-        uuid: Uuid,
-        role: Role,
-    },
-    ModifiedProfileKey {
-        uuid: Uuid,
-        profile_key: ProfileKey,
-    },
+    ModifyMemberRole { uuid: Uuid, role: Role },
+    ModifyMemberProfileKey { uuid: Uuid, profile_key: ProfileKey },
     NewPendingMember(PendingMember),
-    DeletePendingMember {
-        uuid: Uuid,
-        uuid_cipher_text: Vec<u8>,
-    },
-    PromotePendingMember(Member),
+    DeletePendingMember(Uuid),
+    PromotePendingMember { uuid: Uuid, profile_key: ProfileKey },
     NewTitle(Option<String>),
-    NewAvatar(Option<String>),
+    NewAvatar(String),
     NewTimer(Option<Timer>),
     NewAttributeAccess(i32),
     NewMemberAccess(i32),
     NewInviteLinkeAccess(i32),
     NewRequestingMember(RequestingMember),
     DeleteRequestingMember(Uuid),
-    PromoteRequestingMember {
-        uuid: Uuid,
-        role: Role,
-    },
+    PromoteRequestingMember { uuid: Uuid, role: Role },
     NewInviteLinkPassword(Vec<u8>),
     NewDescription(Option<String>),
 }
@@ -266,11 +256,12 @@ impl GroupOperations {
         }
     }
 
-    fn decrypt_title(&self, ciphertext: &[u8]) -> String {
+    fn decrypt_title(&self, ciphertext: &[u8]) -> Option<String> {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
-            Some(Content::Title(title)) => title,
-            _ => "".into(), // TODO: return an error here?
+            Some(Content::Title(title)) if title.is_empty() => None,
+            Some(Content::Title(title)) => Some(title),
+            _ => None,
         }
     }
 
@@ -381,27 +372,72 @@ impl GroupOperations {
                 })
             });
 
-        let modified_profile_keys = actions
+        let modify_member_profile_keys = actions
             .modify_member_profile_keys
             .into_iter()
-            .filter_map(|modify_member_profile_keys| {
+            .filter_map(|m| {
                 let (uuid, profile_key) = self
-                    .decrypt_profile_key_presentation(
-                        &modify_member_profile_keys.presentation,
-                    )
+                    .decrypt_profile_key_presentation(&m.presentation)
                     .ok()?;
 
-                Some(GroupChange::ModifiedProfileKey { uuid, profile_key })
+                Some(GroupChange::ModifyMemberProfileKey { uuid, profile_key })
             });
+
+        let add_pending_members =
+            actions.add_pending_members.into_iter().filter_map(|m| {
+                Some(GroupChange::NewPendingMember(
+                    self.decrypt_pending_member(m.added?).ok()?,
+                ))
+            });
+
+        let delete_pending_members =
+            actions.delete_pending_members.into_iter().filter_map(|m| {
+                Some(GroupChange::DeletePendingMember(
+                    self.decrypt_uuid(&m.deleted_user_id).ok()?,
+                ))
+            });
+
+        let promote_pending_members =
+            actions.promote_pending_members.into_iter().filter_map(|m| {
+                let (uuid, profile_key) = self
+                    .decrypt_profile_key_presentation(&m.presentation)
+                    .ok()?;
+                Some(GroupChange::PromotePendingMember { uuid, profile_key })
+            });
+
+        let mut changes: Vec<GroupChange> = new_members
+            .chain(delete_members)
+            .chain(modify_member_roles)
+            .chain(modify_member_profile_keys)
+            .chain(add_pending_members)
+            .chain(delete_pending_members)
+            .chain(promote_pending_members)
+            .collect();
+
+        if let Some(modify_title) = actions.modify_title {
+            changes.push(GroupChange::NewTitle(
+                self.decrypt_title(&modify_title.title),
+            ));
+        }
+
+        if let Some(modify_avatar) = actions.modify_avatar {
+            changes.push(GroupChange::NewAvatar(modify_avatar.avatar))
+        }
+
+        if let Some(modify_disappearing_messages_timer) =
+            actions.modify_disappearing_messages_timer
+        {
+            changes.push(GroupChange::NewTimer(
+                self.decrypt_disappearing_message_timer(
+                    &modify_disappearing_messages_timer.timer,
+                ),
+            ))
+        }
 
         Ok(GroupChanges {
             editor: uuid,
             version: actions.version,
-            changes: new_members
-                .chain(delete_members)
-                .chain(modify_member_roles)
-                .chain(modified_profile_keys)
-                .collect(),
+            changes,
         })
     }
 }
