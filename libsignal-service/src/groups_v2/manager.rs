@@ -5,8 +5,8 @@ use std::{
 
 use crate::{
     configuration::Endpoint,
+    groups_v2::operations::{Group, GroupOperations},
     prelude::{PushService, ServiceError},
-    proto::DecryptedGroup,
     push_service::{HttpAuth, HttpAuthOverride},
 };
 
@@ -16,8 +16,6 @@ use uuid::Uuid;
 use zkgroup::{
     auth::AuthCredentialResponse, groups::GroupSecretParams, ServerPublicParams,
 };
-
-use super::operations::GroupOperations;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -218,7 +216,7 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
         &mut self,
         group_secret_params: GroupSecretParams,
         credentials: HttpAuth,
-    ) -> Result<DecryptedGroup, ServiceError> {
+    ) -> Result<Group, ServiceError> {
         let encrypted_group = self.push_service.get_group(credentials).await?;
         let decrypted_group = GroupOperations::decrypt_group(
             group_secret_params,
