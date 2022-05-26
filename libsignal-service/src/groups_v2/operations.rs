@@ -1,5 +1,3 @@
-use std::iter;
-
 use bytes::Bytes;
 use prost::Message;
 use uuid::Uuid;
@@ -467,7 +465,11 @@ impl GroupOperations {
         let add_member_pending_admin_approvals = actions
             .add_member_pending_admin_approvals
             .into_iter()
-            .filter_map(|m| self.decrypt_requesting_member(m.added?).ok());
+            .filter_map(|m| {
+                Some(GroupChange::NewRequestingMember(
+                    self.decrypt_requesting_member(m.added?).ok()?,
+                ))
+            });
 
         let delete_member_pending_admin_approvals = actions
             .delete_member_pending_admin_approvals
