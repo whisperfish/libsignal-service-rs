@@ -129,6 +129,8 @@ pub enum GroupDecryptionError {
     ProtobufDecodeError(#[from] prost::DecodeError),
     #[error("wrong group attribute blob")]
     WrongBlob,
+    #[error("wrong enum value")]
+    WrongEnumValue,
 }
 
 impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecryptionError {
@@ -352,160 +354,153 @@ impl GroupOperations {
 
         let uuid = self.decrypt_uuid(&actions.source_uuid)?;
 
-        let new_members = actions
-            .add_members
-            .into_iter()
-            .filter_map(|add_member| {
-                self.decrypt_member(add_member.added?).ok()
-            })
-            .map(GroupChange::NewMember);
+        let new_members =
+            actions.add_members.into_iter().filter_map(|m| m.added).map(
+                |added| Ok(GroupChange::NewMember(self.decrypt_member(added)?)),
+            );
 
-        let delete_members = actions
-            .delete_members
-            .into_iter()
-            .filter_map(|delete_member| {
-                self.decrypt_uuid(&delete_member.deleted_user_id).ok()
-            })
-            .map(GroupChange::DeleteMember);
+        let delete_members = actions.delete_members.into_iter().map(|c| {
+            Ok(GroupChange::DeleteMember(
+                self.decrypt_uuid(&c.deleted_user_id)?,
+            ))
+        });
 
-        let modify_member_roles = actions
-            .modify_member_roles
-            .into_iter()
-            .filter_map(|modify_member| {
-                Some(GroupChange::ModifyMemberRole {
-                    uuid: self.decrypt_uuid(&modify_member.user_id).ok()?,
-                    role: Role::from_i32(modify_member.role)?,
+        let modify_member_roles =
+            actions.modify_member_roles.into_iter().map(|m| {
+                Ok(GroupChange::ModifyMemberRole {
+                    uuid: self.decrypt_uuid(&m.user_id)?,
+                    role: Role::from_i32(m.role)
+                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
                 })
             });
 
-        let modify_member_profile_keys = actions
-            .modify_member_profile_keys
-            .into_iter()
-            .filter_map(|m| {
-                let (uuid, profile_key) = self
-                    .decrypt_profile_key_presentation(&m.presentation)
-                    .ok()?;
-
-                Some(GroupChange::ModifyMemberProfileKey { uuid, profile_key })
+        let modify_member_profile_keys =
+            actions.modify_member_profile_keys.into_iter().map(|m| {
+                let (uuid, profile_key) =
+                    self.decrypt_profile_key_presentation(&m.presentation)?;
+                Ok(GroupChange::ModifyMemberProfileKey { uuid, profile_key })
             });
 
-        let add_pending_members =
-            actions.add_pending_members.into_iter().filter_map(|m| {
-                Some(GroupChange::NewPendingMember(
-                    self.decrypt_pending_member(m.added?).ok()?,
+        let add_pending_members = actions
+            .add_pending_members
+            .into_iter()
+            .filter_map(|m| m.added)
+            .map(|added| {
+                Ok(GroupChange::NewPendingMember(
+                    self.decrypt_pending_member(added)?,
                 ))
             });
 
         let delete_pending_members =
-            actions.delete_pending_members.into_iter().filter_map(|m| {
-                Some(GroupChange::DeletePendingMember(
-                    self.decrypt_uuid(&m.deleted_user_id).ok()?,
+            actions.delete_pending_members.into_iter().map(|m| {
+                Ok(GroupChange::DeletePendingMember(
+                    self.decrypt_uuid(&m.deleted_user_id)?,
                 ))
             });
 
         let promote_pending_members =
-            actions.promote_pending_members.into_iter().filter_map(|m| {
-                let (uuid, profile_key) = self
-                    .decrypt_profile_key_presentation(&m.presentation)
-                    .ok()?;
-                Some(GroupChange::PromotePendingMember { uuid, profile_key })
+            actions.promote_pending_members.into_iter().map(|m| {
+                let (uuid, profile_key) =
+                    self.decrypt_profile_key_presentation(&m.presentation)?;
+                Ok(GroupChange::PromotePendingMember { uuid, profile_key })
             });
 
         let modify_title = actions
             .modify_title
             .into_iter()
-            .map(|m| GroupChange::Title(self.decrypt_title(&m.title)));
+            .map(|m| Ok(GroupChange::Title(self.decrypt_title(&m.title))));
 
         let modify_avatar = actions
             .modify_avatar
             .into_iter()
-            .map(|m| GroupChange::Avatar(m.avatar));
+            .map(|m| Ok(GroupChange::Avatar(m.avatar)));
 
         let modify_description =
             actions.modify_description.into_iter().map(|m| {
-                GroupChange::Description(
+                Ok(GroupChange::Description(
                     self.decrypt_description(&m.description_bytes),
-                )
+                ))
             });
 
         let modify_disappearing_messages_timer = actions
             .modify_disappearing_messages_timer
             .into_iter()
             .map(|m| {
-                GroupChange::Timer(
+                Ok(GroupChange::Timer(
                     self.decrypt_disappearing_message_timer(&m.timer),
-                )
+                ))
             });
 
-        let modify_attributes_access = actions
-            .modify_attributes_access
-            .into_iter()
-            .filter_map(|m| {
-                Some(GroupChange::AttributeAccess(AccessRequired::from_i32(
-                    m.attributes_access,
-                )?))
+        let modify_attributes_access =
+            actions.modify_attributes_access.into_iter().map(|m| {
+                Ok(GroupChange::AttributeAccess(
+                    AccessRequired::from_i32(m.attributes_access)
+                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
+                ))
             });
 
         let modify_member_access =
-            actions.modify_member_access.into_iter().filter_map(|m| {
-                Some(GroupChange::MemberAccess(AccessRequired::from_i32(
-                    m.members_access,
-                )?))
+            actions.modify_member_access.into_iter().map(|m| {
+                Ok(GroupChange::MemberAccess(
+                    AccessRequired::from_i32(m.members_access)
+                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
+                ))
             });
 
         let modify_add_from_invite_link_access = actions
             .modify_add_from_invite_link_access
             .into_iter()
-            .filter_map(|m| {
-                Some(GroupChange::InviteLinkAccess(AccessRequired::from_i32(
-                    m.add_from_invite_link_access,
-                )?))
+            .map(|m| {
+                Ok(GroupChange::InviteLinkAccess(
+                    AccessRequired::from_i32(m.add_from_invite_link_access)
+                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
+                ))
             });
 
         let add_member_pending_admin_approvals = actions
             .add_member_pending_admin_approvals
             .into_iter()
-            .filter_map(|m| {
-                Some(GroupChange::NewRequestingMember(
-                    self.decrypt_requesting_member(m.added?).ok()?,
+            .filter_map(|m| m.added)
+            .map(|added| {
+                Ok(GroupChange::NewRequestingMember(
+                    self.decrypt_requesting_member(added)?,
                 ))
             });
 
         let delete_member_pending_admin_approvals = actions
             .delete_member_pending_admin_approvals
             .into_iter()
-            .filter_map(|m| {
-                Some(GroupChange::DeleteRequestingMember(
-                    self.decrypt_uuid(&m.deleted_user_id).ok()?,
+            .map(|m| {
+                Ok(GroupChange::DeleteRequestingMember(
+                    self.decrypt_uuid(&m.deleted_user_id)?,
                 ))
             });
 
         let promote_member_pending_admin_approvals = actions
             .promote_member_pending_admin_approvals
             .into_iter()
-            .filter_map(|m| {
-                Some(GroupChange::PromoteRequestingMember {
-                    uuid: self.decrypt_uuid(&m.user_id).ok()?,
-                    role: Role::from_i32(m.role)?,
+            .map(|m| {
+                Ok(GroupChange::PromoteRequestingMember {
+                    uuid: self.decrypt_uuid(&m.user_id)?,
+                    role: Role::from_i32(m.role)
+                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
                 })
             });
 
         let modify_invite_link_password =
             actions.modify_invite_link_password.into_iter().map(|m| {
-                GroupChange::InviteLinkPassword(base64::encode(
+                Ok(GroupChange::InviteLinkPassword(base64::encode(
                     &m.invite_link_password,
-                ))
+                )))
             });
 
         let modify_announcements_only = actions
             .modify_announcements_only
             .into_iter()
-            .map(|m| GroupChange::AnnouncementOnly(m.announcements_only));
+            .map(|m| Ok(GroupChange::AnnouncementOnly(m.announcements_only)));
 
-        Ok(GroupChanges {
-            editor: uuid,
-            version: actions.version,
-            changes: new_members
+        let changes: Result<Vec<GroupChange>, GroupDecryptionError> =
+            new_members
                 .chain(delete_members)
                 .chain(modify_member_roles)
                 .chain(modify_member_profile_keys)
@@ -524,7 +519,12 @@ impl GroupOperations {
                 .chain(promote_member_pending_admin_approvals)
                 .chain(modify_invite_link_password)
                 .chain(modify_announcements_only)
-                .collect(),
+                .collect();
+
+        Ok(GroupChanges {
+            editor: uuid,
+            version: actions.version,
+            changes: changes?,
         })
     }
 }
