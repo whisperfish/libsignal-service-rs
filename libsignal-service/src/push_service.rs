@@ -257,23 +257,7 @@ pub struct SignalServiceProfile {
 
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct CdnUploadAttributes {
-    path: String,
-    acl: String,
-    key: String,
-    policy: String,
-    algorithm: String,
-    credential: String,
-    date: String,
-    signature: String,
-    content_type: String,
-    length: u64,
-}
-
-#[derive(Debug, serde::Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
 pub struct AttachmentV2UploadAttributes {
-    url: Option<String>,
     key: String,
     credential: String,
     acl: String,
@@ -285,7 +269,6 @@ pub struct AttachmentV2UploadAttributes {
     // and I (Ruben) am unsure why they decide to force-parse at upload-time instead of at registration
     // time.
     attachment_id: u64,
-    attachment_id_string: String,
 }
 
 #[derive(thiserror::Error, Debug)]

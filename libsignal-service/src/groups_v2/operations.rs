@@ -10,11 +10,11 @@ use crate::proto::{
     group_attribute_blob, group_change::Actions as EncryptedGroupChangeActions,
     member::Role, AccessControl, Group as EncryptedGroup, GroupAttributeBlob,
     GroupChange as EncryptedGroupChange, Member as EncryptedMember,
-    MemberBanned, MemberPendingAdminApproval, MemberPendingProfileKey,
+    MemberPendingAdminApproval, MemberPendingProfileKey,
 };
 
 pub(crate) struct GroupOperations {
-    group_secret_params: GroupSecretParams,
+    pub group_secret_params: GroupSecretParams,
 }
 
 #[derive(Clone)]
@@ -53,21 +53,6 @@ impl PartialEq for RequestingMember {
     }
 }
 
-// #[derive(Clone, PartialEq)]
-// pub struct PendingMemberRemoval {
-//     pub uuid: Uuid,
-//     pub uuid_cipher_text: Vec<u8>,
-// }
-
-// #[derive(Clone, PartialEq)]
-// pub struct ApproveMember {
-//     pub uuid: Uuid,
-//     pub role: i32,
-// }
-
-// #[derive(Clone, PartialEq)]
-// pub struct ModifyMemberRole {}
-
 #[derive(Clone, PartialEq)]
 pub struct Group {
     pub title: String,
@@ -80,6 +65,13 @@ pub struct Group {
     pub requesting_members: Vec<RequestingMember>,
     pub invite_link_password: Vec<u8>,
     pub description: String,
+}
+
+#[derive(Clone)]
+pub struct GroupChanges {
+    pub editor: Uuid,
+    pub version: u32,
+    pub changes: Vec<GroupChange>,
 }
 
 #[derive(Clone)]
@@ -214,61 +206,6 @@ impl GroupOperations {
         })
     }
 
-    pub fn decrypt_group_change(
-        &self,
-        group_change: EncryptedGroupChange,
-    ) -> Result<Vec<GroupChange>, GroupDecryptionError> {
-        let actions: EncryptedGroupChangeActions =
-            Message::decode(Bytes::from(group_change.actions))?;
-
-        let uuid = self.decrypt_uuid(&actions.source_uuid)?;
-
-        let new_members = actions
-            .add_members
-            .into_iter()
-            .filter_map(|add_member| {
-                self.decrypt_member(add_member.added?).ok()
-            })
-            .map(GroupChange::NewMember);
-
-        let delete_members = actions
-            .delete_members
-            .into_iter()
-            .filter_map(|delete_member| {
-                self.decrypt_uuid(&delete_member.deleted_user_id).ok()
-            })
-            .map(GroupChange::DeleteMember);
-
-        let modify_member_roles = actions
-            .modify_member_roles
-            .into_iter()
-            .filter_map(|modify_member| {
-                Some(GroupChange::ModifyMemberRole {
-                    uuid: self.decrypt_uuid(&modify_member.user_id).ok()?,
-                    role: Role::from_i32(modify_member.role)?,
-                })
-            });
-
-        let modified_profile_keys = actions
-            .modify_member_profile_keys
-            .into_iter()
-            .filter_map(|modify_member_profile_keys| {
-                let (uuid, profile_key) = self
-                    .decrypt_profile_key_presentation(
-                        &modify_member_profile_keys.presentation,
-                    )
-                    .ok()?;
-
-                Some(GroupChange::ModifiedProfileKey { uuid, profile_key })
-            });
-
-        Ok(new_members
-            .chain(delete_members)
-            .chain(modify_member_roles)
-            .chain(modified_profile_keys)
-            .collect())
-    }
-
     fn decrypt_pending_member(
         &self,
         member: MemberPendingProfileKey,
@@ -358,20 +295,21 @@ impl GroupOperations {
         }
     }
 
+    pub fn new(group_secret_params: GroupSecretParams) -> Self {
+        Self {
+            group_secret_params,
+        }
+    }
+
     pub fn decrypt_group(
-        group_secret_params: GroupSecretParams,
+        &self,
         group: EncryptedGroup,
     ) -> Result<Group, GroupDecryptionError> {
-        let group_operations = Self {
-            group_secret_params,
-        };
+        let title = self.decrypt_title(&group.title);
 
-        let title = group_operations.decrypt_title(&group.title);
+        let description = self.decrypt_description(&group.description_bytes);
 
-        let description =
-            group_operations.decrypt_description(&group.description_bytes);
-
-        let disappearing_messages_timer = group_operations
+        let disappearing_messages_timer = self
             .decrypt_disappearing_message_timer(
                 &group.disappearing_messages_timer,
             );
@@ -379,19 +317,19 @@ impl GroupOperations {
         let members = group
             .members
             .into_iter()
-            .map(|m| group_operations.decrypt_member(m))
+            .map(|m| self.decrypt_member(m))
             .collect::<Result<_, _>>()?;
 
         let pending_members = group
             .members_pending_profile_key
             .into_iter()
-            .map(|m| group_operations.decrypt_pending_member(m))
+            .map(|m| self.decrypt_pending_member(m))
             .collect::<Result<_, _>>()?;
 
         let requesting_members = group
             .members_pending_admin_approval
             .into_iter()
-            .map(|m| group_operations.decrypt_requesting_member(m))
+            .map(|m| self.decrypt_requesting_member(m))
             .collect::<Result<_, _>>()?;
 
         Ok(Group {
@@ -405,6 +343,65 @@ impl GroupOperations {
             requesting_members,
             invite_link_password: group.invite_link_password,
             description,
+        })
+    }
+
+    pub fn decrypt_group_change(
+        &self,
+        group_change: EncryptedGroupChange,
+    ) -> Result<GroupChanges, GroupDecryptionError> {
+        let actions: EncryptedGroupChangeActions =
+            Message::decode(Bytes::from(group_change.actions))?;
+
+        let uuid = self.decrypt_uuid(&actions.source_uuid)?;
+
+        let new_members = actions
+            .add_members
+            .into_iter()
+            .filter_map(|add_member| {
+                self.decrypt_member(add_member.added?).ok()
+            })
+            .map(GroupChange::NewMember);
+
+        let delete_members = actions
+            .delete_members
+            .into_iter()
+            .filter_map(|delete_member| {
+                self.decrypt_uuid(&delete_member.deleted_user_id).ok()
+            })
+            .map(GroupChange::DeleteMember);
+
+        let modify_member_roles = actions
+            .modify_member_roles
+            .into_iter()
+            .filter_map(|modify_member| {
+                Some(GroupChange::ModifyMemberRole {
+                    uuid: self.decrypt_uuid(&modify_member.user_id).ok()?,
+                    role: Role::from_i32(modify_member.role)?,
+                })
+            });
+
+        let modified_profile_keys = actions
+            .modify_member_profile_keys
+            .into_iter()
+            .filter_map(|modify_member_profile_keys| {
+                let (uuid, profile_key) = self
+                    .decrypt_profile_key_presentation(
+                        &modify_member_profile_keys.presentation,
+                    )
+                    .ok()?;
+
+                Some(GroupChange::ModifiedProfileKey { uuid, profile_key })
+            });
+
+        Ok(GroupChanges {
+            editor: uuid,
+            version: actions.version,
+            changes: new_members
+                .chain(delete_members)
+                .chain(modify_member_roles)
+                .chain(modified_profile_keys)
+                .collect(),
         })
     }
 }

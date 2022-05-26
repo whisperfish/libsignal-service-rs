@@ -5,8 +5,11 @@ use std::{
 
 use crate::{
     configuration::Endpoint,
-    groups_v2::operations::{Group, GroupOperations},
+    groups_v2::operations::{
+        Group, GroupChanges, GroupDecryptionError, GroupOperations,
+    },
     prelude::{PushService, ServiceError},
+    proto::GroupChange as EncryptedGroupChange,
     push_service::{HttpAuth, HttpAuthOverride},
 };
 
@@ -218,11 +221,18 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
         credentials: HttpAuth,
     ) -> Result<Group, ServiceError> {
         let encrypted_group = self.push_service.get_group(credentials).await?;
-        let decrypted_group = GroupOperations::decrypt_group(
-            group_secret_params,
-            encrypted_group,
-        )?;
+        let decrypted_group = GroupOperations::new(group_secret_params)
+            .decrypt_group(encrypted_group)?;
 
         Ok(decrypted_group)
+    }
+
+    pub async fn decrypt_group_change(
+        &self,
+        group_secret_params: GroupSecretParams,
+        encrypted_group_change: EncryptedGroupChange,
+    ) -> Result<GroupChanges, GroupDecryptionError> {
+        GroupOperations::new(group_secret_params)
+            .decrypt_group_change(encrypted_group_change)
     }
 }

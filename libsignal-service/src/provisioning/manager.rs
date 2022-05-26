@@ -13,10 +13,10 @@ use super::{
 use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalingKey},
     push_service::{
-        AccountAttributes, DeviceCapabilities, DeviceId, HttpAuthOverride,
-        PushService, ServiceError,
+        AccountAttributes, DeviceId, HttpAuthOverride, PushService,
+        ServiceError,
     },
-    utils::{serde_base64, serde_optional_base64},
+    utils::serde_base64,
 };
 
 /// Message received when linking a new secondary device.
