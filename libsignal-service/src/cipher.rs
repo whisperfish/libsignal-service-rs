@@ -48,7 +48,6 @@ where
         pre_key_store: P,
         csprng: R,
         trust_root: PublicKey,
-        // certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
             session_store,

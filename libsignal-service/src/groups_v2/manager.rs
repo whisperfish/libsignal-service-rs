@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    convert::TryInto,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -9,15 +10,18 @@ use crate::{
         Group, GroupChanges, GroupDecryptionError, GroupOperations,
     },
     prelude::{PushService, ServiceError},
-    proto::GroupChange as EncryptedGroupChange,
+    proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride},
 };
 
+use bytes::Bytes;
 use rand::RngCore;
 use serde::Deserialize;
 use uuid::Uuid;
 use zkgroup::{
-    auth::AuthCredentialResponse, groups::GroupSecretParams, ServerPublicParams,
+    auth::AuthCredentialResponse,
+    groups::{GroupMasterKey, GroupSecretParams},
+    ServerPublicParams,
 };
 
 #[derive(Debug, serde::Deserialize)]
@@ -227,12 +231,25 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
         Ok(decrypted_group)
     }
 
-    pub async fn decrypt_group_change(
+    pub fn decrypt_group_context(
         &self,
-        group_secret_params: GroupSecretParams,
-        encrypted_group_change: EncryptedGroupChange,
-    ) -> Result<GroupChanges, GroupDecryptionError> {
-        GroupOperations::new(group_secret_params)
-            .decrypt_group_change(encrypted_group_change)
+        group_context: GroupContextV2,
+    ) -> Result<Option<GroupChanges>, GroupDecryptionError> {
+        match (group_context.master_key, group_context.group_change) {
+            (Some(master_key), Some(group_change)) => {
+                let master_key_bytes: [u8; 32] = master_key
+                    .try_into()
+                    .map_err(|_| GroupDecryptionError::WrongBlob)?;
+                let group_master_key = GroupMasterKey::new(master_key_bytes);
+                let group_secret_params =
+                    GroupSecretParams::derive_from_master_key(group_master_key);
+                let encrypted_group_change =
+                    prost::Message::decode(Bytes::from(group_change))?;
+                let group_change = GroupOperations::new(group_secret_params)
+                    .decrypt_group_change(encrypted_group_change)?;
+                Ok(Some(group_change))
+            },
+            _ => Ok(None),
+        }
     }
 }

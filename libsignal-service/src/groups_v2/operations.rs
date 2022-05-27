@@ -1,3 +1,5 @@
+use core::fmt;
+
 use bytes::Bytes;
 use prost::Message;
 use uuid::Uuid;
@@ -10,8 +12,9 @@ use crate::proto::{
     access_control::AccessRequired, group_attribute_blob,
     group_change::Actions as EncryptedGroupChangeActions, member::Role,
     AccessControl, Group as EncryptedGroup, GroupAttributeBlob,
-    GroupChange as EncryptedGroupChange, Member as EncryptedMember,
-    MemberPendingAdminApproval, MemberPendingProfileKey,
+    GroupChange as EncryptedGroupChange, GroupContextV2,
+    Member as EncryptedMember, MemberPendingAdminApproval,
+    MemberPendingProfileKey,
 };
 
 pub(crate) struct GroupOperations {
@@ -32,13 +35,22 @@ impl PartialEq for Member {
     }
 }
 
-#[derive(Clone, PartialEq)]
+impl fmt::Debug for Member {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Member")
+            .field("uuid", &self.uuid)
+            .field("role", &self.role)
+            .field("joined_at_revision", &self.joined_at_revision)
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct PendingMember {
     pub uuid: Uuid,
     pub role: Role,
     pub added_by_uuid: Uuid,
     pub timestamp: u64,
-    pub uuid_cipher_text: Vec<u8>,
 }
 
 #[derive(Clone)]
@@ -51,6 +63,15 @@ pub struct RequestingMember {
 impl PartialEq for RequestingMember {
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
+    }
+}
+
+impl fmt::Debug for RequestingMember {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RequestingMember")
+            .field("uuid", &self.uuid)
+            .field("timestamp", &self.timestamp)
+            .finish()
     }
 }
 
@@ -68,7 +89,7 @@ pub struct Group {
     pub description: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GroupChanges {
     pub editor: Uuid,
     pub version: u32,
@@ -101,7 +122,71 @@ pub enum GroupChange {
     AnnouncementOnly(bool),
 }
 
-#[derive(Clone, PartialEq)]
+impl fmt::Debug for GroupChange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NewMember(arg0) => {
+                f.debug_tuple("NewMember").field(arg0).finish()
+            },
+            Self::DeleteMember(arg0) => {
+                f.debug_tuple("DeleteMember").field(arg0).finish()
+            },
+            Self::ModifyMemberRole { uuid, role } => f
+                .debug_struct("ModifyMemberRole")
+                .field("uuid", uuid)
+                .field("role", role)
+                .finish(),
+            Self::ModifyMemberProfileKey { uuid, profile_key } => f
+                .debug_struct("ModifyMemberProfileKey")
+                .field("uuid", uuid)
+                .finish(),
+            Self::NewPendingMember(arg0) => {
+                f.debug_tuple("NewPendingMember").field(arg0).finish()
+            },
+            Self::DeletePendingMember(arg0) => {
+                f.debug_tuple("DeletePendingMember").field(arg0).finish()
+            },
+            Self::PromotePendingMember { uuid, profile_key } => f
+                .debug_struct("PromotePendingMember")
+                .field("uuid", uuid)
+                .finish(),
+            Self::NewRequestingMember(arg0) => {
+                f.debug_tuple("NewRequestingMember").field(arg0).finish()
+            },
+            Self::DeleteRequestingMember(arg0) => {
+                f.debug_tuple("DeleteRequestingMember").field(arg0).finish()
+            },
+            Self::PromoteRequestingMember { uuid, role } => f
+                .debug_struct("PromoteRequestingMember")
+                .field("uuid", uuid)
+                .field("role", role)
+                .finish(),
+            Self::Title(arg0) => f.debug_tuple("Title").field(arg0).finish(),
+            Self::Avatar(arg0) => f.debug_tuple("Avatar").field(arg0).finish(),
+            Self::Timer(arg0) => f.debug_tuple("Timer").field(arg0).finish(),
+            Self::Description(arg0) => {
+                f.debug_tuple("Description").field(arg0).finish()
+            },
+            Self::AttributeAccess(arg0) => {
+                f.debug_tuple("AttributeAccess").field(arg0).finish()
+            },
+            Self::MemberAccess(arg0) => {
+                f.debug_tuple("MemberAccess").field(arg0).finish()
+            },
+            Self::InviteLinkAccess(arg0) => {
+                f.debug_tuple("InviteLinkAccess").field(arg0).finish()
+            },
+            Self::InviteLinkPassword(arg0) => {
+                f.debug_tuple("InviteLinkPassword").field(arg0).finish()
+            },
+            Self::AnnouncementOnly(arg0) => {
+                f.debug_tuple("AnnouncementOnly").field(arg0).finish()
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct Timer {
     pub duration: u32,
 }
@@ -217,7 +302,6 @@ impl GroupOperations {
                 .ok_or(GroupDecryptionError::WrongBlob)?,
             added_by_uuid,
             timestamp: member.timestamp,
-            uuid_cipher_text: inner_member.user_id,
         })
     }
 
@@ -273,7 +357,7 @@ impl GroupOperations {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
             Some(Content::DescriptionText(d)) => {
-                Some(d).filter(String::is_empty)
+                Some(d).filter(|d| !d.is_empty())
             },
             _ => None,
         }
@@ -343,8 +427,6 @@ impl GroupOperations {
         })
     }
 
-    // TODO: switch to collecting Result<GroupChange> and explode when calling collect()
-    // instead of silently ignoring records we can't decrypt/parse
     pub fn decrypt_group_change(
         &self,
         group_change: EncryptedGroupChange,
