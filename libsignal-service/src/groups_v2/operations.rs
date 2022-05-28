@@ -12,9 +12,8 @@ use crate::proto::{
     access_control::AccessRequired, group_attribute_blob,
     group_change::Actions as EncryptedGroupChangeActions, member::Role,
     AccessControl, Group as EncryptedGroup, GroupAttributeBlob,
-    GroupChange as EncryptedGroupChange, GroupContextV2,
-    Member as EncryptedMember, MemberPendingAdminApproval,
-    MemberPendingProfileKey,
+    GroupChange as EncryptedGroupChange, Member as EncryptedMember,
+    MemberPendingAdminApproval, MemberPendingProfileKey,
 };
 
 pub(crate) struct GroupOperations {
@@ -136,7 +135,7 @@ impl fmt::Debug for GroupChange {
                 .field("uuid", uuid)
                 .field("role", role)
                 .finish(),
-            Self::ModifyMemberProfileKey { uuid, profile_key } => f
+            Self::ModifyMemberProfileKey { uuid, .. } => f
                 .debug_struct("ModifyMemberProfileKey")
                 .field("uuid", uuid)
                 .finish(),
@@ -146,7 +145,7 @@ impl fmt::Debug for GroupChange {
             Self::DeletePendingMember(arg0) => {
                 f.debug_tuple("DeletePendingMember").field(arg0).finish()
             },
-            Self::PromotePendingMember { uuid, profile_key } => f
+            Self::PromotePendingMember { uuid, .. } => f
                 .debug_struct("PromotePendingMember")
                 .field("uuid", uuid)
                 .finish(),
