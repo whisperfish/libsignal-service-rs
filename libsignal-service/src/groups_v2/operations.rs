@@ -253,7 +253,7 @@ impl GroupOperations {
         presentation: &[u8],
     ) -> Result<(Uuid, ProfileKey), GroupDecryptionError> {
         let profile_key_credential_presentation =
-            AnyProfileKeyCredentialPresentation::new(&presentation)?;
+            AnyProfileKeyCredentialPresentation::new(presentation)?;
         let uuid = Uuid::from_bytes(self.group_secret_params.decrypt_uuid(
             profile_key_credential_presentation.get_uuid_ciphertext(),
         )?);
