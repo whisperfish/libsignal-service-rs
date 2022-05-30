@@ -48,7 +48,6 @@ where
         pre_key_store: P,
         csprng: R,
         trust_root: PublicKey,
-        // certificate_validator: CertificateValidator,
     ) -> Self {
         Self {
             session_store,
@@ -141,9 +140,7 @@ where
                     .session_store
                     .load_session(&sender, None)
                     .await?
-                    .ok_or_else(|| {
-                        SignalProtocolError::SessionNotFound(sender)
-                    })?;
+                    .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
@@ -178,9 +175,7 @@ where
                     .session_store
                     .load_session(&sender, None)
                     .await?
-                    .ok_or_else(|| {
-                        SignalProtocolError::SessionNotFound(sender)
-                    })?;
+                    .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }

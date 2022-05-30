@@ -1,13 +1,11 @@
-/**
- * Copyright (C) 2019 Open Whisper Systems
- *
- * Licensed according to the LICENSE file in this repository.
- */
 syntax = "proto3";
+
+// Copyright 2020-2021 Signal Messenger, LLC
+// SPDX-License-Identifier: AGPL-3.0-only
 
 package signalservice;
 
-option java_package        = "org.signal.storageservice.protos.groups";
+option java_package        = "org.whispersystems.signalservice.protos.groups";
 option java_multiple_files = true;
 
 message AvatarUploadAttributes {
@@ -23,56 +21,64 @@ message AvatarUploadAttributes {
 message Member {
   enum Role {
     UNKNOWN       = 0;
-    DEFAULT       = 1;
-    ADMINISTRATOR = 2;
+    DEFAULT       = 1; // Normal member
+    ADMINISTRATOR = 2; // Group admin
   }
 
-  bytes  userId           = 1;
-  Role   role             = 2;
-  bytes  profileKey       = 3;
-  bytes  presentation     = 4;
-  uint32 joinedAtRevision = 5;
+  bytes  userId          = 1; // The UuidCiphertext
+  Role   role            = 2;
+  bytes  profileKey      = 3; // The ProfileKeyCiphertext
+  bytes  presentation    = 4; // ProfileKeyCredentialPresentation
+  uint32 joinedAtVersion = 5; // The Group.version this member joined at
 }
 
-message PendingMember {
-  Member member        = 1;
-  bytes  addedByUserId = 2;
-  uint64 timestamp     = 3;
+message MemberPendingProfileKey {
+  Member member        = 1; // The “invited” member
+  bytes  addedByUserId = 2; // The UID who invited this member
+  uint64 timestamp     = 3; // The time the invitation occurred
 }
 
-message RequestingMember {
-    bytes  userId       = 1;
-    bytes  profileKey   = 2;
-    bytes  presentation = 3;
-    uint64 timestamp    = 4;
+message MemberPendingAdminApproval {
+  bytes  userId       = 1;
+  bytes  profileKey   = 2;
+  bytes  presentation = 3;
+  uint64 timestamp    = 4;
+}
+
+message MemberBanned {
+  bytes userId        = 1;
+  uint64 timestamp    = 2;  // ms since epoch
 }
 
 message AccessControl {
   enum AccessRequired {
     UNKNOWN       = 0;
     ANY           = 1;
-    MEMBER        = 2;
-    ADMINISTRATOR = 3;
+    MEMBER        = 2; // Any group member can make the modification
+    ADMINISTRATOR = 3; // Only administrators can make the modification
     UNSATISFIABLE = 4;
   }
 
-  AccessRequired attributes        = 1;
-  AccessRequired members           = 2;
+  AccessRequired attributes        = 1; // Who can modify the group title, avatar, disappearing messages timer
+  AccessRequired members           = 2; // Who can add people to the group
   AccessRequired addFromInviteLink = 3;
 }
 
 message Group {
-           bytes            publicKey                 = 1;
-           bytes            title                     = 2;
-           string           avatar                    = 3;
-           bytes            disappearingMessagesTimer = 4;
-           AccessControl    accessControl             = 5;
-           uint32           revision                  = 6;
-  repeated Member           members                   = 7;
-  repeated PendingMember    pendingMembers            = 8;
-  repeated RequestingMember requestingMembers         = 9;
-           bytes            inviteLinkPassword        = 10;
-           bytes            description               = 11;
+           bytes                      publicKey                   = 1; // GroupPublicParams
+           bytes                      title                       = 2; // Encrypted title
+           string                     avatar                      = 3; // Pointer to encrypted avatar (‘key’ from AvatarUploadAttributes)
+           bytes                      disappearingMessagesTimer   = 4; // Encrypted timer
+           AccessControl              accessControl               = 5;
+           uint32                     version                     = 6; // Current group version number
+  repeated Member                     members                     = 7;
+  repeated MemberPendingProfileKey    membersPendingProfileKey    = 8;
+  repeated MemberPendingAdminApproval membersPendingAdminApproval = 9;
+           bytes                      inviteLinkPassword          = 10;
+           bytes                      descriptionBytes            = 11;
+           bool                       announcementsOnly           = 12;
+  repeated MemberBanned               membersBanned               = 13;
+  // next: 14
 }
 
 message GroupChange {
@@ -97,37 +103,41 @@ message GroupChange {
       bytes presentation = 1;
     }
 
-    message AddPendingMemberAction {
-      PendingMember added = 1;
+    message AddMemberPendingProfileKeyAction {
+      MemberPendingProfileKey added = 1;
     }
 
-    message DeletePendingMemberAction {
+    message DeleteMemberPendingProfileKeyAction {
       bytes deletedUserId = 1;
     }
 
-    message PromotePendingMemberAction {
+    message PromoteMemberPendingProfileKeyAction {
       bytes presentation = 1;
     }
 
-    message AddRequestingMemberAction {
-      RequestingMember added = 1;
+    message AddMemberPendingAdminApprovalAction {
+      MemberPendingAdminApproval added = 1;
     }
 
-    message DeleteRequestingMemberAction {
+    message DeleteMemberPendingAdminApprovalAction {
       bytes deletedUserId = 1;
     }
 
-    message PromoteRequestingMemberAction {
+    message PromoteMemberPendingAdminApprovalAction {
       bytes       userId = 1;
       Member.Role role   = 2;
     }
 
-    message ModifyTitleAction {
-      bytes title = 1;
+    message AddMemberBannedAction {
+      MemberBanned added = 1;
     }
 
-    message ModifyDescriptionAction {
-      bytes description = 1;
+    message DeleteMemberBannedAction {
+      bytes deletedUserId = 1;
+    }
+
+    message ModifyTitleAction {
+      bytes title = 1;
     }
 
     message ModifyAvatarAction {
@@ -142,6 +152,10 @@ message GroupChange {
       AccessControl.AccessRequired attributesAccess = 1;
     }
 
+    message ModifyAvatarAccessControlAction {
+      AccessControl.AccessRequired avatarAccess = 1;
+    }
+
     message ModifyMembersAccessControlAction {
       AccessControl.AccessRequired membersAccess = 1;
     }
@@ -154,31 +168,44 @@ message GroupChange {
         bytes inviteLinkPassword = 1;
     }
 
-             bytes                                      sourceUuid                      = 1;
-             uint32                                     revision                        = 2;
-    repeated AddMemberAction                            addMembers                      = 3;
-    repeated DeleteMemberAction                         deleteMembers                   = 4;
-    repeated ModifyMemberRoleAction                     modifyMemberRoles               = 5;
-    repeated ModifyMemberProfileKeyAction               modifyMemberProfileKeys         = 6;
-    repeated AddPendingMemberAction                     addPendingMembers               = 7;
-    repeated DeletePendingMemberAction                  deletePendingMembers            = 8;
-    repeated PromotePendingMemberAction                 promotePendingMembers           = 9;
-             ModifyTitleAction                          modifyTitle                     = 10;
-             ModifyAvatarAction                         modifyAvatar                    = 11;
-             ModifyDisappearingMessagesTimerAction      modifyDisappearingMessagesTimer = 12;
-             ModifyAttributesAccessControlAction        modifyAttributesAccess          = 13;
-             ModifyMembersAccessControlAction           modifyMemberAccess              = 14;
-             ModifyAddFromInviteLinkAccessControlAction modifyAddFromInviteLinkAccess   = 15;
-    repeated AddRequestingMemberAction                  addRequestingMembers            = 16;
-    repeated DeleteRequestingMemberAction               deleteRequestingMembers         = 17;
-    repeated PromoteRequestingMemberAction              promoteRequestingMembers        = 18;
-             ModifyInviteLinkPasswordAction             modifyInviteLinkPassword        = 19;
-             ModifyDescriptionAction                    modifyDescription               = 20;
+    message ModifyDescriptionAction {
+        bytes descriptionBytes = 1;
+    }
+
+    message ModifyAnnouncementsOnlyAction {
+        bool announcementsOnly = 1;
+    }
+
+
+             bytes                                      sourceUuid                         = 1; // Who made the change
+             uint32                                     version                            = 2; // The change version number
+    repeated AddMemberAction                            addMembers                         = 3; // Members added
+    repeated DeleteMemberAction                         deleteMembers                      = 4; // Members deleted
+    repeated ModifyMemberRoleAction                     modifyMemberRoles                  = 5; // Modified member roles
+    repeated ModifyMemberProfileKeyAction               modifyMemberProfileKeys            = 6; // Modified member profile keys
+    repeated AddMemberPendingProfileKeyAction           addPendingMembers                  = 7; // Pending members added
+    repeated DeleteMemberPendingProfileKeyAction        deletePendingMembers               = 8; // Pending members deleted
+    repeated PromoteMemberPendingProfileKeyAction       promotePendingMembers              = 9; // Pending invitations accepted
+             ModifyTitleAction                          modifyTitle                        = 10; // Changed title
+             ModifyAvatarAction                         modifyAvatar                       = 11; // Changed avatar
+             ModifyDisappearingMessagesTimerAction      modifyDisappearingMessagesTimer    = 12; // Changed timer
+             ModifyAttributesAccessControlAction        modifyAttributesAccess             = 13; // Changed attributes access control
+             ModifyMembersAccessControlAction           modifyMemberAccess                 = 14; // Changed membership access control
+             ModifyAddFromInviteLinkAccessControlAction modifyAddFromInviteLinkAccess      = 15; // change epoch = 1
+    repeated AddMemberPendingAdminApprovalAction        addMemberPendingAdminApprovals     = 16; // change epoch = 1
+    repeated DeleteMemberPendingAdminApprovalAction     deleteMemberPendingAdminApprovals  = 17; // change epoch = 1
+    repeated PromoteMemberPendingAdminApprovalAction    promoteMemberPendingAdminApprovals = 18; // change epoch = 1
+             ModifyInviteLinkPasswordAction             modifyInviteLinkPassword           = 19; // change epoch = 1
+             ModifyDescriptionAction                    modifyDescription                  = 20; // change epoch = 2
+             ModifyAnnouncementsOnlyAction              modifyAnnouncementsOnly            = 21; // change epoch = 3
+    repeated AddMemberBannedAction                      addMembersBanned                   = 22; // change epoch = 4
+    repeated DeleteMemberBannedAction                   deleteMembersBanned                = 23; // change epoch = 4
+    // next: 24
   }
 
-  bytes  actions         = 1;
-  bytes  serverSignature = 2;
-  uint32 changeEpoch     = 3;
+  bytes  actions         = 1; // The serialized actions
+  bytes  serverSignature = 2; // Server’s signature over serialized actions
+  uint32 changeEpoch     = 3; // Allows clients to decide whether their change logic can successfully apply this diff
 }
 
 message GroupChanges {
@@ -195,8 +222,12 @@ message GroupAttributeBlob {
     string title                        = 1;
     bytes  avatar                       = 2;
     uint32 disappearingMessagesDuration = 3;
-    string description                  = 4;
+    string descriptionText              = 4;
   }
+}
+
+message GroupExternalCredential {
+  string token = 1;
 }
 
 message GroupInviteLink {
@@ -216,11 +247,7 @@ message GroupJoinInfo {
   string                       avatar               = 3;
   uint32                       memberCount          = 4;
   AccessControl.AccessRequired addFromInviteLink    = 5;
-  uint32                       revision             = 6;
+  uint32                       version              = 6;
   bool                         pendingAdminApproval = 7;
-  bytes                        description          = 8;
-}
-
-message GroupExternalCredential {
-  string token = 1;
+  bytes                        descriptionBytes     = 8;
 }
