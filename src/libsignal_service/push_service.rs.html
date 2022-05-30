@@ -764,23 +764,6 @@
 <span id="759">759</span>
 <span id="760">760</span>
 <span id="761">761</span>
-<span id="762">762</span>
-<span id="763">763</span>
-<span id="764">764</span>
-<span id="765">765</span>
-<span id="766">766</span>
-<span id="767">767</span>
-<span id="768">768</span>
-<span id="769">769</span>
-<span id="770">770</span>
-<span id="771">771</span>
-<span id="772">772</span>
-<span id="773">773</span>
-<span id="774">774</span>
-<span id="775">775</span>
-<span id="776">776</span>
-<span id="777">777</span>
-<span id="778">778</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryInto</span>, <span class="ident">fmt</span>, <span class="ident">ops::Deref</span>, <span class="ident">time::Duration</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1040,23 +1023,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">serde::Deserialize</span>, <span class="ident">Default</span>)]</span>
 <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CdnUploadAttributes</span> {
-    <span class="ident">path</span>: <span class="ident">String</span>,
-    <span class="ident">acl</span>: <span class="ident">String</span>,
-    <span class="ident">key</span>: <span class="ident">String</span>,
-    <span class="ident">policy</span>: <span class="ident">String</span>,
-    <span class="ident">algorithm</span>: <span class="ident">String</span>,
-    <span class="ident">credential</span>: <span class="ident">String</span>,
-    <span class="ident">date</span>: <span class="ident">String</span>,
-    <span class="ident">signature</span>: <span class="ident">String</span>,
-    <span class="ident">content_type</span>: <span class="ident">String</span>,
-    <span class="ident">length</span>: <span class="ident">u64</span>,
-}
-
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">serde::Deserialize</span>, <span class="ident">Default</span>)]</span>
-<span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AttachmentV2UploadAttributes</span> {
-    <span class="ident">url</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>,
     <span class="ident">key</span>: <span class="ident">String</span>,
     <span class="ident">credential</span>: <span class="ident">String</span>,
     <span class="ident">acl</span>: <span class="ident">String</span>,
@@ -1068,7 +1035,6 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="comment">// and I (Ruben) am unsure why they decide to force-parse at upload-time instead of at registration</span>
     <span class="comment">// time.</span>
     <span class="ident">attachment_id</span>: <span class="ident">u64</span>,
-    <span class="ident">attachment_id_string</span>: <span class="ident">String</span>,
 }
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">thiserror::Error</span>, <span class="ident">Debug</span>)]</span>

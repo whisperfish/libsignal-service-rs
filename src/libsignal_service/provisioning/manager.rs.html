@@ -362,10 +362,10 @@
 <span class="kw">use</span> <span class="kw">crate</span>::{
     <span class="ident">configuration</span>::{<span class="ident">Endpoint</span>, <span class="ident">ServiceCredentials</span>, <span class="ident">SignalingKey</span>},
     <span class="ident">push_service</span>::{
-        <span class="ident">AccountAttributes</span>, <span class="ident">DeviceCapabilities</span>, <span class="ident">DeviceId</span>, <span class="ident">HttpAuthOverride</span>,
-        <span class="ident">PushService</span>, <span class="ident">ServiceError</span>,
+        <span class="ident">AccountAttributes</span>, <span class="ident">DeviceId</span>, <span class="ident">HttpAuthOverride</span>, <span class="ident">PushService</span>,
+        <span class="ident">ServiceError</span>,
     },
-    <span class="ident">utils</span>::{<span class="ident">serde_base64</span>, <span class="ident">serde_optional_base64</span>},
+    <span class="ident">utils::serde_base64</span>,
 };
 
 <span class="doccomment">/// Message received when linking a new secondary device.</span>
