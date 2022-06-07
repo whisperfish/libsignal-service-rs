@@ -1,5 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
+use libsignal_protocol::PublicKey;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use zkgroup::ServerPublicParams;
@@ -16,7 +17,7 @@ pub struct ServiceConfiguration {
     cdn_urls: HashMap<u32, Url>,
     contact_discovery_url: Url,
     pub certificate_authority: String,
-    pub unidentified_sender_trust_root: String,
+    pub unidentified_sender_trust_root: PublicKey,
     pub zkgroup_server_public_params: ServerPublicParams,
 }
 
@@ -127,7 +128,7 @@ impl From<&SignalServers> for ServiceConfiguration {
                     "https://api-staging.directory.signal.org".parse().unwrap(),
                 certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/staging-root-ca.pem")).to_string(),
                 unidentified_sender_trust_root:
-                    "BbqY1DzohE4NUZoVF+L18oUPrK3kILllLEJh2UnPSsEx".into(),
+                    PublicKey::deserialize(&base64::decode("BbqY1DzohE4NUZoVF+L18oUPrK3kILllLEJh2UnPSsEx").unwrap()).unwrap(),
                 zkgroup_server_public_params: bincode::deserialize(&base64::decode("ABSY21VckQcbSXVNCGRYJcfWHiAMZmpTtTELcDmxgdFbtp/bWsSxZdMKzfCp8rvIs8ocCU3B37fT3r4Mi5qAemeGeR2X+/YmOGR5ofui7tD5mDQfstAI9i+4WpMtIe8KC3wU5w3Inq3uNWVmoGtpKndsNfwJrCg0Hd9zmObhypUnSkfYn2ooMOOnBpfdanRtrvetZUayDMSC5iSRcXKpdlukrpzzsCIvEwjwQlJYVPOQPj4V0F4UXXBdHSLK05uoPBCQG8G9rYIGedYsClJXnbrgGYG3eMTG5hnx4X4ntARBgELuMWWUEEfSK0mjXg+/2lPmWcTZWR9nkqgQQP0tbzuiPm74H2wMO4u1Wafe+UwyIlIT9L7KLS19Aw8r4sPrXQ==").unwrap()).unwrap(),
             },
             // configuration with the Signal API production endpoints
@@ -145,7 +146,7 @@ impl From<&SignalServers> for ServiceConfiguration {
                 contact_discovery_url: "https://api.directory.signal.org".parse().unwrap(),
                 certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/production-root-ca.pem")).to_string(),
                 unidentified_sender_trust_root:
-                    "BXu6QIKVz5MA8gstzfOgRQGqyLqOwNKHL6INkv3IHWMF".into(),
+                    PublicKey::deserialize(&base64::decode("BXu6QIKVz5MA8gstzfOgRQGqyLqOwNKHL6INkv3IHWMF").unwrap()).unwrap(),
                 zkgroup_server_public_params: bincode::deserialize(
                     &base64::decode("AMhf5ywVwITZMsff/eCyudZx9JDmkkkbV6PInzG4p8x3VqVJSFiMvnvlEKWuRob/1eaIetR31IYeAbm0NdOuHH8Qi+Rexi1wLlpzIo1gstHWBfZzy1+qHRV5A4TqPp15YzBPm0WSggW6PbSn+F4lf57VCnHF7p8SvzAA2ZZJPYJURt8X7bbg+H3i+PEjH9DXItNEqs2sNcug37xZQDLm7X36nOoGPs54XsEGzPdEV+itQNGUFEjY6X9Uv+Acuks7NpyGvCoKxGwgKgE5XyJ+nNKlyHHOLb6N1NuHyBrZrgtY/JYJHRooo5CEqYKBqdFnmbTVGEkCvJKxLnjwKWf+fEPoWeQFj5ObDjcKMZf2Jm2Ae69x+ikU5gBXsRmoF94GXQ==").unwrap()).unwrap(),
             },
