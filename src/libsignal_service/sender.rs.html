@@ -767,6 +767,18 @@
 <span id="762">762</span>
 <span id="763">763</span>
 <span id="764">764</span>
+<span id="765">765</span>
+<span id="766">766</span>
+<span id="767">767</span>
+<span id="768">768</span>
+<span id="769">769</span>
+<span id="770">770</span>
+<span id="771">771</span>
+<span id="772">772</span>
+<span id="773">773</span>
+<span id="774">774</span>
+<span id="775">775</span>
+<span id="776">776</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::time::SystemTime</span>;
 
 <span class="kw">use</span> <span class="ident">chrono::prelude</span>::<span class="kw-2">*</span>;
@@ -1152,12 +1164,17 @@
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">recipients</span>: <span class="kw">impl</span> <span class="ident">AsRef</span><span class="op">&lt;</span>[<span class="ident">ServiceAddress</span>]<span class="op">&gt;</span>,
         <span class="ident">unidentified_access</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">SenderCertificate</span><span class="op">&gt;</span>,
-        <span class="ident">message</span>: <span class="ident"><span class="kw">crate</span>::proto::DataMessage</span>,
+        <span class="ident">message</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">ContentBody</span><span class="op">&gt;</span>,
         <span class="ident">timestamp</span>: <span class="ident">u64</span>,
         <span class="ident">online</span>: <span class="ident">bool</span>,
     ) -&gt; <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">SendMessageResult</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">content_body</span>: <span class="ident">ContentBody</span> <span class="op">=</span> <span class="ident">message</span>.<span class="ident">clone</span>().<span class="ident">into</span>();
+        <span class="kw">let</span> <span class="ident">content_body</span>: <span class="ident">ContentBody</span> <span class="op">=</span> <span class="ident">message</span>.<span class="ident">into</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">results</span> <span class="op">=</span> <span class="macro">vec!</span>[];
+
+        <span class="kw">let</span> <span class="ident">message</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="ident">content_body</span> {
+            <span class="ident">ContentBody::DataMessage</span>(<span class="ident">m</span>) =&gt; <span class="prelude-val">Some</span>(<span class="ident">m</span>.<span class="ident">clone</span>()),
+            <span class="kw">_</span> =&gt; <span class="prelude-val">None</span>,
+        };
 
         <span class="kw">let</span> <span class="ident">recipients</span> <span class="op">=</span> <span class="ident">recipients</span>.<span class="ident">as_ref</span>();
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">needs_sync_in_results</span> <span class="op">=</span> <span class="bool-val">false</span>;
@@ -1182,27 +1199,34 @@
             <span class="ident">results</span>.<span class="ident">push</span>(<span class="ident">result</span>);
         }
 
+        <span class="kw">if</span> <span class="ident">needs_sync_in_results</span> <span class="op">!</span><span class="op">=</span> <span class="ident">message</span>.<span class="ident">is_some</span>() {
+            <span class="comment">// XXX: does this happen?</span>
+            <span class="macro">log::warn!</span>(<span class="string">&quot;Server claims need sync, but not sending datamessage.&quot;</span>);
+        }
+
         <span class="comment">// we only need to send a synchronization message once</span>
-        <span class="kw">if</span> <span class="ident">needs_sync_in_results</span> {
-            <span class="kw">let</span> <span class="ident">sync_message</span> <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">create_multi_device_sent_transcript_content</span>(
-                    <span class="prelude-val">None</span>,
-                    <span class="prelude-val">Some</span>(<span class="ident">message</span>.<span class="ident">clone</span>()),
-                    <span class="ident">timestamp</span>,
-                    <span class="kw-2">&amp;</span><span class="ident">results</span>,
-                );
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">message</span>) <span class="op">=</span> <span class="ident">message</span> {
+            <span class="kw">if</span> <span class="ident">needs_sync_in_results</span> {
+                <span class="kw">let</span> <span class="ident">sync_message</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">create_multi_device_sent_transcript_content</span>(
+                        <span class="prelude-val">None</span>,
+                        <span class="prelude-val">Some</span>(<span class="ident">message</span>),
+                        <span class="ident">timestamp</span>,
+                        <span class="kw-2">&amp;</span><span class="ident">results</span>,
+                    );
 
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>
-                .<span class="ident">try_send_message</span>(
-                    <span class="self">self</span>.<span class="ident">local_address</span>.<span class="ident">clone</span>(),
-                    <span class="ident">unidentified_access</span>,
-                    <span class="kw-2">&amp;</span><span class="ident">sync_message</span>,
-                    <span class="ident">timestamp</span>,
-                    <span class="bool-val">false</span>,
-                )
-                .<span class="kw">await</span>;
+                <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="self">self</span>
+                    .<span class="ident">try_send_message</span>(
+                        <span class="self">self</span>.<span class="ident">local_address</span>.<span class="ident">clone</span>(),
+                        <span class="ident">unidentified_access</span>,
+                        <span class="kw-2">&amp;</span><span class="ident">sync_message</span>,
+                        <span class="ident">timestamp</span>,
+                        <span class="bool-val">false</span>,
+                    )
+                    .<span class="kw">await</span>;
 
-            <span class="ident">results</span>.<span class="ident">push</span>(<span class="ident">result</span>);
+                <span class="ident">results</span>.<span class="ident">push</span>(<span class="ident">result</span>);
+            }
         }
 
         <span class="ident">results</span>
