@@ -383,12 +383,17 @@ where
         &mut self,
         recipients: impl AsRef<[ServiceAddress]>,
         unidentified_access: Option<&SenderCertificate>,
-        message: crate::proto::DataMessage,
+        message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
     ) -> Vec<SendMessageResult> {
-        let content_body: ContentBody = message.clone().into();
+        let content_body: ContentBody = message.into();
         let mut results = vec![];
+
+        let message = match &content_body {
+            ContentBody::DataMessage(m) => Some(m.clone()),
+            _ => None,
+        };
 
         let recipients = recipients.as_ref();
         let mut needs_sync_in_results = false;
@@ -413,27 +418,34 @@ where
             results.push(result);
         }
 
+        if needs_sync_in_results != message.is_some() {
+            // XXX: does this happen?
+            log::warn!("Server claims need sync, but not sending datamessage.");
+        }
+
         // we only need to send a synchronization message once
-        if needs_sync_in_results {
-            let sync_message = self
-                .create_multi_device_sent_transcript_content(
-                    None,
-                    Some(message.clone()),
-                    timestamp,
-                    &results,
-                );
+        if let Some(message) = message {
+            if needs_sync_in_results {
+                let sync_message = self
+                    .create_multi_device_sent_transcript_content(
+                        None,
+                        Some(message),
+                        timestamp,
+                        &results,
+                    );
 
-            let result = self
-                .try_send_message(
-                    self.local_address.clone(),
-                    unidentified_access,
-                    &sync_message,
-                    timestamp,
-                    false,
-                )
-                .await;
+                let result = self
+                    .try_send_message(
+                        self.local_address.clone(),
+                        unidentified_access,
+                        &sync_message,
+                        timestamp,
+                        false,
+                    )
+                    .await;
 
-            results.push(result);
+                results.push(result);
+            }
         }
 
         results
