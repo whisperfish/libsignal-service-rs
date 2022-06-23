@@ -18,7 +18,7 @@ pub trait SessionStoreExt: SessionStore {
 
     /// Remove a session record for a recipient ID + device ID tuple.
     async fn delete_session(
-        &self,
+        &mut self,
         address: &ProtocolAddress,
     ) -> Result<(), SignalProtocolError>;
 
@@ -27,13 +27,13 @@ pub trait SessionStoreExt: SessionStore {
     ///
     /// Returns the number of deleted sessions.
     async fn delete_all_sessions(
-        &self,
+        &mut self,
         address: &str,
     ) -> Result<usize, SignalProtocolError>;
 
     /// Remove a session record for a recipient ID + device ID tuple.
     async fn delete_service_addr_device_session(
-        &self,
+        &mut self,
         address: &ServiceAddress,
         device_id: u32,
     ) -> Result<usize, SignalProtocolError> {
