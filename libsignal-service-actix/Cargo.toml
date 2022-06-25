@@ -10,7 +10,7 @@ edition = "2018"
 libsignal-service = { path = "../libsignal-service", features = ["unsend-futures"] }
 
 awc = { version = "3.0", features=["rustls"] }
-actix = "0.12"
+actix = "0.13"
 actix-http = "3.0"
 actix-rt = "2.4"
 # mpart-async 0.6 requires Rust 2021, violating MSRV = 1.52
