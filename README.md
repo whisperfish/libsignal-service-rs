@@ -12,7 +12,7 @@ with Signal servers.
 a SailfishOS application.
 The SailfishOS Rust compiler is relatively old, and therefore the MSRV for `libsignal-service-actix` maps on the compiler for that operating system,
 including some lag.
-At moment of writing, this is **Rust 1.52.1**.
+At moment of writing, this is **Rust 1.61**.
 For `libsignal-service-hyper`, we don't mandate MSRV.
 
 ## Contributing
