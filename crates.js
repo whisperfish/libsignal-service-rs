@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["libsignal_protocol","libsignal_service","zkgroup"];
+window.ALL_CRATES = ["libsignal_protocol","libsignal_service","libsignal_service_actix","libsignal_service_hyper","zkgroup"];
