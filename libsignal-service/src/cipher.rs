@@ -120,7 +120,7 @@ where
                 let metadata = Metadata {
                     sender: envelope.source_address(),
                     sender_device: envelope.source_device(),
-                    timestamp: envelope.timestamp(),
+                    timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                 };
 
