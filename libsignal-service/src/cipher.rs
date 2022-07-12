@@ -31,6 +31,8 @@ pub struct ServiceCipher<S, I, SP, P, R> {
     pre_key_store: P,
     csprng: R,
     trust_root: PublicKey,
+    local_uuid: Uuid,
+    local_device_id: u32,
 }
 
 impl<S, I, SP, P, R> ServiceCipher<S, I, SP, P, R>
@@ -48,6 +50,8 @@ where
         pre_key_store: P,
         csprng: R,
         trust_root: PublicKey,
+        local_uuid: Uuid,
+        local_device_id: u32,
     ) -> Self {
         Self {
             session_store,
@@ -56,6 +60,8 @@ where
             pre_key_store,
             csprng,
             trust_root,
+            local_uuid,
+            local_device_id,
         }
     }
 
@@ -103,12 +109,8 @@ where
         };
 
         use crate::proto::envelope::Type;
-        let plaintext = match (
-            envelope.r#type(),
-            envelope.source_uuid.as_ref(),
-            envelope.source_device,
-        ) {
-            (Type::PrekeyBundle, _, _) => {
+        let plaintext = match envelope.r#type() {
+            Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
@@ -118,7 +120,7 @@ where
                 let metadata = Metadata {
                     sender: envelope.source_address(),
                     sender_device: envelope.source_device(),
-                    timestamp: envelope.timestamp(),
+                    timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                 };
 
@@ -142,10 +144,13 @@ where
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
-                strip_padding(session_record.session_version()?, &mut data)?;
+                strip_padding_version(
+                    session_record.session_version()?,
+                    &mut data,
+                )?;
                 Plaintext { metadata, data }
             },
-            (Type::Ciphertext, _, _) => {
+            Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
@@ -177,22 +182,25 @@ where
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
-                strip_padding(session_record.session_version()?, &mut data)?;
+                strip_padding_version(
+                    session_record.session_version()?,
+                    &mut data,
+                )?;
                 Plaintext { metadata, data }
             },
-            (Type::UnidentifiedSender, Some(uuid), Some(source_device)) => {
+            Type::UnidentifiedSender => {
                 let SealedSenderDecryptionResult {
                     sender_uuid,
                     sender_e164,
                     device_id,
-                    message,
+                    mut message,
                 } = sealed_sender_decrypt(
                     ciphertext,
                     &self.trust_root,
                     envelope.timestamp(),
-                    envelope.source_e164.clone(),
-                    uuid.clone(),
-                    source_device,
+                    None,
+                    self.local_uuid.to_string(),
+                    self.local_device_id,
                     &mut self.identity_key_store,
                     &mut self.session_store,
                     &mut self.pre_key_store,
@@ -213,12 +221,16 @@ where
                     )?),
                     relay: None,
                 };
+
                 let metadata = Metadata {
                     sender,
                     sender_device: device_id,
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
+
+                strip_padding(&mut message)?;
+
                 Plaintext {
                     metadata,
                     data: message,
@@ -350,7 +362,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
 }
 
 #[allow(clippy::comparison_chain)]
-fn strip_padding(
+fn strip_padding_version(
     version: u32,
     contents: &mut Vec<u8>,
 ) -> Result<(), ServiceError> {
@@ -361,14 +373,20 @@ fn strip_padding(
     } else if version == 2 {
         Ok(())
     } else {
-        let new_length = Iso7816::unpad(contents)
-            .map_err(|e| ServiceError::InvalidFrameError {
-                reason: format!("Invalid message padding: {:?}", e),
-            })?
-            .len();
-        contents.resize(new_length, 0);
+        strip_padding(contents)?;
         Ok(())
     }
+}
+
+#[allow(clippy::comparison_chain)]
+fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
+    let new_length = Iso7816::unpad(contents)
+        .map_err(|e| ServiceError::InvalidFrameError {
+            reason: format!("Invalid message padding: {:?}", e),
+        })?
+        .len();
+    contents.resize(new_length, 0);
+    Ok(())
 }
 
 /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
