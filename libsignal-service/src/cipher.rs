@@ -144,7 +144,7 @@ where
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
-                strip_padding(session_record.session_version()?, &mut data)?;
+                strip_padding_version(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             },
             Type::Ciphertext => {
@@ -179,7 +179,7 @@ where
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
-                strip_padding(session_record.session_version()?, &mut data)?;
+                strip_padding_version(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             },
             Type::UnidentifiedSender => {
@@ -187,7 +187,7 @@ where
                     sender_uuid,
                     sender_e164,
                     device_id,
-                    message,
+                    mut message,
                 } = sealed_sender_decrypt(
                     ciphertext,
                     &self.trust_root,
@@ -215,15 +215,19 @@ where
                     )?),
                     relay: None,
                 };
+
                 let metadata = Metadata {
                     sender,
                     sender_device: device_id,
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
+
+                strip_padding(&mut message)?;
+
                 Plaintext {
-                    metadata,
-                    data: message,
+                    metadata: metadata,
+                    data: message
                 }
             },
             _ => {
@@ -352,7 +356,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
 }
 
 #[allow(clippy::comparison_chain)]
-fn strip_padding(
+fn strip_padding_version(
     version: u32,
     contents: &mut Vec<u8>,
 ) -> Result<(), ServiceError> {
@@ -363,14 +367,22 @@ fn strip_padding(
     } else if version == 2 {
         Ok(())
     } else {
-        let new_length = Iso7816::unpad(contents)
-            .map_err(|e| ServiceError::InvalidFrameError {
-                reason: format!("Invalid message padding: {:?}", e),
-            })?
-            .len();
-        contents.resize(new_length, 0);
+        strip_padding(contents)?;
         Ok(())
     }
+}
+
+#[allow(clippy::comparison_chain)]
+fn strip_padding(
+    contents: &mut Vec<u8>,
+) -> Result<(), ServiceError> {
+    let new_length = Iso7816::unpad(contents)
+        .map_err(|e| ServiceError::InvalidFrameError {
+            reason: format!("Invalid message padding: {:?}", e),
+        })?
+        .len();
+    contents.resize(new_length, 0);
+    Ok(())
 }
 
 /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
