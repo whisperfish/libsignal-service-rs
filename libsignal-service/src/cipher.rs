@@ -31,6 +31,8 @@ pub struct ServiceCipher<S, I, SP, P, R> {
     pre_key_store: P,
     csprng: R,
     trust_root: PublicKey,
+    local_uuid: Uuid,
+    local_device_id: u32,
 }
 
 impl<S, I, SP, P, R> ServiceCipher<S, I, SP, P, R>
@@ -48,6 +50,8 @@ where
         pre_key_store: P,
         csprng: R,
         trust_root: PublicKey,
+        local_uuid: Uuid,
+        local_device_id: u32,
     ) -> Self {
         Self {
             session_store,
@@ -56,6 +60,8 @@ where
             pre_key_store,
             csprng,
             trust_root,
+            local_uuid,
+            local_device_id,
         }
     }
 
@@ -103,12 +109,8 @@ where
         };
 
         use crate::proto::envelope::Type;
-        let plaintext = match (
-            envelope.r#type(),
-            envelope.source_uuid.as_ref(),
-            envelope.source_device,
-        ) {
-            (Type::PrekeyBundle, _, _) => {
+        let plaintext = match envelope.r#type() {
+            Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
@@ -145,7 +147,7 @@ where
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             },
-            (Type::Ciphertext, _, _) => {
+            Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
@@ -180,7 +182,7 @@ where
                 strip_padding(session_record.session_version()?, &mut data)?;
                 Plaintext { metadata, data }
             },
-            (Type::UnidentifiedSender, Some(uuid), Some(source_device)) => {
+            Type::UnidentifiedSender => {
                 let SealedSenderDecryptionResult {
                     sender_uuid,
                     sender_e164,
@@ -190,9 +192,9 @@ where
                     ciphertext,
                     &self.trust_root,
                     envelope.timestamp(),
-                    envelope.source_e164.clone(),
-                    uuid.clone(),
-                    source_device,
+                    None,
+                    self.local_uuid.to_string(),
+                    self.local_device_id,
                     &mut self.identity_key_store,
                     &mut self.session_store,
                     &mut self.pre_key_store,
