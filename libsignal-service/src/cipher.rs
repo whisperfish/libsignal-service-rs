@@ -144,7 +144,10 @@ where
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
-                strip_padding_version(session_record.session_version()?, &mut data)?;
+                strip_padding_version(
+                    session_record.session_version()?,
+                    &mut data,
+                )?;
                 Plaintext { metadata, data }
             },
             Type::Ciphertext => {
@@ -179,7 +182,10 @@ where
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
-                strip_padding_version(session_record.session_version()?, &mut data)?;
+                strip_padding_version(
+                    session_record.session_version()?,
+                    &mut data,
+                )?;
                 Plaintext { metadata, data }
             },
             Type::UnidentifiedSender => {
@@ -226,8 +232,8 @@ where
                 strip_padding(&mut message)?;
 
                 Plaintext {
-                    metadata: metadata,
-                    data: message
+                    metadata,
+                    data: message,
                 }
             },
             _ => {
@@ -373,9 +379,7 @@ fn strip_padding_version(
 }
 
 #[allow(clippy::comparison_chain)]
-fn strip_padding(
-    contents: &mut Vec<u8>,
-) -> Result<(), ServiceError> {
+fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
     let new_length = Iso7816::unpad(contents)
         .map_err(|e| ServiceError::InvalidFrameError {
             reason: format!("Invalid message padding: {:?}", e),
