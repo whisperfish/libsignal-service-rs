@@ -22,14 +22,21 @@ use crate::{
 /// Message received when linking a new secondary device.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ConfirmDeviceMessage {
+pub(crate) struct ConfirmDeviceMessage {
     #[serde(with = "serde_base64")]
     pub signaling_key: Vec<u8>,
     pub supports_sms: bool,
     pub fetches_messages: bool,
     pub registration_id: u32,
-    // FIXME: the name goes back here when we send this via the websocket
-    //pub name: String,
+    #[serde(with = "serde_base64", skip_serializing_if = "Vec::is_empty")]
+    pub name: Vec<u8>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfirmCodeResponse {
+    pub uuid: Uuid,
+    pub storage_capable: bool,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -151,7 +158,7 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
             .await
     }
 
-    pub async fn confirm_device(
+    pub(crate) async fn confirm_device(
         &mut self,
         confirm_code: u32,
         confirm_code_message: ConfirmDeviceMessage,
@@ -233,7 +240,7 @@ impl<P: PushService> LinkingManager<P> {
             .await?;
 
         // see libsignal-protocol-c / signal_protocol_key_helper_generate_registration_id
-        let registration_id = csprng.gen_range(1, 16380);
+        let registration_id = csprng.gen_range(1, 256);
 
         let provisioning_pipe = ProvisioningPipe::from_socket(ws, stream)?;
         let provision_stream = provisioning_pipe.stream();
@@ -315,6 +322,7 @@ impl<P: PushService> LinkingManager<P> {
                                 supports_sms: false,
                                 fetches_messages: true,
                                 registration_id,
+                                name: vec![],
                             },
                         )
                         .await?;

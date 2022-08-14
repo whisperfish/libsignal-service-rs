@@ -97,17 +97,21 @@ pub struct AccountAttributes {
     pub unrestricted_unidentified_access: bool,
     pub discoverable_by_phone_number: bool,
     pub capabilities: DeviceCapabilities,
+    pub name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
-    pub uuid: bool,
+    // pub uuid: bool,
+    // pub storage: bool,
+    pub announcement_group: bool,
     #[serde(rename = "gv2-3")]
     pub gv2: bool,
-    pub storage: bool,
     #[serde(rename = "gv1-migration")]
     pub gv1_migration: bool,
+    pub sender_key: bool,
+    pub change_number: bool,
 }
 
 #[derive(Clone)]

@@ -2,10 +2,16 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
+use aes::cipher::generic_array::GenericArray;
+use aes::cipher::{NewCipher, StreamCipher};
+use aes::Aes256Ctr;
+use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PublicKey,
-    SignalProtocolError, SignedPreKeyRecord, SignedPreKeyStore,
+    IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PrivateKey,
+    PublicKey, SignalProtocolError, SignedPreKeyRecord, SignedPreKeyStore,
 };
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
 use crate::{
@@ -18,6 +24,7 @@ use crate::{
     push_service::{
         AccountAttributes, HttpAuthOverride, PushService, ServiceError,
     },
+    utils::{serde_base64, serde_public_key},
 };
 
 pub struct AccountManager<Service> {
@@ -400,5 +407,170 @@ impl<Service: PushService> AccountManager<Service> {
         attributes: AccountAttributes,
     ) -> Result<(), ServiceError> {
         self.service.set_account_attributes(attributes).await
+    }
+
+    /// Update (encrypted) device name
+    pub async fn update_device_name(
+        &mut self,
+        device_name: &str,
+        public_key: &PublicKey,
+    ) -> Result<(), ServiceError> {
+        let encrypted_device_name: DeviceName = encrypt_device_name(
+            &mut rand::thread_rng(),
+            device_name,
+            public_key,
+        )?;
+
+        let encrypted_device_name_proto: crate::proto::DeviceName =
+            encrypted_device_name.clone().into_proto()?;
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Data {
+            #[serde(with = "serde_base64")]
+            device_name: Vec<u8>,
+        }
+
+        self.service
+            .put_json(
+                Endpoint::Service,
+                "/v1/accounts/name",
+                HttpAuthOverride::NoOverride,
+                Data {
+                    device_name: prost::Message::encode_to_vec(
+                        &encrypted_device_name_proto,
+                    ),
+                },
+            )
+            .await?;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeviceName {
+    #[serde(with = "serde_public_key")]
+    ephemeral_public: PublicKey,
+    #[serde(with = "serde_base64")]
+    synthetic_iv: Vec<u8>,
+    #[serde(with = "serde_base64")]
+    ciphertext: Vec<u8>,
+}
+
+impl DeviceName {
+    pub(crate) fn into_proto(
+        self,
+    ) -> Result<crate::proto::DeviceName, SignalProtocolError> {
+        Ok(crate::proto::DeviceName {
+            ephemeral_public: Some(
+                self.ephemeral_public.public_key_bytes()?.to_vec(),
+            ),
+            synthetic_iv: Some(self.synthetic_iv.to_vec()),
+            ciphertext: Some(self.ciphertext.clone()),
+        })
+    }
+}
+
+fn calculate_hmac256(
+    mac_key: &[u8],
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, ServiceError> {
+    let mut mac = Hmac::<Sha256>::new_from_slice(mac_key)
+        .map_err(|_| ServiceError::MacError)?;
+    mac.update(ciphertext);
+    Ok(mac.finalize().into_bytes().to_vec())
+}
+
+pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
+    csprng: &mut R,
+    device_name: &str,
+    identity_public: &PublicKey,
+) -> Result<DeviceName, ServiceError> {
+    let plaintext = device_name.as_bytes().to_vec();
+    let ephemeral_key_pair = KeyPair::generate(csprng);
+
+    let master_secret = ephemeral_key_pair
+        .private_key
+        .calculate_agreement(identity_public)?;
+
+    let key1 = calculate_hmac256(&master_secret, b"auth")?;
+    let mut synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
+    synthetic_iv.truncate(16);
+
+    let key2 = calculate_hmac256(&master_secret, b"cipher")?;
+    let cipher_key = calculate_hmac256(&key2, &synthetic_iv)?;
+
+    let mut ciphertext = plaintext;
+    let mut cipher = Aes256Ctr::new(
+        GenericArray::from_slice(&cipher_key),
+        GenericArray::from_slice(&[0u8; 16]),
+    );
+    cipher.apply_keystream(&mut ciphertext);
+
+    Ok(DeviceName {
+        ephemeral_public: ephemeral_key_pair.public_key,
+        synthetic_iv,
+        ciphertext,
+    })
+}
+
+pub fn decrypt_device_name(
+    private_key: &PrivateKey,
+    device_name: &DeviceName,
+) -> Result<String, ServiceError> {
+    let DeviceName {
+        ephemeral_public,
+        synthetic_iv,
+        ciphertext,
+    } = device_name;
+
+    let master_secret = private_key.calculate_agreement(ephemeral_public)?;
+    let key2 = calculate_hmac256(&master_secret, b"cipher")?;
+    let cipher_key = calculate_hmac256(&key2, synthetic_iv)?;
+
+    let mut plaintext = ciphertext.to_vec();
+    let mut cipher = Aes256Ctr::new(
+        GenericArray::from_slice(&cipher_key),
+        GenericArray::from_slice(&[0u8; 16]),
+    );
+    cipher.apply_keystream(&mut plaintext);
+
+    let key1 = calculate_hmac256(&master_secret, b"auth")?;
+    let mut our_synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
+    our_synthetic_iv.truncate(16);
+
+    if synthetic_iv != &our_synthetic_iv {
+        Err(ServiceError::MacError)
+    } else {
+        Ok(String::from_utf8_lossy(&plaintext).to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+    use libsignal_protocol::{KeyPair, PrivateKey, PublicKey};
+
+    use super::{decrypt_device_name, encrypt_device_name, DeviceName};
+
+    #[test]
+    fn encrypt_decrypt_device_name() -> anyhow::Result<()> {
+        let input_device_name = "Nokia 3310 Millenial Edition";
+        let mut csprng = rand::thread_rng();
+        let identity = KeyPair::generate(&mut csprng);
+
+        let device_name = encrypt_device_name(
+            &mut csprng,
+            &input_device_name,
+            &identity.public_key,
+        )?;
+
+        let decrypted_device_name =
+            decrypt_device_name(&identity.private_key, &device_name)?;
+
+        assert_eq!(input_device_name, decrypted_device_name);
+
+        Ok(())
     }
 }
