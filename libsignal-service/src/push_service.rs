@@ -103,8 +103,6 @@ pub struct AccountAttributes {
 #[derive(Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
-    // pub uuid: bool,
-    // pub storage: bool,
     pub announcement_group: bool,
     #[serde(rename = "gv2-3")]
     pub gv2: bool,

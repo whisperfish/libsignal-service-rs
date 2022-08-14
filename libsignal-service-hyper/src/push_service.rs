@@ -148,6 +148,9 @@ impl HyperPushService {
                 Err(ServiceError::RateLimitExceeded)
             },
             StatusCode::CONFLICT => {
+                let v: serde_json::Value = Self::json(&mut response).await?;
+                println!("{:#?}", v);
+
                 let mismatched_devices =
                     Self::json(&mut response).await.map_err(|e| {
                         log::error!(
@@ -300,13 +303,15 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: MaybeSend + Serialize,
+        S: MaybeSend + Serialize + std::marker::Send,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {
                 reason: e.to_string(),
             }
         })?;
+
+        println!("{}", serde_json::to_string_pretty(&value).unwrap());
 
         let mut response = self
             .request(

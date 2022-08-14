@@ -15,11 +15,6 @@ use structopt::StructOpt;
 struct Args {
     #[structopt(long = "servers", short = "s", default_value = "staging")]
     servers: SignalServers,
-    #[structopt(
-        long = "device-name",
-        help = "Name of the device to register in the primary client"
-    )]
-    pub device_name: String,
 }
 
 #[actix_rt::main]

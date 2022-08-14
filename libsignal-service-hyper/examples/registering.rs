@@ -97,12 +97,8 @@ async fn confirm_registration<'a, T: PushService>(
                 unidentified_access_key: Some(profile_key.derive_access_key()),
                 unrestricted_unidentified_access: false, // TODO: make this configurable?
                 discoverable_by_phone_number: true,
-                capabilities: DeviceCapabilities {
-                    uuid: true,
-                    gv2: true,
-                    storage: false,
-                    gv1_migration: true,
-                },
+                name: "libsignal-service-hyper test".into(),
+                capabilities: DeviceCapabilities::default(),
             },
         )
         .await
