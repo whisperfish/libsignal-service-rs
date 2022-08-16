@@ -549,27 +549,51 @@ pub fn decrypt_device_name(
 
 #[cfg(test)]
 mod tests {
-    use bytes::Bytes;
     use libsignal_protocol::{KeyPair, PrivateKey, PublicKey};
 
-    use super::{decrypt_device_name, encrypt_device_name, DeviceName};
+    use super::DeviceName;
 
     #[test]
-    fn encrypt_decrypt_device_name() -> anyhow::Result<()> {
+    fn encrypt_device_name() -> anyhow::Result<()> {
         let input_device_name = "Nokia 3310 Millenial Edition";
         let mut csprng = rand::thread_rng();
         let identity = KeyPair::generate(&mut csprng);
 
-        let device_name = encrypt_device_name(
+        let device_name = super::encrypt_device_name(
             &mut csprng,
             &input_device_name,
             &identity.public_key,
         )?;
 
         let decrypted_device_name =
-            decrypt_device_name(&identity.private_key, &device_name)?;
+            super::decrypt_device_name(&identity.private_key, &device_name)?;
 
         assert_eq!(input_device_name, decrypted_device_name);
+
+        Ok(())
+    }
+
+    #[test]
+    fn decrypt_device_name() -> anyhow::Result<()> {
+        let ephemeral_private_key = PrivateKey::deserialize(&base64::decode(
+            "0CgxHjwwblXjvX8sD5wZDWdYToMRf+CZSlgaUrxCGVo=",
+        )?)?;
+        let ephemeral_public_key = PublicKey::deserialize(&base64::decode(
+            "BcZS+Lt6yAKbEpXnRX+I5wHqesuvu93Q2V+fjidwW8R6",
+        )?)?;
+
+        let device_name = DeviceName {
+            ephemeral_public: ephemeral_public_key,
+            synthetic_iv: base64::decode("86gekHGmltnnZ9QARhiFcg==")?,
+            ciphertext: base64::decode(
+                "MtJ9/9KBWLBVAxfZJD4pLKzP4q+iodRJeCc+/A==",
+            )?,
+        };
+
+        let decrypted_device_name =
+            super::decrypt_device_name(&ephemeral_private_key, &device_name)?;
+
+        assert_eq!(decrypted_device_name, "Nokia 3310 Millenial Edition");
 
         Ok(())
     }
