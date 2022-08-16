@@ -44,7 +44,7 @@ impl fmt::Debug for Member {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingMember {
     pub uuid: Uuid,
     pub role: Role,
@@ -185,12 +185,12 @@ impl fmt::Debug for GroupChange {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Timer {
     pub duration: u32,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct GroupJoinInfo {
     pub title: String,
     pub avatar: String,

@@ -15,6 +15,7 @@ pub mod messagepipe;
 pub mod models;
 pub mod pre_keys;
 pub mod profile_name;
+#[allow(clippy::derive_partial_eq_without_eq)]
 pub mod proto;
 pub mod provisioning;
 pub mod push_service;
@@ -25,7 +26,7 @@ mod session_store;
 pub mod utils;
 
 pub use crate::account_manager::{
-    AccountManager, Profile, ProfileManagerError,
+    decrypt_device_name, AccountManager, Profile, ProfileManagerError,
 };
 pub use crate::service_address::*;
 

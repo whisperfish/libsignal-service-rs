@@ -43,6 +43,7 @@ where
     P: PreKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         session_store: S,
         identity_key_store: I,
