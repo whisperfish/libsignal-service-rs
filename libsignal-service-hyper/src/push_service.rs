@@ -308,8 +308,6 @@ impl PushService for HyperPushService {
             }
         })?;
 
-        println!("{}", serde_json::to_string_pretty(&value).unwrap());
-
         let mut response = self
             .request(
                 Method::PUT,
