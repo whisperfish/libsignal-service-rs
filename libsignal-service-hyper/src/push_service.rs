@@ -148,9 +148,6 @@ impl HyperPushService {
                 Err(ServiceError::RateLimitExceeded)
             },
             StatusCode::CONFLICT => {
-                let v: serde_json::Value = Self::json(&mut response).await?;
-                println!("{:#?}", v);
-
                 let mismatched_devices =
                     Self::json(&mut response).await.map_err(|e| {
                         log::error!(
