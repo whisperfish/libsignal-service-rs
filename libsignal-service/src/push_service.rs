@@ -106,10 +106,13 @@ pub struct DeviceCapabilities {
     pub announcement_group: bool,
     #[serde(rename = "gv2-3")]
     pub gv2: bool,
+    pub storage: bool,
     #[serde(rename = "gv1-migration")]
     pub gv1_migration: bool,
     pub sender_key: bool,
     pub change_number: bool,
+    pub stories: bool,
+    pub gift_badges: bool,
 }
 
 #[derive(Clone)]
