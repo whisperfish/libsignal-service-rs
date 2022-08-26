@@ -15,6 +15,27 @@ including some lag.
 At moment of writing, this is **Rust 1.52.1**.
 For `libsignal-service-hyper`, we don't mandate MSRV.
 
+## Usage
+
+Usage of this library is not as straight-forward as with any other Rust library.
+In particular, `libsignal-service` depends on a forked version of Curve25519-Dalek,
+which might conflict with other instances of the Curve25519-Dalek library.
+We advise you override all instances of said library through a `patch`-section.
+The example below serves as an example of how this library can be included in `Cargo.toml`:
+
+```toml
+[dependencies]
+libsignal-service = { git = "https://github.com/Michael-F-Bryan/libsignal-service-rs", branch = "master" }
+libsignal-service-actix = { git = "https://github.com/Michael-F-Bryan/libsignal-service-rs", branch = "master" }
+
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", branch = "main" }
+zkgroup = { version = "0.9.0", git = "https://github.com/signalapp/libsignal-client", branch = "main" }
+
+[patch.crates-io]
+"curve25519-dalek" = { git = 'https://github.com/signalapp/curve25519-dalek', branch = 'lizard2' }
+```
+
+
 ## Contributing
 
 We're actively trying to make `libsignal-service-rs` fully functional.
