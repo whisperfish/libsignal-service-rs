@@ -300,7 +300,7 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: MaybeSend + Serialize,
+        S: MaybeSend + Serialize + std::marker::Send,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {
