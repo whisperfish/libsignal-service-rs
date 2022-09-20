@@ -112,8 +112,10 @@ impl<Service: PushService> AccountManager<Service> {
         let mut pre_key_entities = vec![];
         for i in 0..PRE_KEY_BATCH_SIZE {
             let key_pair = KeyPair::generate(csprng);
-            let pre_key_id =
-                ((pre_keys_offset_id + i) % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1;
+            let pre_key_id = (((pre_keys_offset_id + i)
+                % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
+                + 1)
+            .into();
             let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
             pre_key_store
                 .save_pre_key(pre_key_id, &pre_key_record, None)
@@ -136,7 +138,7 @@ impl<Service: PushService> AccountManager<Service> {
             .unwrap();
 
         let signed_prekey_record = SignedPreKeyRecord::new(
-            next_signed_pre_key_id,
+            next_signed_pre_key_id.into(),
             unix_time.as_millis() as u64,
             &signed_pre_key_pair,
             &signed_pre_key_signature,
@@ -144,7 +146,7 @@ impl<Service: PushService> AccountManager<Service> {
 
         signed_pre_key_store
             .save_signed_pre_key(
-                next_signed_pre_key_id,
+                next_signed_pre_key_id.into(),
                 &signed_prekey_record,
                 None,
             )
@@ -561,7 +563,7 @@ mod tests {
 
         let device_name = super::encrypt_device_name(
             &mut csprng,
-            &input_device_name,
+            input_device_name,
             &identity.public_key,
         )?;
 

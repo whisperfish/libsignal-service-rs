@@ -50,7 +50,7 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Debug, Clone, PartialEq, StructOpt)]
+#[derive(Debug, Clone, PartialEq, Eq, StructOpt)]
 pub struct Args {
     #[structopt(
         short = "s",

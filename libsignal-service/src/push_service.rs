@@ -221,14 +221,17 @@ impl PreKeyResponseItem {
     ) -> Result<PreKeyBundle, SignalProtocolError> {
         PreKeyBundle::new(
             self.registration_id,
-            self.device_id,
+            self.device_id.into(),
             self.pre_key
                 .map(|pk| -> Result<_, SignalProtocolError> {
-                    Ok((pk.key_id, PublicKey::deserialize(&pk.public_key)?))
+                    Ok((
+                        pk.key_id.into(),
+                        PublicKey::deserialize(&pk.public_key)?,
+                    ))
                 })
                 .transpose()?,
             // pre_key: Option<(u32, PublicKey)>,
-            self.signed_pre_key.key_id,
+            self.signed_pre_key.key_id.into(),
             PublicKey::deserialize(&self.signed_pre_key.public_key)?,
             self.signed_pre_key.signature,
             identity,

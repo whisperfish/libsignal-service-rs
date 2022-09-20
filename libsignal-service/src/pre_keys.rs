@@ -20,7 +20,7 @@ impl TryFrom<PreKeyRecord> for PreKeyEntity {
 
     fn try_from(key: PreKeyRecord) -> Result<Self, Self::Error> {
         Ok(PreKeyEntity {
-            key_id: key.id()?,
+            key_id: key.id()?.into(),
             public_key: key.key_pair()?.public_key.serialize().to_vec(),
         })
     }
@@ -51,7 +51,7 @@ impl TryFrom<SignedPreKeyRecord> for SignedPreKey {
 
     fn try_from(key: SignedPreKeyRecord) -> Result<Self, Self::Error> {
         Ok(SignedPreKey {
-            key_id: key.id()?,
+            key_id: key.id()?.into(),
             public_key: key.key_pair()?.public_key,
             signature: key.signature()?,
         })

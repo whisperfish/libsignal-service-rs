@@ -32,10 +32,7 @@ async fn main() -> Result<(), Error> {
     // generate a 52 bytes signaling key
     let mut signaling_key = [0u8; 52];
     csprng.fill_bytes(&mut signaling_key);
-    log::info!(
-        "generated signaling key: {}",
-        base64::encode(&signaling_key.to_vec())
-    );
+    log::info!("generated signaling key: {}", base64::encode(signaling_key));
 
     let push_service =
         AwcPushService::new(args.servers, None, USER_AGENT.into());
@@ -85,8 +82,8 @@ async fn main() -> Result<(), Error> {
     )
     .await;
 
-    let _ = fut1?;
-    let _ = fut2?;
+    fut1?;
+    fut2?;
 
     Ok(())
 }

@@ -42,7 +42,7 @@ pub trait SessionStoreExt: SessionStore {
             match self
                 .delete_session(&ProtocolAddress::new(
                     uuid.to_string(),
-                    device_id,
+                    device_id.into(),
                 ))
                 .await
             {
@@ -55,7 +55,7 @@ pub trait SessionStoreExt: SessionStore {
         }
         if let Some(e164) = address.e164() {
             match self
-                .delete_session(&ProtocolAddress::new(e164, device_id))
+                .delete_session(&ProtocolAddress::new(e164, device_id.into()))
                 .await
             {
                 Ok(()) => {
@@ -90,7 +90,7 @@ pub trait SessionStoreExt: SessionStore {
             let addr = crate::cipher::get_preferred_protocol_address(
                 self,
                 address,
-                DEFAULT_DEVICE_ID,
+                DEFAULT_DEVICE_ID.into(),
             )
             .await?;
             let ident = self

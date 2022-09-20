@@ -4,9 +4,10 @@ use block_modes::block_padding::{Iso7816, Padding};
 use libsignal_protocol::{
     message_decrypt_prekey, message_decrypt_signal, message_encrypt,
     sealed_sender_decrypt, sealed_sender_encrypt, CiphertextMessageType,
-    IdentityKeyStore, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
-    PublicKey, SealedSenderDecryptionResult, SenderCertificate, SessionStore,
-    SignalMessage, SignalProtocolError, SignedPreKeyStore,
+    DeviceId, IdentityKeyStore, PreKeySignalMessage, PreKeyStore,
+    ProtocolAddress, PublicKey, SealedSenderDecryptionResult,
+    SenderCertificate, SessionStore, SignalMessage, SignalProtocolError,
+    SignedPreKeyStore,
 };
 use prost::Message;
 use rand::{CryptoRng, Rng};
@@ -115,7 +116,7 @@ where
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
-                    envelope.source_device(),
+                    envelope.source_device().into(),
                 )
                 .await?;
                 let metadata = Metadata {
@@ -155,7 +156,7 @@ where
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
                     &envelope.source_address(),
-                    envelope.source_device(),
+                    envelope.source_device().into(),
                 )
                 .await?;
                 let metadata = Metadata {
@@ -201,7 +202,7 @@ where
                     envelope.timestamp(),
                     None,
                     self.local_uuid.to_string(),
-                    self.local_device_id,
+                    self.local_device_id.into(),
                     &mut self.identity_key_store,
                     &mut self.session_store,
                     &mut self.pre_key_store,
@@ -225,7 +226,7 @@ where
 
                 let metadata = Metadata {
                     sender,
-                    sender_device: device_id,
+                    sender_device: device_id.into(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
@@ -282,7 +283,7 @@ where
             use crate::proto::envelope::Type;
             Ok(OutgoingPushMessage {
                 r#type: Type::UnidentifiedSender as u32,
-                destination_device_id: address.device_id(),
+                destination_device_id: address.device_id().into(),
                 destination_registration_id,
                 content: base64::encode(message),
             })
@@ -320,7 +321,7 @@ where
             } as u32;
             Ok(OutgoingPushMessage {
                 r#type: message_type,
-                destination_device_id: address.device_id(),
+                destination_device_id: address.device_id().into(),
                 destination_registration_id,
                 content: body,
             })
@@ -394,7 +395,7 @@ fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
 pub async fn get_preferred_protocol_address<S: SessionStore>(
     session_store: &S,
     address: &ServiceAddress,
-    device_id: u32,
+    device_id: DeviceId,
 ) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
     if let Some(ref uuid) = address.uuid {
         let address = ProtocolAddress::new(uuid.to_string(), device_id);
