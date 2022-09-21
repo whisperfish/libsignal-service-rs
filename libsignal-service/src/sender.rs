@@ -632,6 +632,7 @@ where
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
+        let mut skip_default_device = false;
 
         let myself = recipient.matches(&self.local_address);
         if !myself || unidentified_access.is_some() {
@@ -645,11 +646,15 @@ where
                 )
                 .await?,
             );
+            skip_default_device = true;
         }
 
         for device_id in
             recipient.sub_device_sessions(&self.session_store).await?
         {
+            if skip_default_device && device_id == DEFAULT_DEVICE_ID {
+                continue
+            }
             trace!("sending message to device {}", device_id);
             let ppa = get_preferred_protocol_address(
                 &self.session_store,
