@@ -10,7 +10,9 @@ use crate::{push_service::DEFAULT_DEVICE_ID, ServiceAddress};
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait SessionStoreExt: SessionStore {
-    /// Get the IDs of all known devices with active sessions for a recipient.
+    /// Get the IDs of all known sub devices with active sessions for a recipient.
+    ///
+    /// This should return every device except for the main device [DEFAULT_DEVICE_ID].
     async fn get_sub_device_sessions(
         &self,
         name: &str,
