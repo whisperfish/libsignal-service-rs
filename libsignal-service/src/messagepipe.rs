@@ -9,7 +9,6 @@ use futures::{
     prelude::*,
     stream::{FusedStream, FuturesUnordered},
 };
-use pin_project::pin_project;
 use prost::Message;
 
 pub use crate::{
@@ -35,10 +34,8 @@ pub trait WebSocketService {
     async fn send_message(&mut self, msg: Bytes) -> Result<(), ServiceError>;
 }
 
-#[pin_project]
 pub struct MessagePipe<WS: WebSocketService> {
     ws: WS,
-    #[pin]
     stream: WS::Stream,
     credentials: ServiceCredentials,
     requests: HashMap<u64, oneshot::Sender<WebSocketResponseMessage>>,

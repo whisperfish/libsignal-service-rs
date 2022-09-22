@@ -353,7 +353,7 @@ where
                         &results,
                     );
                 self.try_send_message(
-                    (&self.local_address).clone(),
+                    self.local_address.clone(),
                     None,
                     &sync_message,
                     timestamp,

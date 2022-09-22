@@ -4,7 +4,6 @@ use futures::{
     prelude::*,
     stream::FuturesUnordered,
 };
-use pin_project::pin_project;
 use prost::Message;
 use url::Url;
 
@@ -23,10 +22,8 @@ use crate::{
 
 use super::cipher::ProvisioningCipher;
 
-#[pin_project]
 pub struct ProvisioningPipe<WS: WebSocketService> {
     ws: WS,
-    #[pin]
     stream: WS::Stream,
     provisioning_cipher: ProvisioningCipher,
 }
