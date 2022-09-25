@@ -2,8 +2,9 @@ use std::time::SystemTime;
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, IdentityKeyStore, PreKeyStore, ProtocolAddress,
-    SenderCertificate, SessionStore, SignalProtocolError, SignedPreKeyStore,
+    process_prekey_bundle, DeviceId, IdentityKeyStore, PreKeyStore,
+    ProtocolAddress, SenderCertificate, SessionStore, SignalProtocolError,
+    SignedPreKeyStore,
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
@@ -80,7 +81,7 @@ pub struct MessageSender<Service, S, I, SP, P, R> {
     session_store: S,
     identity_key_store: I,
     local_address: ServiceAddress,
-    device_id: u32,
+    device_id: DeviceId,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -139,7 +140,7 @@ where
         session_store: S,
         identity_key_store: I,
         local_address: ServiceAddress,
-        device_id: u32,
+        device_id: DeviceId,
     ) -> Self {
         MessageSender {
             service,
@@ -352,7 +353,7 @@ where
                         &results,
                     );
                 self.try_send_message(
-                    (&self.local_address).clone(),
+                    self.local_address.clone(),
                     None,
                     &sync_message,
                     timestamp,
@@ -508,7 +509,7 @@ where
                         );
                         let remote_address = ProtocolAddress::new(
                             recipient.identifier(),
-                            *missing_device_id,
+                            (*missing_device_id).into(),
                         );
                         let pre_key = self
                             .service
@@ -640,7 +641,7 @@ where
                 self.create_encrypted_message(
                     recipient,
                     unidentified_access.as_ref(),
-                    DEFAULT_DEVICE_ID,
+                    DEFAULT_DEVICE_ID.into(),
                     content,
                 )
                 .await?,
@@ -654,7 +655,7 @@ where
             let ppa = get_preferred_protocol_address(
                 &self.session_store,
                 recipient,
-                device_id,
+                device_id.into(),
             )
             .await?;
             if self.session_store.load_session(&ppa, None).await?.is_some() {
@@ -662,7 +663,7 @@ where
                     self.create_encrypted_message(
                         recipient,
                         unidentified_access.as_ref(),
-                        device_id,
+                        device_id.into(),
                         content,
                     )
                     .await?,
@@ -680,7 +681,7 @@ where
         &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&SenderCertificate>,
-        device_id: u32,
+        device_id: DeviceId,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
@@ -698,8 +699,10 @@ where
             .is_none()
         {
             info!("establishing new session with {:?}", recipient_address);
-            let pre_keys =
-                self.service.get_pre_keys(recipient, device_id).await?;
+            let pre_keys = self
+                .service
+                .get_pre_keys(recipient, device_id.into())
+                .await?;
             for pre_key_bundle in pre_keys {
                 if recipient.matches(&self.local_address)
                     && self.device_id == pre_key_bundle.device_id()?

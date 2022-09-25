@@ -12,14 +12,13 @@ license = "GPLv3"
 readme = "../README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", tag = "v0.17.0" }
-zkgroup = { git = "https://github.com/signalapp/libsignal-client", tag = "v0.17.0" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.20.0" }
+zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.20.0" }
 async-trait = "0.1"
 url = { version = "2.1", features = ["serde"] }
 base64 = "0.13"
 bytes = "1"
 futures = "0.3"
-pin-project = "1.0"
 thiserror = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 prost = "0.10"
@@ -39,6 +38,7 @@ rand = "0.7"
 uuid = { version = "0.8", features = ["serde"] }
 phonenumber = "0.3"
 hkdf = "0.12"
+serde_json = "1.0.85"
 
 [build-dependencies]
 prost-build = "0.10"
