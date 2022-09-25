@@ -632,6 +632,7 @@ where
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
+        let mut devices = vec![];
 
         let myself = recipient.matches(&self.local_address);
         if !myself || unidentified_access.is_some() {
@@ -645,11 +646,13 @@ where
                 )
                 .await?,
             );
+        } else {
+            devices.push(DEFAULT_DEVICE_ID);
         }
 
-        let mut devices = vec![DEFAULT_DEVICE_ID];
         devices
             .extend(recipient.sub_device_sessions(&self.session_store).await?);
+        devices.dedup();
 
         // When sending to ourselves, don't include the local device
         if myself {
@@ -657,11 +660,6 @@ where
         }
 
         devices.sort_unstable();
-        let original_device_count = devices.len();
-        devices.dedup();
-        if devices.len() != original_device_count {
-            log::warn!("SessionStoreExt::get_sub_device_sessions should return unique device id's, and should not include DEFAULT_DEVICE_ID.");
-        }
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
