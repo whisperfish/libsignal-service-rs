@@ -32,7 +32,7 @@ impl Content {
     }
 
     /// Converts a proto::Content into a public Content, including metadata.
-    pub(crate) fn from_proto(
+    pub fn from_proto(
         p: crate::proto::Content,
         metadata: Metadata,
     ) -> Option<Self> {
