@@ -18,27 +18,29 @@ serde_json = "1.0"
 thiserror = "1.0"
 url = "2.1"
 
-hyper = { version = "0.14", features = [ "client", "stream" ] }
+hyper = { version = "0.14", features = ["client", "stream"] }
 hyper-rustls = "0.23"
 hyper-timeout = "0.4"
 headers = "0.3"
 
 # for websocket support
-async-tungstenite = { version = "0.17", features = [ "tokio-rustls-native-certs" ] }
+async-tungstenite = { version = "0.17", features = [
+    "tokio-rustls-native-certs",
+] }
 
-tokio = { version = "1.0", features = [ "macros" ] }
+tokio = { version = "1.0", features = ["macros"] }
 tokio-rustls = "0.23"
 
 rustls-pemfile = "0.3"
 
 [dev-dependencies]
 env_logger = "0.9"
-image = { version = "0.23", default-features = false, features = [ "png" ] }
+image = { version = "0.23", default-features = false, features = ["png"] }
 opener = "0.5"
 qrcode = "0.12"
 rand = "0.7"
 structopt = "0.3"
-tokio = { version = "1.0", features = [ "rt-multi-thread" ]}
+tokio = { version = "1.0", features = ["rt-multi-thread"] }
 
 [features]
 unsend-futures = ["libsignal-service/unsend-futures"]
