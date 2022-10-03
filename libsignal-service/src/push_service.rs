@@ -257,11 +257,22 @@ pub struct StaleDevices {
 #[serde(rename_all = "camelCase")]
 pub struct SignalServiceProfile {
     #[serde(default, with = "serde_optional_base64")]
+    pub identity_key: Option<Vec<u8>>,
+    #[serde(default, with = "serde_optional_base64")]
     pub name: Option<Vec<u8>>,
     #[serde(default, with = "serde_optional_base64")]
     pub about: Option<Vec<u8>>,
     #[serde(default, with = "serde_optional_base64")]
     pub about_emoji: Option<Vec<u8>>,
+
+    // TODO: not sure whether this is via optional_base64
+    // #[serde(default, with = "serde_optional_base64")]
+    // pub payment_address: Option<Vec<u8>>,
+    pub avatar: Option<String>,
+    pub unidentified_access: Option<String>,
+
+    #[serde(default)]
+    pub unrestricted_unidentified_access: bool,
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
