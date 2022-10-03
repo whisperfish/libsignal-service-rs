@@ -653,7 +653,12 @@ where
         devices
             .extend(recipient.sub_device_sessions(&self.session_store).await?);
         devices.sort_unstable();
+
+        let original_device_count = devices.len();
         devices.dedup();
+        if devices.len() != original_device_count {
+            log::warn!("SessionStoreExt::get_sub_device_sessions should return unique device id's, and should not include DEFAULT_DEVICE_ID.");
+        }
 
         // When sending to ourselves, don't include the local device
         if myself {
