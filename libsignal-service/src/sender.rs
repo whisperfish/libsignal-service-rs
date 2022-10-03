@@ -652,14 +652,13 @@ where
 
         devices
             .extend(recipient.sub_device_sessions(&self.session_store).await?);
+        devices.sort_unstable();
         devices.dedup();
 
         // When sending to ourselves, don't include the local device
         if myself {
             devices.retain(|id| *id != self.device_id);
         }
-
-        devices.sort_unstable();
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
