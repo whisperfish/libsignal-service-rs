@@ -591,11 +591,26 @@ pub trait PushService: MaybeSend {
 
     async fn retrieve_profile_by_id(
         &mut self,
-        id: &str,
+        address: ServiceAddress,
+        profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
+        let endpoint = match (profile_key, address.uuid) {
+            (Some(key), Some(uuid)) => {
+                let uid_bytes = uuid.as_bytes();
+                let version = bincode::serialize(
+                    &key.get_profile_key_version(*uid_bytes),
+                )?;
+                let version = hex::encode(version);
+                format!("/v1/profile/{}/{}", uuid, version)
+            },
+            (_, _) => {
+                format!("/v1/profile/{}", address.identifier())
+            },
+        };
+        // TODO: set locale to en_US
         self.get_json(
             Endpoint::Service,
-            &format!("/v1/profile/{}", id),
+            &endpoint,
             HttpAuthOverride::NoOverride,
         )
         .await

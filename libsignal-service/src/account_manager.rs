@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
+use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::{PreKeyEntity, PreKeyState},
@@ -313,17 +314,15 @@ impl<Service: PushService> AccountManager<Service> {
 
     pub async fn retrieve_profile(
         &mut self,
-        uuid: uuid::Uuid,
+        address: ServiceAddress,
     ) -> Result<Profile, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
         let profile_key = ProfileKey::create(profile_key);
         let profile_cipher = ProfileCipher::from(profile_key);
 
-        let encrypted_profile = self
-            .service
-            .retrieve_profile_by_id(&uuid.to_string())
-            .await?;
+        let encrypted_profile =
+            self.service.retrieve_profile_by_id(address, None).await?;
 
         // Profile decryption
         let name = encrypted_profile
