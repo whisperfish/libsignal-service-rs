@@ -663,7 +663,7 @@ where
 
         // When sending to ourselves, don't include the local device
         if myself {
-            devices.retain(|id| *id != self.device_id);
+            devices.retain(|id| *id != self.device_id.into());
         }
 
         for device_id in devices {
