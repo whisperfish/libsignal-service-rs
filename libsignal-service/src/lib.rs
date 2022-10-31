@@ -79,7 +79,10 @@ pub mod prelude {
     pub use phonenumber;
     pub use prost::Message as ProtobufMessage;
     pub use uuid::{Error as UuidError, Uuid};
-    pub use zkgroup::groups::{GroupMasterKey, GroupSecretParams};
+    pub use zkgroup::{
+        auth::AuthCredentialResponse,
+        groups::{GroupMasterKey, GroupSecretParams},
+    };
 
     pub mod protocol {
         pub use crate::session_store::SessionStoreExt;
