@@ -2,6 +2,7 @@ use core::fmt;
 
 use bytes::Bytes;
 use prost::Message;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::{
     groups::GroupSecretParams,
@@ -74,7 +75,7 @@ impl fmt::Debug for RequestingMember {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Group {
     pub title: String,
     pub avatar: String,
