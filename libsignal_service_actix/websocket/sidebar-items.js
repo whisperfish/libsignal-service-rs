@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["AwcWebSocketError",""]],"struct":[["AwcWebSocket",""]]});
+window.SIDEBAR_ITEMS = {"enum":[["AwcWebSocketError",""]],"struct":[["AwcWebSocket",""]]};

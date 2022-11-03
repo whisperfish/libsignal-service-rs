@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["AwcPushService",""]]});
+window.SIDEBAR_ITEMS = {"struct":[["AwcPushService",""]]};

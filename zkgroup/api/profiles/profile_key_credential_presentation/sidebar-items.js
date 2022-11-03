@@ -1,1 +1,1 @@
-initSidebarItems({"enum":[["AnyProfileKeyCredentialPresentation",""]],"struct":[["ProfileKeyCredentialPresentationV1",""],["ProfileKeyCredentialPresentationV2",""]]});
+window.SIDEBAR_ITEMS = {"enum":[["AnyProfileKeyCredentialPresentation",""]],"struct":[["ExpiringProfileKeyCredentialPresentation",""],["ProfileKeyCredentialPresentationV1",""],["ProfileKeyCredentialPresentationV2","Like [`ProfileKeyCredentialPresentationV1`], but with an optimized proof."]]};
