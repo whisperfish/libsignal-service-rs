@@ -691,8 +691,8 @@ pub trait PushService: MaybeSend {
 
     /// Writes a profile and returns the avatar URL, if one was provided.
     ///
-    /// The name, about and emoji fields are encrypted with an [`ProfileCipher`].
-    /// See [`AccountManager`] for a convenience method.
+    /// The name, about and emoji fields are encrypted with an [`ProfileCipher`][struct@crate::profile_cipher::ProfileCipher].
+    /// See [`AccountManager`][struct@crate::AccountManager] for a convenience method.
     ///
     /// Java equivalent: `writeProfile`
     async fn write_profile(
