@@ -6,11 +6,12 @@ use crate::{
     groups_v2::GroupDecryptionError,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
+    profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
     websocket::SignalWebSocket,
-    MaybeSend, ServiceAddress,
+    MaybeSend, Profile, ServiceAddress,
 };
 
 use aes_gcm::{
@@ -273,6 +274,37 @@ pub struct SignalServiceProfile {
 
     #[serde(default)]
     pub unrestricted_unidentified_access: bool,
+}
+
+impl SignalServiceProfile {
+    pub fn decrypt(
+        &self,
+        profile_cipher: crate::profile_cipher::ProfileCipher,
+    ) -> Result<Profile, ProfileCipherError> {
+        // Profile decryption
+        let name = self
+            .name
+            .as_ref()
+            .map(|data| profile_cipher.decrypt_name(data))
+            .transpose()?
+            .flatten();
+        let about = self
+            .about
+            .as_ref()
+            .map(|data| profile_cipher.decrypt_about(data))
+            .transpose()?;
+        let about_emoji = self
+            .about_emoji
+            .as_ref()
+            .map(|data| profile_cipher.decrypt_emoji(data))
+            .transpose()?;
+
+        Ok(Profile {
+            name,
+            about,
+            about_emoji,
+        })
+    }
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -600,7 +632,8 @@ pub trait PushService: MaybeSend {
                 let version = bincode::serialize(
                     &key.get_profile_key_version(*uid_bytes),
                 )?;
-                let version = hex::encode(version);
+                let version = std::str::from_utf8(&version)
+                    .expect("hex encoded profile key version");
                 format!("/v1/profile/{}/{}", uuid, version)
             },
             (_, _) => {

@@ -319,31 +319,14 @@ impl<Service: PushService> AccountManager<Service> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
         let profile_key = ProfileKey::create(profile_key);
+
+        let encrypted_profile = self
+            .service
+            .retrieve_profile_by_id(address, Some(profile_key))
+            .await?;
+
         let profile_cipher = ProfileCipher::from(profile_key);
-
-        let encrypted_profile =
-            self.service.retrieve_profile_by_id(address, None).await?;
-
-        // Profile decryption
-        let name = encrypted_profile
-            .name
-            .map(|data| profile_cipher.decrypt_name(data))
-            .transpose()?
-            .flatten();
-        let about = encrypted_profile
-            .about
-            .map(|data| profile_cipher.decrypt_about(data))
-            .transpose()?;
-        let about_emoji = encrypted_profile
-            .about_emoji
-            .map(|data| profile_cipher.decrypt_emoji(data))
-            .transpose()?;
-
-        Ok(Profile {
-            name,
-            about,
-            about_emoji,
-        })
+        Ok(encrypted_profile.decrypt(profile_cipher)?)
     }
 
     /// Upload a profile
