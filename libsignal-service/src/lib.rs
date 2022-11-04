@@ -87,8 +87,9 @@ pub mod prelude {
             Context, DeviceId, Direction, IdentityKey, IdentityKeyPair,
             IdentityKeyStore, KeyPair, PreKeyId, PreKeyRecord, PreKeyStore,
             PrivateKey, ProtocolAddress, PublicKey, SenderCertificate,
-            SessionRecord, SessionStore, SignalProtocolError, SignedPreKeyId,
-            SignedPreKeyRecord, SignedPreKeyStore,
+            SenderKeyRecord, SenderKeyStore, SessionRecord, SessionStore,
+            SignalProtocolError, SignedPreKeyId, SignedPreKeyRecord,
+            SignedPreKeyStore,
         };
     }
 }

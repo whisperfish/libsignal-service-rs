@@ -337,6 +337,9 @@ pub enum ServiceError {
 
     #[error(transparent)]
     GroupsV2DecryptionError(#[from] GroupDecryptionError),
+
+    #[error("unsupported content")]
+    UnsupportedContent,
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]

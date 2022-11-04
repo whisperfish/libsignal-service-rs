@@ -3,8 +3,8 @@ use std::time::SystemTime;
 use chrono::prelude::*;
 use libsignal_protocol::{
     process_prekey_bundle, DeviceId, IdentityKeyStore, PreKeyStore,
-    ProtocolAddress, SenderCertificate, SessionStore, SignalProtocolError,
-    SignedPreKeyStore,
+    ProtocolAddress, SenderCertificate, SenderKeyStore, SessionStore,
+    SignalProtocolError, SignedPreKeyStore,
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
@@ -74,9 +74,9 @@ pub struct AttachmentSpec {
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
-pub struct MessageSender<Service, S, I, SP, P, R> {
+pub struct MessageSender<Service, S, I, SP, P, SK, R> {
     service: Service,
-    cipher: ServiceCipher<S, I, SP, P, R>,
+    cipher: ServiceCipher<S, I, SP, P, SK, R>,
     csprng: R,
     session_store: S,
     identity_key_store: I,
@@ -124,18 +124,19 @@ pub enum MessageSenderError {
     IdentityFailure { recipient: ServiceAddress },
 }
 
-impl<Service, S, I, SP, P, R> MessageSender<Service, S, I, SP, P, R>
+impl<Service, S, I, SP, P, SK, R> MessageSender<Service, S, I, SP, P, SK, R>
 where
     Service: PushService + Clone,
     S: SessionStore + SessionStoreExt + Sync + Clone,
     I: IdentityKeyStore + Clone,
     SP: SignedPreKeyStore + Clone,
+    SK: SenderKeyStore + Clone,
     P: PreKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
     pub fn new(
         service: Service,
-        cipher: ServiceCipher<S, I, SP, P, R>,
+        cipher: ServiceCipher<S, I, SP, P, SK, R>,
         csprng: R,
         session_store: S,
         identity_key_store: I,
