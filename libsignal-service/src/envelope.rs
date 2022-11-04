@@ -1,5 +1,3 @@
-#![allow(dead_code)] // XXX: remove when all constants on bottom are used.
-
 use prost::Message;
 use uuid::Uuid;
 

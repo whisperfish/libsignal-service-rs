@@ -53,12 +53,12 @@ impl<Service: PushService> MessageReceiver<Service> {
     pub async fn create_message_pipe(
         &mut self,
         credentials: ServiceCredentials,
-    ) -> Result<MessagePipe<Service::WebSocket>, MessageReceiverError> {
-        let (ws, stream) = self
+    ) -> Result<MessagePipe, MessageReceiverError> {
+        let ws = self
             .service
             .ws("/v1/websocket/", Some(credentials.clone()))
             .await?;
-        Ok(MessagePipe::from_socket(ws, stream, credentials))
+        Ok(MessagePipe::from_socket(ws, credentials))
     }
 
     pub async fn retrieve_contacts(

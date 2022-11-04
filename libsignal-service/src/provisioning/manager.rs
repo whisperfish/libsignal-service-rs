@@ -234,7 +234,7 @@ impl<P: PushService> LinkingManager<P> {
         mut tx: Sender<SecondaryDeviceProvisioning>,
     ) -> Result<(), ProvisioningError> {
         // open a websocket without authentication, to receive a tsurl://
-        let (ws, stream) = self
+        let ws = self
             .push_service
             .ws("/v1/websocket/provisioning/", None)
             .await?;
@@ -242,7 +242,7 @@ impl<P: PushService> LinkingManager<P> {
         // see libsignal-protocol-c / signal_protocol_key_helper_generate_registration_id
         let registration_id = csprng.gen_range(1, 256);
 
-        let provisioning_pipe = ProvisioningPipe::from_socket(ws, stream)?;
+        let provisioning_pipe = ProvisioningPipe::from_socket(ws)?;
         let provision_stream = provisioning_pipe.stream();
         pin_mut!(provision_stream);
         while let Some(step) = provision_stream.next().await {

@@ -9,8 +9,8 @@ use awc::{
 use bytes::Bytes;
 use futures::prelude::*;
 use libsignal_service::{
-    configuration::*, messagepipe::WebSocketService, prelude::ProtobufMessage,
-    push_service::*,
+    configuration::*, prelude::ProtobufMessage, push_service::*,
+    websocket::SignalWebSocket,
 };
 use serde::{Deserialize, Serialize};
 
@@ -479,20 +479,17 @@ impl PushService for AwcPushService {
         &mut self,
         path: &str,
         credentials: Option<ServiceCredentials>,
-    ) -> Result<
-        (
-            Self::WebSocket,
-            <Self::WebSocket as WebSocketService>::Stream,
-        ),
-        ServiceError,
-    > {
-        Ok(AwcWebSocket::with_client(
+    ) -> Result<SignalWebSocket, ServiceError> {
+        let (ws, stream) = AwcWebSocket::with_client(
             &mut self.client,
             self.cfg.base_url(Endpoint::Service),
             path,
             credentials.as_ref(),
         )
-        .await?)
+        .await?;
+        let (ws, task) = SignalWebSocket::from_socket(ws, stream);
+        actix_rt::spawn(task);
+        Ok(ws)
     }
 }
 

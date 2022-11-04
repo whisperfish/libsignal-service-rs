@@ -9,6 +9,7 @@ use crate::{
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
+    websocket::SignalWebSocket,
     MaybeSend, ServiceAddress,
 };
 
@@ -413,13 +414,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         path: &str,
         credentials: Option<ServiceCredentials>,
-    ) -> Result<
-        (
-            Self::WebSocket,
-            <Self::WebSocket as WebSocketService>::Stream,
-        ),
-        ServiceError,
-    >;
+    ) -> Result<SignalWebSocket, ServiceError>;
 
     /// Fetches a list of all devices tied to the authenticated account.
     ///
