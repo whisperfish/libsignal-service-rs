@@ -177,7 +177,6 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                     .unwrap_or_else(|| self.next_request_id()),
                             );
                             log::trace!("Sending request {:?}", request);
-                            assert!(!self.outgoing_request_map.contains_key(&request.id.unwrap()));
 
                             self.outgoing_request_map.insert(request.id.unwrap(), responder);
                             let msg = WebSocketMessage {
