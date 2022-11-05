@@ -47,7 +47,7 @@ impl WebSocketResponseMessage {
     /// Equivalent of
     /// `SignalServiceMessagePipe::isSignalServiceEnvelope(WebSocketMessage)`.
     pub fn from_request(msg: &WebSocketRequestMessage) -> Self {
-        if msg.is_signal_service_envelope() {
+        if msg.is_signal_service_envelope() || msg.is_queue_empty() {
             WebSocketResponseMessage {
                 id: msg.id,
                 status: Some(200),
