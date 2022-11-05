@@ -762,11 +762,6 @@
 <span id="762">762</span>
 <span id="763">763</span>
 <span id="764">764</span>
-<span id="765">765</span>
-<span id="766">766</span>
-<span id="767">767</span>
-<span id="768">768</span>
-<span id="769">769</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryInto</span>, <span class="ident">fmt</span>, <span class="ident">ops::Deref</span>, <span class="ident">time::Duration</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -778,6 +773,7 @@
     <span class="ident">proto</span>::{<span class="ident">attachment_pointer::AttachmentIdentifier</span>, <span class="ident">AttachmentPointer</span>},
     <span class="ident">sender</span>::{<span class="ident">OutgoingPushMessages</span>, <span class="ident">SendMessageResponse</span>},
     <span class="ident">utils</span>::{<span class="ident">serde_base64</span>, <span class="ident">serde_optional_base64</span>},
+    <span class="ident">websocket::SignalWebSocket</span>,
     <span class="ident">MaybeSend</span>, <span class="ident">ServiceAddress</span>,
 };
 
@@ -1182,13 +1178,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
         <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ServiceCredentials</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>
-        (
-            <span class="ident"><span class="self">Self</span>::WebSocket</span>,
-            <span class="op">&lt;</span><span class="ident"><span class="self">Self</span>::WebSocket</span> <span class="kw">as</span> <span class="ident">WebSocketService</span><span class="op">&gt;</span><span class="ident">::Stream</span>,
-        ),
-        <span class="ident">ServiceError</span>,
-    <span class="op">&gt;</span>;
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SignalWebSocket</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span>;
 
     <span class="doccomment">/// Fetches a list of all devices tied to the authenticated account.</span>
     <span class="doccomment">///</span>

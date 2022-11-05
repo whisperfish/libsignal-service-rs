@@ -210,12 +210,12 @@
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">create_message_pipe</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">credentials</span>: <span class="ident">ServiceCredentials</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MessagePipe</span><span class="op">&lt;</span><span class="ident">Service::WebSocket</span><span class="op">&gt;</span>, <span class="ident">MessageReceiverError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> (<span class="ident">ws</span>, <span class="ident">stream</span>) <span class="op">=</span> <span class="self">self</span>
+    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">MessagePipe</span>, <span class="ident">MessageReceiverError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">ws</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">service</span>
             .<span class="ident">ws</span>(<span class="string">&quot;/v1/websocket/&quot;</span>, <span class="prelude-val">Some</span>(<span class="ident">credentials</span>.<span class="ident">clone</span>()))
             .<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">MessagePipe::from_socket</span>(<span class="ident">ws</span>, <span class="ident">stream</span>, <span class="ident">credentials</span>))
+        <span class="prelude-val">Ok</span>(<span class="ident">MessagePipe::from_socket</span>(<span class="ident">ws</span>, <span class="ident">credentials</span>))
     }
 
     <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">retrieve_contacts</span>(
