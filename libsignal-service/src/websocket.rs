@@ -7,8 +7,8 @@ use bytes::Bytes;
 use futures::channel::oneshot::Canceled;
 use futures::channel::{mpsc, oneshot};
 use futures::future::BoxFuture;
+use futures::prelude::*;
 use futures::stream::FuturesUnordered;
-use futures::{SinkExt, Stream, StreamExt};
 use prost::Message;
 
 use crate::messagepipe::{WebSocketService, WebSocketStreamItem};
@@ -136,8 +136,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
         }
     }
 
-    // XXX Maybe this should return a Result
-    async fn run(mut self) {
+    async fn run(mut self) -> Result<(), ServiceError> {
         loop {
             futures::select! {
                 // Process requests from the application, forward them to Signal
@@ -162,23 +161,19 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            if let Err(e) = self.ws.send_message(buffer.into()).await {
-                                log::error!("sending message: {}", e);
-                            }
+                            self.ws.send_message(buffer.into()).await?
                         }
                         None => {
-                            log::debug!("SignalWebSocket: end of application request stream; socket closing");
-                            break;
+                            return Err(ServiceError::WsError {
+                                reason: "SignalWebSocket: end of application request stream; socket closing".into()
+                            });
                         }
                     }
                 }
                 web_socket_item = self.stream.next() => {
                     match web_socket_item {
                         Some(WebSocketStreamItem::Message(frame)) => {
-                            if let Err(e) = self.process_frame(frame).await {
-                                log::error!("Processing incoming frame: {}.  Stopping WebSocket.", e);
-                                break;
-                            }
+                            self.process_frame(frame).await?;
                         }
                         Some(WebSocketStreamItem::KeepAliveRequest) => {
                             todo!()
@@ -196,8 +191,9 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             // }
                         }
                         None => {
-                            log::debug!("SignalWebSocket: end of web request stream; socket closing");
-                            break;
+                            return Err(ServiceError::WsError {
+                                reason: "end of web request stream; socket closing".into()
+                            });
                         }
                     }
                 }
@@ -212,12 +208,10 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            if let Err(e) = self.ws.send_message(buffer.into()).await {
-                                log::error!("sending message: {}", e);
-                            }
+                            self.ws.send_message(buffer.into()).await?;
                         }
                         Some(Err(e)) => {
-                            log::error!("could not generate response to a Signal request; responder was canceled: {}", e);
+                            log::error!("could not generate response to a Signal request; responder was canceled: {}. Continuing.", e);
                         }
                         None => {
                             unreachable!("outgoing responses should never fuse")
@@ -256,7 +250,12 @@ impl SignalWebSocket {
             ws,
             stream,
         };
-        let process = process.run();
+        let process = process.run().map(|x| match x {
+            Ok(()) => (),
+            Err(e) => {
+                log::error!("SignalWebSocket: {}", e);
+            },
+        });
 
         (
             Self {
