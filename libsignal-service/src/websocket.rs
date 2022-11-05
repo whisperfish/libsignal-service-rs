@@ -355,4 +355,28 @@ impl SignalWebSocket {
             }
         }
     }
+
+    pub(crate) async fn request_json<T>(
+        &mut self,
+        r: WebSocketRequestMessage,
+    ) -> Result<T, ServiceError>
+    where
+        for<'de> T: serde::Deserialize<'de>,
+    {
+        let response = self.request(r).await?;
+        if response.status() != 200 {
+            log::error!(
+                "request_json with non-200 status code. message: {}",
+                response.message()
+            );
+            return Err(ServiceError::UnhandledResponseCode {
+                http_code: response.status() as u16,
+            });
+        }
+        serde_json::from_slice(response.body()).map_err(|e| {
+            ServiceError::JsonDecodeError {
+                reason: e.to_string(),
+            }
+        })
+    }
 }

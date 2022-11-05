@@ -15,6 +15,7 @@ pub mod messagepipe;
 pub mod models;
 pub mod pre_keys;
 pub mod profile_name;
+pub mod profile_service;
 #[allow(clippy::derive_partial_eq_without_eq)]
 pub mod proto;
 pub mod provisioning;
