@@ -44,6 +44,11 @@ impl MessagePipe {
         MessagePipe { ws, credentials }
     }
 
+    /// Return a SignalWebSocket for sending messages and other purposes beyond receiving messages.
+    pub fn ws(&self) -> SignalWebSocket {
+        self.ws.clone()
+    }
+
     /// Worker task that processes the websocket into Envelopes
     async fn run(
         mut self,

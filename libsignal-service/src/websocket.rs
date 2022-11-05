@@ -42,7 +42,8 @@ impl Stream for SignalRequestStream {
 
 /// A dispatching web socket client for the Signal web socket API.
 ///
-/// This structure can be freely cloned.
+/// This structure can be freely cloned, since this acts as a *facade* for multiple entry and exit
+/// points.
 #[derive(Clone)]
 pub struct SignalWebSocket {
     inner: Arc<Mutex<SignalWebSocketInner>>,
