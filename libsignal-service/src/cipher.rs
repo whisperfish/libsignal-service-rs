@@ -7,21 +7,21 @@ use libsignal_protocol::{
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
     CiphertextMessageType, Context, DeviceId, IdentityKeyStore,
     PreKeySignalMessage, PreKeyStore, ProtocolAddress, PublicKey,
-    SealedSenderDecryptionResult, SenderCertificate, SenderKeyStore,
-    SessionStore, SignalMessage, SignalProtocolError, SignedPreKeyStore,
+    SealedSenderDecryptionResult, SenderCertificate,
+    SenderKeyDistributionMessage, SenderKeyStore, SessionStore, SignalMessage,
+    SignalProtocolError, SignedPreKeyStore,
 };
 use prost::Message;
 use rand::{CryptoRng, Rng};
 use uuid::Uuid;
 
 use crate::{
-    content::{Content, ContentBody, Metadata},
+    content::{Content, Metadata},
     envelope::Envelope,
     push_service::ServiceError,
     sender::OutgoingPushMessage,
     ServiceAddress,
 };
-
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
@@ -89,12 +89,11 @@ where
             let plaintext = self.decrypt(&envelope).await?;
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
-            let content = Content::from_proto(message, plaintext.metadata)?;
-            if let ContentBody::SenderKeyDistributionMessage(skdm) =
-                content.body
-            {
+            if let Some(bytes) = message.sender_key_distribution_message {
+                dbg!("PROCESSING SENDER KEYSSSSSSSS -------------------------");
+                let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
-                    &content.metadata.protocol_address(),
+                    &plaintext.metadata.protocol_address(),
                     &skdm,
                     &mut self.sender_key_store,
                     None,
@@ -102,6 +101,7 @@ where
                 .await?;
                 Ok(None)
             } else {
+                let content = Content::from_proto(message, plaintext.metadata)?;
                 Ok(Some(content))
             }
         } else {

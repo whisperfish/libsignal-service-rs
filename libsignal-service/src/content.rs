@@ -1,6 +1,4 @@
-use std::convert::TryFrom;
-
-use libsignal_protocol::{ProtocolAddress, SenderKeyDistributionMessage};
+use libsignal_protocol::ProtocolAddress;
 
 pub use crate::{
     proto::{
@@ -65,12 +63,6 @@ impl Content {
             Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.typing_message {
             Ok(Self::from_body(msg, metadata))
-        } else if let Some(bytes) = p.sender_key_distribution_message {
-            let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
-            Ok(Self::from_body(
-                ContentBody::SenderKeyDistributionMessage(skdm),
-                metadata,
-            ))
         } else {
             Err(ServiceError::UnsupportedContent)
         }
@@ -85,7 +77,6 @@ pub enum ContentBody {
     CallMessage(CallMessage),
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
-    SenderKeyDistributionMessage(SenderKeyDistributionMessage),
 }
 
 impl ContentBody {
@@ -109,12 +100,6 @@ impl ContentBody {
             },
             Self::TypingMessage(msg) => crate::proto::Content {
                 typing_message: Some(msg),
-                ..Default::default()
-            },
-            Self::SenderKeyDistributionMessage(msg) => crate::proto::Content {
-                sender_key_distribution_message: Some(
-                    msg.serialized().to_vec(),
-                ),
                 ..Default::default()
             },
         }
