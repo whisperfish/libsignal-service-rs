@@ -9,6 +9,11 @@ impl WebSocketRequestMessage {
             && self.path.as_deref() == Some("/api/v1/message")
     }
 
+    pub fn is_queue_empty(&self) -> bool {
+        self.verb.as_deref() == Some("PUT")
+            && self.path.as_deref() == Some("/api/v1/queue/empty")
+    }
+
     /// Equivalent of
     /// `SignalServiceMessagePipe::isSignalKeyEncrypted(WebSocketMessage)`.
     pub fn is_signal_key_encrypted(&self) -> bool {
