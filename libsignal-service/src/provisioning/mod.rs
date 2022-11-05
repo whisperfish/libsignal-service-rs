@@ -1,6 +1,6 @@
-mod cipher;
-mod manager;
-mod pipe;
+pub(crate) mod cipher;
+pub(crate) mod manager;
+pub(crate) mod pipe;
 
 pub use cipher::ProvisioningCipher;
 pub use manager::{

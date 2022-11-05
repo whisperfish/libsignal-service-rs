@@ -24,6 +24,7 @@ pub mod sender;
 pub mod service_address;
 mod session_store;
 pub mod utils;
+pub mod websocket;
 
 pub use crate::account_manager::{
     decrypt_device_name, AccountManager, Profile, ProfileManagerError,
