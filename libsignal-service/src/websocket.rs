@@ -151,6 +151,17 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
         }
     }
 
+    fn next_request_id(&self) -> u64 {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        loop {
+            let id = rng.gen();
+            if !self.outgoing_request_map.contains_key(&id) {
+                return id;
+            }
+        }
+    }
+
     async fn run(mut self) -> Result<(), ServiceError> {
         loop {
             futures::select! {
@@ -160,12 +171,10 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                         Some((mut request, responder)) => {
                             // Regenerate ID if already in the table
                             request.id = Some(
-                                request.id.filter(|x| self.outgoing_request_map.contains_key(x)).unwrap_or(
-                                    std::time::SystemTime::now()
-                                        .duration_since(std::time::UNIX_EPOCH)
-                                        .unwrap()
-                                        .as_millis() as u64,
-                                ),
+                                request
+                                    .id
+                                    .filter(|x| !self.outgoing_request_map.contains_key(x))
+                                    .unwrap_or_else(|| self.next_request_id()),
                             );
                             log::trace!("Sending request {:?}", request);
 
@@ -195,12 +204,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             // queue above.
                             log::debug!("Sending keep alive upon request");
                             let request = WebSocketRequestMessage {
-                                id: Some(
-                                    std::time::SystemTime::now()
-                                        .duration_since(std::time::UNIX_EPOCH)
-                                        .unwrap()
-                                        .as_millis() as u64,
-                                ),
+                                id: Some(self.next_request_id()),
                                 path: Some("/v1/keepalive".into()),
                                 verb: Some("GET".into()),
                                 ..Default::default()
