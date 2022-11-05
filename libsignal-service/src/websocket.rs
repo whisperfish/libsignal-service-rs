@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::future::Future;
@@ -70,6 +70,8 @@ struct SignalWebSocketProcess<WS: WebSocketService> {
         oneshot::Sender<Result<WebSocketResponseMessage, ServiceError>>,
     >,
 
+    outgoing_keep_alive_set: HashSet<u64>,
+
     outgoing_responses: FuturesUnordered<
         BoxFuture<'static, Result<WebSocketResponseMessage, Canceled>>,
     >,
@@ -118,6 +120,18 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                 id,
                                 e
                             );
+                        }
+                    } else if let Some(_x) =
+                        self.outgoing_keep_alive_set.take(&id)
+                    {
+                        if response.status() != 200 {
+                            log::warn!(
+                                "Response code for keep-alive is not 200: {:?}",
+                                response
+                            );
+                            return Err(ServiceError::UnhandledResponseCode {
+                                http_code: response.status() as u16,
+                            });
                         }
                     } else {
                         log::warn!(
@@ -176,19 +190,28 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             self.process_frame(frame).await?;
                         }
                         Some(WebSocketStreamItem::KeepAliveRequest) => {
-                            todo!()
-                            // let request = self.send_keep_alive().await;
-                            // match request {
-                            //     Ok(request) => {
-                            //         let request = request.map(|response| {
-                            //             if let Err(e) = response {
-                            //                 log::warn!("Error from keep alive: {:?}", e);
-                            //             }
-                            //         });
-                            //         background_work.push(request.boxed_local());
-                            //     },
-                            //     Err(e) => log::warn!("Could not send keep alive: {}", e),
-                            // }
+                            // XXX: would be nicer if we could drop this request into the request
+                            // queue above.
+                            log::debug!("Sending keep alive upon request");
+                            let request = WebSocketRequestMessage {
+                                id: Some(
+                                    std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap()
+                                        .as_millis() as u64,
+                                ),
+                                path: Some("/v1/keepalive".into()),
+                                verb: Some("GET".into()),
+                                ..Default::default()
+                            };
+                            self.outgoing_keep_alive_set.insert(request.id.unwrap());
+                            let msg = WebSocketMessage {
+                                r#type: Some(web_socket_message::Type::Request.into()),
+                                request: Some(request),
+                                ..Default::default()
+                            };
+                            let buffer = msg.encode_to_vec();
+                            self.ws.send_message(buffer.into()).await?
                         }
                         None => {
                             return Err(ServiceError::WsError {
@@ -240,6 +263,7 @@ impl SignalWebSocket {
             requests: outgoing_requests,
             request_sink: incoming_request_sink,
             outgoing_request_map: HashMap::default(),
+            outgoing_keep_alive_set: HashSet::new(),
             // Initializing the FuturesUnordered with a `pending` future means it will never fuse
             // itself, so an "empty" FuturesUnordered will still allow new futures to be added.
             outgoing_responses: vec![
