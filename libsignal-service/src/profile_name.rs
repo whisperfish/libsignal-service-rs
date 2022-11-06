@@ -1,7 +1,31 @@
+use std::fmt::Display;
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ProfileName<S> {
     pub given_name: S,
     pub family_name: Option<S>,
+}
+
+// Implements ProfileName::getJoinedName
+impl<S: AsRef<str>> Display for ProfileName<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let given_name = self.given_name.as_ref();
+        match (
+            self.given_name.as_ref().is_empty(),
+            self.family_name.as_ref().map(AsRef::as_ref),
+        ) {
+            (true, None) => Ok(()),
+            (false, None) => write!(f, "{}", given_name),
+            (true, Some(family_name)) => write!(f, "{}", family_name),
+            (false, Some(family_name)) => {
+                if self.is_cjkv() {
+                    write!(f, "{} {}", family_name, given_name)
+                } else {
+                    write!(f, "{} {}", given_name, family_name)
+                }
+            },
+        }
+    }
 }
 
 impl<S: AsRef<str>> ProfileName<S> {
@@ -10,6 +34,11 @@ impl<S: AsRef<str>> ProfileName<S> {
             given_name: self.given_name.as_ref(),
             family_name: self.family_name.as_ref().map(|x| x.as_ref()),
         }
+    }
+
+    pub fn is_cjkv(&self) -> bool {
+        // XXX insert unicode magic here
+        false
     }
 
     pub fn serialize(&self) -> Vec<u8> {
