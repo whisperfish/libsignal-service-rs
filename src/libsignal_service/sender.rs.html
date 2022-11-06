@@ -1458,7 +1458,7 @@
 
         <span class="comment">// When sending to ourselves, don&#39;t include the local device</span>
         <span class="kw">if</span> <span class="ident">myself</span> {
-            <span class="ident">devices</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="kw-2">*</span><span class="ident">id</span> <span class="op">!</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">device_id</span>.<span class="ident">into</span>());
+            <span class="ident">devices</span>.<span class="ident">retain</span>(<span class="op">|</span><span class="ident">id</span><span class="op">|</span> <span class="ident">DeviceId::from</span>(<span class="kw-2">*</span><span class="ident">id</span>) <span class="op">!</span><span class="op">=</span> <span class="self">self</span>.<span class="ident">device_id</span>);
         }
 
         <span class="kw">for</span> <span class="ident">device_id</span> <span class="kw">in</span> <span class="ident">devices</span> {
