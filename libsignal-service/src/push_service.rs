@@ -6,7 +6,7 @@ use crate::{
     groups_v2::GroupDecryptionError,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
-    profile_cipher::ProfileCipherError,
+    profile_cipher::{ProfileCipher, ProfileCipherError},
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
@@ -19,6 +19,7 @@ use aes_gcm::{
     Aes256Gcm, NewAead,
 };
 use chrono::prelude::*;
+use futures::prelude::*;
 use libsignal_protocol::{
     error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
 };
@@ -647,6 +648,20 @@ pub trait PushService: MaybeSend {
             HttpAuthOverride::NoOverride,
         )
         .await
+    }
+
+    async fn retrieve_profile_avatar(
+        &mut self,
+        path: &str,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        self.get_from_cdn(0, path).await
+    }
+
+    async fn retrieve_groups_v2_profile_avatar(
+        &mut self,
+        path: &str,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        self.get_from_cdn(0, path).await
     }
 
     async fn get_pre_key(

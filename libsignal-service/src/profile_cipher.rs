@@ -114,8 +114,9 @@ impl ProfileCipher {
 
     fn decrypt_and_unpad(
         &self,
-        bytes: Vec<u8>,
+        bytes: impl AsRef<[u8]>,
     ) -> Result<Vec<u8>, ProfileCipherError> {
+        let bytes = bytes.as_ref();
         let nonce = GenericArray::from_slice(&bytes[0..12]);
         let cipher = Aes256Gcm::new(&self.get_key());
 
@@ -136,6 +137,13 @@ impl ProfileCipher {
         Ok(plaintext)
     }
 
+    pub fn decrypt_avatar(
+        &self,
+        bytes: &[u8],
+    ) -> Result<Vec<u8>, ProfileCipherError> {
+        self.decrypt_and_unpad(bytes)
+    }
+
     pub fn encrypt_name<'inp>(
         &self,
         name: impl std::borrow::Borrow<ProfileName<&'inp str>>,
@@ -151,7 +159,7 @@ impl ProfileCipher {
     ) -> Result<Option<ProfileName<String>>, ProfileCipherError> {
         let bytes = bytes.as_ref();
 
-        let plaintext = self.decrypt_and_unpad(bytes.into())?;
+        let plaintext = self.decrypt_and_unpad(bytes)?;
 
         Ok(ProfileName::<String>::deserialize(&plaintext)?)
     }
@@ -170,7 +178,7 @@ impl ProfileCipher {
     ) -> Result<String, ProfileCipherError> {
         let bytes = bytes.as_ref();
 
-        let plaintext = self.decrypt_and_unpad(bytes.into())?;
+        let plaintext = self.decrypt_and_unpad(bytes)?;
 
         // XXX This re-allocates.
         Ok(std::str::from_utf8(&plaintext)?.into())
@@ -190,7 +198,7 @@ impl ProfileCipher {
     ) -> Result<String, ProfileCipherError> {
         let bytes = bytes.as_ref();
 
-        let plaintext = self.decrypt_and_unpad(bytes.into())?;
+        let plaintext = self.decrypt_and_unpad(bytes)?;
 
         // XXX This re-allocates.
         Ok(std::str::from_utf8(&plaintext)?.into())
