@@ -259,7 +259,7 @@ impl SignalWebSocket {
     pub fn from_socket<WS: WebSocketService + 'static>(
         ws: WS,
         stream: WS::Stream,
-    ) -> (Self, std::pin::Pin<Box<dyn Future<Output = ()>>>) {
+    ) -> (Self, impl Future<Output = ()>) {
         // Create process
         let (incoming_request_sink, incoming_request_stream) = mpsc::channel(1);
         let (outgoing_request_sink, outgoing_requests) = mpsc::channel(1);

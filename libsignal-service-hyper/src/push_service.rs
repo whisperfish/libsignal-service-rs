@@ -472,7 +472,7 @@ impl PushService for HyperPushService {
         )
         .await?;
         let (ws, task) = SignalWebSocket::from_socket(ws, stream);
-        tokio::task::spawn_local(task);
+        tokio::task::spawn(task);
         Ok(ws)
     }
 }
