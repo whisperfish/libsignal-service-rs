@@ -90,7 +90,6 @@ where
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
             if let Some(bytes) = message.sender_key_distribution_message {
-                dbg!("PROCESSING SENDER KEYSSSSSSSS -------------------------");
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
                     &plaintext.metadata.protocol_address(),
@@ -141,7 +140,7 @@ where
                 .await?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device().into(),
+                    sender_device: envelope.source_device(),
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                 };
@@ -181,7 +180,7 @@ where
                 .await?;
                 let metadata = Metadata {
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device().into(),
+                    sender_device: envelope.source_device(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                 };
