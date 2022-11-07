@@ -641,7 +641,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_socket</span><span class="op">&lt;</span><span class="ident">WS</span>: <span class="ident">WebSocketService</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
         <span class="ident">ws</span>: <span class="ident">WS</span>,
         <span class="ident">stream</span>: <span class="ident">WS::Stream</span>,
-    ) -&gt; (<span class="self">Self</span>, <span class="ident">std::pin::Pin</span><span class="op">&lt;</span><span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+    ) -&gt; (<span class="self">Self</span>, <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span>) {
         <span class="comment">// Create process</span>
         <span class="kw">let</span> (<span class="ident">incoming_request_sink</span>, <span class="ident">incoming_request_stream</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="number">1</span>);
         <span class="kw">let</span> (<span class="ident">outgoing_request_sink</span>, <span class="ident">outgoing_requests</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="number">1</span>);
