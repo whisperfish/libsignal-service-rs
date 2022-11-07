@@ -835,7 +835,6 @@
 <span id="835">835</span>
 <span id="836">836</span>
 <span id="837">837</span>
-<span id="838">838</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryInto</span>, <span class="ident">fmt</span>, <span class="ident">ops::Deref</span>, <span class="ident">time::Duration</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -844,7 +843,7 @@
     <span class="ident">groups_v2::GroupDecryptionError</span>,
     <span class="ident">messagepipe::WebSocketService</span>,
     <span class="ident">pre_keys</span>::{<span class="ident">PreKeyEntity</span>, <span class="ident">PreKeyState</span>, <span class="ident">SignedPreKeyEntity</span>},
-    <span class="ident">profile_cipher</span>::{<span class="ident">ProfileCipher</span>, <span class="ident">ProfileCipherError</span>},
+    <span class="ident">profile_cipher::ProfileCipherError</span>,
     <span class="ident">proto</span>::{<span class="ident">attachment_pointer::AttachmentIdentifier</span>, <span class="ident">AttachmentPointer</span>},
     <span class="ident">sender</span>::{<span class="ident">OutgoingPushMessages</span>, <span class="ident">SendMessageResponse</span>},
     <span class="ident">utils</span>::{<span class="ident">serde_base64</span>, <span class="ident">serde_optional_base64</span>},
@@ -857,7 +856,6 @@
     <span class="ident">Aes256Gcm</span>, <span class="ident">NewAead</span>,
 };
 <span class="kw">use</span> <span class="ident">chrono::prelude</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident">futures::prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{
     <span class="ident">error::SignalProtocolError</span>, <span class="ident">IdentityKey</span>, <span class="ident">PreKeyBundle</span>, <span class="ident">PublicKey</span>,
 };
