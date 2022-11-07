@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use bytes::Bytes;
 use futures::{
     channel::{
@@ -7,9 +5,8 @@ use futures::{
         oneshot,
     },
     prelude::*,
-    stream::{FusedStream, FuturesUnordered},
+    stream::FusedStream,
 };
-use prost::Message;
 
 pub use crate::{
     configuration::ServiceCredentials,
@@ -19,7 +16,7 @@ pub use crate::{
     },
 };
 
-use crate::push_service::ServiceError;
+use crate::{push_service::ServiceError, websocket::SignalWebSocket};
 
 pub enum WebSocketStreamItem {
     Message(Bytes),
@@ -34,242 +31,84 @@ pub trait WebSocketService {
     async fn send_message(&mut self, msg: Bytes) -> Result<(), ServiceError>;
 }
 
-pub struct MessagePipe<WS: WebSocketService> {
-    ws: WS,
-    stream: WS::Stream,
+pub struct MessagePipe {
+    ws: SignalWebSocket,
     credentials: ServiceCredentials,
-    requests: HashMap<u64, oneshot::Sender<WebSocketResponseMessage>>,
 }
 
-impl<WS: WebSocketService> MessagePipe<WS> {
+impl MessagePipe {
     pub fn from_socket(
-        ws: WS,
-        stream: WS::Stream,
+        ws: SignalWebSocket,
         credentials: ServiceCredentials,
     ) -> Self {
-        MessagePipe {
-            ws,
-            stream,
-            credentials,
-            requests: HashMap::new(),
-        }
+        MessagePipe { ws, credentials }
     }
 
-    async fn send_response(
-        &mut self,
-        r: WebSocketResponseMessage,
-    ) -> Result<(), ServiceError> {
-        let msg = WebSocketMessage {
-            r#type: Some(web_socket_message::Type::Response.into()),
-            response: Some(r),
-            ..Default::default()
-        };
-        let buffer = msg.encode_to_vec();
-        self.ws.send_message(buffer.into()).await
+    /// Return a SignalWebSocket for sending messages and other purposes beyond receiving messages.
+    pub fn ws(&self) -> SignalWebSocket {
+        self.ws.clone()
     }
 
-    /// Sends a request without returning a response.
-    async fn transmit_request(
-        &mut self,
-        r: WebSocketRequestMessage,
-    ) -> Result<(), ServiceError> {
-        log::trace!("Sending request {:?}", r);
-        let msg = WebSocketMessage {
-            r#type: Some(web_socket_message::Type::Request.into()),
-            request: Some(r),
-            ..Default::default()
-        };
-        let buffer = msg.encode_to_vec();
-        self.ws.send_message(buffer.into()).await?;
-        log::trace!("request on route.");
-        Ok(())
-    }
-
-    /// Send request and returns the response as a *nested* Future.
-    ///
-    /// The outer Future sends the request, the inner Future resolves to the
-    /// response.
-    pub async fn send_request(
-        &mut self,
-        r: WebSocketRequestMessage,
-    ) -> Result<
-        impl Future<Output = Result<WebSocketResponseMessage, ServiceError>>,
-        ServiceError,
-    > {
-        let id = r.id;
-
-        self.transmit_request(r).await?;
-
-        let (sink, send) = oneshot::channel();
-
-        if let Some(id) = id {
-            self.requests.insert(id, sink);
-            Ok(send.map_err(|_| ServiceError::WsClosing {
-                reason: "WebSocket closing while sending request.".into(),
-            }))
-        } else {
-            Err(ServiceError::InvalidFrameError {
-                reason: "Send request without ID".into(),
-            })
-        }
-    }
-
-    /// Worker task that
+    /// Worker task that processes the websocket into Envelopes
     async fn run(
         mut self,
         mut sink: Sender<Result<Envelope, ServiceError>>,
     ) -> Result<(), mpsc::SendError> {
-        use futures::future::LocalBoxFuture;
+        let mut ws = self.ws.clone();
+        let mut stream = ws
+            .take_request_stream()
+            .expect("web socket request handler not in use");
 
-        // This is a runtime-agnostic, poor man's `::spawn(Future<Output=()>)`.
-        let mut background_work = FuturesUnordered::<LocalBoxFuture<()>>::new();
-        // a pending task is added, as to never end the background worker until
-        // it's dropped.
-        background_work.push(futures::future::pending().boxed_local());
-
-        loop {
-            futures::select! {
-                // WebsocketConnection::onMessage(ByteString)
-                frame = self.stream.next() => match frame {
-                    Some(WebSocketStreamItem::Message(frame)) => {
-                        let env = self.process_frame(frame).await.transpose();
-                        if let Some(env) = env {
-                            sink.send(env).await?;
-                        }
-                    },
-                    Some(WebSocketStreamItem::KeepAliveRequest) => {
-                        let request = self.send_keep_alive().await;
-                        match request {
-                            Ok(request) => {
-                                let request = request.map(|response| {
-                                    if let Err(e) = response {
-                                        log::warn!("Error from keep alive: {:?}", e);
-                                    }
-                                });
-                                background_work.push(request.boxed_local());
-                            },
-                            Err(e) => log::warn!("Could not send keep alive: {}", e),
-                        }
-                    },
-                    None => {
-                        log::debug!("WebSocket stream ended.");
-                        break;
-                    },
-                },
-                _ = background_work.next() => {
-                    // no op
-                },
-                complete => {
-                    log::info!("select! complete");
-                }
+        while let Some((request, responder)) = stream.next().await {
+            // WebsocketConnection::onMessage(ByteString)
+            let env =
+                self.process_request(request, responder).await.transpose();
+            if let Some(env) = env {
+                sink.send(env).await?;
             }
         }
+
+        ws.return_request_stream(stream);
 
         Ok(())
     }
 
-    async fn send_keep_alive(
+    async fn process_request(
         &mut self,
-    ) -> Result<impl Future<Output = Result<(), ServiceError>>, ServiceError>
-    {
-        let request = WebSocketRequestMessage {
-            id: Some(
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64,
-            ),
-            path: Some("/v1/keepalive".into()),
-            verb: Some("GET".into()),
-            ..Default::default()
-        };
-        let request = self.send_request(request).await?;
-        Ok(async move {
-            let response = request.await?;
-            if response.status() == 200 {
-                Ok(())
-            } else {
-                log::warn!(
-                    "Response code for keep-alive is not 200: {:?}",
-                    response
-                );
-                Err(ServiceError::UnhandledResponseCode {
-                    http_code: response.status() as u16,
-                })
-            }
-        })
-    }
-
-    async fn process_frame(
-        &mut self,
-        frame: Bytes,
+        request: WebSocketRequestMessage,
+        responder: oneshot::Sender<WebSocketResponseMessage>,
     ) -> Result<Option<Envelope>, ServiceError> {
-        let msg = WebSocketMessage::decode(frame)?;
-        log::trace!("Decoded {:?}", msg);
+        // Java: MessagePipe::read
+        let response = WebSocketResponseMessage::from_request(&request);
 
-        use web_socket_message::Type;
-        match (msg.r#type(), msg.request, msg.response) {
-            (Type::Unknown, _, _) => Err(ServiceError::InvalidFrameError {
-                reason: "Unknown frame type".into(),
-            }),
-            (Type::Request, Some(request), _) => {
-                // Java: MessagePipe::read
-                let response = WebSocketResponseMessage::from_request(&request);
+        // XXX Change the signature of this method to yield an enum of Envelope and EndOfQueue
+        let result = if request.is_signal_service_envelope() {
+            let body = if let Some(body) = request.body.as_ref() {
+                body
+            } else {
+                return Err(ServiceError::InvalidFrameError {
+                    reason: "Request without body.".into(),
+                });
+            };
+            Some(Envelope::decrypt(
+                body,
+                self.credentials
+                    .signaling_key
+                    .as_ref()
+                    .expect("signaling_key required to decrypt envelopes"),
+                request.is_signal_key_encrypted(),
+            )?)
+        } else {
+            None
+        };
 
-                let result = if request.is_signal_service_envelope() {
-                    let body = if let Some(body) = request.body.as_ref() {
-                        body
-                    } else {
-                        return Err(ServiceError::InvalidFrameError {
-                            reason: "Request without body.".into(),
-                        });
-                    };
-                    Some(Envelope::decrypt(
-                        body,
-                        self.credentials.signaling_key.as_ref().expect(
-                            "signaling_key required to decrypt envelopes",
-                        ),
-                        request.is_signal_key_encrypted(),
-                    )?)
-                } else {
-                    None
-                };
+        responder
+            .send(response)
+            .map_err(|_| ServiceError::WsClosing {
+                reason: "could not respond to message pipe request".into(),
+            })?;
 
-                if let Err(e) = self.send_response(response).await {
-                    log::error!("Could not send response: {}", e);
-                }
-
-                Ok(result)
-            },
-            (Type::Request, None, _) => Err(ServiceError::InvalidFrameError {
-                reason: "Type was request, but does not contain request."
-                    .into(),
-            }),
-            (Type::Response, _, Some(response)) => {
-                if let Some(id) = response.id {
-                    if let Some(responder) = self.requests.remove(&id) {
-                        if let Err(e) = responder.send(response) {
-                            log::warn!(
-                                "Could not deliver response for id {}: {:?}",
-                                id,
-                                e
-                            );
-                        }
-                    } else {
-                        log::warn!(
-                            "Response for non existing request: {:?}",
-                            response
-                        );
-                    }
-                }
-
-                Ok(None)
-            },
-            (Type::Response, _, None) => Err(ServiceError::InvalidFrameError {
-                reason: "Type was response, but does not contain response."
-                    .into(),
-            }),
-        }
+        Ok(result)
     }
 
     /// Returns the stream of `Envelope`s

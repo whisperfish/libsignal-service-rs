@@ -6,10 +6,12 @@ use crate::{
     groups_v2::GroupDecryptionError,
     messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
+    profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
-    MaybeSend, ServiceAddress,
+    websocket::SignalWebSocket,
+    MaybeSend, Profile, ServiceAddress,
 };
 
 use aes_gcm::{
@@ -256,11 +258,53 @@ pub struct StaleDevices {
 #[serde(rename_all = "camelCase")]
 pub struct SignalServiceProfile {
     #[serde(default, with = "serde_optional_base64")]
+    pub identity_key: Option<Vec<u8>>,
+    #[serde(default, with = "serde_optional_base64")]
     pub name: Option<Vec<u8>>,
     #[serde(default, with = "serde_optional_base64")]
     pub about: Option<Vec<u8>>,
     #[serde(default, with = "serde_optional_base64")]
     pub about_emoji: Option<Vec<u8>>,
+
+    // TODO: not sure whether this is via optional_base64
+    // #[serde(default, with = "serde_optional_base64")]
+    // pub payment_address: Option<Vec<u8>>,
+    pub avatar: Option<String>,
+    pub unidentified_access: Option<String>,
+
+    #[serde(default)]
+    pub unrestricted_unidentified_access: bool,
+}
+
+impl SignalServiceProfile {
+    pub fn decrypt(
+        &self,
+        profile_cipher: crate::profile_cipher::ProfileCipher,
+    ) -> Result<Profile, ProfileCipherError> {
+        // Profile decryption
+        let name = self
+            .name
+            .as_ref()
+            .map(|data| profile_cipher.decrypt_name(data))
+            .transpose()?
+            .flatten();
+        let about = self
+            .about
+            .as_ref()
+            .map(|data| profile_cipher.decrypt_about(data))
+            .transpose()?;
+        let about_emoji = self
+            .about_emoji
+            .as_ref()
+            .map(|data| profile_cipher.decrypt_emoji(data))
+            .transpose()?;
+
+        Ok(Profile {
+            name,
+            about,
+            about_emoji,
+        })
+    }
 }
 
 #[derive(Debug, serde::Deserialize, Default)]
@@ -416,13 +460,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         path: &str,
         credentials: Option<ServiceCredentials>,
-    ) -> Result<
-        (
-            Self::WebSocket,
-            <Self::WebSocket as WebSocketService>::Stream,
-        ),
-        ServiceError,
-    >;
+    ) -> Result<SignalWebSocket, ServiceError>;
 
     /// Fetches a list of all devices tied to the authenticated account.
     ///
@@ -588,11 +626,27 @@ pub trait PushService: MaybeSend {
 
     async fn retrieve_profile_by_id(
         &mut self,
-        id: &str,
+        address: ServiceAddress,
+        profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
+        let endpoint = match (profile_key, address.uuid) {
+            (Some(key), Some(uuid)) => {
+                let uid_bytes = uuid.as_bytes();
+                let version = bincode::serialize(
+                    &key.get_profile_key_version(*uid_bytes),
+                )?;
+                let version = std::str::from_utf8(&version)
+                    .expect("hex encoded profile key version");
+                format!("/v1/profile/{}/{}", uuid, version)
+            },
+            (_, _) => {
+                format!("/v1/profile/{}", address.identifier())
+            },
+        };
+        // TODO: set locale to en_US
         self.get_json(
             Endpoint::Service,
-            &format!("/v1/profile/{}", id),
+            &endpoint,
             HttpAuthOverride::NoOverride,
         )
         .await
@@ -694,8 +748,8 @@ pub trait PushService: MaybeSend {
 
     /// Writes a profile and returns the avatar URL, if one was provided.
     ///
-    /// The name, about and emoji fields are encrypted with an [`ProfileCipher`].
-    /// See [`AccountManager`] for a convenience method.
+    /// The name, about and emoji fields are encrypted with an [`ProfileCipher`][struct@crate::profile_cipher::ProfileCipher].
+    /// See [`AccountManager`][struct@crate::AccountManager] for a convenience method.
     ///
     /// Java equivalent: `writeProfile`
     async fn write_profile(

@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
+use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::{PreKeyEntity, PreKeyState},
@@ -313,38 +314,19 @@ impl<Service: PushService> AccountManager<Service> {
 
     pub async fn retrieve_profile(
         &mut self,
-        uuid: uuid::Uuid,
+        address: ServiceAddress,
     ) -> Result<Profile, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
         let profile_key = ProfileKey::create(profile_key);
-        let profile_cipher = ProfileCipher::from(profile_key);
 
         let encrypted_profile = self
             .service
-            .retrieve_profile_by_id(&uuid.to_string())
+            .retrieve_profile_by_id(address, Some(profile_key))
             .await?;
 
-        // Profile decryption
-        let name = encrypted_profile
-            .name
-            .map(|data| profile_cipher.decrypt_name(data))
-            .transpose()?
-            .flatten();
-        let about = encrypted_profile
-            .about
-            .map(|data| profile_cipher.decrypt_about(data))
-            .transpose()?;
-        let about_emoji = encrypted_profile
-            .about_emoji
-            .map(|data| profile_cipher.decrypt_emoji(data))
-            .transpose()?;
-
-        Ok(Profile {
-            name,
-            about,
-            about_emoji,
-        })
+        let profile_cipher = ProfileCipher::from(profile_key);
+        Ok(encrypted_profile.decrypt(profile_cipher)?)
     }
 
     /// Upload a profile

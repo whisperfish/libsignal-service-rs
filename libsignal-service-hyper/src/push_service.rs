@@ -11,8 +11,8 @@ use hyper::{
 use hyper_rustls::HttpsConnector;
 use hyper_timeout::TimeoutConnector;
 use libsignal_service::{
-    configuration::*, messagepipe::WebSocketService, prelude::ProtobufMessage,
-    push_service::*, MaybeSend,
+    configuration::*, prelude::ProtobufMessage, push_service::*,
+    websocket::SignalWebSocket, MaybeSend,
 };
 use serde::{Deserialize, Serialize};
 use tokio_rustls::rustls;
@@ -300,7 +300,7 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: MaybeSend + Serialize + std::marker::Send,
+        S: MaybeSend + Serialize,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {
@@ -463,20 +463,17 @@ impl PushService for HyperPushService {
         &mut self,
         path: &str,
         credentials: Option<ServiceCredentials>,
-    ) -> Result<
-        (
-            Self::WebSocket,
-            <Self::WebSocket as WebSocketService>::Stream,
-        ),
-        ServiceError,
-    > {
-        Ok(TungsteniteWebSocket::with_tls_config(
+    ) -> Result<SignalWebSocket, ServiceError> {
+        let (ws, stream) = TungsteniteWebSocket::with_tls_config(
             Self::tls_config(&self.cfg),
             self.cfg.base_url(Endpoint::Service),
             path,
             credentials.as_ref(),
         )
-        .await?)
+        .await?;
+        let (ws, task) = SignalWebSocket::from_socket(ws, stream);
+        tokio::task::spawn_local(task);
+        Ok(ws)
     }
 }
 
