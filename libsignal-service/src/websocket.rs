@@ -295,7 +295,7 @@ impl SignalWebSocket {
                     }),
                 })),
             },
-            Box::pin(process),
+            process,
         )
     }
 
