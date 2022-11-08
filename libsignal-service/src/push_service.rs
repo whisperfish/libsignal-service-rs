@@ -652,6 +652,20 @@ pub trait PushService: MaybeSend {
         .await
     }
 
+    async fn retrieve_profile_avatar(
+        &mut self,
+        path: &str,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        self.get_from_cdn(0, path).await
+    }
+
+    async fn retrieve_groups_v2_profile_avatar(
+        &mut self,
+        path: &str,
+    ) -> Result<Self::ByteStream, ServiceError> {
+        self.get_from_cdn(0, path).await
+    }
+
     async fn get_pre_key(
         &mut self,
         destination: &ServiceAddress,
