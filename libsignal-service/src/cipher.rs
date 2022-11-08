@@ -83,8 +83,7 @@ where
             let plaintext = self.decrypt(&envelope).await?;
             let message =
                 crate::proto::DataMessage::decode(plaintext.data.as_slice())?;
-            let content = Content::from_body(message, plaintext.metadata);
-            Ok(Some(content))
+            Ok(Some(Content::from_body(message, plaintext.metadata)))
         } else if envelope.content.is_some() {
             let plaintext = self.decrypt(&envelope).await?;
             let message =
