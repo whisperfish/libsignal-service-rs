@@ -15,6 +15,7 @@ use crate::{
 };
 
 use bytes::Bytes;
+use futures::AsyncReadExt;
 use rand::RngCore;
 use serde::Deserialize;
 use uuid::Uuid;
@@ -229,6 +230,25 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
             .decrypt_group(encrypted_group)?;
 
         Ok(decrypted_group)
+    }
+
+    pub async fn retrieve_avatar(
+        &mut self,
+        path: &str,
+        group_secret_params: GroupSecretParams,
+    ) -> Result<Option<Vec<u8>>, ServiceError> {
+        let mut encrypted_avatar = self
+            .push_service
+            .retrieve_groups_v2_profile_avatar(path)
+            .await?;
+        let mut result = Vec::with_capacity(10 * 1024 * 1024);
+        encrypted_avatar
+            .read_to_end(&mut result)
+            .await
+            .map_err(|e| ServiceError::ResponseError {
+                reason: format!("reading avatar data: {}", e),
+            })?;
+        Ok(GroupOperations::new(group_secret_params).decrypt_avatar(&result))
     }
 
     pub fn decrypt_group_context(
