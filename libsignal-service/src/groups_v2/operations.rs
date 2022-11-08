@@ -608,4 +608,12 @@ impl GroupOperations {
             changes: changes?,
         })
     }
+
+    pub fn decrypt_avatar(&self, ciphertext: &[u8]) -> Option<Vec<u8>> {
+        use group_attribute_blob::Content;
+        match self.decrypt_blob(ciphertext).content {
+            Some(Content::Avatar(d)) => Some(d).filter(|d| !d.is_empty()),
+            _ => None,
+        }
+    }
 }
