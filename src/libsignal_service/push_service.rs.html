@@ -835,6 +835,9 @@
 <span id="835">835</span>
 <span id="836">836</span>
 <span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryInto</span>, <span class="ident">fmt</span>, <span class="ident">ops::Deref</span>, <span class="ident">time::Duration</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -1218,6 +1221,9 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 
     <span class="attribute">#[<span class="ident">error</span>(<span class="ident">transparent</span>)]</span>
     <span class="ident">GroupsV2DecryptionError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">GroupDecryptionError</span>),
+
+    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;unsupported content&quot;</span>)]</span>
+    <span class="ident">UnsupportedContent</span>,
 }
 
 <span class="attribute">#[<span class="ident">cfg_attr</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;unsend-futures&quot;</span>, <span class="ident">async_trait::async_trait</span>(<span class="question-mark">?</span><span class="ident">Send</span>))]</span>
