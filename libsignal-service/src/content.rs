@@ -1,3 +1,5 @@
+use libsignal_protocol::ProtocolAddress;
+
 pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
@@ -15,6 +17,15 @@ pub struct Metadata {
     pub sender_device: u32,
     pub timestamp: u64,
     pub needs_receipt: bool,
+}
+
+impl Metadata {
+    pub(crate) fn protocol_address(&self) -> ProtocolAddress {
+        ProtocolAddress::new(
+            self.sender.identifier(),
+            self.sender_device.into(),
+        )
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -35,7 +46,7 @@ impl Content {
     pub fn from_proto(
         p: crate::proto::Content,
         metadata: Metadata,
-    ) -> Option<Self> {
+    ) -> Result<Self, ServiceError> {
         // The Java version also assumes only one content type at a time.
         // It's a bit sad that we cannot really match here, we've got no
         // r#type() method.
@@ -43,17 +54,17 @@ impl Content {
         // reduces the git diff when more types would be added.
         #[allow(clippy::manual_map)]
         if let Some(msg) = p.data_message {
-            Some(Self::from_body(msg, metadata))
+            Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.sync_message {
-            Some(Self::from_body(msg, metadata))
+            Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.call_message {
-            Some(Self::from_body(msg, metadata))
+            Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.receipt_message {
-            Some(Self::from_body(msg, metadata))
+            Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.typing_message {
-            Some(Self::from_body(msg, metadata))
+            Ok(Self::from_body(msg, metadata))
         } else {
-            None
+            Err(ServiceError::UnsupportedContent)
         }
     }
 }
