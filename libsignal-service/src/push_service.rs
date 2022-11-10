@@ -102,18 +102,24 @@ pub struct AccountAttributes {
     pub name: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
+    #[serde(default)]
     pub announcement_group: bool,
-    #[serde(rename = "gv2-3")]
+    #[serde(rename(serialize = "gv2-3"), alias = "gv2-3", default)]
     pub gv2: bool,
+    #[serde(default)]
     pub storage: bool,
-    #[serde(rename = "gv1-migration")]
+    #[serde(rename = "gv1-migration", default)]
     pub gv1_migration: bool,
+    #[serde(default)]
     pub sender_key: bool,
+    #[serde(default)]
     pub change_number: bool,
+    #[serde(default)]
     pub stories: bool,
+    #[serde(default)]
     pub gift_badges: bool,
 }
 
@@ -274,6 +280,8 @@ pub struct SignalServiceProfile {
 
     #[serde(default)]
     pub unrestricted_unidentified_access: bool,
+
+    pub capabilities: DeviceCapabilities,
 }
 
 impl SignalServiceProfile {
