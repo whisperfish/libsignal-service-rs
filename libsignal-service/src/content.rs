@@ -17,6 +17,7 @@ pub struct Metadata {
     pub sender_device: u32,
     pub timestamp: u64,
     pub needs_receipt: bool,
+    pub unidentified_sender: bool,
 }
 
 impl Metadata {
