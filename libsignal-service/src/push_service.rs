@@ -145,6 +145,13 @@ pub enum HttpAuthOverride {
     Identified(HttpAuth),
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum AvatarWrite<C> {
+    NewAvatar(C),
+    RetainAvatar,
+    NoAvatar,
+}
+
 impl fmt::Debug for HttpAuth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "HTTP auth with username {}", self.username)
@@ -774,15 +781,14 @@ pub trait PushService: MaybeSend {
     /// See [`AccountManager`][struct@crate::AccountManager] for a convenience method.
     ///
     /// Java equivalent: `writeProfile`
-    async fn write_profile(
+    async fn write_profile<'s, C: std::io::Read + Send + 's, S: AsRef<str>>(
         &mut self,
         version: &ProfileKeyVersion,
         name: &[u8],
         about: &[u8],
         emoji: &[u8],
         commitment: &ProfileKeyCommitment,
-        // FIXME cfr also account manager
-        avatar: Option<()>,
+        avatar: AvatarWrite<&mut C>,
     ) -> Result<Option<String>, ServiceError> {
         #[derive(Debug, Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -796,6 +802,7 @@ pub trait PushService: MaybeSend {
             #[serde(with = "serde_base64")]
             about_emoji: &'s [u8],
             avatar: bool,
+            same_avatar: bool,
             #[serde(with = "serde_base64")]
             commitment: &'s [u8],
         }
@@ -811,7 +818,8 @@ pub trait PushService: MaybeSend {
             name,
             about,
             about_emoji: emoji,
-            avatar: avatar.is_some(),
+            avatar: matches!(avatar, AvatarWrite::NewAvatar(_)),
+            same_avatar: matches!(avatar, AvatarWrite::RetainAvatar),
             commitment: &commitment,
         };
 
@@ -825,19 +833,27 @@ pub trait PushService: MaybeSend {
             )
             .await;
         match (response, avatar) {
-            (Ok(_url), Some(_avatar)) => {
+            (Ok(_url), AvatarWrite::NewAvatar(_avatar)) => {
                 // FIXME
                 unreachable!("Uploading avatar unimplemented");
             },
             // FIXME cleanup when #54883 is stable and MSRV:
             // or-patterns syntax is experimental
             // see issue #54883 <https://github.com/rust-lang/rust/issues/54883> for more information
-            (Err(ServiceError::JsonDecodeError { .. }), None) => {
+            (
+                Err(ServiceError::JsonDecodeError { .. }),
+                AvatarWrite::RetainAvatar,
+            )
+            | (
+                Err(ServiceError::JsonDecodeError { .. }),
+                AvatarWrite::NoAvatar,
+            ) => {
                 // OWS sends an empty string when there's no attachment
                 Ok(None)
             },
             (Err(e), _) => Err(e),
-            (Ok(_resp), None) => {
+            (Ok(_resp), AvatarWrite::RetainAvatar)
+            | (Ok(_resp), AvatarWrite::NoAvatar) => {
                 log::warn!(
                     "No avatar supplied but got avatar upload URL. Ignoring"
                 );
