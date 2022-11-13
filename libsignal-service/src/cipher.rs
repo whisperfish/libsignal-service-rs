@@ -245,12 +245,19 @@ where
                     relay: None,
                 };
 
+                let needs_receipt = if envelope.source_uuid.is_some() {
+                    log::warn!("Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
+                    false
+                } else {
+                    true
+                };
+
                 let metadata = Metadata {
                     sender,
                     sender_device: device_id.into(),
                     timestamp: envelope.timestamp(),
-                    needs_receipt: false,
                     unidentified_sender: true,
+                    needs_receipt,
                 };
 
                 strip_padding(&mut message)?;

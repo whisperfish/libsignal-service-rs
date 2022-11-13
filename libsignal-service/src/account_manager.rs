@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
+use crate::push_service::AvatarWrite;
 use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -292,21 +293,28 @@ impl<Service: PushService> AccountManager<Service> {
     ///
     /// Convenience method for
     /// ```ignore
-    /// manager.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(uuid, name, about, about_emoji, None)
+    /// manager.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(uuid, name, about, about_emoji, _)
     /// ```
+    /// in which the `retain_avatar` parameter sets whether to remove (`false`) or retain (`true`) the
+    /// currently set avatar.
     pub async fn upload_versioned_profile_without_avatar<S: AsRef<str>>(
         &mut self,
         uuid: uuid::Uuid,
         name: ProfileName<S>,
         about: Option<String>,
         about_emoji: Option<String>,
+        retain_avatar: bool,
     ) -> Result<(), ProfileManagerError> {
         self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(
             uuid,
             name,
             about,
             about_emoji,
-            None,
+            if retain_avatar {
+                AvatarWrite::RetainAvatar
+            } else {
+                AvatarWrite::NoAvatar
+            },
         )
         .await?;
         Ok(())
@@ -344,7 +352,7 @@ impl<Service: PushService> AccountManager<Service> {
         name: ProfileName<S>,
         about: Option<String>,
         about_emoji: Option<String>,
-        avatar: Option<&'s mut C>,
+        avatar: AvatarWrite<&'s mut C>,
     ) -> Result<Option<String>, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
@@ -359,7 +367,7 @@ impl<Service: PushService> AccountManager<Service> {
         let about_emoji = profile_cipher.encrypt_emoji(about_emoji)?;
 
         // If avatar -> upload
-        if let Some(_avatar) = avatar {
+        if matches!(avatar, AvatarWrite::NewAvatar(_)) {
             // FIXME ProfileCipherOutputStream.java
             // It's just AES GCM, but a bit of work to decently implement it with a stream.
             unimplemented!("Setting avatar requires ProfileCipherStream")
@@ -372,13 +380,13 @@ impl<Service: PushService> AccountManager<Service> {
 
         Ok(self
             .service
-            .write_profile(
+            .write_profile::<C, S>(
                 &profile_key_version,
                 &name,
                 &about,
                 &about_emoji,
                 &commitment,
-                None, // FIXME avatar
+                avatar,
             )
             .await?)
     }
