@@ -547,6 +547,13 @@
 <span id="547">547</span>
 <span id="548">548</span>
 <span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
+<span id="553">553</span>
+<span id="554">554</span>
+<span id="555">555</span>
+<span id="556">556</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::convert::TryFrom</span>;
 
 <span class="kw">use</span> <span class="ident">block_modes::block_padding</span>::{<span class="ident">Iso7816</span>, <span class="ident">Padding</span>};
@@ -794,12 +801,19 @@
                     <span class="ident">relay</span>: <span class="prelude-val">None</span>,
                 };
 
+                <span class="kw">let</span> <span class="ident">needs_receipt</span> <span class="op">=</span> <span class="kw">if</span> <span class="ident">envelope</span>.<span class="ident">source_uuid</span>.<span class="ident">is_some</span>() {
+                    <span class="macro">log::warn!</span>(<span class="string">&quot;Received an unidentified delivery over an identified channel.  Marking needs_receipt=false&quot;</span>);
+                    <span class="bool-val">false</span>
+                } <span class="kw">else</span> {
+                    <span class="bool-val">true</span>
+                };
+
                 <span class="kw">let</span> <span class="ident">metadata</span> <span class="op">=</span> <span class="ident">Metadata</span> {
                     <span class="ident">sender</span>,
                     <span class="ident">sender_device</span>: <span class="ident">device_id</span>.<span class="ident">into</span>(),
                     <span class="ident">timestamp</span>: <span class="ident">envelope</span>.<span class="ident">timestamp</span>(),
-                    <span class="ident">needs_receipt</span>: <span class="bool-val">false</span>,
                     <span class="ident">unidentified_sender</span>: <span class="bool-val">true</span>,
+                    <span class="ident">needs_receipt</span>,
                 };
 
                 <span class="ident">strip_padding</span>(<span class="kw-2">&amp;mut</span> <span class="ident">message</span>)<span class="question-mark">?</span>;
