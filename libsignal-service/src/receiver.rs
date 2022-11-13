@@ -56,7 +56,7 @@ impl<Service: PushService> MessageReceiver<Service> {
     ) -> Result<MessagePipe, MessageReceiverError> {
         let ws = self
             .service
-            .ws("/v1/websocket/", Some(credentials.clone()))
+            .ws("/v1/websocket/", Some(credentials.clone()), true)
             .await?;
         Ok(MessagePipe::from_socket(ws, credentials))
     }

@@ -1,3 +1,5 @@
+use core::fmt;
+
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
 use libsignal_protocol::{PrivateKey, PublicKey};
 use phonenumber::PhoneNumber;
@@ -70,6 +72,31 @@ pub enum SecondaryDeviceProvisioning {
         public_key: PublicKey,
         profile_key: Vec<u8>,
     },
+}
+
+impl fmt::Debug for SecondaryDeviceProvisioning {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Url(url) => f.debug_tuple("Url").field(url).finish(),
+            Self::NewDeviceRegistration {
+                phone_number,
+                device_id,
+                registration_id,
+                uuid,
+                public_key,
+                profile_key,
+                ..
+            } => f
+                .debug_struct("NewDeviceRegistration")
+                .field("phone_number", phone_number)
+                .field("device_id", device_id)
+                .field("registration_id", registration_id)
+                .field("uuid", uuid)
+                .field("public_key", public_key)
+                .field("profile_key", profile_key)
+                .finish(),
+        }
+    }
 }
 
 impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
@@ -236,7 +263,7 @@ impl<P: PushService> LinkingManager<P> {
         // open a websocket without authentication, to receive a tsurl://
         let ws = self
             .push_service
-            .ws("/v1/websocket/provisioning/", None)
+            .ws("/v1/websocket/provisioning/", None, false)
             .await?;
 
         // see libsignal-protocol-c / signal_protocol_key_helper_generate_registration_id

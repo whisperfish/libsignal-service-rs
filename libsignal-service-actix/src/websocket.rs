@@ -69,6 +69,7 @@ impl From<AwcWebSocketError> for ServiceError {
 async fn process<S: Stream>(
     socket_stream: S,
     mut incoming_sink: Sender<WebSocketStreamItem>,
+    keep_alive: bool,
 ) -> Result<(), AwcWebSocketError>
 where
     S: Unpin,
@@ -86,11 +87,13 @@ where
         futures::pin_mut!(tick);
         futures::select! {
             _ = tick => {
-                log::trace!("Triggering keep-alive");
-                if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
-                    log::info!("Websocket sink has closed: {:?}.", e);
-                    break;
-                };
+                if keep_alive {
+                    log::trace!("Triggering keep-alive");
+                    if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
+                        log::info!("Websocket sink has closed: {:?}.", e);
+                        break;
+                    };
+                }
             },
             frame = socket_stream.next() => {
                 let frame = if let Some(frame) = frame {
@@ -167,7 +170,7 @@ impl AwcWebSocket {
         let (incoming_sink, incoming_stream) = channel(5);
 
         let (socket_sink, socket_stream) = framed.split();
-        let processing_task = process(socket_stream, incoming_sink);
+        let processing_task = process(socket_stream, incoming_sink, keep_alive);
 
         // When the processing_task stops, the consuming stream and sink also
         // terminate.

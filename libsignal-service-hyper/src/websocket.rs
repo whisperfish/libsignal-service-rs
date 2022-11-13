@@ -85,6 +85,7 @@ impl From<TungsteniteWebSocketError> for ServiceError {
 async fn process<S: Stream>(
     socket_stream: S,
     mut incoming_sink: Sender<WebSocketStreamItem>,
+    keep_alive: bool,
 ) -> Result<(), TungsteniteWebSocketError>
 where
     S: Unpin,
@@ -100,11 +101,13 @@ where
     loop {
         tokio::select! {
             _ = ka_interval.tick() => {
-                log::trace!("Triggering keep-alive");
-                if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
-                    log::info!("Websocket sink has closed: {:?}.", e);
-                    break;
-                };
+                if keep_alive {
+                    log::trace!("Triggering keep-alive");
+                    if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
+                        log::info!("Websocket sink has closed: {:?}.", e);
+                        break;
+                    };
+                }
             },
             frame = socket_stream.next() => {
                 let frame = if let Some(frame) = frame {
@@ -158,6 +161,7 @@ impl TungsteniteWebSocket {
         base_url: impl std::borrow::Borrow<Url>,
         path: &str,
         credentials: Option<&ServiceCredentials>,
+        keep_alive: bool,
     ) -> Result<
         (Self, <Self as WebSocketService>::Stream),
         TungsteniteWebSocketError,
@@ -187,7 +191,7 @@ impl TungsteniteWebSocket {
         let (incoming_sink, incoming_stream) = channel(5);
 
         let (socket_sink, socket_stream) = socket_stream.split();
-        let processing_task = process(socket_stream, incoming_sink);
+        let processing_task = process(socket_stream, incoming_sink, keep_alive);
 
         // When the processing_task stops, the consuming stream and sink also
         // terminate.

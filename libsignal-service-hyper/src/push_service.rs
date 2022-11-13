@@ -463,12 +463,14 @@ impl PushService for HyperPushService {
         &mut self,
         path: &str,
         credentials: Option<ServiceCredentials>,
+        keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError> {
         let (ws, stream) = TungsteniteWebSocket::with_tls_config(
             Self::tls_config(&self.cfg),
             self.cfg.base_url(Endpoint::Service),
             path,
             credentials.as_ref(),
+            keep_alive,
         )
         .await?;
         let (ws, task) = SignalWebSocket::from_socket(ws, stream);

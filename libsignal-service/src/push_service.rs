@@ -468,6 +468,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         path: &str,
         credentials: Option<ServiceCredentials>,
+        keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError>;
 
     /// Fetches a list of all devices tied to the authenticated account.

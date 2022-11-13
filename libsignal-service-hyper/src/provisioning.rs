@@ -45,7 +45,7 @@ pub async fn provision_secondary_device(
     );
 
     let mut push_service =
-        AwcPushService::new(service_configuration.clone(), None, USER_AGENT);
+        HyperPushService::new(service_configuration.clone(), None, USER_AGENT);
 
     let (ws, stream) =
         push_service.ws("/v1/websocket/provisioning/", None).await?;
