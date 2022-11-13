@@ -350,7 +350,36 @@
 <span id="350">350</span>
 <span id="351">351</span>
 <span id="352">352</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel::mpsc::Sender</span>, <span class="ident">pin_mut</span>, <span class="ident">SinkExt</span>, <span class="ident">StreamExt</span>};
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">core::fmt</span>;
+
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel::mpsc::Sender</span>, <span class="ident">pin_mut</span>, <span class="ident">SinkExt</span>, <span class="ident">StreamExt</span>};
 <span class="kw">use</span> <span class="ident">libsignal_protocol</span>::{<span class="ident">PrivateKey</span>, <span class="ident">PublicKey</span>};
 <span class="kw">use</span> <span class="ident">phonenumber::PhoneNumber</span>;
 <span class="kw">use</span> <span class="ident">serde</span>::{<span class="ident">Deserialize</span>, <span class="ident">Serialize</span>};
@@ -422,6 +451,31 @@
         <span class="ident">public_key</span>: <span class="ident">PublicKey</span>,
         <span class="ident">profile_key</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">u8</span><span class="op">&gt;</span>,
     },
+}
+
+<span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">SecondaryDeviceProvisioning</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">fmt::Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">fmt::Result</span> {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident"><span class="self">Self</span>::Url</span>(<span class="ident">url</span>) =&gt; <span class="ident">f</span>.<span class="ident">debug_tuple</span>(<span class="string">&quot;Url&quot;</span>).<span class="ident">field</span>(<span class="ident">url</span>).<span class="ident">finish</span>(),
+            <span class="ident"><span class="self">Self</span>::NewDeviceRegistration</span> {
+                <span class="ident">phone_number</span>,
+                <span class="ident">device_id</span>,
+                <span class="ident">registration_id</span>,
+                <span class="ident">uuid</span>,
+                <span class="ident">public_key</span>,
+                <span class="ident">profile_key</span>,
+                ..
+            } =&gt; <span class="ident">f</span>
+                .<span class="ident">debug_struct</span>(<span class="string">&quot;NewDeviceRegistration&quot;</span>)
+                .<span class="ident">field</span>(<span class="string">&quot;phone_number&quot;</span>, <span class="ident">phone_number</span>)
+                .<span class="ident">field</span>(<span class="string">&quot;device_id&quot;</span>, <span class="ident">device_id</span>)
+                .<span class="ident">field</span>(<span class="string">&quot;registration_id&quot;</span>, <span class="ident">registration_id</span>)
+                .<span class="ident">field</span>(<span class="string">&quot;uuid&quot;</span>, <span class="ident">uuid</span>)
+                .<span class="ident">field</span>(<span class="string">&quot;public_key&quot;</span>, <span class="ident">public_key</span>)
+                .<span class="ident">field</span>(<span class="string">&quot;profile_key&quot;</span>, <span class="ident">profile_key</span>)
+                .<span class="ident">finish</span>(),
+        }
+    }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">P</span>: <span class="ident">PushService</span> <span class="op">+</span> <span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">ProvisioningManager</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">P</span><span class="op">&gt;</span> {
@@ -588,7 +642,7 @@
         <span class="comment">// open a websocket without authentication, to receive a tsurl://</span>
         <span class="kw">let</span> <span class="ident">ws</span> <span class="op">=</span> <span class="self">self</span>
             .<span class="ident">push_service</span>
-            .<span class="ident">ws</span>(<span class="string">&quot;/v1/websocket/provisioning/&quot;</span>, <span class="prelude-val">None</span>)
+            .<span class="ident">ws</span>(<span class="string">&quot;/v1/websocket/provisioning/&quot;</span>, <span class="prelude-val">None</span>, <span class="bool-val">false</span>)
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="comment">// see libsignal-protocol-c / signal_protocol_key_helper_generate_registration_id</span>

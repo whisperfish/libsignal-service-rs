@@ -380,6 +380,14 @@
 <span id="380">380</span>
 <span id="381">381</span>
 <span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::collections</span>::{<span class="ident">HashMap</span>, <span class="ident">HashSet</span>};
 <span class="kw">use</span> <span class="ident">std::sync</span>::{<span class="ident">Arc</span>, <span class="ident">Mutex</span>, <span class="ident">MutexGuard</span>};
 
@@ -440,6 +448,9 @@
 }
 
 <span class="kw">struct</span> <span class="ident">SignalWebSocketProcess</span><span class="op">&lt;</span><span class="ident">WS</span>: <span class="ident">WebSocketService</span><span class="op">&gt;</span> {
+    <span class="doccomment">/// Whether to enable keep-alive or not</span>
+    <span class="ident">keep_alive</span>: <span class="ident">bool</span>,
+
     <span class="doccomment">/// Receives requests from the application, which we forward to Signal.</span>
     <span class="ident">requests</span>: <span class="ident">mpsc::Receiver</span><span class="op">&lt;</span>(
         <span class="ident">WebSocketRequestMessage</span>,
@@ -581,7 +592,7 @@
                         <span class="prelude-val">Some</span>(<span class="ident">WebSocketStreamItem::Message</span>(<span class="ident">frame</span>)) =&gt; {
                             <span class="self">self</span>.<span class="ident">process_frame</span>(<span class="ident">frame</span>).<span class="kw">await</span><span class="question-mark">?</span>;
                         }
-                        <span class="prelude-val">Some</span>(<span class="ident">WebSocketStreamItem::KeepAliveRequest</span>) =&gt; {
+                        <span class="prelude-val">Some</span>(<span class="ident">WebSocketStreamItem::KeepAliveRequest</span>) <span class="kw">if</span> <span class="self">self</span>.<span class="ident">keep_alive</span> =&gt; {
                             <span class="comment">// XXX: would be nicer if we could drop this request into the request</span>
                             <span class="comment">// queue above.</span>
                             <span class="macro">log::debug!</span>(<span class="string">&quot;Sending keep alive upon request&quot;</span>);
@@ -599,6 +610,9 @@
                             };
                             <span class="kw">let</span> <span class="ident">buffer</span> <span class="op">=</span> <span class="ident">msg</span>.<span class="ident">encode_to_vec</span>();
                             <span class="self">self</span>.<span class="ident">ws</span>.<span class="ident">send_message</span>(<span class="ident">buffer</span>.<span class="ident">into</span>()).<span class="kw">await</span><span class="question-mark">?</span>
+                        }
+                        <span class="prelude-val">Some</span>(<span class="ident">WebSocketStreamItem::KeepAliveRequest</span>) =&gt; {
+                            <span class="macro">log::debug!</span>(<span class="string">&quot;keep alive is disabled: ignoring request&quot;</span>);
                         }
                         <span class="prelude-val">None</span> =&gt; {
                             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">ServiceError::WsError</span> {
@@ -641,12 +655,14 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">from_socket</span><span class="op">&lt;</span><span class="ident">WS</span>: <span class="ident">WebSocketService</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(
         <span class="ident">ws</span>: <span class="ident">WS</span>,
         <span class="ident">stream</span>: <span class="ident">WS::Stream</span>,
+        <span class="ident">keep_alive</span>: <span class="ident">bool</span>,
     ) -&gt; (<span class="self">Self</span>, <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span>) {
         <span class="comment">// Create process</span>
         <span class="kw">let</span> (<span class="ident">incoming_request_sink</span>, <span class="ident">incoming_request_stream</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="number">1</span>);
         <span class="kw">let</span> (<span class="ident">outgoing_request_sink</span>, <span class="ident">outgoing_requests</span>) <span class="op">=</span> <span class="ident">mpsc::channel</span>(<span class="number">1</span>);
 
         <span class="kw">let</span> <span class="ident">process</span> <span class="op">=</span> <span class="ident">SignalWebSocketProcess</span> {
+            <span class="ident">keep_alive</span>,
             <span class="ident">requests</span>: <span class="ident">outgoing_requests</span>,
             <span class="ident">request_sink</span>: <span class="ident">incoming_request_sink</span>,
             <span class="ident">outgoing_request_map</span>: <span class="ident">HashMap::default</span>(),
