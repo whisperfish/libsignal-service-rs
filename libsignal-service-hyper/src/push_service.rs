@@ -454,7 +454,7 @@ impl PushService for HyperPushService {
             )
             .await?;
 
-        log::debug!("AwcPushService::PUT response: {:?}", response);
+        log::debug!("HyperPushService::PUT response: {:?}", response);
 
         Ok(())
     }
