@@ -846,6 +846,22 @@
 <span id="846">846</span>
 <span id="847">847</span>
 <span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
+<span id="859">859</span>
+<span id="860">860</span>
+<span id="861">861</span>
+<span id="862">862</span>
+<span id="863">863</span>
+<span id="864">864</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std</span>::{<span class="ident">convert::TryInto</span>, <span class="ident">fmt</span>, <span class="ident">ops::Deref</span>, <span class="ident">time::Duration</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::{
@@ -991,6 +1007,13 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="ident">NoOverride</span>,
     <span class="ident">Unidentified</span>,
     <span class="ident">Identified</span>(<span class="ident">HttpAuth</span>),
+}
+
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Clone</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">AvatarWrite</span><span class="op">&lt;</span><span class="ident">C</span><span class="op">&gt;</span> {
+    <span class="ident">NewAvatar</span>(<span class="ident">C</span>),
+    <span class="ident">RetainAvatar</span>,
+    <span class="ident">NoAvatar</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">fmt::Debug</span> <span class="kw">for</span> <span class="ident">HttpAuth</span> {
@@ -1622,15 +1645,14 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="doccomment">/// See [`AccountManager`][struct@crate::AccountManager] for a convenience method.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// Java equivalent: `writeProfile`</span>
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">write_profile</span>(
+    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">write_profile</span><span class="op">&lt;</span><span class="lifetime">&#39;s</span>, <span class="ident">C</span>: <span class="ident">std::io::Read</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;s</span>, <span class="ident">S</span>: <span class="ident">AsRef</span><span class="op">&lt;</span><span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;mut</span> <span class="self">self</span>,
         <span class="ident">version</span>: <span class="kw-2">&amp;</span><span class="ident">ProfileKeyVersion</span>,
         <span class="ident">name</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">about</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">emoji</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
         <span class="ident">commitment</span>: <span class="kw-2">&amp;</span><span class="ident">ProfileKeyCommitment</span>,
-        <span class="comment">// FIXME cfr also account manager</span>
-        <span class="ident">avatar</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span>()<span class="op">&gt;</span>,
+        <span class="ident">avatar</span>: <span class="ident">AvatarWrite</span><span class="op">&lt;</span><span class="kw-2">&amp;mut</span> <span class="ident">C</span><span class="op">&gt;</span>,
     ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>, <span class="ident">ServiceError</span><span class="op">&gt;</span> {
         <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Serialize</span>)]</span>
         <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">rename_all</span> <span class="op">=</span> <span class="string">&quot;camelCase&quot;</span>)]</span>
@@ -1644,6 +1666,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_base64&quot;</span>)]</span>
             <span class="ident">about_emoji</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> [<span class="ident">u8</span>],
             <span class="ident">avatar</span>: <span class="ident">bool</span>,
+            <span class="ident">same_avatar</span>: <span class="ident">bool</span>,
             <span class="attribute">#[<span class="ident">serde</span>(<span class="ident">with</span> <span class="op">=</span> <span class="string">&quot;serde_base64&quot;</span>)]</span>
             <span class="ident">commitment</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;s</span> [<span class="ident">u8</span>],
         }
@@ -1659,7 +1682,8 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             <span class="ident">name</span>,
             <span class="ident">about</span>,
             <span class="ident">about_emoji</span>: <span class="ident">emoji</span>,
-            <span class="ident">avatar</span>: <span class="ident">avatar</span>.<span class="ident">is_some</span>(),
+            <span class="ident">avatar</span>: <span class="macro">matches!</span>(<span class="ident">avatar</span>, <span class="ident">AvatarWrite::NewAvatar</span>(<span class="kw">_</span>)),
+            <span class="ident">same_avatar</span>: <span class="macro">matches!</span>(<span class="ident">avatar</span>, <span class="ident">AvatarWrite::RetainAvatar</span>),
             <span class="ident">commitment</span>: <span class="kw-2">&amp;</span><span class="ident">commitment</span>,
         };
 
@@ -1673,19 +1697,27 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             )
             .<span class="kw">await</span>;
         <span class="kw">match</span> (<span class="ident">response</span>, <span class="ident">avatar</span>) {
-            (<span class="prelude-val">Ok</span>(<span class="ident">_url</span>), <span class="prelude-val">Some</span>(<span class="ident">_avatar</span>)) =&gt; {
+            (<span class="prelude-val">Ok</span>(<span class="ident">_url</span>), <span class="ident">AvatarWrite::NewAvatar</span>(<span class="ident">_avatar</span>)) =&gt; {
                 <span class="comment">// FIXME</span>
                 <span class="macro">unreachable!</span>(<span class="string">&quot;Uploading avatar unimplemented&quot;</span>);
             },
             <span class="comment">// FIXME cleanup when #54883 is stable and MSRV:</span>
             <span class="comment">// or-patterns syntax is experimental</span>
             <span class="comment">// see issue #54883 &lt;https://github.com/rust-lang/rust/issues/54883&gt; for more information</span>
-            (<span class="prelude-val">Err</span>(<span class="ident">ServiceError::JsonDecodeError</span> { .. }), <span class="prelude-val">None</span>) =&gt; {
+            (
+                <span class="prelude-val">Err</span>(<span class="ident">ServiceError::JsonDecodeError</span> { .. }),
+                <span class="ident">AvatarWrite::RetainAvatar</span>,
+            )
+            <span class="op">|</span> (
+                <span class="prelude-val">Err</span>(<span class="ident">ServiceError::JsonDecodeError</span> { .. }),
+                <span class="ident">AvatarWrite::NoAvatar</span>,
+            ) =&gt; {
                 <span class="comment">// OWS sends an empty string when there&#39;s no attachment</span>
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
             },
             (<span class="prelude-val">Err</span>(<span class="ident">e</span>), <span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(<span class="ident">e</span>),
-            (<span class="prelude-val">Ok</span>(<span class="ident">_resp</span>), <span class="prelude-val">None</span>) =&gt; {
+            (<span class="prelude-val">Ok</span>(<span class="ident">_resp</span>), <span class="ident">AvatarWrite::RetainAvatar</span>)
+            <span class="op">|</span> (<span class="prelude-val">Ok</span>(<span class="ident">_resp</span>), <span class="ident">AvatarWrite::NoAvatar</span>) =&gt; {
                 <span class="macro">log::warn!</span>(
                     <span class="string">&quot;No avatar supplied but got avatar upload URL. Ignoring&quot;</span>
                 );
