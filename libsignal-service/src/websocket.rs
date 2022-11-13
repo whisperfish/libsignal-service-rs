@@ -58,6 +58,9 @@ struct SignalWebSocketInner {
 }
 
 struct SignalWebSocketProcess<WS: WebSocketService> {
+    /// Whether to enable keep-alive or not
+    keep_alive: bool,
+
     /// Receives requests from the application, which we forward to Signal.
     requests: mpsc::Receiver<(
         WebSocketRequestMessage,
@@ -199,7 +202,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                         Some(WebSocketStreamItem::Message(frame)) => {
                             self.process_frame(frame).await?;
                         }
-                        Some(WebSocketStreamItem::KeepAliveRequest) => {
+                        Some(WebSocketStreamItem::KeepAliveRequest) if self.keep_alive => {
                             // XXX: would be nicer if we could drop this request into the request
                             // queue above.
                             log::debug!("Sending keep alive upon request");
@@ -217,6 +220,9 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             };
                             let buffer = msg.encode_to_vec();
                             self.ws.send_message(buffer.into()).await?
+                        }
+                        Some(WebSocketStreamItem::KeepAliveRequest) => {
+                            log::debug!("keep alive is disabled: ignoring request");
                         }
                         None => {
                             return Err(ServiceError::WsError {
@@ -259,12 +265,14 @@ impl SignalWebSocket {
     pub fn from_socket<WS: WebSocketService + 'static>(
         ws: WS,
         stream: WS::Stream,
+        keep_alive: bool,
     ) -> (Self, impl Future<Output = ()>) {
         // Create process
         let (incoming_request_sink, incoming_request_stream) = mpsc::channel(1);
         let (outgoing_request_sink, outgoing_requests) = mpsc::channel(1);
 
         let process = SignalWebSocketProcess {
+            keep_alive,
             requests: outgoing_requests,
             request_sink: incoming_request_sink,
             outgoing_request_map: HashMap::default(),
