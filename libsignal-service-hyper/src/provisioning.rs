@@ -1,7 +1,6 @@
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
 use url::Url;
 
-use crate::push_service::AwcPushService;
 use libsignal_protocol::{
     generate_registration_id,
     keys::{PrivateKey, PublicKey},
