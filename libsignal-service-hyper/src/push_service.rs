@@ -470,10 +470,9 @@ impl PushService for HyperPushService {
             self.cfg.base_url(Endpoint::Service),
             path,
             credentials.as_ref(),
-            keep_alive,
         )
         .await?;
-        let (ws, task) = SignalWebSocket::from_socket(ws, stream);
+        let (ws, task) = SignalWebSocket::from_socket(ws, stream, keep_alive);
         tokio::task::spawn(task);
         Ok(ws)
     }

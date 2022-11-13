@@ -142,6 +142,7 @@ where
                     sender_device: envelope.source_device(),
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
+                    unidentified_sender: false,
                 };
 
                 let mut data = message_decrypt_prekey(
@@ -182,6 +183,7 @@ where
                     sender_device: envelope.source_device(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
+                    unidentified_sender: false,
                 };
 
                 let mut data = message_decrypt_signal(
@@ -248,6 +250,7 @@ where
                     sender_device: device_id.into(),
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
+                    unidentified_sender: true,
                 };
 
                 strip_padding(&mut message)?;
