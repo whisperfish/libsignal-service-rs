@@ -46,9 +46,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.can-fail }}
     strategy:
       fail-fast: false
-      continue-on-error: ${{ matrix.can-fail }}
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
         toolchain: ["stable", "nightly"]
