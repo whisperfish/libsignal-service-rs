@@ -109,10 +109,6 @@ pub enum MessageSenderError {
     MaximumRetriesLimitExceeded,
 }
 
-static_assertions::const_assert!(
-    std::mem::size_of::<MessageSenderError>() <= 64
-);
-
 impl<Service, S, I, SP, P, SK, R> MessageSender<Service, S, I, SP, P, SK, R>
 where
     Service: PushService + Clone,

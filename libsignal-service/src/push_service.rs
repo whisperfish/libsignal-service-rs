@@ -401,8 +401,6 @@ pub enum ServiceError {
     UnsupportedContent,
 }
 
-static_assertions::const_assert!(std::mem::size_of::<ServiceError>() <= 64);
-
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait PushService: MaybeSend {
