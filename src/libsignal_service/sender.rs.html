@@ -779,21 +779,6 @@
 <span id="779">779</span>
 <span id="780">780</span>
 <span id="781">781</span>
-<span id="782">782</span>
-<span id="783">783</span>
-<span id="784">784</span>
-<span id="785">785</span>
-<span id="786">786</span>
-<span id="787">787</span>
-<span id="788">788</span>
-<span id="789">789</span>
-<span id="790">790</span>
-<span id="791">791</span>
-<span id="792">792</span>
-<span id="793">793</span>
-<span id="794">794</span>
-<span id="795">795</span>
-<span id="796">796</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::time::SystemTime</span>;
 
 <span class="kw">use</span> <span class="ident">chrono::prelude</span>::<span class="kw-2">*</span>;
@@ -901,23 +886,8 @@
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Untrusted identity key with {identifier}&quot;</span>)]</span>
     <span class="ident">UntrustedIdentity</span> { <span class="ident">identifier</span>: <span class="ident">String</span> },
 
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;No pre-key found to establish session with {0:?}&quot;</span>)]</span>
-    <span class="ident">NoPreKey</span>(<span class="ident">ServiceAddress</span>),
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Please try again&quot;</span>)]</span>
-    <span class="ident">TryAgain</span>,
-
     <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Exceeded maximum number of retries&quot;</span>)]</span>
     <span class="ident">MaximumRetriesLimitExceeded</span>,
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Network failure sending message to {recipient}&quot;</span>)]</span>
-    <span class="ident">NetworkFailure</span> { <span class="ident">recipient</span>: <span class="ident">ServiceAddress</span> },
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Unregistered recipient {recipient}&quot;</span>)]</span>
-    <span class="ident">UnregisteredFailure</span> { <span class="ident">recipient</span>: <span class="ident">ServiceAddress</span> },
-
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Identity verification failure with {recipient}&quot;</span>)]</span>
-    <span class="ident">IdentityFailure</span> { <span class="ident">recipient</span>: <span class="ident">ServiceAddress</span> },
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">Service</span>, <span class="ident">S</span>, <span class="ident">I</span>, <span class="ident">SP</span>, <span class="ident">P</span>, <span class="ident">SK</span>, <span class="ident">R</span><span class="op">&gt;</span> <span class="ident">MessageSender</span><span class="op">&lt;</span><span class="ident">Service</span>, <span class="ident">S</span>, <span class="ident">I</span>, <span class="ident">SP</span>, <span class="ident">P</span>, <span class="ident">SK</span>, <span class="ident">R</span><span class="op">&gt;</span>
