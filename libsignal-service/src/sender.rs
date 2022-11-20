@@ -105,23 +105,8 @@ pub enum MessageSenderError {
     #[error("Untrusted identity key with {identifier}")]
     UntrustedIdentity { identifier: String },
 
-    #[error("No pre-key found to establish session with {0:?}")]
-    NoPreKey(ServiceAddress),
-
-    #[error("Please try again")]
-    TryAgain,
-
     #[error("Exceeded maximum number of retries")]
     MaximumRetriesLimitExceeded,
-
-    #[error("Network failure sending message to {recipient}")]
-    NetworkFailure { recipient: ServiceAddress },
-
-    #[error("Unregistered recipient {recipient}")]
-    UnregisteredFailure { recipient: ServiceAddress },
-
-    #[error("Identity verification failure with {recipient}")]
-    IdentityFailure { recipient: ServiceAddress },
 }
 
 impl<Service, S, I, SP, P, SK, R> MessageSender<Service, S, I, SP, P, SK, R>
