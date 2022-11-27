@@ -19,6 +19,7 @@ use crate::{
     },
     push_service::*,
     session_store::SessionStoreExt,
+    websocket::SignalWebSocket,
     ServiceAddress,
 };
 
@@ -75,6 +76,7 @@ pub struct AttachmentSpec {
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
 pub struct MessageSender<Service, S, I, SP, P, SK, R> {
+    ws: SignalWebSocket,
     service: Service,
     cipher: ServiceCipher<S, I, SP, P, SK, R>,
     csprng: R,
@@ -120,6 +122,7 @@ where
     R: Rng + CryptoRng + Clone,
 {
     pub fn new(
+        ws: SignalWebSocket,
         service: Service,
         cipher: ServiceCipher<S, I, SP, P, SK, R>,
         csprng: R,
@@ -130,6 +133,7 @@ where
     ) -> Self {
         MessageSender {
             service,
+            ws,
             cipher,
             csprng,
             session_store,
@@ -184,7 +188,7 @@ where
 
         // Request upload attributes
         log::trace!("Requesting upload attributes");
-        let attrs = self.service.get_attachment_v2_upload_attributes().await?;
+        let attrs = self.ws.get_attachment_v2_upload_attributes().await?;
 
         log::trace!("Uploading attachment");
         let (id, digest) = self
@@ -464,7 +468,7 @@ where
                 online,
             };
 
-            match self.service.send_messages(messages).await {
+            match self.ws.send_messages(messages).await {
                 Ok(SendMessageResponse { needs_sync }) => {
                     log::debug!("message sent!");
                     return Ok(SentMessage {
