@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service-actix/src/websocket.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>websocket.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../libsignal_service_actix/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../libsignal_service_actix/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../libsignal_service_actix/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service-actix/src/websocket.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>websocket.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../libsignal_service_actix/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../libsignal_service_actix/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../libsignal_service_actix/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -199,139 +199,139 @@
 <span id="199">199</span>
 <span id="200">200</span>
 <span id="201">201</span>
-</pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">awc</span>::{
-    <span class="ident">error</span>::{<span class="ident">WsClientError</span>, <span class="ident">WsProtocolError</span>},
-    <span class="ident">http::StatusCode</span>,
-    <span class="ident">ws</span>,
-    <span class="ident">ws::Frame</span>,
+</pre><pre class="rust"><code><span class="kw">use </span>awc::{
+    error::{WsClientError, WsProtocolError},
+    http::StatusCode,
+    ws,
+    ws::Frame,
 };
-<span class="kw">use</span> <span class="ident">bytes::Bytes</span>;
-<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">channel::mpsc</span>::<span class="kw-2">*</span>, <span class="ident">prelude</span>::<span class="kw-2">*</span>};
-<span class="kw">use</span> <span class="ident">url::Url</span>;
+<span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>futures::{channel::mpsc::<span class="kw-2">*</span>, prelude::<span class="kw-2">*</span>};
+<span class="kw">use </span>url::Url;
 
-<span class="kw">use</span> <span class="ident">libsignal_service</span>::{
-    <span class="ident">configuration::ServiceCredentials</span>,
-    <span class="ident">messagepipe</span>::<span class="kw-2">*</span>,
-    <span class="ident">push_service</span>::{<span class="self">self</span>, <span class="ident">ServiceError</span>},
+<span class="kw">use </span>libsignal_service::{
+    configuration::ServiceCredentials,
+    messagepipe::<span class="kw-2">*</span>,
+    push_service::{<span class="self">self</span>, ServiceError},
 };
 
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AwcWebSocket</span> {
-    <span class="ident">socket_sink</span>: <span class="ident">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="ident">Sink</span><span class="op">&lt;</span><span class="ident">ws::Message</span>, <span class="ident">Error</span> <span class="op">=</span> <span class="ident">WsProtocolError</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Unpin</span><span class="op">&gt;</span>,
+<span class="kw">pub struct </span>AwcWebSocket {
+    socket_sink: Box&lt;<span class="kw">dyn </span>Sink&lt;ws::Message, Error = WsProtocolError&gt; + Unpin&gt;,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">thiserror::Error</span>, <span class="ident">Debug</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">AwcWebSocketError</span> {
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Could not connect to the Signal Server&quot;</span>)]</span>
-    <span class="ident">ConnectionError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">awc::error::WsClientError</span>),
-    <span class="attribute">#[<span class="ident">error</span>(<span class="string">&quot;Error during Websocket connection&quot;</span>)]</span>
-    <span class="ident">ProtocolError</span>(<span class="attribute">#[<span class="ident">from</span>]</span> <span class="ident">WsProtocolError</span>),
+<span class="attribute">#[derive(thiserror::Error, Debug)]
+</span><span class="kw">pub enum </span>AwcWebSocketError {
+    <span class="attribute">#[error(<span class="string">&quot;Could not connect to the Signal Server&quot;</span>)]
+    </span>ConnectionError(<span class="attribute">#[from] </span>awc::error::WsClientError),
+    <span class="attribute">#[error(<span class="string">&quot;Error during Websocket connection&quot;</span>)]
+    </span>ProtocolError(<span class="attribute">#[from] </span>WsProtocolError),
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">AwcWebSocketError</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ServiceError</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">e</span>: <span class="ident">AwcWebSocketError</span>) -&gt; <span class="ident">ServiceError</span> {
-        <span class="kw">match</span> <span class="ident">e</span> {
-            <span class="ident">AwcWebSocketError::ConnectionError</span>(<span class="ident">e</span>) =&gt; <span class="kw">match</span> <span class="ident">e</span> {
-                <span class="ident">WsClientError::InvalidResponseStatus</span>(<span class="ident">s</span>) =&gt; <span class="kw">match</span> <span class="ident">s</span> {
-                    <span class="ident">StatusCode::FORBIDDEN</span> =&gt; <span class="ident">ServiceError::Unauthorized</span>,
-                    <span class="ident">s</span> =&gt; <span class="ident">ServiceError::WsError</span> {
-                        <span class="ident">reason</span>: <span class="macro">format!</span>(<span class="string">&quot;HTTP status {}&quot;</span>, <span class="ident">s</span>),
+<span class="kw">impl </span>From&lt;AwcWebSocketError&gt; <span class="kw">for </span>ServiceError {
+    <span class="kw">fn </span>from(e: AwcWebSocketError) -&gt; ServiceError {
+        <span class="kw">match </span>e {
+            AwcWebSocketError::ConnectionError(e) =&gt; <span class="kw">match </span>e {
+                WsClientError::InvalidResponseStatus(s) =&gt; <span class="kw">match </span>s {
+                    StatusCode::FORBIDDEN =&gt; ServiceError::Unauthorized,
+                    s =&gt; ServiceError::WsError {
+                        reason: <span class="macro">format!</span>(<span class="string">&quot;HTTP status {}&quot;</span>, s),
                     },
                 },
-                <span class="ident">e</span> =&gt; <span class="ident">ServiceError::WsError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                e =&gt; ServiceError::WsError {
+                    reason: e.to_string(),
                 },
             },
-            <span class="ident">AwcWebSocketError::ProtocolError</span>(<span class="ident">e</span>) =&gt; <span class="kw">match</span> <span class="ident">e</span> {
-                <span class="ident">WsProtocolError::Io</span>(<span class="ident">e</span>) =&gt; <span class="kw">match</span> <span class="ident">e</span>.<span class="ident">kind</span>() {
-                    <span class="ident">std::io::ErrorKind::UnexpectedEof</span> =&gt; {
-                        <span class="ident">ServiceError::WsClosing</span> {
-                            <span class="ident">reason</span>: <span class="macro">format!</span>(
+            AwcWebSocketError::ProtocolError(e) =&gt; <span class="kw">match </span>e {
+                WsProtocolError::Io(e) =&gt; <span class="kw">match </span>e.kind() {
+                    std::io::ErrorKind::UnexpectedEof =&gt; {
+                        ServiceError::WsClosing {
+                            reason: <span class="macro">format!</span>(
                                 <span class="string">&quot;WebSocket closing due to unexpected EOF: {}&quot;</span>,
-                                <span class="ident">e</span>
+                                e
                             ),
                         }
                     },
-                    <span class="kw">_</span> =&gt; <span class="ident">ServiceError::WsError</span> {
-                        <span class="ident">reason</span>: <span class="macro">format!</span>(
+                    <span class="kw">_ </span>=&gt; ServiceError::WsError {
+                        reason: <span class="macro">format!</span>(
                             <span class="string">&quot;IO error during WebSocket connection: {}&quot;</span>,
-                            <span class="ident">e</span>
+                            e
                         ),
                     },
                 },
-                <span class="ident">e</span> =&gt; <span class="ident">ServiceError::WsError</span> {
-                    <span class="ident">reason</span>: <span class="ident">e</span>.<span class="ident">to_string</span>(),
+                e =&gt; ServiceError::WsError {
+                    reason: e.to_string(),
                 },
             },
         }
     }
 }
 
-<span class="doccomment">/// Process the WebSocket, until it times out.</span>
-<span class="kw">async</span> <span class="kw">fn</span> <span class="ident">process</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&gt;</span>(
-    <span class="ident">socket_stream</span>: <span class="ident">S</span>,
-    <span class="kw-2">mut</span> <span class="ident">incoming_sink</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">WebSocketStreamItem</span><span class="op">&gt;</span>,
-) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AwcWebSocketError</span><span class="op">&gt;</span>
-<span class="kw">where</span>
-    <span class="ident">S</span>: <span class="ident">Unpin</span>,
-    <span class="ident">S</span>: <span class="ident">Stream</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Frame</span>, <span class="ident">WsProtocolError</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="doccomment">/// Process the WebSocket, until it times out.
+</span><span class="kw">async fn </span>process&lt;S: Stream&gt;(
+    socket_stream: S,
+    <span class="kw-2">mut </span>incoming_sink: Sender&lt;WebSocketStreamItem&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), AwcWebSocketError&gt;
+<span class="kw">where
+    </span>S: Unpin,
+    S: Stream&lt;Item = <span class="prelude-ty">Result</span>&lt;Frame, WsProtocolError&gt;&gt;,
 {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">socket_stream</span> <span class="op">=</span> <span class="ident">socket_stream</span>.<span class="ident">fuse</span>();
+    <span class="kw">let </span><span class="kw-2">mut </span>socket_stream = socket_stream.fuse();
 
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ka_interval</span> <span class="op">=</span> <span class="ident">actix::clock::interval_at</span>(
-        <span class="ident">actix::clock::Instant::now</span>(),
-        <span class="ident">push_service::KEEPALIVE_TIMEOUT_SECONDS</span>,
+    <span class="kw">let </span><span class="kw-2">mut </span>ka_interval = actix::clock::interval_at(
+        actix::clock::Instant::now(),
+        push_service::KEEPALIVE_TIMEOUT_SECONDS,
     );
 
-    <span class="kw">loop</span> {
-        <span class="kw">let</span> <span class="ident">tick</span> <span class="op">=</span> <span class="ident">ka_interval</span>.<span class="ident">tick</span>().<span class="ident">fuse</span>();
-        <span class="macro">futures::pin_mut!</span>(<span class="ident">tick</span>);
-        <span class="macro">futures::select!</span> {
-            <span class="kw">_</span> <span class="op">=</span> <span class="ident">tick</span> =&gt; {
+    <span class="kw">loop </span>{
+        <span class="kw">let </span>tick = ka_interval.tick().fuse();
+        <span class="macro">futures::pin_mut!</span>(tick);
+        <span class="macro">futures::select! </span>{
+            <span class="kw">_ </span>= tick =&gt; {
                 <span class="macro">log::trace!</span>(<span class="string">&quot;Triggering keep-alive&quot;</span>);
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">incoming_sink</span>.<span class="ident">send</span>(<span class="ident">WebSocketStreamItem::KeepAliveRequest</span>).<span class="kw">await</span> {
-                    <span class="macro">log::info!</span>(<span class="string">&quot;Websocket sink has closed: {:?}.&quot;</span>, <span class="ident">e</span>);
+                <span class="kw">if let </span><span class="prelude-val">Err</span>(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).<span class="kw">await </span>{
+                    <span class="macro">log::info!</span>(<span class="string">&quot;Websocket sink has closed: {:?}.&quot;</span>, e);
                     <span class="kw">break</span>;
                 };
             },
-            <span class="ident">frame</span> <span class="op">=</span> <span class="ident">socket_stream</span>.<span class="ident">next</span>() =&gt; {
-                <span class="kw">let</span> <span class="ident">frame</span> <span class="op">=</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">frame</span>) <span class="op">=</span> <span class="ident">frame</span> {
-                    <span class="ident">frame</span>
-                } <span class="kw">else</span> {
+            frame = socket_stream.next() =&gt; {
+                <span class="kw">let </span>frame = <span class="kw">if let </span><span class="prelude-val">Some</span>(frame) = frame {
+                    frame
+                } <span class="kw">else </span>{
                     <span class="macro">log::info!</span>(<span class="string">&quot;process: Socket stream ended&quot;</span>);
                     <span class="kw">break</span>;
                 };
 
-                <span class="kw">let</span> <span class="ident">frame</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">frame</span><span class="question-mark">?</span> {
-                    <span class="ident">Frame::Binary</span>(<span class="ident">s</span>) =&gt; <span class="ident">s</span>,
+                <span class="kw">let </span>frame = <span class="kw">match </span>frame<span class="question-mark">? </span>{
+                    Frame::Binary(s) =&gt; s,
 
-                    <span class="ident">Frame::Continuation</span>(<span class="ident">_c</span>) =&gt; <span class="macro">todo!</span>(),
-                    <span class="ident">Frame::Ping</span>(<span class="ident">msg</span>) =&gt; {
-                        <span class="macro">log::warn!</span>(<span class="string">&quot;Received Ping({:?})&quot;</span>, <span class="ident">msg</span>);
-
-                        <span class="kw">continue</span>;
-                    },
-                    <span class="ident">Frame::Pong</span>(<span class="ident">msg</span>) =&gt; {
-                        <span class="macro">log::trace!</span>(<span class="string">&quot;Received Pong({:?})&quot;</span>, <span class="ident">msg</span>);
+                    Frame::Continuation(_c) =&gt; <span class="macro">todo!</span>(),
+                    Frame::Ping(msg) =&gt; {
+                        <span class="macro">log::warn!</span>(<span class="string">&quot;Received Ping({:?})&quot;</span>, msg);
 
                         <span class="kw">continue</span>;
                     },
-                    <span class="ident">Frame::Text</span>(<span class="ident">frame</span>) =&gt; {
-                        <span class="macro">log::warn!</span>(<span class="string">&quot;Frame::Text {:?}&quot;</span>, <span class="ident">frame</span>);
+                    Frame::Pong(msg) =&gt; {
+                        <span class="macro">log::trace!</span>(<span class="string">&quot;Received Pong({:?})&quot;</span>, msg);
 
-                        <span class="comment">// this is a protocol violation, maybe break; is better?</span>
                         <span class="kw">continue</span>;
                     },
+                    Frame::Text(frame) =&gt; {
+                        <span class="macro">log::warn!</span>(<span class="string">&quot;Frame::Text {:?}&quot;</span>, frame);
 
-                    <span class="ident">Frame::Close</span>(<span class="ident">c</span>) =&gt; {
-                        <span class="macro">log::warn!</span>(<span class="string">&quot;Websocket closing: {:?}&quot;</span>, <span class="ident">c</span>);
+                        <span class="comment">// this is a protocol violation, maybe break; is better?
+                        </span><span class="kw">continue</span>;
+                    },
+
+                    Frame::Close(c) =&gt; {
+                        <span class="macro">log::warn!</span>(<span class="string">&quot;Websocket closing: {:?}&quot;</span>, c);
 
                         <span class="kw">break</span>;
                     },
                 };
 
-                <span class="comment">// Match SendError</span>
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">incoming_sink</span>.<span class="ident">send</span>(<span class="ident">WebSocketStreamItem::Message</span>(<span class="ident">frame</span>)).<span class="kw">await</span> {
-                    <span class="macro">log::info!</span>(<span class="string">&quot;Websocket sink has closed: {:?}.&quot;</span>, <span class="ident">e</span>);
+                <span class="comment">// Match SendError
+                </span><span class="kw">if let </span><span class="prelude-val">Err</span>(e) = incoming_sink.send(WebSocketStreamItem::Message(frame)).<span class="kw">await </span>{
+                    <span class="macro">log::info!</span>(<span class="string">&quot;Websocket sink has closed: {:?}.&quot;</span>, e);
                     <span class="kw">break</span>;
                 }
             },
@@ -340,65 +340,65 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">impl</span> <span class="ident">AwcWebSocket</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">with_client</span>(
-        <span class="ident">client</span>: <span class="kw-2">&amp;mut</span> <span class="ident">awc::Client</span>,
-        <span class="ident">base_url</span>: <span class="kw">impl</span> <span class="ident">std::borrow::Borrow</span><span class="op">&lt;</span><span class="ident">Url</span><span class="op">&gt;</span>,
-        <span class="ident">path</span>: <span class="kw-2">&amp;</span><span class="ident">str</span>,
-        <span class="ident">credentials</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">ServiceCredentials</span><span class="op">&gt;</span>,
-    ) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(<span class="self">Self</span>, <span class="op">&lt;</span><span class="self">Self</span> <span class="kw">as</span> <span class="ident">WebSocketService</span><span class="op">&gt;</span><span class="ident">::Stream</span>), <span class="ident">AwcWebSocketError</span><span class="op">&gt;</span>
+<span class="kw">impl </span>AwcWebSocket {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>with_client(
+        client: <span class="kw-2">&amp;mut </span>awc::Client,
+        base_url: <span class="kw">impl </span>std::borrow::Borrow&lt;Url&gt;,
+        path: <span class="kw-2">&amp;</span>str,
+        credentials: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ServiceCredentials&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(<span class="self">Self</span>, &lt;<span class="self">Self </span><span class="kw">as </span>WebSocketService&gt;::Stream), AwcWebSocketError&gt;
     {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">url</span> <span class="op">=</span> <span class="ident">base_url</span>.<span class="ident">borrow</span>().<span class="ident">join</span>(<span class="ident">path</span>).<span class="ident">expect</span>(<span class="string">&quot;valid url&quot;</span>);
-        <span class="ident">url</span>.<span class="ident">set_scheme</span>(<span class="string">&quot;wss&quot;</span>).<span class="ident">expect</span>(<span class="string">&quot;valid https base url&quot;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>url = base_url.borrow().join(path).expect(<span class="string">&quot;valid url&quot;</span>);
+        url.set_scheme(<span class="string">&quot;wss&quot;</span>).expect(<span class="string">&quot;valid https base url&quot;</span>);
 
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">credentials</span>) <span class="op">=</span> <span class="ident">credentials</span> {
-            <span class="ident">url</span>.<span class="ident">query_pairs_mut</span>()
-                .<span class="ident">append_pair</span>(<span class="string">&quot;login&quot;</span>, <span class="ident">credentials</span>.<span class="ident">login</span>().<span class="ident">as_ref</span>())
-                .<span class="ident">append_pair</span>(
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(credentials) = credentials {
+            url.query_pairs_mut()
+                .append_pair(<span class="string">&quot;login&quot;</span>, credentials.login().as_ref())
+                .append_pair(
                     <span class="string">&quot;password&quot;</span>,
-                    <span class="ident">credentials</span>.<span class="ident">password</span>.<span class="ident">as_ref</span>().<span class="ident">expect</span>(<span class="string">&quot;a password&quot;</span>),
+                    credentials.password.as_ref().expect(<span class="string">&quot;a password&quot;</span>),
                 );
         }
 
-        <span class="macro">log::trace!</span>(<span class="string">&quot;Will start websocket at {:?}&quot;</span>, <span class="ident">url</span>);
-        <span class="kw">let</span> (<span class="ident">response</span>, <span class="ident">framed</span>) <span class="op">=</span> <span class="ident">client</span>.<span class="ident">ws</span>(<span class="ident">url</span>.<span class="ident">as_str</span>()).<span class="ident">connect</span>().<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="macro">log::trace!</span>(<span class="string">&quot;Will start websocket at {:?}&quot;</span>, url);
+        <span class="kw">let </span>(response, framed) = client.ws(url.as_str()).connect().<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="macro">log::debug!</span>(<span class="string">&quot;WebSocket connected: {:?}&quot;</span>, <span class="ident">response</span>);
+        <span class="macro">log::debug!</span>(<span class="string">&quot;WebSocket connected: {:?}&quot;</span>, response);
 
-        <span class="kw">let</span> (<span class="ident">incoming_sink</span>, <span class="ident">incoming_stream</span>) <span class="op">=</span> <span class="ident">channel</span>(<span class="number">5</span>);
+        <span class="kw">let </span>(incoming_sink, incoming_stream) = channel(<span class="number">5</span>);
 
-        <span class="kw">let</span> (<span class="ident">socket_sink</span>, <span class="ident">socket_stream</span>) <span class="op">=</span> <span class="ident">framed</span>.<span class="ident">split</span>();
-        <span class="kw">let</span> <span class="ident">processing_task</span> <span class="op">=</span> <span class="ident">process</span>(<span class="ident">socket_stream</span>, <span class="ident">incoming_sink</span>);
+        <span class="kw">let </span>(socket_sink, socket_stream) = framed.split();
+        <span class="kw">let </span>processing_task = process(socket_stream, incoming_sink);
 
-        <span class="comment">// When the processing_task stops, the consuming stream and sink also</span>
-        <span class="comment">// terminate.</span>
-        <span class="ident">actix_rt::spawn</span>(<span class="ident">processing_task</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">v</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">v</span> {
+        <span class="comment">// When the processing_task stops, the consuming stream and sink also
+        // terminate.
+        </span>actix_rt::spawn(processing_task.map(|v| <span class="kw">match </span>v {
             <span class="prelude-val">Ok</span>(()) =&gt; (),
-            <span class="prelude-val">Err</span>(<span class="ident">e</span>) =&gt; {
-                <span class="macro">log::warn!</span>(<span class="string">&quot;Processing task terminated with error: {:?}&quot;</span>, <span class="ident">e</span>)
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="macro">log::warn!</span>(<span class="string">&quot;Processing task terminated with error: {:?}&quot;</span>, e)
             },
         }));
 
         <span class="prelude-val">Ok</span>((
-            <span class="self">Self</span> {
-                <span class="ident">socket_sink</span>: <span class="ident">Box::new</span>(<span class="ident">socket_sink</span>),
+            <span class="self">Self </span>{
+                socket_sink: Box::new(socket_sink),
             },
-            <span class="ident">incoming_stream</span>,
+            incoming_stream,
         ))
     }
 }
 
-<span class="attribute">#[<span class="ident">async_trait::async_trait</span>(<span class="question-mark">?</span><span class="ident">Send</span>)]</span>
-<span class="kw">impl</span> <span class="ident">WebSocketService</span> <span class="kw">for</span> <span class="ident">AwcWebSocket</span> {
-    <span class="kw">type</span> <span class="ident">Stream</span> <span class="op">=</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">WebSocketStreamItem</span><span class="op">&gt;</span>;
+<span class="attribute">#[async_trait::async_trait(<span class="question-mark">?</span>Send)]
+</span><span class="kw">impl </span>WebSocketService <span class="kw">for </span>AwcWebSocket {
+    <span class="kw">type </span>Stream = Receiver&lt;WebSocketStreamItem&gt;;
 
-    <span class="kw">async</span> <span class="kw">fn</span> <span class="ident">send_message</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">msg</span>: <span class="ident">Bytes</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">ServiceError</span><span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">socket_sink</span>
-            .<span class="ident">send</span>(<span class="ident">ws::Message::Binary</span>(<span class="ident">msg</span>))
-            .<span class="kw">await</span>
-            .<span class="ident">map_err</span>(<span class="ident">AwcWebSocketError::from</span>)<span class="question-mark">?</span>;
+    <span class="kw">async fn </span>send_message(<span class="kw-2">&amp;mut </span><span class="self">self</span>, msg: Bytes) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt; {
+        <span class="self">self</span>.socket_sink
+            .send(ws::Message::Binary(msg))
+            .<span class="kw">await
+            </span>.map_err(AwcWebSocketError::from)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_service_actix" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="libsignal_service_actix" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0 (897e37553 2022-11-02)" ></div></body></html>
