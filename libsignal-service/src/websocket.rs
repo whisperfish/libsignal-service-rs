@@ -10,7 +10,7 @@ use futures::future::BoxFuture;
 use futures::prelude::*;
 use futures::stream::FuturesUnordered;
 use prost::Message;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::messagepipe::{WebSocketService, WebSocketStreamItem};
 use crate::proto::{
@@ -20,6 +20,7 @@ use crate::proto::{
 use crate::push_service::ServiceError;
 
 mod attachment_service;
+mod sender;
 
 type RequestStreamItem = (
     WebSocketRequestMessage,
@@ -401,6 +402,29 @@ impl SignalWebSocket {
         let request = WebSocketRequestMessage {
             path: Some(path.into()),
             verb: Some("GET".into()),
+            ..Default::default()
+        };
+        self.request_json(request).await
+    }
+
+    pub(crate) async fn put_json<D, S>(
+        &mut self,
+        path: &str,
+        value: S,
+    ) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: Serialize,
+    {
+        let request = WebSocketRequestMessage {
+            path: Some(path.into()),
+            verb: Some("PUT".into()),
+            headers: vec!["content-type:application/json".into()],
+            body: Some(serde_json::to_vec(&value).map_err(|e| {
+                ServiceError::SendError {
+                    reason: format!("Serializing JSON {}", e),
+                }
+            })?),
             ..Default::default()
         };
         self.request_json(request).await

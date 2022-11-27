@@ -229,7 +229,7 @@ pub struct PreKeyResponseItem {
 }
 
 impl PreKeyResponseItem {
-    fn into_bundle(
+    pub(crate) fn into_bundle(
         self,
         identity: IdentityKey,
     ) -> Result<PreKeyBundle, SignalProtocolError> {
