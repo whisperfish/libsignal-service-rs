@@ -252,7 +252,6 @@ impl HyperPushService {
 impl PushService for HyperPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
-    type WebSocket = TungsteniteWebSocket;
 
     async fn get_json<T>(
         &mut self,

@@ -123,7 +123,6 @@ impl AwcPushService {
 impl PushService for AwcPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
-    type WebSocket = AwcWebSocket;
 
     async fn get_json<T>(
         &mut self,

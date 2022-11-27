@@ -4,7 +4,6 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
     groups_v2::GroupDecryptionError,
-    messagepipe::WebSocketService,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
@@ -404,7 +403,6 @@ pub enum ServiceError {
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait PushService: MaybeSend {
-    type WebSocket: WebSocketService;
     type ByteStream: futures::io::AsyncRead + Unpin;
 
     async fn get_json<T>(
