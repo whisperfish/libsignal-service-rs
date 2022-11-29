@@ -1680,7 +1680,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             name,
             about,
             about_emoji: emoji,
-            avatar: <span class="macro">matches!</span>(avatar, AvatarWrite::NewAvatar(<span class="kw">_</span>)),
+            avatar: !<span class="macro">matches!</span>(avatar, AvatarWrite::NoAvatar),
             same_avatar: <span class="macro">matches!</span>(avatar, AvatarWrite::RetainAvatar),
             commitment: <span class="kw-2">&amp;</span>commitment,
         };
