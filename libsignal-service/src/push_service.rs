@@ -817,7 +817,7 @@ pub trait PushService: MaybeSend {
             name,
             about,
             about_emoji: emoji,
-            avatar: matches!(avatar, AvatarWrite::NewAvatar(_)),
+            avatar: !matches!(avatar, AvatarWrite::NoAvatar),
             same_avatar: matches!(avatar, AvatarWrite::RetainAvatar),
             commitment: &commitment,
         };
