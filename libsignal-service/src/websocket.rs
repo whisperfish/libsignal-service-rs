@@ -17,7 +17,7 @@ use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
     WebSocketResponseMessage,
 };
-use crate::push_service::ServiceError;
+use crate::push_service::{MismatchedDevices, ServiceError};
 
 mod attachment_service;
 mod sender;
@@ -377,19 +377,59 @@ impl SignalWebSocket {
     {
         let response = self.request(r).await?;
         if response.status() != 200 {
-            log::error!(
+            log::debug!(
                 "request_json with non-200 status code. message: {}",
                 response.message()
             );
-            return Err(ServiceError::UnhandledResponseCode {
-                http_code: response.status() as u16,
-            });
         }
-        serde_json::from_slice(response.body()).map_err(|e| {
-            ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            }
-        })
+
+        fn json<U>(body: &[u8]) -> Result<U, ServiceError>
+        where
+            for<'de> U: serde::Deserialize<'de>,
+        {
+            serde_json::from_slice(body).map_err(|e| {
+                ServiceError::JsonDecodeError {
+                    reason: e.to_string(),
+                }
+            })
+        }
+
+        match response.status() {
+            200 | 204 => json(response.body()),
+            401 | 403 => Err(ServiceError::Unauthorized),
+            413 /* PAYLOAD_TOO_LARGE */ => Err(ServiceError::RateLimitExceeded) ,
+            409 /* CONFLICT */ => {
+                let mismatched_devices: MismatchedDevices =
+                    json(response.body()).map_err(|e| {
+                        log::error!(
+                            "Failed to decode HTTP 409 response: {}",
+                            e
+                        );
+                        ServiceError::UnhandledResponseCode {
+                            http_code: 409,
+                        }
+                    })?;
+                Err(ServiceError::MismatchedDevicesException(
+                    mismatched_devices,
+                ))
+            },
+            410 /* GONE */ => {
+                let stale_devices =
+                    json(response.body()).map_err(|e| {
+                        log::error!(
+                            "Failed to decode HTTP 410 response: {}",
+                            e
+                        );
+                        ServiceError::UnhandledResponseCode {
+                            http_code: 410,
+                        }
+                    })?;
+                Err(ServiceError::StaleDevices(stale_devices))
+            },
+            _ => Err(ServiceError::UnhandledResponseCode {
+                http_code: response.status() as u16,
+            }),
+        }
     }
 
     pub(crate) async fn get_json<T>(
