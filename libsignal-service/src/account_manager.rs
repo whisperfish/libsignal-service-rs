@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
-use crate::push_service::AvatarWrite;
+use crate::push_service::{AvatarWrite, RecaptchaAttributes};
 use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -437,6 +437,32 @@ impl<Service: PushService> AccountManager<Service> {
             .await?;
 
         Ok(())
+    }
+
+    /// Upload a proof-required reCaptcha token and response.
+    ///
+    /// Token gotten originally with HTTP status 428 response to sending a message.
+    /// Captcha gotten from user completing the challenge captcha.
+    ///
+    /// It's either a silent OK, or throws a ServiceError.
+    pub async fn submit_recaptcha_challenge(
+        &mut self,
+        token: &str,
+        captcha: &str,
+    ) -> Result<(), ServiceError> {
+        let payload = RecaptchaAttributes {
+            r#type: String::from("recaptcha"),
+            token: String::from(token),
+            captcha: String::from(captcha),
+        };
+        self.service
+            .put_json(
+                Endpoint::Service,
+                "/v1/challenge",
+                HttpAuthOverride::NoOverride,
+                payload,
+            )
+            .await
     }
 }
 

@@ -122,6 +122,19 @@ pub struct DeviceCapabilities {
     pub gift_badges: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RecaptchaAttributes {
+    pub r#type: String,
+    pub token: String,
+    pub captcha: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProofRequired {
+    pub token: String,
+    pub options: Vec<String>,
+}
+
 #[derive(Clone)]
 pub struct ProfileKey(pub [u8; 32]);
 
@@ -380,6 +393,9 @@ pub enum ServiceError {
 
     #[error("Protocol error: {0}")]
     SignalProtocolError(#[from] SignalProtocolError),
+
+    #[error("Proof required: {0:?}")]
+    ProofRequiredError(ProofRequired),
 
     #[error("{0:?}")]
     MismatchedDevicesException(MismatchedDevices),
