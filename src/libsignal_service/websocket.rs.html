@@ -470,6 +470,15 @@
 <span id="470">470</span>
 <span id="471">471</span>
 <span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
+<span id="477">477</span>
+<span id="478">478</span>
+<span id="479">479</span>
+<span id="480">480</span>
+<span id="481">481</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 <span class="kw">use </span>std::sync::{Arc, Mutex, MutexGuard};
 
@@ -897,6 +906,15 @@
                         }
                     })<span class="question-mark">?</span>;
                 <span class="prelude-val">Err</span>(ServiceError::StaleDevices(stale_devices))
+            },
+            <span class="number">428 </span><span class="comment">/* PRECONDITION_REQUIRED */ </span>=&gt; {
+                <span class="kw">let </span>proof_required = json(response.body()).map_err(|e| {
+                    <span class="macro">log::error!</span>(<span class="string">&quot;Failed to decode HTTP 428 response: {}&quot;</span>, e);
+                    ServiceError::UnhandledResponseCode {
+                        http_code: <span class="number">428</span>,
+                    }
+                })<span class="question-mark">?</span>;
+                <span class="prelude-val">Err</span>(ServiceError::ProofRequiredError(proof_required))
             },
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(ServiceError::UnhandledResponseCode {
                 http_code: response.status() <span class="kw">as </span>u16,

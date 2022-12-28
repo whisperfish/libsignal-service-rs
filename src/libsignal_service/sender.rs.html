@@ -783,6 +783,17 @@
 <span id="783">783</span>
 <span id="784">784</span>
 <span id="785">785</span>
+<span id="786">786</span>
+<span id="787">787</span>
+<span id="788">788</span>
+<span id="789">789</span>
+<span id="790">790</span>
+<span id="791">791</span>
+<span id="792">792</span>
+<span id="793">793</span>
+<span id="794">794</span>
+<span id="795">795</span>
+<span id="796">796</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::time::SystemTime;
 
 <span class="kw">use </span>chrono::prelude::<span class="kw-2">*</span>;
@@ -894,6 +905,9 @@
 
     <span class="attribute">#[error(<span class="string">&quot;Exceeded maximum number of retries&quot;</span>)]
     </span>MaximumRetriesLimitExceeded,
+
+    <span class="attribute">#[error(<span class="string">&quot;Proof of type {options:?} required using token {token}&quot;</span>)]
+    </span>ProofRequired { token: String, options: Vec&lt;String&gt; },
 }
 
 <span class="kw">impl</span>&lt;Service, S, I, SP, P, SK, R&gt; MessageSender&lt;Service, S, I, SP, P, SK, R&gt;
@@ -906,7 +920,8 @@
     P: PreKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
-    <span class="kw">pub fn </span>new(
+    <span class="attribute">#[allow(clippy::too_many_arguments)]
+    </span><span class="kw">pub fn </span>new(
         ws: SignalWebSocket,
         service: Service,
         cipher: ServiceCipher&lt;S, I, SP, P, SK, R&gt;,
@@ -1322,6 +1337,13 @@
                             )
                             .<span class="kw">await</span><span class="question-mark">?</span>;
                     }
+                },
+                <span class="prelude-val">Err</span>(ServiceError::ProofRequiredError(<span class="kw-2">ref </span>p)) =&gt; {
+                    <span class="macro">log::debug!</span>(<span class="string">&quot;{:?}&quot;</span>, p);
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(MessageSenderError::ProofRequired {
+                        token: p.token.clone(),
+                        options: p.options.clone(),
+                    });
                 },
                 <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(MessageSenderError::ServiceError(e)),
             }

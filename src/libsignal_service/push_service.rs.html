@@ -861,6 +861,22 @@
 <span id="861">861</span>
 <span id="862">862</span>
 <span id="863">863</span>
+<span id="864">864</span>
+<span id="865">865</span>
+<span id="866">866</span>
+<span id="867">867</span>
+<span id="868">868</span>
+<span id="869">869</span>
+<span id="870">870</span>
+<span id="871">871</span>
+<span id="872">872</span>
+<span id="873">873</span>
+<span id="874">874</span>
+<span id="875">875</span>
+<span id="876">876</span>
+<span id="877">877</span>
+<span id="878">878</span>
+<span id="879">879</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{convert::TryInto, fmt, ops::Deref, time::Duration};
 
 <span class="kw">use crate</span>::{
@@ -983,6 +999,19 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     </span><span class="kw">pub </span>stories: bool,
     <span class="attribute">#[serde(default)]
     </span><span class="kw">pub </span>gift_badges: bool,
+}
+
+<span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>RecaptchaAttributes {
+    <span class="kw">pub </span>r#type: String,
+    <span class="kw">pub </span>token: String,
+    <span class="kw">pub </span>captcha: String,
+}
+
+<span class="attribute">#[derive(Debug, Serialize, Deserialize)]
+</span><span class="kw">pub struct </span>ProofRequired {
+    <span class="kw">pub </span>token: String,
+    <span class="kw">pub </span>options: Vec&lt;String&gt;,
 }
 
 <span class="attribute">#[derive(Clone)]
@@ -1243,6 +1272,9 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 
     <span class="attribute">#[error(<span class="string">&quot;Protocol error: {0}&quot;</span>)]
     </span>SignalProtocolError(<span class="attribute">#[from] </span>SignalProtocolError),
+
+    <span class="attribute">#[error(<span class="string">&quot;Proof required: {0:?}&quot;</span>)]
+    </span>ProofRequiredError(ProofRequired),
 
     <span class="attribute">#[error(<span class="string">&quot;{0:?}&quot;</span>)]
     </span>MismatchedDevicesException(MismatchedDevices),
