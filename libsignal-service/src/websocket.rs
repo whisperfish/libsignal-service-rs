@@ -426,6 +426,15 @@ impl SignalWebSocket {
                     })?;
                 Err(ServiceError::StaleDevices(stale_devices))
             },
+            428 /* PRECONDITION_REQUIRED */ => {
+                let proof_required = json(response.body()).map_err(|e| {
+                    log::error!("Failed to decode HTTP 428 response: {}", e);
+                    ServiceError::UnhandledResponseCode {
+                        http_code: 428,
+                    }
+                })?;
+                Err(ServiceError::ProofRequiredError(proof_required))
+            },
             _ => Err(ServiceError::UnhandledResponseCode {
                 http_code: response.status() as u16,
             }),

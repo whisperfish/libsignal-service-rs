@@ -107,6 +107,15 @@ impl AwcPushService {
                 })?;
                 Err(ServiceError::StaleDevices(stale_devices))
             },
+            StatusCode::PRECONDITION_REQUIRED => {
+                let proof_required = response.json().await.map_err(|e| {
+                    log::error!("Failed to decode HTTP 428 response: {}", e);
+                    ServiceError::UnhandledResponseCode {
+                        http_code: StatusCode::PRECONDITION_REQUIRED.as_u16(),
+                    }
+                })?;
+                Err(ServiceError::ProofRequiredError(proof_required))
+            },
             // XXX: fill in rest from PushServiceSocket
             code => {
                 let contents = response.body().await;

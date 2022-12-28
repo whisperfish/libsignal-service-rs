@@ -109,6 +109,9 @@ pub enum MessageSenderError {
 
     #[error("Exceeded maximum number of retries")]
     MaximumRetriesLimitExceeded,
+
+    #[error("Proof of type {options:?} required using token {token}")]
+    ProofRequired { token: String, options: Vec<String> },
 }
 
 impl<Service, S, I, SP, P, SK, R> MessageSender<Service, S, I, SP, P, SK, R>
@@ -537,6 +540,13 @@ where
                             )
                             .await?;
                     }
+                },
+                Err(ServiceError::ProofRequiredError(ref p)) => {
+                    log::debug!("{:?}", p);
+                    return Err(MessageSenderError::ProofRequired {
+                        token: p.token.clone(),
+                        options: p.options.clone(),
+                    });
                 },
                 Err(e) => return Err(MessageSenderError::ServiceError(e)),
             }
