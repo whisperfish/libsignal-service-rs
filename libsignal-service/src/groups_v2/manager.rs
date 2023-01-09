@@ -6,9 +6,8 @@ use std::{
 
 use crate::{
     configuration::Endpoint,
-    groups_v2::operations::{
-        Group, GroupChanges, GroupDecryptionError, GroupOperations,
-    },
+    groups_v2::model::{Group, GroupChanges},
+    groups_v2::operations::{GroupDecryptionError, GroupOperations},
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride},
