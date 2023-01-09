@@ -2,6 +2,7 @@ use core::fmt;
 
 use bytes::Bytes;
 use prost::Message;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::{
     groups::GroupSecretParams,
@@ -20,7 +21,7 @@ pub(crate) struct GroupOperations {
     pub group_secret_params: GroupSecretParams,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct Member {
     pub uuid: Uuid,
     pub role: Role,
@@ -44,7 +45,7 @@ impl fmt::Debug for Member {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PendingMember {
     pub uuid: Uuid,
     pub role: Role,
@@ -52,7 +53,7 @@ pub struct PendingMember {
     pub timestamp: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct RequestingMember {
     pub uuid: Uuid,
     pub profile_key: ProfileKey,
@@ -74,7 +75,7 @@ impl fmt::Debug for RequestingMember {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct Group {
     pub title: String,
     pub avatar: String,
@@ -185,7 +186,7 @@ impl fmt::Debug for GroupChange {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Timer {
     pub duration: u32,
 }

@@ -28,5 +28,11 @@ fn main() {
         })
         .collect();
 
-    prost_build::compile_protos(&input, &[protobuf]).unwrap();
+    let mut prost_config = prost_build::Config::new();
+    let serde_types =
+        ["signalservice.AccessControl", "signalservice.Member.Role"];
+    for serde_type in serde_types {
+        prost_config.type_attribute(serde_type, "#[derive(serde::Deserialize, serde::Serialize)]");
+    }
+    prost_config.compile_protos(&input, &[protobuf]).unwrap();
 }
