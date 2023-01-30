@@ -1,5 +1,4 @@
 include!(concat!(env!("OUT_DIR"), "/signalservice.rs"));
-include!(concat!(env!("OUT_DIR"), "/signal.rs"));
 
 impl WebSocketRequestMessage {
     /// Equivalent of
