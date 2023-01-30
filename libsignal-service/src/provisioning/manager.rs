@@ -281,7 +281,7 @@ impl<P: PushService> LinkingManager<P> {
                 },
                 Ok(ProvisioningStep::Message(message)) => {
                     let uuid = message
-                        .uuid
+                        .aci
                         .ok_or(ProvisioningError::InvalidData {
                             reason: "missing client UUID".into(),
                         })
@@ -294,7 +294,7 @@ impl<P: PushService> LinkingManager<P> {
                         })?;
 
                     let public_key = PublicKey::deserialize(
-                        &message.identity_key_public.ok_or(
+                        &message.aci_identity_key_public.ok_or(
                             ProvisioningError::InvalidData {
                                 reason: "missing public key".into(),
                             },
@@ -302,7 +302,7 @@ impl<P: PushService> LinkingManager<P> {
                     )?;
 
                     let private_key = PrivateKey::deserialize(
-                        &message.identity_key_private.ok_or(
+                        &message.aci_identity_key_private.ok_or(
                             ProvisioningError::InvalidData {
                                 reason: "missing public key".into(),
                             },

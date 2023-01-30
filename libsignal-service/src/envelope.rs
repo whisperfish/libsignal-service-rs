@@ -117,7 +117,6 @@ impl Envelope {
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
             server_guid: entity.source_uuid,
-            legacy_message: entity.message,
             content: entity.content,
             ..Default::default()
         }
@@ -129,9 +128,7 @@ impl Envelope {
             source_device: Some(entity.source_device),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
-            source_e164: source.e164(),
             source_uuid: source.uuid.as_ref().map(|s| s.to_string()),
-            legacy_message: entity.message,
             content: entity.content,
             ..Default::default()
         }
@@ -154,23 +151,16 @@ impl Envelope {
     }
 
     pub fn source_address(&self) -> ServiceAddress {
-        let phonenumber = self
-            .source_e164
-            .as_ref()
-            .map(|s| phonenumber::parse(None, s))
-            .transpose()
-            .expect("valid e164 checked in constructor");
-
         let uuid = self
             .source_uuid
             .as_deref()
             .map(Uuid::parse_str)
             .transpose()
             .expect("valid e164 checked in constructor");
+
         ServiceAddress {
-            phonenumber,
+            phonenumber: None,
             uuid,
-            relay: self.relay.clone(),
         }
     }
 }
@@ -179,13 +169,10 @@ impl Envelope {
 #[serde(rename_all = "camelCase")]
 pub struct EnvelopeEntity {
     pub r#type: i32,
-    pub relay: String,
     pub timestamp: u64,
     pub source: Option<String>,
     pub source_uuid: Option<String>,
     pub source_device: u32,
-    #[serde(default, with = "serde_optional_base64")]
-    pub message: Option<Vec<u8>>,
     #[serde(default, with = "serde_optional_base64")]
     pub content: Option<Vec<u8>>,
     pub server_timestamp: u64,

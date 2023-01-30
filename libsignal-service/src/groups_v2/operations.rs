@@ -9,11 +9,8 @@ use zkgroup::{
 };
 
 use crate::proto::{
-    access_control::AccessRequired, group_attribute_blob,
-    group_change::Actions as EncryptedGroupChangeActions, member::Role,
-    AccessControl, Group as EncryptedGroup, GroupAttributeBlob,
-    GroupChange as EncryptedGroupChange, Member as EncryptedMember,
-    MemberPendingAdminApproval, MemberPendingProfileKey,
+    self, access_control::AccessRequired, group_attribute_blob, member::Role,
+    AccessControl, GroupAttributeBlob, Member as EncryptedMember,
 };
 
 pub(crate) struct GroupOperations {
@@ -80,7 +77,7 @@ pub struct Group {
     pub avatar: String,
     pub disappearing_messages_timer: Option<Timer>,
     pub access_control: Option<AccessControl>,
-    pub version: u32,
+    pub revision: u32,
     pub members: Vec<Member>,
     pub pending_members: Vec<PendingMember>,
     pub requesting_members: Vec<RequestingMember>,
@@ -91,7 +88,7 @@ pub struct Group {
 #[derive(Clone, Debug)]
 pub struct GroupChanges {
     pub editor: Uuid,
-    pub version: u32,
+    pub revision: u32,
     pub changes: Vec<GroupChange>,
 }
 
@@ -281,13 +278,13 @@ impl GroupOperations {
             profile_key,
             role: Role::from_i32(member.role)
                 .ok_or(GroupDecryptionError::WrongBlob)?,
-            joined_at_revision: member.joined_at_version,
+            joined_at_revision: member.joined_at_revision,
         })
     }
 
     fn decrypt_pending_member(
         &self,
-        member: MemberPendingProfileKey,
+        member: proto::PendingMember,
     ) -> Result<PendingMember, GroupDecryptionError> {
         let inner_member =
             member.member.ok_or(GroupDecryptionError::WrongBlob)?;
@@ -306,7 +303,7 @@ impl GroupOperations {
 
     fn decrypt_requesting_member(
         &self,
-        member: MemberPendingAdminApproval,
+        member: proto::RequestingMember,
     ) -> Result<RequestingMember, GroupDecryptionError> {
         let (uuid, profile_key) = if member.presentation.is_empty() {
             let uuid = self.decrypt_uuid(&member.user_id)?;
@@ -355,9 +352,7 @@ impl GroupOperations {
     fn decrypt_description(&self, ciphertext: &[u8]) -> Option<String> {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
-            Some(Content::DescriptionText(d)) => {
-                Some(d).filter(|d| !d.is_empty())
-            },
+            Some(Content::Description(d)) => Some(d).filter(|d| !d.is_empty()),
             _ => None,
         }
     }
@@ -383,11 +378,11 @@ impl GroupOperations {
 
     pub fn decrypt_group(
         &self,
-        group: EncryptedGroup,
+        group: proto::Group,
     ) -> Result<Group, GroupDecryptionError> {
         let title = self.decrypt_title(&group.title);
 
-        let description = self.decrypt_description(&group.description_bytes);
+        let description = self.decrypt_description(&group.description);
 
         let disappearing_messages_timer = self
             .decrypt_disappearing_message_timer(
@@ -401,13 +396,13 @@ impl GroupOperations {
             .collect::<Result<_, _>>()?;
 
         let pending_members = group
-            .members_pending_profile_key
+            .pending_members
             .into_iter()
             .map(|m| self.decrypt_pending_member(m))
             .collect::<Result<_, _>>()?;
 
         let requesting_members = group
-            .members_pending_admin_approval
+            .requesting_members
             .into_iter()
             .map(|m| self.decrypt_requesting_member(m))
             .collect::<Result<_, _>>()?;
@@ -417,7 +412,7 @@ impl GroupOperations {
             avatar: group.avatar,
             disappearing_messages_timer,
             access_control: group.access_control,
-            version: group.version,
+            revision: group.revision,
             members,
             pending_members,
             requesting_members,
@@ -428,9 +423,9 @@ impl GroupOperations {
 
     pub fn decrypt_group_change(
         &self,
-        group_change: EncryptedGroupChange,
+        group_change: proto::GroupChange,
     ) -> Result<GroupChanges, GroupDecryptionError> {
-        let actions: EncryptedGroupChangeActions =
+        let actions: proto::group_change::Actions =
             Message::decode(Bytes::from(group_change.actions))?;
 
         let uuid = self.decrypt_uuid(&actions.source_uuid)?;
@@ -499,7 +494,7 @@ impl GroupOperations {
         let modify_description =
             actions.modify_description.into_iter().map(|m| {
                 Ok(GroupChange::Description(
-                    self.decrypt_description(&m.description_bytes),
+                    self.decrypt_description(&m.description),
                 ))
             });
 
@@ -538,8 +533,8 @@ impl GroupOperations {
                 ))
             });
 
-        let add_member_pending_admin_approvals = actions
-            .add_member_pending_admin_approvals
+        let add_requesting_members = actions
+            .add_requesting_members
             .into_iter()
             .filter_map(|m| m.added)
             .map(|added| {
@@ -548,19 +543,15 @@ impl GroupOperations {
                 ))
             });
 
-        let delete_member_pending_admin_approvals = actions
-            .delete_member_pending_admin_approvals
-            .into_iter()
-            .map(|m| {
+        let delete_requesting_members =
+            actions.delete_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::DeleteRequestingMember(
                     self.decrypt_uuid(&m.deleted_user_id)?,
                 ))
             });
 
-        let promote_member_pending_admin_approvals = actions
-            .promote_member_pending_admin_approvals
-            .into_iter()
-            .map(|m| {
+        let promote_requesting_members =
+            actions.promote_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::PromoteRequestingMember {
                     uuid: self.decrypt_uuid(&m.user_id)?,
                     role: Role::from_i32(m.role)
@@ -571,7 +562,7 @@ impl GroupOperations {
         let modify_invite_link_password =
             actions.modify_invite_link_password.into_iter().map(|m| {
                 Ok(GroupChange::InviteLinkPassword(base64::encode(
-                    &m.invite_link_password,
+                    m.invite_link_password,
                 )))
             });
 
@@ -595,16 +586,16 @@ impl GroupOperations {
                 .chain(modify_description)
                 .chain(modify_member_access)
                 .chain(modify_add_from_invite_link_access)
-                .chain(add_member_pending_admin_approvals)
-                .chain(delete_member_pending_admin_approvals)
-                .chain(promote_member_pending_admin_approvals)
+                .chain(add_requesting_members)
+                .chain(delete_requesting_members)
+                .chain(promote_requesting_members)
                 .chain(modify_invite_link_password)
                 .chain(modify_announcements_only)
                 .collect();
 
         Ok(GroupChanges {
             editor: uuid,
-            version: actions.version,
+            revision: actions.revision,
             changes: changes?,
         })
     }
