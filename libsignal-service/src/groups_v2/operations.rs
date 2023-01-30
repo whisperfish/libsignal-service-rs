@@ -74,7 +74,7 @@ impl fmt::Debug for RequestingMember {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Group {
     pub title: String,
     pub avatar: String,

@@ -4,7 +4,7 @@ mod operations;
 pub mod utils;
 
 pub use manager::{
-    CredentialsCache, CredentialsCacheError, GroupsManager,
+    decrypt_group, CredentialsCache, CredentialsCacheError, GroupsManager,
     InMemoryCredentialsCache,
 };
 pub use operations::{Group, GroupChange, GroupChanges, GroupDecryptionError};

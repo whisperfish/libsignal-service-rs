@@ -108,19 +108,22 @@ impl CredentialsCache for InMemoryCredentialsCache {
     }
 }
 
-pub struct GroupsManager<'a, S: PushService, C: CredentialsCache> {
+pub struct GroupsManager<S: PushService, C: CredentialsCache> {
+    self_uuid: Uuid,
     push_service: S,
-    credentials_cache: &'a mut C,
+    credentials_cache: C,
     server_public_params: ServerPublicParams,
 }
 
-impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
+impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
     pub fn new(
+        self_uuid: Uuid,
         push_service: S,
-        credentials_cache: &'a mut C,
+        credentials_cache: C,
         server_public_params: ServerPublicParams,
     ) -> Self {
         Self {
+            self_uuid,
             push_service,
             credentials_cache,
             server_public_params,
@@ -220,6 +223,7 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
         Ok(HttpAuth { username, password })
     }
 
+    #[deprecated = "please use fetch_encrypted_group and decrypt_group separately, which hide more of the implementation details"]
     pub async fn get_group(
         &mut self,
         group_secret_params: GroupSecretParams,
@@ -230,6 +234,23 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
             .decrypt_group(encrypted_group)?;
 
         Ok(decrypted_group)
+    }
+
+    pub async fn fetch_encrypted_group(
+        &mut self,
+        master_key_bytes: &[u8],
+    ) -> Result<crate::proto::Group, ServiceError> {
+        let group_master_key = GroupMasterKey::new(
+            master_key_bytes
+                .try_into()
+                .map_err(|_| ServiceError::GroupsV2Error)?,
+        );
+        let group_secret_params =
+            GroupSecretParams::derive_from_master_key(group_master_key);
+        let authorization = self
+            .get_authorization_for_today(self.self_uuid, group_secret_params)
+            .await?;
+        self.push_service.get_group(authorization).await
     }
 
     pub async fn retrieve_avatar(
@@ -272,4 +293,20 @@ impl<'a, S: PushService, C: CredentialsCache> GroupsManager<'a, S, C> {
             _ => Ok(None),
         }
     }
+}
+
+pub fn decrypt_group(
+    master_key_bytes: &[u8],
+    encrypted_group: crate::proto::Group,
+) -> Result<Group, ServiceError> {
+    let group_master_key = GroupMasterKey::new(
+        master_key_bytes
+            .try_into()
+            .expect("wrong master key bytes length"),
+    );
+    let group_secret_params =
+        GroupSecretParams::derive_from_master_key(group_master_key);
+
+    Ok(GroupOperations::new(group_secret_params)
+        .decrypt_group(encrypted_group)?)
 }
