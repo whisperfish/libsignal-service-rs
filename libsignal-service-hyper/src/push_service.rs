@@ -208,7 +208,10 @@ impl HyperPushService {
     {
         let body = hyper::body::aggregate(response).await.map_err(|e| {
             ServiceError::ResponseError {
-                reason: format!("failed to aggregate HTTP response body: {e}"),
+                reason: format!(
+                    "failed to aggregate HTTP response body: {}",
+                    e
+                ),
             }
         })?;
 
@@ -225,10 +228,11 @@ impl HyperPushService {
     where
         M: ProtobufMessage + Default,
     {
-        let body = hyper::body::aggregate(response).await.map_err(|error| {
+        let body = hyper::body::aggregate(response).await.map_err(|e| {
             ServiceError::ResponseError {
                 reason: format!(
-                    "failed to aggregate HTTP response body: {error}"
+                    "failed to aggregate HTTP response body: {}",
+                    e
                 ),
             }
         })?;
@@ -239,17 +243,18 @@ impl HyperPushService {
     async fn text(
         response: &mut Response<Body>,
     ) -> Result<String, ServiceError> {
-        let body = hyper::body::aggregate(response).await.map_err(|error| {
+        let body = hyper::body::aggregate(response).await.map_err(|e| {
             ServiceError::ResponseError {
                 reason: format!(
-                    "failed to aggregate HTTP response body: {error}",
+                    "failed to aggregate HTTP response body: {}",
+                    e
                 ),
             }
         })?;
         let mut text = String::new();
-        body.reader().read_to_string(&mut text).map_err(|error| {
+        body.reader().read_to_string(&mut text).map_err(|e| {
             ServiceError::ResponseError {
-                reason: format!("failed to read HTTP response body: {error}"),
+                reason: format!("failed to read HTTP response body: {}", e),
             }
         })?;
         Ok(text)
