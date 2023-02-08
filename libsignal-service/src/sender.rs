@@ -3,8 +3,8 @@ use std::time::SystemTime;
 use chrono::prelude::*;
 use libsignal_protocol::{
     process_prekey_bundle, DeviceId, IdentityKeyStore, PreKeyStore,
-    ProtocolAddress, SenderCertificate, SenderKeyStore, SessionStore,
-    SignalProtocolError, SignedPreKeyStore,
+    SenderCertificate, SenderKeyStore, SessionStore, SignalProtocolError,
+    SignedPreKeyStore,
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
@@ -104,7 +104,7 @@ pub enum MessageSenderError {
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
 
-    #[error("Untrusted identity key with {address}")]
+    #[error("Untrusted identity key with {address:?}")]
     UntrustedIdentity { address: ServiceAddress },
 
     #[error("Exceeded maximum number of retries")]
@@ -359,7 +359,7 @@ where
         }
 
         if end_session {
-            log::debug!("ending session with {}", recipient);
+            log::debug!("ending session with {}", recipient.uuid);
             self.session_store
                 .delete_all_sessions(&recipient.uuid.to_string())
                 .await?;
@@ -495,10 +495,8 @@ where
                             "creating session with missing device {}",
                             missing_device_id
                         );
-                        let remote_address = ProtocolAddress::new(
-                            recipient.to_string(),
-                            (*missing_device_id).into(),
-                        );
+                        let remote_address =
+                            recipient.to_protocol_address(*missing_device_id);
                         let pre_key = self
                             .service
                             .get_pre_key(&recipient, *missing_device_id)
@@ -770,14 +768,14 @@ where
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
-                        destination_uuid: Some(recipient.to_string()),
+                        destination_uuid: Some(recipient.uuid.to_string()),
                         unidentified: Some(*unidentified),
                     }
                 })
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
-                destination_uuid: recipient.map(|r| r.to_string()),
+                destination_uuid: recipient.map(|r| r.uuid.to_string()),
                 destination_e164: None,
                 message: data_message,
                 timestamp: Some(timestamp),

@@ -121,7 +121,7 @@ impl Envelope {
     }
 
     pub fn source_address(&self) -> ServiceAddress {
-        let uuid: Uuid = self
+        let uuid = self
             .source_uuid
             .as_deref()
             .and_then(|u| Uuid::parse_str(u).ok())

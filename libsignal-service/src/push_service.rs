@@ -580,7 +580,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.recipient);
+        let path = format!("/v1/messages/{}", messages.recipient.uuid);
         self.put_json(
             Endpoint::Service,
             &path,
@@ -668,9 +668,9 @@ pub trait PushService: MaybeSend {
                 bincode::serialize(&key.get_profile_key_version(*uid_bytes))?;
             let version = std::str::from_utf8(&version)
                 .expect("hex encoded profile key version");
-            format!("/v1/profile/{}/{}", address, version)
+            format!("/v1/profile/{}/{}", address.uuid, version)
         } else {
-            format!("/v1/profile/{}", address)
+            format!("/v1/profile/{}", address.uuid)
         };
         // TODO: set locale to en_US
         self.get_json(
@@ -700,7 +700,7 @@ pub trait PushService: MaybeSend {
         destination: &ServiceAddress,
         device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
-        let path = format!("/v2/keys/{}/{}", destination, device_id);
+        let path = format!("/v2/keys/{}/{}", destination.uuid, device_id);
 
         let mut pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
@@ -718,9 +718,9 @@ pub trait PushService: MaybeSend {
         device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
         let path = if device_id == 1 {
-            format!("/v2/keys/{}/*", destination)
+            format!("/v2/keys/{}/*", destination.uuid)
         } else {
-            format!("/v2/keys/{}/{}", destination, device_id)
+            format!("/v2/keys/{}/{}", destination.uuid, device_id)
         };
         let pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)

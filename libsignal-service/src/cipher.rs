@@ -414,12 +414,12 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
     address: &ServiceAddress,
     device_id: DeviceId,
 ) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
-    let address = ProtocolAddress::new(address.to_string(), device_id);
+    let address = address.to_protocol_address(device_id);
     if session_store.load_session(&address, None).await?.is_some() {
         return Ok(address);
     }
 
-    Ok(ProtocolAddress::new(address.to_string(), device_id))
+    Ok(address)
 }
 
 /// Decrypt a Sealed Sender message `ciphertext` in either the v1 or v2 format, validate its sender

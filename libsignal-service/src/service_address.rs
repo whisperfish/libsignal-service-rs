@@ -1,5 +1,6 @@
-use std::{convert::TryFrom, fmt};
+use std::convert::TryFrom;
 
+use libsignal_protocol::{DeviceId, ProtocolAddress};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,7 +9,7 @@ pub enum ParseServiceAddressError {
     #[error("Supplied UUID could not be parsed")]
     InvalidUuid(#[from] uuid::Error),
 
-    #[error("Envelope with no Uuid")]
+    #[error("Envelope without UUID")]
     NoUuid,
 }
 
@@ -17,9 +18,12 @@ pub struct ServiceAddress {
     pub uuid: Uuid,
 }
 
-impl fmt::Display for ServiceAddress {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.uuid)
+impl ServiceAddress {
+    pub fn to_protocol_address(
+        &self,
+        device_id: impl Into<DeviceId>,
+    ) -> ProtocolAddress {
+        ProtocolAddress::new(self.uuid.to_string(), device_id.into())
     }
 }
 

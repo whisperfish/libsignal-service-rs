@@ -41,10 +41,7 @@ pub trait SessionStoreExt: SessionStore {
     ) -> Result<usize, SignalProtocolError> {
         let mut count = 0;
         match self
-            .delete_session(&ProtocolAddress::new(
-                address.to_string(),
-                device_id.into(),
-            ))
+            .delete_session(&address.to_protocol_address(device_id))
             .await
         {
             Ok(()) => {

@@ -7,7 +7,7 @@ impl SignalWebSocket {
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.recipient);
+        let path = format!("/v1/messages/{}", messages.recipient.uuid);
         self.put_json(&path, messages).await
     }
 }
