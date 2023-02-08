@@ -2,12 +2,13 @@ use std::str::FromStr;
 
 use libsignal_service::configuration::{ServiceCredentials, SignalServers};
 use libsignal_service::prelude::phonenumber::PhoneNumber;
+use libsignal_service::prelude::ProfileKey;
 use libsignal_service::provisioning::{
     generate_registration_id, ProvisioningManager, VerificationCodeResponse,
     VerifyAccountResponse,
 };
 use libsignal_service::push_service::{
-    AccountAttributes, DeviceCapabilities, ProfileKey, PushService,
+    AccountAttributes, DeviceCapabilities, ProfileKeyExt, PushService,
     ServiceError,
 };
 use libsignal_service::USER_AGENT;
@@ -81,7 +82,7 @@ async fn confirm_registration<'a, T: PushService>(
     let signaling_key = generate_signaling_key();
     let mut profile_key = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut profile_key);
-    let profile_key = ProfileKey(profile_key);
+    let profile_key = ProfileKey::create(profile_key);
 
     manager
         .confirm_verification_code(

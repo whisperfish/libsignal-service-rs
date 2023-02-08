@@ -1,8 +1,11 @@
+use std::convert::TryInto;
+
 use crate::{proto::Verified, ParseServiceAddressError, ServiceAddress};
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use zkgroup::profiles::ProfileKey;
 
 use std::convert::TryInto;
 
@@ -73,5 +76,14 @@ impl Contact {
                 }
             }),
         })
+    }
+
+    pub fn profile_key(&self) -> Result<ProfileKey, ParseContactError> {
+        Ok(ProfileKey::create(
+            self.profile_key
+                .clone()
+                .try_into()
+                .map_err(|_| ParseContactError::MissingProfileKey)?,
+        ))
     }
 }
