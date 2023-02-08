@@ -79,12 +79,7 @@ where
         &mut self,
         envelope: Envelope,
     ) -> Result<Option<Content>, ServiceError> {
-        if envelope.legacy_message.is_some() {
-            let plaintext = self.decrypt(&envelope).await?;
-            let message =
-                crate::proto::DataMessage::decode(plaintext.data.as_slice())?;
-            Ok(Some(Content::from_body(message, plaintext.metadata)))
-        } else if envelope.content.is_some() {
+        if envelope.content.is_some() {
             let plaintext = self.decrypt(&envelope).await?;
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
@@ -116,9 +111,7 @@ where
         &mut self,
         envelope: &Envelope,
     ) -> Result<Plaintext, ServiceError> {
-        let ciphertext = if let Some(msg) = envelope.legacy_message.as_ref() {
-            msg
-        } else if let Some(msg) = envelope.content.as_ref() {
+        let ciphertext = if let Some(msg) = envelope.content.as_ref() {
             msg
         } else {
             return Err(ServiceError::InvalidFrameError {
@@ -242,7 +235,6 @@ where
                             )
                         },
                     )?),
-                    relay: None,
                 };
 
                 let needs_receipt = if envelope.source_uuid.is_some() {

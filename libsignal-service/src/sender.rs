@@ -773,7 +773,6 @@ where
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
-                        destination_e164: recipient.e164(),
                         destination_uuid: recipient.uuid.map(|s| s.to_string()),
                         unidentified: Some(*unidentified),
                     }
