@@ -360,9 +360,7 @@ where
 
         if end_session {
             log::debug!("ending session with {}", recipient.uuid);
-            self.session_store
-                .delete_all_sessions(&recipient.uuid.to_string())
-                .await?;
+            self.session_store.delete_all_sessions(&recipient).await?;
         }
 
         results.remove(0)
@@ -484,8 +482,8 @@ where
                         );
                         self.session_store
                             .delete_service_addr_device_session(
-                                &recipient,
-                                *extra_device_id,
+                                &recipient
+                                    .to_protocol_address(*extra_device_id),
                             )
                             .await?;
                     }
@@ -528,8 +526,8 @@ where
                         );
                         self.session_store
                             .delete_service_addr_device_session(
-                                &recipient,
-                                *extra_device_id,
+                                &recipient
+                                    .to_protocol_address(*extra_device_id),
                             )
                             .await?;
                     }
