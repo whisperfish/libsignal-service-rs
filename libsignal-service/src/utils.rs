@@ -15,7 +15,7 @@ pub mod serde_base64 {
     {
         use serde::de::Error;
         String::deserialize(deserializer).and_then(|string| {
-            base64::decode(&string)
+            base64::decode(string)
                 .map_err(|err| Error::custom(err.to_string()))
         })
     }
@@ -48,7 +48,7 @@ pub mod serde_optional_base64 {
     {
         use serde::de::Error;
         match Option::<String>::deserialize(deserializer)? {
-            Some(s) => base64::decode(&s)
+            Some(s) => base64::decode(s)
                 .map_err(|err| Error::custom(err.to_string()))
                 .map(Some),
             None => Ok(None),
@@ -95,7 +95,7 @@ pub mod serde_private_key {
         S: Serializer,
     {
         let public_key = public_key.serialize();
-        serializer.serialize_str(&base64::encode(&public_key))
+        serializer.serialize_str(&base64::encode(public_key))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<PrivateKey, D::Error>

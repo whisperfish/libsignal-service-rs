@@ -238,7 +238,7 @@ mod tests {
             };
             assert_eq!(profile_name.serialize().len(), name.len());
             let encrypted = cipher.encrypt_name(&profile_name).unwrap();
-            let decrypted = cipher.decrypt_name(&encrypted).unwrap().unwrap();
+            let decrypted = cipher.decrypt_name(encrypted).unwrap().unwrap();
 
             assert_eq!(decrypted.as_ref(), profile_name);
             assert_eq!(decrypted.serialize(), profile_name.serialize());
@@ -259,7 +259,7 @@ mod tests {
 
         for &about in &abouts {
             let encrypted = cipher.encrypt_about(about.into()).unwrap();
-            let decrypted = cipher.decrypt_about(&encrypted).unwrap();
+            let decrypted = cipher.decrypt_about(encrypted).unwrap();
 
             assert_eq!(decrypted, about);
         }
@@ -276,7 +276,7 @@ mod tests {
 
         for &emoji in &emojii {
             let encrypted = cipher.encrypt_emoji(emoji.into()).unwrap();
-            let decrypted = cipher.decrypt_emoji(&encrypted).unwrap();
+            let decrypted = cipher.decrypt_emoji(encrypted).unwrap();
 
             assert_eq!(decrypted, emoji);
         }

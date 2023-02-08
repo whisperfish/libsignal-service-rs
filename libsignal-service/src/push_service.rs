@@ -666,16 +666,8 @@ pub trait PushService: MaybeSend {
         destination: &ServiceAddress,
         device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
-        let path = if let Some(ref relay) = destination.relay {
-            format!(
-                "/v2/keys/{}/{}?relay={}",
-                destination.identifier(),
-                device_id,
-                relay
-            )
-        } else {
-            format!("/v2/keys/{}/{}", destination.identifier(), device_id)
-        };
+        let path =
+            format!("/v2/keys/{}/{}", destination.identifier(), device_id);
 
         let mut pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
@@ -692,22 +684,10 @@ pub trait PushService: MaybeSend {
         destination: &ServiceAddress,
         device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
-        let path = match (device_id, destination.relay.as_ref()) {
-            (1, None) => format!("/v2/keys/{}/*", destination.identifier()),
-            (device_id, None) => {
-                format!("/v2/keys/{}/{}", destination.identifier(), device_id)
-            },
-            (1, Some(relay)) => format!(
-                "/v2/keys/{}/*?relay={}",
-                destination.identifier(),
-                relay
-            ),
-            (device_id, Some(relay)) => format!(
-                "/v2/keys/{}/{}?relay={}",
-                destination.identifier(),
-                device_id,
-                relay
-            ),
+        let path = if device_id == 1 {
+            format!("/v2/keys/{}/*", destination.identifier())
+        } else {
+            format!("/v2/keys/{}/{}", destination.identifier(), device_id)
         };
         let pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)

@@ -20,7 +20,6 @@ pub enum ParseServiceAddressError {
 pub struct ServiceAddress {
     pub uuid: Option<Uuid>,
     pub phonenumber: Option<PhoneNumber>,
-    pub relay: Option<String>,
 }
 
 impl ServiceAddress {
@@ -56,9 +55,9 @@ impl std::fmt::Display for ServiceAddress {
         &self,
         f: &mut std::fmt::Formatter<'_>,
     ) -> Result<(), std::fmt::Error> {
-        match (&self.uuid, &self.phonenumber, &self.relay) {
-            (_, Some(e164), _) => write!(f, "ServiceAddress({})", e164),
-            (Some(uuid), _, _) => write!(f, "ServiceAddress({})", uuid),
+        match (&self.uuid, &self.phonenumber) {
+            (_, Some(e164)) => write!(f, "ServiceAddress(e164={})", e164),
+            (Some(uuid), _) => write!(f, "ServiceAddress(uuid={})", uuid),
             _ => write!(f, "ServiceAddress(INVALID)"),
         }
     }
@@ -73,11 +72,7 @@ impl ServiceAddress {
             e164.map(|s| phonenumber::parse(None, s)).transpose()?;
         let uuid = uuid.map(Uuid::parse_str).transpose()?;
 
-        Ok(ServiceAddress {
-            phonenumber,
-            uuid,
-            relay: None,
-        })
+        Ok(ServiceAddress { phonenumber, uuid })
     }
 
     /// Returns uuid if present, e164 otherwise.
@@ -115,7 +110,6 @@ impl From<Uuid> for ServiceAddress {
         ServiceAddress {
             uuid: Some(uuid),
             phonenumber: None,
-            relay: None,
         }
     }
 }
@@ -125,7 +119,6 @@ impl From<PhoneNumber> for ServiceAddress {
         ServiceAddress {
             uuid: None,
             phonenumber: Some(phone_number),
-            relay: None,
         }
     }
 }

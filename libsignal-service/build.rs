@@ -28,5 +28,9 @@ fn main() {
         })
         .collect();
 
-    prost_build::compile_protos(&input, &[protobuf]).unwrap();
+    let mut prost_build = prost_build::Config::new();
+    prost_build
+        .default_package_filename("signal")
+        .compile_protos(&input, &[protobuf])
+        .unwrap();
 }

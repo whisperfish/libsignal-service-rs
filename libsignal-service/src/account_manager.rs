@@ -261,14 +261,18 @@ impl<Service: PushService> AccountManager<Service> {
         let provisioning_code = self.new_device_provisioning_code().await?;
 
         let msg = ProvisionMessage {
-            identity_key_public: Some(
+            aci: credentials.uuid.as_ref().map(|u| u.to_string()),
+            aci_identity_key_public: Some(
                 identity_key_pair.public_key().serialize().into_vec(),
             ),
-            identity_key_private: Some(
+            aci_identity_key_private: Some(
                 identity_key_pair.private_key().serialize(),
             ),
             number: Some(credentials.e164()),
-            uuid: credentials.uuid.as_ref().map(|u| u.to_string()),
+            // TODO: implement pni fields
+            pni_identity_key_public: None,
+            pni_identity_key_private: None,
+            pni: None,
             profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(
