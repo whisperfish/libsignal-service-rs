@@ -10,7 +10,7 @@ use crate::{
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
     websocket::SignalWebSocket,
-    MaybeSend, Profile, ServiceAddress,
+    MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
 
 use aes_gcm::{
@@ -379,6 +379,9 @@ pub enum ServiceError {
 
     #[error("unsupported content")]
     UnsupportedContent,
+
+    #[error(transparent)]
+    ParseServiceAddress(#[from] ParseServiceAddressError),
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
@@ -538,11 +541,11 @@ pub trait PushService: MaybeSend {
         }
     }
 
-    async fn send_messages<'a>(
+    async fn send_messages(
         &mut self,
-        messages: OutgoingPushMessages<'a>,
+        messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.destination);
+        let path = format!("/v1/messages/{}", messages.recipient.uuid);
         self.put_json(
             Endpoint::Service,
             &path,
@@ -624,19 +627,15 @@ pub trait PushService: MaybeSend {
         address: ServiceAddress,
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
-        let endpoint = match (profile_key, address.uuid) {
-            (Some(key), Some(uuid)) => {
-                let uid_bytes = uuid.as_bytes();
-                let version = bincode::serialize(
-                    &key.get_profile_key_version(*uid_bytes),
-                )?;
-                let version = std::str::from_utf8(&version)
-                    .expect("hex encoded profile key version");
-                format!("/v1/profile/{}/{}", uuid, version)
-            },
-            (_, _) => {
-                format!("/v1/profile/{}", address.identifier())
-            },
+        let endpoint = if let Some(key) = profile_key {
+            let uid_bytes = address.uuid.as_bytes();
+            let version =
+                bincode::serialize(&key.get_profile_key_version(*uid_bytes))?;
+            let version = std::str::from_utf8(&version)
+                .expect("hex encoded profile key version");
+            format!("/v1/profile/{}/{}", address.uuid, version)
+        } else {
+            format!("/v1/profile/{}", address.uuid)
         };
         // TODO: set locale to en_US
         self.get_json(
@@ -666,8 +665,7 @@ pub trait PushService: MaybeSend {
         destination: &ServiceAddress,
         device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
-        let path =
-            format!("/v2/keys/{}/{}", destination.identifier(), device_id);
+        let path = format!("/v2/keys/{}/{}", destination.uuid, device_id);
 
         let mut pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
@@ -685,9 +683,9 @@ pub trait PushService: MaybeSend {
         device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
         let path = if device_id == 1 {
-            format!("/v2/keys/{}/*", destination.identifier())
+            format!("/v2/keys/{}/*", destination.uuid)
         } else {
-            format!("/v2/keys/{}/{}", destination.identifier(), device_id)
+            format!("/v2/keys/{}/{}", destination.uuid, device_id)
         };
         let pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)

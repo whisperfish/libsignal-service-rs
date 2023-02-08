@@ -15,8 +15,7 @@ pub mod serde_base64 {
     {
         use serde::de::Error;
         String::deserialize(deserializer).and_then(|string| {
-            base64::decode(string)
-                .map_err(|err| Error::custom(err.to_string()))
+            base64::decode(string).map_err(|err| Error::custom(err.to_string()))
         })
     }
 }

@@ -1,3 +1,5 @@
+use std::convert::{TryFrom, TryInto};
+
 use prost::Message;
 use uuid::Uuid;
 
@@ -8,48 +10,16 @@ use crate::{
 
 pub use crate::proto::Envelope;
 
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum EnvelopeParseError {
-    #[error("Supplied phone number could not be parsed in E164 format")]
-    InvalidPhoneNumber(#[from] phonenumber::ParseError),
+impl TryFrom<EnvelopeEntity> for Envelope {
+    type Error = ParseServiceAddressError;
 
-    #[error("Supplied uuid could not be parsed")]
-    InvalidUuidError(#[from] uuid::Error),
-
-    #[error("Envelope with neither Uuid or E164")]
-    NoSenderError,
-}
-
-impl std::convert::TryFrom<EnvelopeEntity> for Envelope {
-    type Error = EnvelopeParseError;
-
-    fn try_from(
-        entity: EnvelopeEntity,
-    ) -> Result<Envelope, EnvelopeParseError> {
-        use ParseServiceAddressError::*;
-        if entity.source.is_none() && entity.source_uuid.is_none() {
-            return Err(EnvelopeParseError::NoSenderError);
-        }
-
-        // XXX: throwing allocations like it's Java.
-        let source = ServiceAddress::parse(
-            entity.source.as_deref(),
-            entity.source_uuid.as_deref(),
-        );
-        match source {
-            // Valid source
-            Ok(source) if entity.source_device > 0 => {
-                Ok(Envelope::new_with_source(entity, source))
+    fn try_from(entity: EnvelopeEntity) -> Result<Self, Self::Error> {
+        match entity.source_uuid.as_deref() {
+            Some(uuid) => {
+                let address = uuid.try_into()?;
+                Ok(Envelope::new_with_source(entity, address))
             },
-            // No source
-            Ok(_) | Err(NoSenderError) => Ok(Envelope::new_from_entity(entity)),
-            // Source specified, but unparsable
-            Err(InvalidPhoneNumber(e)) => {
-                Err(EnvelopeParseError::InvalidPhoneNumber(e))
-            },
-            Err(InvalidUuidError(e)) => {
-                Err(EnvelopeParseError::InvalidUuidError(e))
-            },
+            None => Ok(Envelope::new_from_entity(entity)),
         }
     }
 }
@@ -128,7 +98,7 @@ impl Envelope {
             source_device: Some(entity.source_device),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
-            source_uuid: source.uuid.as_ref().map(|s| s.to_string()),
+            source_uuid: Some(source.uuid.to_string()),
             content: entity.content,
             ..Default::default()
         }
@@ -154,14 +124,10 @@ impl Envelope {
         let uuid = self
             .source_uuid
             .as_deref()
-            .map(Uuid::parse_str)
-            .transpose()
-            .expect("valid e164 checked in constructor");
+            .and_then(|u| Uuid::parse_str(u).ok())
+            .expect("valid uuid checked in constructor");
 
-        ServiceAddress {
-            phonenumber: None,
-            uuid,
-        }
+        ServiceAddress { uuid }
     }
 }
 

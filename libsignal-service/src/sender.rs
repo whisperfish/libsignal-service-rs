@@ -3,8 +3,8 @@ use std::time::SystemTime;
 use chrono::prelude::*;
 use libsignal_protocol::{
     process_prekey_bundle, DeviceId, IdentityKeyStore, PreKeyStore,
-    ProtocolAddress, SenderCertificate, SenderKeyStore, SessionStore,
-    SignalProtocolError, SignedPreKeyStore,
+    SenderCertificate, SenderKeyStore, SessionStore, SignalProtocolError,
+    SignedPreKeyStore,
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
@@ -35,8 +35,8 @@ pub struct OutgoingPushMessage {
 }
 
 #[derive(serde::Serialize, Debug)]
-pub struct OutgoingPushMessages<'a> {
-    pub destination: &'a str,
+pub struct OutgoingPushMessages {
+    pub recipient: ServiceAddress,
     pub timestamp: u64,
     pub messages: Vec<OutgoingPushMessage>,
     pub online: bool,
@@ -104,8 +104,8 @@ pub enum MessageSenderError {
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
 
-    #[error("Untrusted identity key with {identifier}")]
-    UntrustedIdentity { identifier: String },
+    #[error("Untrusted identity key with {address:?}")]
+    UntrustedIdentity { address: ServiceAddress },
 
     #[error("Exceeded maximum number of retries")]
     MaximumRetriesLimitExceeded,
@@ -323,7 +323,7 @@ where
 
         let mut results = vec![
             self.try_send_message(
-                recipient.clone(),
+                *recipient,
                 unidentified_access,
                 &content_body,
                 timestamp,
@@ -347,7 +347,7 @@ where
                         &results,
                     );
                 self.try_send_message(
-                    self.local_address.clone(),
+                    self.local_address,
                     None,
                     &sync_message,
                     timestamp,
@@ -359,15 +359,10 @@ where
         }
 
         if end_session {
-            log::debug!("ending session with {}", recipient);
-            if let Some(ref uuid) = recipient.uuid {
-                self.session_store
-                    .delete_all_sessions(&uuid.to_string())
-                    .await?;
-            }
-            if let Some(e164) = recipient.e164() {
-                self.session_store.delete_all_sessions(&e164).await?;
-            }
+            log::debug!("ending session with {}", recipient.uuid);
+            self.session_store
+                .delete_all_sessions(&recipient.uuid.to_string())
+                .await?;
         }
 
         results.remove(0)
@@ -395,7 +390,7 @@ where
         for recipient in recipients.iter() {
             let result = self
                 .try_send_message(
-                    recipient.clone(),
+                    *recipient,
                     unidentified_access,
                     &content_body,
                     timestamp,
@@ -431,7 +426,7 @@ where
 
                 let result = self
                     .try_send_message(
-                        self.local_address.clone(),
+                        self.local_address,
                         unidentified_access,
                         &sync_message,
                         timestamp,
@@ -464,9 +459,8 @@ where
                 .create_encrypted_messages(&recipient, None, &content_bytes)
                 .await?;
 
-            let destination = recipient.identifier();
             let messages = OutgoingPushMessages {
-                destination: &destination,
+                recipient,
                 timestamp,
                 messages,
                 online,
@@ -501,10 +495,8 @@ where
                             "creating session with missing device {}",
                             missing_device_id
                         );
-                        let remote_address = ProtocolAddress::new(
-                            recipient.identifier(),
-                            (*missing_device_id).into(),
-                        );
+                        let remote_address =
+                            recipient.to_protocol_address(*missing_device_id);
                         let pre_key = self
                             .service
                             .get_pre_key(&recipient, *missing_device_id)
@@ -522,7 +514,7 @@ where
                         .map_err(|e| {
                             log::error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
-                                identifier: recipient.identifier(),
+                                address: recipient,
                             }
                         })?;
                     }
@@ -636,7 +628,7 @@ where
         let mut messages = vec![];
         let mut devices = vec![];
 
-        let myself = recipient.matches(&self.local_address);
+        let myself = *recipient == self.local_address;
         if !myself || unidentified_access.is_some() {
             trace!("sending message to default device");
             messages.push(
@@ -652,8 +644,11 @@ where
             devices.push(DEFAULT_DEVICE_ID);
         }
 
-        devices
-            .extend(recipient.sub_device_sessions(&self.session_store).await?);
+        devices.extend(
+            self.session_store
+                .get_sub_device_sessions(recipient)
+                .await?,
+        );
         devices.sort_unstable();
 
         let original_device_count = devices.len();
@@ -721,7 +716,7 @@ where
                 .get_pre_keys(recipient, device_id.into())
                 .await?;
             for pre_key_bundle in pre_keys {
-                if recipient.matches(&self.local_address)
+                if recipient == &self.local_address
                     && self.device_id == pre_key_bundle.device_id()?
                 {
                     trace!("not establishing a session with myself!");
@@ -773,17 +768,15 @@ where
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
-                        destination_uuid: recipient.uuid.map(|s| s.to_string()),
+                        destination_uuid: Some(recipient.uuid.to_string()),
                         unidentified: Some(*unidentified),
                     }
                 })
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
-                destination_uuid: recipient
-                    .and_then(|r| r.uuid)
-                    .map(|u| u.to_string()),
-                destination_e164: recipient.and_then(|r| r.e164()),
+                destination_uuid: recipient.map(|r| r.uuid.to_string()),
+                destination_e164: None,
                 message: data_message,
                 timestamp: Some(timestamp),
                 unidentified_status,

@@ -15,15 +15,6 @@ pub struct MessageReceiver<Service> {
     service: Service,
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum MessageReceiverError {
-    #[error("ServiceError")]
-    ServiceError(#[from] ServiceError),
-
-    #[error("Envelope parsing error")]
-    EnvelopeParseError(#[from] crate::envelope::EnvelopeParseError),
-}
-
 impl<Service: PushService> MessageReceiver<Service> {
     // TODO: to avoid providing the wrong service/wrong credentials
     // change it like LinkingManager or ProvisioningManager
@@ -39,7 +30,7 @@ impl<Service: PushService> MessageReceiver<Service> {
     /// [`MessageReceiver::create_message_pipe()`].
     pub async fn retrieve_messages(
         &mut self,
-    ) -> Result<Vec<Envelope>, MessageReceiverError> {
+    ) -> Result<Vec<Envelope>, ServiceError> {
         use std::convert::TryFrom;
 
         let entities = self.service.get_messages().await?;
@@ -53,7 +44,7 @@ impl<Service: PushService> MessageReceiver<Service> {
     pub async fn create_message_pipe(
         &mut self,
         credentials: ServiceCredentials,
-    ) -> Result<MessagePipe, MessageReceiverError> {
+    ) -> Result<MessagePipe, ServiceError> {
         let ws = self
             .service
             .ws("/v1/websocket/", Some(credentials.clone()), true)

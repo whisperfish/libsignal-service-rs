@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zkgroup::profiles::ProfileKey;
 
+use std::convert::TryInto;
+
 /// Attachment represents an attachment received from a peer
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Attachment<R> {
@@ -51,10 +53,7 @@ impl Contact {
         avatar_data: Option<Bytes>,
     ) -> Result<Self, ParseContactError> {
         Ok(Self {
-            address: ServiceAddress::parse(
-                contact_details.number.as_deref(),
-                contact_details.uuid.as_deref(),
-            )?,
+            address: contact_details.uuid.as_deref().try_into()?,
             name: contact_details.name().into(),
             color: contact_details.color.clone(),
             verified: contact_details.verified.clone().unwrap_or_default(),

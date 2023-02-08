@@ -47,7 +47,6 @@ If you're looking to contribute or want to ask a question, you're more than welc
 | Feature flag     | Description                                                                                                                                                                             |
 |------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `unsend-futures` | This feature removes the `Send` requirement on returned futures. Enabling this flag may be necessary for interoperability with other libraries that don't support `Send` such as actix. |
-| `prefer-e164`    | This is a legacy feature that should not be used in new applications.                                                                                                                   |
 
 ## License
 

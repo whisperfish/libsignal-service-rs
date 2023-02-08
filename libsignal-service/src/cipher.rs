@@ -206,7 +206,7 @@ where
             Type::UnidentifiedSender => {
                 let SealedSenderDecryptionResult {
                     sender_uuid,
-                    sender_e164,
+                    sender_e164: _,
                     device_id,
                     mut message,
                 } = sealed_sender_decrypt(
@@ -226,15 +226,11 @@ where
                 .await?;
 
                 let sender = ServiceAddress {
-                    phonenumber: sender_e164
-                        .and_then(|n| phonenumber::parse(None, n).ok()),
-                    uuid: Some(Uuid::parse_str(&sender_uuid).map_err(
-                        |_| {
-                            SignalProtocolError::InvalidSealedSenderMessage(
-                                "invalid sender UUID".to_string(),
-                            )
-                        },
-                    )?),
+                    uuid: Uuid::parse_str(&sender_uuid).map_err(|_| {
+                        SignalProtocolError::InvalidSealedSenderMessage(
+                            "invalid sender UUID".to_string(),
+                        )
+                    })?,
                 };
 
                 let needs_receipt = if envelope.source_uuid.is_some() {
@@ -418,30 +414,12 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
     address: &ServiceAddress,
     device_id: DeviceId,
 ) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
-    if let Some(ref uuid) = address.uuid {
-        let address = ProtocolAddress::new(uuid.to_string(), device_id);
-        if session_store.load_session(&address, None).await?.is_some() {
-            return Ok(address);
-        }
-    }
-    if let Some(e164) = address.e164() {
-        let address = ProtocolAddress::new(e164, device_id);
-        if session_store.load_session(&address, None).await?.is_some() {
-            return Ok(address);
-        }
-        if cfg!(feature = "prefer-e164") {
-            log::warn!("prefer-e164 triggered.  This is a legacy feature and shouldn't be used for new applications.");
-            return Ok(address);
-        }
-    }
-    if cfg!(feature = "prefer-e164") {
-        panic!(
-            "{:?}:{} does not have a e164 associated, falling back to UUID.",
-            address, device_id
-        );
+    let address = address.to_protocol_address(device_id);
+    if session_store.load_session(&address, None).await?.is_some() {
+        return Ok(address);
     }
 
-    Ok(ProtocolAddress::new(address.identifier(), device_id))
+    Ok(address)
 }
 
 /// Decrypt a Sealed Sender message `ciphertext` in either the v1 or v2 format, validate its sender

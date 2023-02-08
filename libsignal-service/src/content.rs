@@ -22,10 +22,7 @@ pub struct Metadata {
 
 impl Metadata {
     pub(crate) fn protocol_address(&self) -> ProtocolAddress {
-        ProtocolAddress::new(
-            self.sender.identifier(),
-            self.sender_device.into(),
-        )
+        self.sender.to_protocol_address(self.sender_device)
     }
 }
 

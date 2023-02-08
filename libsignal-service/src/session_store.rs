@@ -15,7 +15,7 @@ pub trait SessionStoreExt: SessionStore {
     /// This should return every device except for the main device [DEFAULT_DEVICE_ID].
     async fn get_sub_device_sessions(
         &self,
-        name: &str,
+        name: &ServiceAddress,
     ) -> Result<Vec<u32>, SignalProtocolError>;
 
     /// Remove a session record for a recipient ID + device ID tuple.
@@ -40,32 +40,15 @@ pub trait SessionStoreExt: SessionStore {
         device_id: u32,
     ) -> Result<usize, SignalProtocolError> {
         let mut count = 0;
-        if let Some(ref uuid) = address.uuid {
-            match self
-                .delete_session(&ProtocolAddress::new(
-                    uuid.to_string(),
-                    device_id.into(),
-                ))
-                .await
-            {
-                Ok(()) => {
-                    count += 1;
-                },
-                Err(SignalProtocolError::SessionNotFound(_)) => (),
-                Err(e) => return Err(e),
-            }
-        }
-        if let Some(e164) = address.e164() {
-            match self
-                .delete_session(&ProtocolAddress::new(e164, device_id.into()))
-                .await
-            {
-                Ok(()) => {
-                    count += 1;
-                },
-                Err(SignalProtocolError::SessionNotFound(_)) => (),
-                Err(e) => return Err(e),
-            }
+        match self
+            .delete_session(&address.to_protocol_address(device_id))
+            .await
+        {
+            Ok(()) => {
+                count += 1;
+            },
+            Err(SignalProtocolError::SessionNotFound(_)) => (),
+            Err(e) => return Err(e),
         }
 
         Ok(count)
@@ -106,9 +89,9 @@ pub trait SessionStoreExt: SessionStore {
             let fp = libsignal_protocol::Fingerprint::new(
                 2,
                 5200,
-                local_address.e164_or_uuid().as_bytes(),
+                local_address.uuid.as_bytes(),
                 local.identity_key(),
-                address.e164_or_uuid().as_bytes(),
+                address.uuid.as_bytes(),
                 &ident,
             )?;
             fp.display_string()

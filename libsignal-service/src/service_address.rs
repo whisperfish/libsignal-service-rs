@@ -1,124 +1,68 @@
-use phonenumber::*;
+use std::convert::TryFrom;
+
+use libsignal_protocol::{DeviceId, ProtocolAddress};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{push_service::ServiceError, session_store::SessionStoreExt};
-
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, Clone)]
 pub enum ParseServiceAddressError {
-    #[error("Supplied phone number could not be parsed in E164 format")]
-    InvalidPhoneNumber(#[from] phonenumber::ParseError),
+    #[error("Supplied UUID could not be parsed")]
+    InvalidUuid(#[from] uuid::Error),
 
-    #[error("Supplied uuid could not be parsed")]
-    InvalidUuidError(#[from] uuid::Error),
-
-    #[error("Envelope with neither Uuid or E164")]
-    NoSenderError,
+    #[error("Envelope without UUID")]
+    NoUuid,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ServiceAddress {
-    pub uuid: Option<Uuid>,
-    pub phonenumber: Option<PhoneNumber>,
+    pub uuid: Uuid,
 }
 
 impl ServiceAddress {
-    /// Formats the phone number, if present, as E164
-    pub fn e164(&self) -> Option<String> {
-        self.phonenumber
-            .as_ref()
-            .map(|pn| pn.format().mode(phonenumber::Mode::E164).to_string())
-    }
-
-    pub async fn sub_device_sessions<S: SessionStoreExt>(
+    pub fn to_protocol_address(
         &self,
-        session_store: &S,
-    ) -> Result<Vec<u32>, ServiceError> {
-        let mut sub_device_sessions = Vec::new();
-        if let Some(uuid) = &self.uuid {
-            sub_device_sessions.extend(
-                session_store
-                    .get_sub_device_sessions(&uuid.to_string())
-                    .await?,
-            );
-        }
-        if let Some(e164) = &self.e164() {
-            sub_device_sessions
-                .extend(session_store.get_sub_device_sessions(e164).await?);
-        }
-        Ok(sub_device_sessions)
-    }
-}
-
-impl std::fmt::Display for ServiceAddress {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-    ) -> Result<(), std::fmt::Error> {
-        match (&self.uuid, &self.phonenumber) {
-            (_, Some(e164)) => write!(f, "ServiceAddress(e164={})", e164),
-            (Some(uuid), _) => write!(f, "ServiceAddress(uuid={})", uuid),
-            _ => write!(f, "ServiceAddress(INVALID)"),
-        }
-    }
-}
-
-impl ServiceAddress {
-    pub fn parse(
-        e164: Option<&str>,
-        uuid: Option<&str>,
-    ) -> Result<ServiceAddress, ParseServiceAddressError> {
-        let phonenumber =
-            e164.map(|s| phonenumber::parse(None, s)).transpose()?;
-        let uuid = uuid.map(Uuid::parse_str).transpose()?;
-
-        Ok(ServiceAddress { phonenumber, uuid })
-    }
-
-    /// Returns uuid if present, e164 otherwise.
-    pub fn identifier(&self) -> String {
-        if let Some(ref uuid) = self.uuid {
-            return uuid.to_string();
-        } else if let Some(e164) = self.e164() {
-            return e164;
-        }
-        unreachable!(
-            "an address requires either a UUID or a E164 phone number"
-        );
-    }
-
-    pub fn matches(&self, other: &Self) -> bool {
-        (self.phonenumber.is_some() && self.phonenumber == other.phonenumber)
-            || (self.uuid.is_some() && self.uuid == other.uuid)
-    }
-
-    /// Returns e164 if present, uuid otherwise.
-    pub fn e164_or_uuid(&self) -> String {
-        if let Some(e164) = self.e164() {
-            return e164;
-        } else if let Some(ref uuid) = self.uuid {
-            return uuid.to_string();
-        }
-        unreachable!(
-            "an address requires either a UUID or a E164 phone number"
-        );
+        device_id: impl Into<DeviceId>,
+    ) -> ProtocolAddress {
+        ProtocolAddress::new(self.uuid.to_string(), device_id.into())
     }
 }
 
 impl From<Uuid> for ServiceAddress {
     fn from(uuid: Uuid) -> Self {
-        ServiceAddress {
-            uuid: Some(uuid),
-            phonenumber: None,
+        Self { uuid }
+    }
+}
+
+impl TryFrom<&str> for ServiceAddress {
+    type Error = ParseServiceAddressError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Ok(ServiceAddress {
+            uuid: Uuid::parse_str(value)?,
+        })
+    }
+}
+
+impl TryFrom<Option<&str>> for ServiceAddress {
+    type Error = ParseServiceAddressError;
+
+    fn try_from(value: Option<&str>) -> Result<Self, Self::Error> {
+        match value.map(Uuid::parse_str) {
+            Some(Ok(uuid)) => Ok(ServiceAddress { uuid }),
+            Some(Err(e)) => Err(ParseServiceAddressError::InvalidUuid(e)),
+            None => Err(ParseServiceAddressError::NoUuid),
         }
     }
 }
 
-impl From<PhoneNumber> for ServiceAddress {
-    fn from(phone_number: PhoneNumber) -> Self {
-        ServiceAddress {
-            uuid: None,
-            phonenumber: Some(phone_number),
+impl TryFrom<Option<&[u8]>> for ServiceAddress {
+    type Error = ParseServiceAddressError;
+
+    fn try_from(value: Option<&[u8]>) -> Result<Self, Self::Error> {
+        match value.map(Uuid::from_slice) {
+            Some(Ok(uuid)) => Ok(ServiceAddress { uuid }),
+            Some(Err(e)) => Err(ParseServiceAddressError::InvalidUuid(e)),
+            None => Err(ParseServiceAddressError::NoUuid),
         }
     }
 }
