@@ -31,7 +31,7 @@ use crate::{
 
 pub struct AccountManager<Service> {
     service: Service,
-    profile_key: Option<[u8; 32]>,
+    profile_key: Option<ProfileKey>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -68,7 +68,7 @@ const PRE_KEY_BATCH_SIZE: u32 = 100;
 const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
 impl<Service: PushService> AccountManager<Service> {
-    pub fn new(service: Service, profile_key: Option<[u8; 32]>) -> Self {
+    pub fn new(service: Service, profile_key: Option<ProfileKey>) -> Self {
         Self {
             service,
             profile_key,
@@ -269,7 +269,7 @@ impl<Service: PushService> AccountManager<Service> {
             ),
             number: Some(credentials.e164()),
             uuid: credentials.uuid.as_ref().map(|u| u.to_string()),
-            profile_key: self.profile_key.as_ref().map(|x| x.to_vec()),
+            profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(
                 ProvisioningVersion::TabletSupport,
@@ -326,7 +326,6 @@ impl<Service: PushService> AccountManager<Service> {
     ) -> Result<Profile, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
-        let profile_key = ProfileKey::create(profile_key);
 
         let encrypted_profile = self
             .service
@@ -356,7 +355,6 @@ impl<Service: PushService> AccountManager<Service> {
     ) -> Result<Option<String>, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
-        let profile_key = ProfileKey::create(profile_key);
         let profile_cipher = ProfileCipher::from(profile_key);
 
         // Profile encryption
