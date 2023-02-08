@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
 use uuid::Uuid;
@@ -10,29 +10,14 @@ use crate::{
 
 pub use crate::proto::Envelope;
 
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum EnvelopeParseError {
-    #[error("Supplied uuid could not be parsed")]
-    InvalidAddressError(#[from] ParseServiceAddressError),
+impl TryFrom<EnvelopeEntity> for Envelope {
+    type Error = ParseServiceAddressError;
 
-    #[error("Envelope with no Uuid")]
-    NoSenderError,
-}
-
-impl std::convert::TryFrom<EnvelopeEntity> for Envelope {
-    type Error = EnvelopeParseError;
-
-    fn try_from(
-        entity: EnvelopeEntity,
-    ) -> Result<Envelope, EnvelopeParseError> {
-        if entity.source.is_none() && entity.source_uuid.is_none() {
-            return Err(EnvelopeParseError::NoSenderError);
-        }
-
+    fn try_from(entity: EnvelopeEntity) -> Result<Self, Self::Error> {
         match entity.source_uuid.as_deref() {
             Some(uuid) => {
-                let source = uuid.try_into()?;
-                Ok(Envelope::new_with_source(entity, source))
+                let address = uuid.try_into()?;
+                Ok(Envelope::new_with_source(entity, address))
             },
             None => Ok(Envelope::new_from_entity(entity)),
         }

@@ -10,7 +10,7 @@ use crate::{
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64},
     websocket::SignalWebSocket,
-    MaybeSend, Profile, ServiceAddress,
+    MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
 
 use aes_gcm::{
@@ -414,6 +414,9 @@ pub enum ServiceError {
 
     #[error("unsupported content")]
     UnsupportedContent,
+
+    #[error(transparent)]
+    ParseServiceAddress(#[from] ParseServiceAddressError),
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
