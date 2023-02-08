@@ -7,8 +7,6 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zkgroup::profiles::ProfileKey;
 
-use std::convert::TryInto;
-
 /// Attachment represents an attachment received from a peer
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Attachment<R> {
