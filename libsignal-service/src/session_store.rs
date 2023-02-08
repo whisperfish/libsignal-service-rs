@@ -15,7 +15,7 @@ pub trait SessionStoreExt: SessionStore {
     /// This should return every device except for the main device [DEFAULT_DEVICE_ID].
     async fn get_sub_device_sessions(
         &self,
-        name: &str,
+        name: &ServiceAddress,
     ) -> Result<Vec<u32>, SignalProtocolError>;
 
     /// Remove a session record for a recipient ID + device ID tuple.

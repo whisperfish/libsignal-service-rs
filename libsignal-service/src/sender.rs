@@ -646,8 +646,11 @@ where
             devices.push(DEFAULT_DEVICE_ID);
         }
 
-        devices
-            .extend(recipient.sub_device_sessions(&self.session_store).await?);
+        devices.extend(
+            self.session_store
+                .get_sub_device_sessions(&recipient)
+                .await?,
+        );
         devices.sort_unstable();
 
         let original_device_count = devices.len();
