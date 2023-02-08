@@ -35,8 +35,8 @@ pub struct OutgoingPushMessage {
 }
 
 #[derive(serde::Serialize, Debug)]
-pub struct OutgoingPushMessages<'a> {
-    pub destination: &'a str,
+pub struct OutgoingPushMessages {
+    pub recipient: ServiceAddress,
     pub timestamp: u64,
     pub messages: Vec<OutgoingPushMessage>,
     pub online: bool,
@@ -459,9 +459,8 @@ where
                 .create_encrypted_messages(&recipient, None, &content_bytes)
                 .await?;
 
-            let destination = recipient.to_string();
             let messages = OutgoingPushMessages {
-                destination: &destination,
+                recipient,
                 timestamp,
                 messages,
                 online,
