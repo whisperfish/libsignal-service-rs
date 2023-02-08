@@ -20,7 +20,7 @@ impl ProfileService {
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
         let endpoint = match (profile_key, address.uuid) {
-            (Some(key), Some(uuid)) => {
+            (Some(key), uuid) => {
                 let uid_bytes = uuid.as_bytes();
                 let version = bincode::serialize(
                     &key.get_profile_key_version(*uid_bytes),
@@ -29,8 +29,9 @@ impl ProfileService {
                     .expect("hex encoded profile key version");
                 format!("/v1/profile/{}/{}", uuid, version)
             },
-            (_, _) => {
-                format!("/v1/profile/{}", address.identifier())
+            (_, uuid) => {
+                // TODO: check if this is even possible?
+                format!("/v1/profile/{}", uuid)
             },
         };
 

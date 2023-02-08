@@ -1,12 +1,7 @@
 [package]
 name = "libsignal-service"
 version = "0.1.0"
-authors = [
-    "Ruben De Smet <ruben.de.smet@rubdos.be>",
-    "Gabriel Féron <g@leirbag.net>",
-    "Michael Bryan <michaelfbryan@gmail.com>",
-    "Shady Khalifa <shekohex@gmail.com>",
-]
+authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>", "Gabriel Féron <g@leirbag.net>", "Michael Bryan <michaelfbryan@gmail.com>", "Shady Khalifa <shekohex@gmail.com>"]
 edition = "2018"
 license = "GPLv3"
 readme = "../README.md"
@@ -50,5 +45,4 @@ tokio = { version = "1.0", features = ["macros", "rt"] }
 rustls = "0.20"
 
 [features]
-prefer-e164 = []
 unsend-futures = []

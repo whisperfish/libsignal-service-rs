@@ -104,8 +104,8 @@ pub enum MessageSenderError {
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
 
-    #[error("Untrusted identity key with {identifier}")]
-    UntrustedIdentity { identifier: String },
+    #[error("Untrusted identity key with {address}")]
+    UntrustedIdentity { address: ServiceAddress },
 
     #[error("Exceeded maximum number of retries")]
     MaximumRetriesLimitExceeded,
@@ -360,14 +360,9 @@ where
 
         if end_session {
             log::debug!("ending session with {}", recipient);
-            if let Some(ref uuid) = recipient.uuid {
-                self.session_store
-                    .delete_all_sessions(&uuid.to_string())
-                    .await?;
-            }
-            if let Some(e164) = recipient.e164() {
-                self.session_store.delete_all_sessions(&e164).await?;
-            }
+            self.session_store
+                .delete_all_sessions(&recipient.uuid.to_string())
+                .await?;
         }
 
         results.remove(0)
@@ -464,7 +459,7 @@ where
                 .create_encrypted_messages(&recipient, None, &content_bytes)
                 .await?;
 
-            let destination = recipient.identifier();
+            let destination = recipient.to_string();
             let messages = OutgoingPushMessages {
                 destination: &destination,
                 timestamp,
@@ -502,7 +497,7 @@ where
                             missing_device_id
                         );
                         let remote_address = ProtocolAddress::new(
-                            recipient.identifier(),
+                            recipient.to_string(),
                             (*missing_device_id).into(),
                         );
                         let pre_key = self
@@ -522,7 +517,7 @@ where
                         .map_err(|e| {
                             log::error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
-                                identifier: recipient.identifier(),
+                                address: recipient,
                             }
                         })?;
                     }
@@ -636,7 +631,7 @@ where
         let mut messages = vec![];
         let mut devices = vec![];
 
-        let myself = recipient.matches(&self.local_address);
+        let myself = *recipient == self.local_address;
         if !myself || unidentified_access.is_some() {
             trace!("sending message to default device");
             messages.push(
@@ -721,7 +716,7 @@ where
                 .get_pre_keys(recipient, device_id.into())
                 .await?;
             for pre_key_bundle in pre_keys {
-                if recipient.matches(&self.local_address)
+                if recipient == &self.local_address
                     && self.device_id == pre_key_bundle.device_id()?
                 {
                     trace!("not establishing a session with myself!");
@@ -773,17 +768,15 @@ where
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
-                        destination_uuid: recipient.uuid.map(|s| s.to_string()),
+                        destination_uuid: Some(recipient.to_string()),
                         unidentified: Some(*unidentified),
                     }
                 })
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
-                destination_uuid: recipient
-                    .and_then(|r| r.uuid)
-                    .map(|u| u.to_string()),
-                destination_e164: recipient.and_then(|r| r.e164()),
+                destination_uuid: recipient.map(|r| r.to_string()),
+                destination_e164: None,
                 message: data_message,
                 timestamp: Some(timestamp),
                 unidentified_status,
