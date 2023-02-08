@@ -648,7 +648,7 @@ where
 
         devices.extend(
             self.session_store
-                .get_sub_device_sessions(&recipient)
+                .get_sub_device_sessions(recipient)
                 .await?,
         );
         devices.sort_unstable();
