@@ -43,8 +43,8 @@ impl From<TungsteniteWebSocketError> for ServiceError {
                 TungsteniteError::Http(response),
             ) => match response.status() {
                 StatusCode::FORBIDDEN => ServiceError::Unauthorized,
-                s => ServiceError::WsError {
-                    reason: format!("HTTP status {}", s),
+                status => ServiceError::WsError {
+                    reason: format!("HTTP status {status}"),
                 },
             },
             e => ServiceError::WsError {

@@ -323,7 +323,7 @@ where
 
         let mut results = vec![
             self.try_send_message(
-                recipient.clone(),
+                *recipient,
                 unidentified_access,
                 &content_body,
                 timestamp,
@@ -347,7 +347,7 @@ where
                         &results,
                     );
                 self.try_send_message(
-                    self.local_address.clone(),
+                    self.local_address,
                     None,
                     &sync_message,
                     timestamp,
@@ -390,7 +390,7 @@ where
         for recipient in recipients.iter() {
             let result = self
                 .try_send_message(
-                    recipient.clone(),
+                    *recipient,
                     unidentified_access,
                     &content_body,
                     timestamp,
@@ -426,7 +426,7 @@ where
 
                 let result = self
                     .try_send_message(
-                        self.local_address.clone(),
+                        self.local_address,
                         unidentified_access,
                         &sync_message,
                         timestamp,

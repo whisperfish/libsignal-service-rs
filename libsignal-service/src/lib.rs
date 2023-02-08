@@ -1,5 +1,7 @@
 #![recursion_limit = "256"]
 #![deny(clippy::dbg_macro)]
+// TODO: we cannot use this until whisperfish builds with a newer Rust version
+#![allow(clippy::uninlined_format_args)]
 
 mod account_manager;
 pub mod attachment_cipher;
