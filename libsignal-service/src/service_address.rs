@@ -8,10 +8,10 @@ use crate::{push_service::ServiceError, session_store::SessionStoreExt};
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ParseServiceAddressError {
     #[error("Supplied UUID could not be parsed")]
-    InvalidUuidError(#[from] uuid::Error),
+    InvalidUuid(#[from] uuid::Error),
 
     #[error("Envelope with no Uuid")]
-    NoSenderError,
+    NoUuid,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -40,6 +40,12 @@ impl ServiceAddress {
     }
 }
 
+impl From<Uuid> for ServiceAddress {
+    fn from(uuid: Uuid) -> Self {
+        Self { uuid }
+    }
+}
+
 impl TryFrom<&str> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
@@ -56,8 +62,20 @@ impl TryFrom<Option<&str>> for ServiceAddress {
     fn try_from(value: Option<&str>) -> Result<Self, Self::Error> {
         match value.map(Uuid::parse_str) {
             Some(Ok(uuid)) => Ok(ServiceAddress { uuid }),
-            Some(Err(e)) => Err(ParseServiceAddressError::InvalidUuidError(e)),
-            None => Err(ParseServiceAddressError::NoSenderError),
+            Some(Err(e)) => Err(ParseServiceAddressError::InvalidUuid(e)),
+            None => Err(ParseServiceAddressError::NoUuid),
+        }
+    }
+}
+
+impl TryFrom<Option<&[u8]>> for ServiceAddress {
+    type Error = ParseServiceAddressError;
+
+    fn try_from(value: Option<&[u8]>) -> Result<Self, Self::Error> {
+        match value.map(Uuid::from_slice) {
+            Some(Ok(uuid)) => Ok(ServiceAddress { uuid }),
+            Some(Err(e)) => Err(ParseServiceAddressError::InvalidUuid(e)),
+            None => Err(ParseServiceAddressError::NoUuid),
         }
     }
 }
