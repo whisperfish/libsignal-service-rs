@@ -172,7 +172,7 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
 
     pub async fn confirm_verification_code(
         &mut self,
-        confirm_code: u32,
+        confirm_code: String,
         account_attributes: AccountAttributes,
     ) -> Result<VerifyAccountResponse, ServiceError> {
         self.push_service
