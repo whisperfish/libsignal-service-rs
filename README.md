@@ -1,6 +1,6 @@
 # libsignal-service-rs
 
-![Build Status](https://github.com/whisperfish/libsignal-service-rs/workflows/CI/badge.svg)
+[![Build Status](https://github.com/whisperfish/libsignal-service-rs/workflows/CI/badge.svg?branch=main)](https://github.com/whisperfish/libsignal-service-rs/actions/workflows/ci.yaml?query=branch:main)
 [![API Docs](https://img.shields.io/badge/docs-libsignal--service-blue)](https://whisperfish.github.io/libsignal-service-rs/libsignal_service)
 
 A Rust version of the [libsignal-service-java][lsj] library for communicating
@@ -18,23 +18,23 @@ For `libsignal-service-hyper`, we don't mandate MSRV.
 ## Usage
 
 Usage of this library is not as straight-forward as with any other Rust library.
-In particular, `libsignal-service` depends on a forked version of Curve25519-Dalek,
-which might conflict with other instances of the Curve25519-Dalek library.
+In particular, `libsignal-service` depends on a forked version of `curve25519-dalek`,
+which might conflict with other instances/forks of the library.
+
 We advise you override all instances of said library through a `patch`-section.
 The example below serves as an example of how this library can be included in `Cargo.toml`:
 
 ```toml
 [dependencies]
-libsignal-service = { git = "https://github.com/Michael-F-Bryan/libsignal-service-rs", branch = "master" }
-libsignal-service-actix = { git = "https://github.com/Michael-F-Bryan/libsignal-service-rs", branch = "master" }
+libsignal-service = { git = "https://github.com/whisperfish/libsignal-service-rs", branch = "main" }
+libsignal-service-actix = { git = "https://github.com/whisperfish/libsignal-service-rs", branch = "main" }
 
 libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", branch = "main" }
 zkgroup = { version = "0.9.0", git = "https://github.com/signalapp/libsignal-client", branch = "main" }
 
 [patch.crates-io]
-"curve25519-dalek" = { git = 'https://github.com/signalapp/curve25519-dalek', branch = 'lizard2' }
+"curve25519-dalek" = { git = "https://github.com/signalapp/curve25519-dalek", branch = "lizard2" }
 ```
-
 
 ## Contributing
 
@@ -50,12 +50,12 @@ If you're looking to contribute or want to ask a question, you're more than welc
 
 ## License
 
-Copyright 2015-2019 Open Whisper Systems  
-Copyright 2020-2021 Signal Messenger, LLC  
-Copyright 2019-2021 Ruben De Smet  
-Copyright 2019-2021 Michael F Bryan  
-Copyright 2019-2021 Gabriel Féron  
-Copyright 2019-2021 Whisperfish contributors  
+Copyright 2015-2019 Open Whisper Systems
+Copyright 2020-2023 Signal Messenger, LLC
+Copyright 2019-2021 Michael F Bryan
+Copyright 2019-2023 Ruben De Smet
+Copyright 2019-2023 Gabriel Féron
+Copyright 2019-2023 Whisperfish contributors
 
 Licensed under the AGPLv3: http://www.gnu.org/licenses/agpl-3.0.html
 
