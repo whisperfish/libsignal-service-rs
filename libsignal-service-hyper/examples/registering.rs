@@ -76,7 +76,7 @@ pub async fn register_user<'a, T: PushService>(
 
 async fn confirm_registration<'a, T: PushService>(
     manager: &mut ProvisioningManager<'a, T>,
-    confirmation_code: u32,
+    confirmation_code: impl AsRef<str>,
 ) -> Result<VerifyAccountResponse, ServiceError> {
     let registration_id = generate_registration_id(&mut rand::thread_rng());
     let signaling_key = generate_signaling_key();
@@ -138,8 +138,8 @@ fn let_user_solve_captcha() -> String {
     "EnterCaptchaHere".to_string()
 }
 
-fn let_user_enter_confirmation_code() -> u32 {
-    12345
+fn let_user_enter_confirmation_code() -> &'static str {
+    "12345"
 }
 
 fn does_user_want_voice_confirmation() -> bool {
