@@ -172,13 +172,13 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
 
     pub async fn confirm_verification_code(
         &mut self,
-        confirm_code: String,
+        confirm_code: impl AsRef<str>,
         account_attributes: AccountAttributes,
     ) -> Result<VerifyAccountResponse, ServiceError> {
         self.push_service
             .put_json(
                 Endpoint::Service,
-                &format!("/v1/accounts/code/{}", confirm_code),
+                &format!("/v1/accounts/code/{}", confirm_code.as_ref()),
                 self.auth_override(),
                 account_attributes,
             )
