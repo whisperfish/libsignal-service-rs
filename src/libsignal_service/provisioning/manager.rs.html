@@ -551,13 +551,13 @@
 
     <span class="kw">pub async fn </span>confirm_verification_code(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        confirm_code: u32,
+        confirm_code: <span class="kw">impl </span>AsRef&lt;str&gt;,
         account_attributes: AccountAttributes,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;VerifyAccountResponse, ServiceError&gt; {
         <span class="self">self</span>.push_service
             .put_json(
                 Endpoint::Service,
-                <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/v1/accounts/code/{}&quot;</span>, confirm_code),
+                <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">&quot;/v1/accounts/code/{}&quot;</span>, confirm_code.as_ref()),
                 <span class="self">self</span>.auth_override(),
                 account_attributes,
             )
