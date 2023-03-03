@@ -1,15 +1,15 @@
 # libsignal-service-rs
 
-[![Build Status](https://github.com/whisperfish/libsignal-service-rs/workflows/CI/badge.svg?branch=main)](ci_workflow)
-[![API Docs](https://img.shields.io/badge/docs-libsignal--service-blue)](rustdocs)
+[![Build Status](https://github.com/whisperfish/libsignal-service-rs/workflows/CI/badge.svg?branch=main)][ci_workflow]
+[![API Docs](https://img.shields.io/badge/docs-libsignal--service-blue)][rustdocs]
 
-A Rust version of the [libsignal-service-java][lsj] library which implements the core functionnality to communicate with [Signal](signal) servers. It is based on the official Rust version of [libsignal](lsg)
+A Rust version of the [libsignal-service-java][lsj] library which implements the core functionnality to communicate with [Signal][signal] servers. It is based on the official Rust version of [libsignal][lsg]
 
 ## Usage
 
 Usage of this library is not as straight-forward as with any other Rust library as it only provides some primitives.
 
-For a higher-level library that helps you immediately get started with implementing a [Signal](signal) client in Rust, you might want to have a look at [Presage](presage),  which implements the traits of this library as well as local storage.
+For a higher-level library that helps you immediately get started with implementing a [Signal][signal] client in Rust, you might want to have a look at [Presage][presage],  which implements the traits of this library as well as local storage.
 
 ### Working around the issue with `curve25519-dalek`
 
@@ -36,7 +36,7 @@ If you're using a Cargo workspace, you should add the `[patch.crates.io]` sectio
 
 ### Note on supported Rust versions
 
-`libsignal-service-rs` is the at the core of [Whisperfish](whisperfish), a SailfishOS application. The SailfishOS Rust compiler is relatively old, and therefore the MSRV for `libsignal-service-actix` maps on the compiler for that operating system, including some lag. At moment of writing, this is **Rust 1.52.1** (soon to be updated to 1.61).
+`libsignal-service-rs` is the at the core of [Whisperfish][whisperfish], a SailfishOS application. The SailfishOS Rust compiler is relatively old, and therefore the MSRV for `libsignal-service-actix` maps on the compiler for that operating system, including some lag. At moment of writing, this is **Rust 1.52.1** (soon to be updated to 1.61).
 
 For other platforms, we don't mandate MSRV.
 
