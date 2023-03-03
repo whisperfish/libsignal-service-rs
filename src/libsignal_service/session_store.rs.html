@@ -94,27 +94,6 @@
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
 <a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a>
-<a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
 </pre><pre class="rust"><code><span class="kw">use </span>libsignal_protocol::{
     Context, ProtocolAddress, SessionStore, SignalProtocolError,
 };
@@ -132,7 +111,7 @@
     /// This should return every device except for the main device [DEFAULT_DEVICE_ID].
     </span><span class="kw">async fn </span>get_sub_device_sessions(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        name: <span class="kw-2">&amp;</span>str,
+        name: <span class="kw-2">&amp;</span>ServiceAddress,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u32&gt;, SignalProtocolError&gt;;
 
     <span class="doccomment">/// Remove a session record for a recipient ID + device ID tuple.
@@ -147,42 +126,21 @@
     /// Returns the number of deleted sessions.
     </span><span class="kw">async fn </span>delete_all_sessions(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        address: <span class="kw-2">&amp;</span>str,
+        address: <span class="kw-2">&amp;</span>ServiceAddress,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;usize, SignalProtocolError&gt;;
 
     <span class="doccomment">/// Remove a session record for a recipient ID + device ID tuple.
     </span><span class="kw">async fn </span>delete_service_addr_device_session(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        address: <span class="kw-2">&amp;</span>ServiceAddress,
-        device_id: u32,
+        address: <span class="kw-2">&amp;</span>ProtocolAddress,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;usize, SignalProtocolError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>count = <span class="number">0</span>;
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>uuid) = address.uuid {
-            <span class="kw">match </span><span class="self">self
-                </span>.delete_session(<span class="kw-2">&amp;</span>ProtocolAddress::new(
-                    uuid.to_string(),
-                    device_id.into(),
-                ))
-                .<span class="kw">await
-            </span>{
-                <span class="prelude-val">Ok</span>(()) =&gt; {
-                    count += <span class="number">1</span>;
-                },
-                <span class="prelude-val">Err</span>(SignalProtocolError::SessionNotFound(<span class="kw">_</span>)) =&gt; (),
-                <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(e),
-            }
-        }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(e164) = address.e164() {
-            <span class="kw">match </span><span class="self">self
-                </span>.delete_session(<span class="kw-2">&amp;</span>ProtocolAddress::new(e164, device_id.into()))
-                .<span class="kw">await
-            </span>{
-                <span class="prelude-val">Ok</span>(()) =&gt; {
-                    count += <span class="number">1</span>;
-                },
-                <span class="prelude-val">Err</span>(SignalProtocolError::SessionNotFound(<span class="kw">_</span>)) =&gt; (),
-                <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(e),
-            }
+        <span class="kw">match </span><span class="self">self</span>.delete_session(<span class="kw-2">&amp;</span>address).<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(()) =&gt; {
+                count += <span class="number">1</span>;
+            },
+            <span class="prelude-val">Err</span>(SignalProtocolError::SessionNotFound(<span class="kw">_</span>)) =&gt; (),
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(e),
         }
 
         <span class="prelude-val">Ok</span>(count)
@@ -223,9 +181,9 @@
             <span class="kw">let </span>fp = libsignal_protocol::Fingerprint::new(
                 <span class="number">2</span>,
                 <span class="number">5200</span>,
-                local_address.e164_or_uuid().as_bytes(),
+                local_address.uuid.as_bytes(),
                 local.identity_key(),
-                address.e164_or_uuid().as_bytes(),
+                address.uuid.as_bytes(),
                 <span class="kw-2">&amp;</span>ident,
             )<span class="question-mark">?</span>;
             fp.display_string()
@@ -233,4 +191,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0 (fc594f156 2023-01-24)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.1 (d5a82bbd2 2023-02-07)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>

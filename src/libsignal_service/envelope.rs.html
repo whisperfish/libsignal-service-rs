@@ -195,41 +195,9 @@
 <a href="#195" id="195">195</a>
 <a href="#196" id="196">196</a>
 <a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-</pre><pre class="rust"><code><span class="kw">use </span>prost::Message;
+</pre><pre class="rust"><code><span class="kw">use </span>std::convert::{TryFrom, TryInto};
+
+<span class="kw">use </span>prost::Message;
 <span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">use crate</span>::{
@@ -239,48 +207,16 @@
 
 <span class="kw">pub use </span><span class="kw">crate</span>::proto::Envelope;
 
-<span class="attr">#[derive(thiserror::Error, Debug, Clone)]
-</span><span class="kw">pub enum </span>EnvelopeParseError {
-    <span class="attr">#[error(<span class="string">&quot;Supplied phone number could not be parsed in E164 format&quot;</span>)]
-    </span>InvalidPhoneNumber(<span class="attr">#[from] </span>phonenumber::ParseError),
+<span class="kw">impl </span>TryFrom&lt;EnvelopeEntity&gt; <span class="kw">for </span>Envelope {
+    <span class="kw">type </span>Error = ParseServiceAddressError;
 
-    <span class="attr">#[error(<span class="string">&quot;Supplied uuid could not be parsed&quot;</span>)]
-    </span>InvalidUuidError(<span class="attr">#[from] </span>uuid::Error),
-
-    <span class="attr">#[error(<span class="string">&quot;Envelope with neither Uuid or E164&quot;</span>)]
-    </span>NoSenderError,
-}
-
-<span class="kw">impl </span>std::convert::TryFrom&lt;EnvelopeEntity&gt; <span class="kw">for </span>Envelope {
-    <span class="kw">type </span>Error = EnvelopeParseError;
-
-    <span class="kw">fn </span>try_from(
-        entity: EnvelopeEntity,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Envelope, EnvelopeParseError&gt; {
-        <span class="kw">use </span>ParseServiceAddressError::<span class="kw-2">*</span>;
-        <span class="kw">if </span>entity.source.is_none() &amp;&amp; entity.source_uuid.is_none() {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(EnvelopeParseError::NoSenderError);
-        }
-
-        <span class="comment">// XXX: throwing allocations like it&#39;s Java.
-        </span><span class="kw">let </span>source = ServiceAddress::parse(
-            entity.source.as_deref(),
-            entity.source_uuid.as_deref(),
-        );
-        <span class="kw">match </span>source {
-            <span class="comment">// Valid source
-            </span><span class="prelude-val">Ok</span>(source) <span class="kw">if </span>entity.source_device &gt; <span class="number">0 </span>=&gt; {
-                <span class="prelude-val">Ok</span>(Envelope::new_with_source(entity, source))
+    <span class="kw">fn </span>try_from(entity: EnvelopeEntity) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">match </span>entity.source_uuid.as_deref() {
+            <span class="prelude-val">Some</span>(uuid) =&gt; {
+                <span class="kw">let </span>address = uuid.try_into()<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(Envelope::new_with_source(entity, address))
             },
-            <span class="comment">// No source
-            </span><span class="prelude-val">Ok</span>(<span class="kw">_</span>) | <span class="prelude-val">Err</span>(NoSenderError) =&gt; <span class="prelude-val">Ok</span>(Envelope::new_from_entity(entity)),
-            <span class="comment">// Source specified, but unparsable
-            </span><span class="prelude-val">Err</span>(InvalidPhoneNumber(e)) =&gt; {
-                <span class="prelude-val">Err</span>(EnvelopeParseError::InvalidPhoneNumber(e))
-            },
-            <span class="prelude-val">Err</span>(InvalidUuidError(e)) =&gt; {
-                <span class="prelude-val">Err</span>(EnvelopeParseError::InvalidUuidError(e))
-            },
+            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(Envelope::new_from_entity(entity)),
         }
     }
 }
@@ -359,7 +295,7 @@
             source_device: <span class="prelude-val">Some</span>(entity.source_device),
             timestamp: <span class="prelude-val">Some</span>(entity.timestamp),
             server_timestamp: <span class="prelude-val">Some</span>(entity.server_timestamp),
-            source_uuid: source.uuid.as_ref().map(|s| s.to_string()),
+            source_uuid: <span class="prelude-val">Some</span>(source.uuid.to_string()),
             content: entity.content,
             ..Default::default()
         }
@@ -385,14 +321,10 @@
         <span class="kw">let </span>uuid = <span class="self">self
             </span>.source_uuid
             .as_deref()
-            .map(Uuid::parse_str)
-            .transpose()
-            .expect(<span class="string">&quot;valid e164 checked in constructor&quot;</span>);
+            .and_then(|u| Uuid::parse_str(u).ok())
+            .expect(<span class="string">&quot;valid uuid checked in constructor&quot;</span>);
 
-        ServiceAddress {
-            phonenumber: <span class="prelude-val">None</span>,
-            uuid,
-        }
+        ServiceAddress { uuid }
     }
 }
 
@@ -461,4 +393,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0 (fc594f156 2023-01-24)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.1 (d5a82bbd2 2023-02-07)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>

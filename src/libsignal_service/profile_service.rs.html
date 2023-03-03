@@ -65,18 +65,18 @@
         address: ServiceAddress,
         profile_key: <span class="prelude-ty">Option</span>&lt;zkgroup::profiles::ProfileKey&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignalServiceProfile, ServiceError&gt; {
-        <span class="kw">let </span>endpoint = <span class="kw">match </span>(profile_key, address.uuid) {
-            (<span class="prelude-val">Some</span>(key), <span class="prelude-val">Some</span>(uuid)) =&gt; {
-                <span class="kw">let </span>uid_bytes = uuid.as_bytes();
+        <span class="kw">let </span>endpoint = <span class="kw">match </span>profile_key {
+            <span class="prelude-val">Some</span>(key) =&gt; {
+                <span class="kw">let </span>uid_bytes = address.uuid.as_bytes();
                 <span class="kw">let </span>version = bincode::serialize(
                     <span class="kw-2">&amp;</span>key.get_profile_key_version(<span class="kw-2">*</span>uid_bytes),
                 )<span class="question-mark">?</span>;
                 <span class="kw">let </span>version = std::str::from_utf8(<span class="kw-2">&amp;</span>version)
                     .expect(<span class="string">&quot;hex encoded profile key version&quot;</span>);
-                <span class="macro">format!</span>(<span class="string">&quot;/v1/profile/{}/{}&quot;</span>, uuid, version)
+                <span class="macro">format!</span>(<span class="string">&quot;/v1/profile/{}/{}&quot;</span>, address.uuid, version)
             },
-            (<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                <span class="macro">format!</span>(<span class="string">&quot;/v1/profile/{}&quot;</span>, address.identifier())
+            <span class="prelude-val">None </span>=&gt; {
+                <span class="macro">format!</span>(<span class="string">&quot;/v1/profile/{}&quot;</span>, address.uuid)
             },
         };
 
@@ -91,4 +91,4 @@
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0 (fc594f156 2023-01-24)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.1 (d5a82bbd2 2023-02-07)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>

@@ -784,22 +784,13 @@
 <a href="#784" id="784">784</a>
 <a href="#785" id="785">785</a>
 <a href="#786" id="786">786</a>
-<a href="#787" id="787">787</a>
-<a href="#788" id="788">788</a>
-<a href="#789" id="789">789</a>
-<a href="#790" id="790">790</a>
-<a href="#791" id="791">791</a>
-<a href="#792" id="792">792</a>
-<a href="#793" id="793">793</a>
-<a href="#794" id="794">794</a>
-<a href="#795" id="795">795</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::time::SystemTime;
 
 <span class="kw">use </span>chrono::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>libsignal_protocol::{
     process_prekey_bundle, DeviceId, IdentityKeyStore, PreKeyStore,
-    ProtocolAddress, SenderCertificate, SenderKeyStore, SessionStore,
-    SignalProtocolError, SignedPreKeyStore,
+    SenderCertificate, SenderKeyStore, SessionStore, SignalProtocolError,
+    SignedPreKeyStore,
 };
 <span class="kw">use </span>log::{info, trace};
 <span class="kw">use </span>rand::{CryptoRng, Rng};
@@ -830,8 +821,8 @@
 }
 
 <span class="attr">#[derive(serde::Serialize, Debug)]
-</span><span class="kw">pub struct </span>OutgoingPushMessages&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">pub </span>destination: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str,
+</span><span class="kw">pub struct </span>OutgoingPushMessages {
+    <span class="kw">pub </span>recipient: ServiceAddress,
     <span class="kw">pub </span>timestamp: u64,
     <span class="kw">pub </span>messages: Vec&lt;OutgoingPushMessage&gt;,
     <span class="kw">pub </span>online: bool,
@@ -899,8 +890,8 @@
     <span class="attr">#[error(<span class="string">&quot;Failed to upload attachment {0}&quot;</span>)]
     </span>AttachmentUploadError(<span class="attr">#[from] </span>AttachmentUploadError),
 
-    <span class="attr">#[error(<span class="string">&quot;Untrusted identity key with {identifier}&quot;</span>)]
-    </span>UntrustedIdentity { identifier: String },
+    <span class="attr">#[error(<span class="string">&quot;Untrusted identity key with {address:?}&quot;</span>)]
+    </span>UntrustedIdentity { address: ServiceAddress },
 
     <span class="attr">#[error(<span class="string">&quot;Exceeded maximum number of retries&quot;</span>)]
     </span>MaximumRetriesLimitExceeded,
@@ -1118,7 +1109,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>results = <span class="macro">vec!</span>[
             <span class="self">self</span>.try_send_message(
-                recipient.clone(),
+                <span class="kw-2">*</span>recipient,
                 unidentified_access,
                 <span class="kw-2">&amp;</span>content_body,
                 timestamp,
@@ -1142,7 +1133,7 @@
                         <span class="kw-2">&amp;</span>results,
                     );
                 <span class="self">self</span>.try_send_message(
-                    <span class="self">self</span>.local_address.clone(),
+                    <span class="self">self</span>.local_address,
                     <span class="prelude-val">None</span>,
                     <span class="kw-2">&amp;</span>sync_message,
                     timestamp,
@@ -1154,15 +1145,8 @@
         }
 
         <span class="kw">if </span>end_session {
-            <span class="macro">log::debug!</span>(<span class="string">&quot;ending session with {}&quot;</span>, recipient);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>uuid) = recipient.uuid {
-                <span class="self">self</span>.session_store
-                    .delete_all_sessions(<span class="kw-2">&amp;</span>uuid.to_string())
-                    .<span class="kw">await</span><span class="question-mark">?</span>;
-            }
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(e164) = recipient.e164() {
-                <span class="self">self</span>.session_store.delete_all_sessions(<span class="kw-2">&amp;</span>e164).<span class="kw">await</span><span class="question-mark">?</span>;
-            }
+            <span class="macro">log::debug!</span>(<span class="string">&quot;ending session with {}&quot;</span>, recipient.uuid);
+            <span class="self">self</span>.session_store.delete_all_sessions(<span class="kw-2">&amp;</span>recipient).<span class="kw">await</span><span class="question-mark">?</span>;
         }
 
         results.remove(<span class="number">0</span>)
@@ -1190,7 +1174,7 @@
         <span class="kw">for </span>recipient <span class="kw">in </span>recipients.iter() {
             <span class="kw">let </span>result = <span class="self">self
                 </span>.try_send_message(
-                    recipient.clone(),
+                    <span class="kw-2">*</span>recipient,
                     unidentified_access,
                     <span class="kw-2">&amp;</span>content_body,
                     timestamp,
@@ -1226,7 +1210,7 @@
 
                 <span class="kw">let </span>result = <span class="self">self
                     </span>.try_send_message(
-                        <span class="self">self</span>.local_address.clone(),
+                        <span class="self">self</span>.local_address,
                         unidentified_access,
                         <span class="kw-2">&amp;</span>sync_message,
                         timestamp,
@@ -1259,9 +1243,8 @@
                 </span>.create_encrypted_messages(<span class="kw-2">&amp;</span>recipient, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>content_bytes)
                 .<span class="kw">await</span><span class="question-mark">?</span>;
 
-            <span class="kw">let </span>destination = recipient.identifier();
             <span class="kw">let </span>messages = OutgoingPushMessages {
-                destination: <span class="kw-2">&amp;</span>destination,
+                recipient,
                 timestamp,
                 messages,
                 online,
@@ -1285,8 +1268,8 @@
                         );
                         <span class="self">self</span>.session_store
                             .delete_service_addr_device_session(
-                                <span class="kw-2">&amp;</span>recipient,
-                                <span class="kw-2">*</span>extra_device_id,
+                                <span class="kw-2">&amp;</span>recipient
+                                    .to_protocol_address(<span class="kw-2">*</span>extra_device_id),
                             )
                             .<span class="kw">await</span><span class="question-mark">?</span>;
                     }
@@ -1296,10 +1279,8 @@
                             <span class="string">&quot;creating session with missing device {}&quot;</span>,
                             missing_device_id
                         );
-                        <span class="kw">let </span>remote_address = ProtocolAddress::new(
-                            recipient.identifier(),
-                            (<span class="kw-2">*</span>missing_device_id).into(),
-                        );
+                        <span class="kw">let </span>remote_address =
+                            recipient.to_protocol_address(<span class="kw-2">*</span>missing_device_id);
                         <span class="kw">let </span>pre_key = <span class="self">self
                             </span>.service
                             .get_pre_key(<span class="kw-2">&amp;</span>recipient, <span class="kw-2">*</span>missing_device_id)
@@ -1317,7 +1298,7 @@
                         </span>.map_err(|e| {
                             <span class="macro">log::error!</span>(<span class="string">&quot;failed to create session: {}&quot;</span>, e);
                             MessageSenderError::UntrustedIdentity {
-                                identifier: recipient.identifier(),
+                                address: recipient,
                             }
                         })<span class="question-mark">?</span>;
                     }
@@ -1331,8 +1312,8 @@
                         );
                         <span class="self">self</span>.session_store
                             .delete_service_addr_device_session(
-                                <span class="kw-2">&amp;</span>recipient,
-                                <span class="kw-2">*</span>extra_device_id,
+                                <span class="kw-2">&amp;</span>recipient
+                                    .to_protocol_address(<span class="kw-2">*</span>extra_device_id),
                             )
                             .<span class="kw">await</span><span class="question-mark">?</span>;
                     }
@@ -1431,7 +1412,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>messages = <span class="macro">vec!</span>[];
         <span class="kw">let </span><span class="kw-2">mut </span>devices = <span class="macro">vec!</span>[];
 
-        <span class="kw">let </span>myself = recipient.matches(<span class="kw-2">&amp;</span><span class="self">self</span>.local_address);
+        <span class="kw">let </span>myself = <span class="kw-2">*</span>recipient == <span class="self">self</span>.local_address;
         <span class="kw">if </span>!myself || unidentified_access.is_some() {
             <span class="macro">trace!</span>(<span class="string">&quot;sending message to default device&quot;</span>);
             messages.push(
@@ -1447,8 +1428,11 @@
             devices.push(DEFAULT_DEVICE_ID);
         }
 
-        devices
-            .extend(recipient.sub_device_sessions(<span class="kw-2">&amp;</span><span class="self">self</span>.session_store).<span class="kw">await</span><span class="question-mark">?</span>);
+        devices.extend(
+            <span class="self">self</span>.session_store
+                .get_sub_device_sessions(recipient)
+                .<span class="kw">await</span><span class="question-mark">?</span>,
+        );
         devices.sort_unstable();
 
         <span class="kw">let </span>original_device_count = devices.len();
@@ -1516,7 +1500,7 @@
                 .get_pre_keys(recipient, device_id.into())
                 .<span class="kw">await</span><span class="question-mark">?</span>;
             <span class="kw">for </span>pre_key_bundle <span class="kw">in </span>pre_keys {
-                <span class="kw">if </span>recipient.matches(<span class="kw-2">&amp;</span><span class="self">self</span>.local_address)
+                <span class="kw">if </span>recipient == <span class="kw-2">&amp;</span><span class="self">self</span>.local_address
                     &amp;&amp; <span class="self">self</span>.device_id == pre_key_bundle.device_id()<span class="question-mark">?
                 </span>{
                     <span class="macro">trace!</span>(<span class="string">&quot;not establishing a session with myself!&quot;</span>);
@@ -1568,17 +1552,15 @@
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
-                        destination_uuid: recipient.uuid.map(|s| s.to_string()),
+                        destination_uuid: <span class="prelude-val">Some</span>(recipient.uuid.to_string()),
                         unidentified: <span class="prelude-val">Some</span>(<span class="kw-2">*</span>unidentified),
                     }
                 })
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: <span class="prelude-val">Some</span>(sync_message::Sent {
-                destination_uuid: recipient
-                    .and_then(|r| r.uuid)
-                    .map(|u| u.to_string()),
-                destination_e164: recipient.and_then(|r| r.e164()),
+                destination_uuid: recipient.map(|r| r.uuid.to_string()),
+                destination_e164: <span class="prelude-val">None</span>,
                 message: data_message,
                 timestamp: <span class="prelude-val">Some</span>(timestamp),
                 unidentified_status,
@@ -1589,4 +1571,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0 (fc594f156 2023-01-24)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.1 (d5a82bbd2 2023-02-07)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>

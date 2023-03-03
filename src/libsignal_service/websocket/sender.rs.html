@@ -16,13 +16,13 @@
 <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
 <span class="kw">impl </span>SignalWebSocket {
-    <span class="kw">pub async fn </span>send_messages&lt;<span class="lifetime">&#39;a</span>&gt;(
+    <span class="kw">pub async fn </span>send_messages(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        messages: OutgoingPushMessages&lt;<span class="lifetime">&#39;a</span>&gt;,
+        messages: OutgoingPushMessages,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SendMessageResponse, ServiceError&gt; {
-        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">&quot;/v1/messages/{}&quot;</span>, messages.destination);
+        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">&quot;/v1/messages/{}&quot;</span>, messages.recipient.uuid);
         <span class="self">self</span>.put_json(<span class="kw-2">&amp;</span>path, messages).<span class="kw">await
     </span>}
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.0 (fc594f156 2023-01-24)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.67.1 (d5a82bbd2 2023-02-07)" data-search-js="search-444266647c4dba98.js" data-settings-js="settings-bebeae96e00e4617.js" data-settings-css="settings-af96d9e2fc13e081.css" ></div></body></html>
