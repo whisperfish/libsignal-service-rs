@@ -13,12 +13,7 @@ jobs:
     name: Check code formatting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt
+      - uses: actions/checkout@v3
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
@@ -32,12 +27,7 @@ jobs:
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          components: rustfmt
+      - uses: actions/checkout@v3
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -60,14 +50,12 @@ jobs:
             features: "rust-1-52"
             can-fail: true
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          override: true
+      - uses: actions/checkout@v3
+      - run: rustup toolchain install --profile minimal ${{ matrix.toolchain }}
       - uses: actions-rs/cargo@v1
         with:
           command: build
+          toolchain: ${{ matrix.toolchain }}
           args: --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
       - uses: actions-rs/cargo@v1
         with:
