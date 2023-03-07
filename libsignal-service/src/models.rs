@@ -1,13 +1,13 @@
 use std::convert::TryInto;
 
-use crate::{proto::Verified, ParseServiceAddressError, ServiceAddress};
+use crate::proto::Verified;
 
 use bytes::Bytes;
+use phonenumber::PhoneNumber;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
-
-use std::convert::TryInto;
 
 /// Attachment represents an attachment received from a peer
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,7 +21,8 @@ pub struct Attachment<R> {
 /// and some helper functions
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Contact {
-    pub address: ServiceAddress,
+    pub uuid: Uuid,
+    pub phone_number: Option<PhoneNumber>,
     pub name: String,
     pub color: Option<String>,
     #[serde(skip)]
@@ -38,9 +39,11 @@ pub struct Contact {
 #[derive(Error, Debug)]
 pub enum ParseContactError {
     #[error(transparent)]
-    ProtobufError(#[from] prost::DecodeError),
+    Protobuf(#[from] prost::DecodeError),
     #[error(transparent)]
-    ServiceAddress(#[from] ParseServiceAddressError),
+    Uuid(#[from] uuid::Error),
+    #[error("missing UUID")]
+    MissingUuid,
     #[error("missing profile key")]
     MissingProfileKey,
     #[error("missing avatar content-type")]
@@ -53,7 +56,15 @@ impl Contact {
         avatar_data: Option<Bytes>,
     ) -> Result<Self, ParseContactError> {
         Ok(Self {
-            address: contact_details.uuid.as_deref().try_into()?,
+            uuid: contact_details
+                .uuid
+                .as_ref()
+                .ok_or(ParseContactError::MissingUuid)?
+                .parse()?,
+            phone_number: contact_details
+                .number
+                .as_ref()
+                .and_then(|n| phonenumber::parse(None, n).ok()),
             name: contact_details.name().into(),
             color: contact_details.color.clone(),
             verified: contact_details.verified.clone().unwrap_or_default(),
