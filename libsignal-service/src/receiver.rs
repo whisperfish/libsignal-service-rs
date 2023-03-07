@@ -130,7 +130,7 @@ impl Iterator for DeviceContactsIterator {
 
         let contact_details: ContactDetails =
             prost::Message::decode_length_delimited(&mut self.decrypted_buffer)
-                .map_err(ParseContactError::ProtobufError)
+                .map_err(ParseContactError::Protobuf)
                 .ok()?;
 
         let avatar_data = if let Some(Avatar {
