@@ -278,7 +278,7 @@
 
         <span class="kw">let </span>contact_details: ContactDetails =
             prost::Message::decode_length_delimited(<span class="kw-2">&amp;mut </span><span class="self">self</span>.decrypted_buffer)
-                .map_err(ParseContactError::ProtobufError)
+                .map_err(ParseContactError::Protobuf)
                 .ok()<span class="question-mark">?</span>;
 
         <span class="kw">let </span>avatar_data = <span class="kw">if let </span><span class="prelude-val">Some</span>(Avatar {

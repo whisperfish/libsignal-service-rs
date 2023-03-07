@@ -85,13 +85,28 @@
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
 <a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::convert::TryInto;
 
-<span class="kw">use crate</span>::{proto::Verified, ParseServiceAddressError, ServiceAddress};
+<span class="kw">use </span><span class="kw">crate</span>::proto::Verified;
 
 <span class="kw">use </span>bytes::Bytes;
+<span class="kw">use </span>phonenumber::PhoneNumber;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>thiserror::Error;
+<span class="kw">use </span>uuid::Uuid;
 <span class="kw">use </span>zkgroup::profiles::ProfileKey;
 
 <span class="doccomment">/// Attachment represents an attachment received from a peer
@@ -106,7 +121,8 @@
 /// and some helper functions
 </span><span class="attr">#[derive(Debug, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>Contact {
-    <span class="kw">pub </span>address: ServiceAddress,
+    <span class="kw">pub </span>uuid: Uuid,
+    <span class="kw">pub </span>phone_number: <span class="prelude-ty">Option</span>&lt;PhoneNumber&gt;,
     <span class="kw">pub </span>name: String,
     <span class="kw">pub </span>color: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[serde(skip)]
@@ -123,9 +139,11 @@
 <span class="attr">#[derive(Error, Debug)]
 </span><span class="kw">pub enum </span>ParseContactError {
     <span class="attr">#[error(transparent)]
-    </span>ProtobufError(<span class="attr">#[from] </span>prost::DecodeError),
+    </span>Protobuf(<span class="attr">#[from] </span>prost::DecodeError),
     <span class="attr">#[error(transparent)]
-    </span>ServiceAddress(<span class="attr">#[from] </span>ParseServiceAddressError),
+    </span>Uuid(<span class="attr">#[from] </span>uuid::Error),
+    <span class="attr">#[error(<span class="string">&quot;missing UUID&quot;</span>)]
+    </span>MissingUuid,
     <span class="attr">#[error(<span class="string">&quot;missing profile key&quot;</span>)]
     </span>MissingProfileKey,
     <span class="attr">#[error(<span class="string">&quot;missing avatar content-type&quot;</span>)]
@@ -138,7 +156,15 @@
         avatar_data: <span class="prelude-ty">Option</span>&lt;Bytes&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ParseContactError&gt; {
         <span class="prelude-val">Ok</span>(<span class="self">Self </span>{
-            address: contact_details.uuid.as_deref().try_into()<span class="question-mark">?</span>,
+            uuid: contact_details
+                .uuid
+                .as_ref()
+                .ok_or(ParseContactError::MissingUuid)<span class="question-mark">?
+                </span>.parse()<span class="question-mark">?</span>,
+            phone_number: contact_details
+                .number
+                .as_ref()
+                .and_then(|n| phonenumber::parse(<span class="prelude-val">None</span>, n).ok()),
             name: contact_details.name().into(),
             color: contact_details.color.clone(),
             verified: contact_details.verified.clone().unwrap_or_default(),
