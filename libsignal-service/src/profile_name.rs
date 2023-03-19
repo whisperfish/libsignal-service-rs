@@ -1,6 +1,8 @@
 use std::fmt::Display;
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
 pub struct ProfileName<S> {
     pub given_name: S,
     pub family_name: Option<S>,

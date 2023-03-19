@@ -56,7 +56,7 @@ pub enum LinkError {
     ProvisioningError(#[from] ProvisioningError),
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Profile {
     pub name: Option<ProfileName<String>>,
     pub about: Option<String>,
