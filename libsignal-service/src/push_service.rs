@@ -382,6 +382,9 @@ pub enum ServiceError {
 
     #[error(transparent)]
     ParseServiceAddress(#[from] ParseServiceAddressError),
+
+    #[error("Not found.")]
+    NotFoundError,
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]

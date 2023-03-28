@@ -397,6 +397,7 @@ impl SignalWebSocket {
         match response.status() {
             200 | 204 => json(response.body()),
             401 | 403 => Err(ServiceError::Unauthorized),
+            404 => Err(ServiceError::NotFoundError),
             413 /* PAYLOAD_TOO_LARGE */ => Err(ServiceError::RateLimitExceeded) ,
             409 /* CONFLICT */ => {
                 let mismatched_devices: MismatchedDevices =

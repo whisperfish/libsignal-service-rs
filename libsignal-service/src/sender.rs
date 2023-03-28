@@ -8,6 +8,7 @@ use libsignal_protocol::{
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
+use uuid::Uuid;
 
 use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
@@ -112,6 +113,9 @@ pub enum MessageSenderError {
 
     #[error("Proof of type {options:?} required using token {token}")]
     ProofRequired { token: String, options: Vec<String> },
+
+    #[error("Recipient not found: {uuid}")]
+    NotFound { uuid: Uuid },
 }
 
 impl<Service, S, I, SP, P, SK, R> MessageSender<Service, S, I, SP, P, SK, R>
@@ -539,7 +543,16 @@ where
                         options: p.options.clone(),
                     });
                 },
-                Err(e) => return Err(MessageSenderError::ServiceError(e)),
+                Err(ServiceError::NotFoundError) => {
+                    log::debug!("Not found when sending a message");
+                    return Err(MessageSenderError::NotFound {
+                        uuid: recipient.uuid.unwrap(),
+                    });
+                },
+                Err(e) => {
+                    log::debug!("Default error handler for ws.send_messages: {}", e);
+                    return Err(MessageSenderError::ServiceError(e))
+                }
             }
         }
 
@@ -709,10 +722,24 @@ where
             .is_none()
         {
             info!("establishing new session with {:?}", recipient_address);
-            let pre_keys = self
+            let pre_keys = match self
                 .service
                 .get_pre_keys(recipient, device_id.into())
-                .await?;
+                .await {
+                    Ok(ok) => {
+                        log::trace!("Get prekeys OK");
+                        ok
+                    },
+                    Err(e) => {
+                        log::trace!("Get prekeys failed: {}", e);
+                        return match e {
+                            ServiceError::NotFoundError => {
+                                Err(MessageSenderError::NotFound { uuid: recipient.uuid.unwrap() })
+                            },
+                            _ => Err(From::from(e)),
+                        }
+                    },
+                };
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_address
                     && self.device_id == pre_key_bundle.device_id()?
