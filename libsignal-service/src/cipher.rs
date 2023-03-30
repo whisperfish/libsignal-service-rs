@@ -274,22 +274,25 @@ where
         unindentified_access: Option<&SenderCertificate>,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, ServiceError> {
-        if let Some(unindentified_access) = unindentified_access {
-            let session_record = self
-                .session_store
-                .load_session(address, None)
-                .await?
-                .ok_or_else(|| {
-                    SignalProtocolError::SessionNotFound(address.clone())
-                })?;
+        let session_record = self
+            .session_store
+            .load_session(address, None)
+            .await?
+            .ok_or_else(|| {
+                SignalProtocolError::SessionNotFound(address.clone())
+            })?;
 
+        let padded_content =
+            add_padding(session_record.session_version()?, content)?;
+
+        if let Some(unindentified_access) = unindentified_access {
             let destination_registration_id =
                 session_record.remote_registration_id()?;
 
             let message = sealed_sender_encrypt(
                 address,
                 unindentified_access,
-                content,
+                &padded_content,
                 &mut self.session_store,
                 &mut self.identity_key_store,
                 None,
@@ -305,17 +308,6 @@ where
                 content: base64::encode(message),
             })
         } else {
-            let session_record = self
-                .session_store
-                .load_session(address, None)
-                .await?
-                .ok_or_else(|| {
-                    SignalProtocolError::SessionNotFound(address.clone())
-                })?;
-
-            let padded_content =
-                add_padding(session_record.session_version()?, content)?;
-
             let message = message_encrypt(
                 &padded_content,
                 address,

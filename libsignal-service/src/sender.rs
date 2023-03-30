@@ -476,10 +476,12 @@ where
             };
 
             let send = if let Some(unidentified) = &unidentified_access {
+                log::trace!("Sending via unidentified");
                 self.unidentified_ws
                     .send_messages_unidentified(messages, unidentified)
                     .await
             } else {
+                log::trace!("Sending identified");
                 self.ws.send_messages(messages).await
             };
 

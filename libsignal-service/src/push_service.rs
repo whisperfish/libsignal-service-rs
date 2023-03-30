@@ -165,6 +165,7 @@ pub enum AvatarWrite<C> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SenderCertificateJson {
+    #[serde(with = "serde_base64")]
     certificate: Vec<u8>,
 }
 
