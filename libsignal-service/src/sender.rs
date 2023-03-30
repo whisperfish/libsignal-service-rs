@@ -340,12 +340,17 @@ where
             .await,
         ];
 
+        let sub_device_count = self
+            .session_store
+            .get_sub_device_sessions(&self.local_address)
+            .await?
+            .len();
         match (&content_body, &results[0]) {
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
                 Ok(SentMessage { needs_sync, .. }),
-            ) if *needs_sync => {
+            ) if *needs_sync || sub_device_count > 0 => {
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
