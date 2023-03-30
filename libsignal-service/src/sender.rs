@@ -314,7 +314,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -332,7 +332,7 @@ where
         let mut results = vec![
             self.try_send_message(
                 *recipient,
-                unidentified_access,
+                unidentified_access.as_ref(),
                 &content_body,
                 timestamp,
                 online,
@@ -377,7 +377,7 @@ where
     /// Send a message to the recipients in a group.
     pub async fn send_message_to_group(
         &mut self,
-        recipients: impl AsRef<[(ServiceAddress, Option<&UnidentifiedAccess>)]>,
+        recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>)]>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -396,7 +396,7 @@ where
             let result = self
                 .try_send_message(
                     *recipient,
-                    *unidentified_access,
+                    unidentified_access.as_ref(),
                     &content_body,
                     timestamp,
                     online,
@@ -475,7 +475,7 @@ where
                 online,
             };
 
-            let send = if let Some(unidentified) = unidentified_access {
+            let send = if let Some(unidentified) = &unidentified_access {
                 self.unidentified_ws
                     .send_messages_unidentified(messages, unidentified)
                     .await
@@ -581,7 +581,7 @@ where
     pub async fn send_groups_details<Groups>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<UnidentifiedAccess>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of GroupDetails directly,
         //     because it allows us to add the avatar content.
@@ -614,7 +614,7 @@ where
     pub async fn send_contact_details<Contacts>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<UnidentifiedAccess>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of ContactDetails directly,
         //     because it allows us to add the avatar content.
