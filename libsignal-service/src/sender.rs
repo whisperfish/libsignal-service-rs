@@ -734,17 +734,12 @@ where
                     log::trace!("Get prekeys OK");
                     ok
                 },
-                Err(e) => {
-                    log::trace!("Get prekeys failed: {}", e);
-                    return match e {
-                        ServiceError::NotFoundError => {
-                            Err(MessageSenderError::NotFound {
-                                uuid: recipient.uuid,
-                            })
-                        },
-                        _ => Err(From::from(e)),
-                    };
+                Err(ServiceError::NotFoundError) => {
+                    return Err(MessageSenderError::NotFound {
+                        uuid: recipient.uuid,
+                    });
                 },
+                Err(e) => Err(e)?,
             };
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_address
