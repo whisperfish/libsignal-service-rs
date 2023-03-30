@@ -108,6 +108,26 @@ impl CredentialsCache for InMemoryCredentialsCache {
     }
 }
 
+impl<T: CredentialsCache> CredentialsCache for &mut T {
+    fn clear(&mut self) -> Result<(), CredentialsCacheError> {
+        (**self).clear()
+    }
+
+    fn get(
+        &self,
+        key: &i64,
+    ) -> Result<Option<&AuthCredentialResponse>, CredentialsCacheError> {
+        (**self).get(key)
+    }
+
+    fn write(
+        &mut self,
+        map: HashMap<i64, AuthCredentialResponse>,
+    ) -> Result<(), CredentialsCacheError> {
+        (**self).write(map)
+    }
+}
+
 pub struct GroupsManager<S: PushService, C: CredentialsCache> {
     self_uuid: Uuid,
     push_service: S,
