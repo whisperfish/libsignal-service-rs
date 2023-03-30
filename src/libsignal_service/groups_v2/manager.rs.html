@@ -310,6 +310,26 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashMap,
     convert::TryInto,
@@ -417,6 +437,26 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CredentialsCacheError&gt; {
         <span class="self">self</span>.map = map;
         <span class="prelude-val">Ok</span>(())
+    }
+}
+
+<span class="kw">impl</span>&lt;T: CredentialsCache&gt; CredentialsCache <span class="kw">for </span><span class="kw-2">&amp;mut </span>T {
+    <span class="kw">fn </span>clear(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), CredentialsCacheError&gt; {
+        (<span class="kw-2">**</span><span class="self">self</span>).clear()
+    }
+
+    <span class="kw">fn </span>get(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        key: <span class="kw-2">&amp;</span>i64,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>AuthCredentialResponse&gt;, CredentialsCacheError&gt; {
+        (<span class="kw-2">**</span><span class="self">self</span>).get(key)
+    }
+
+    <span class="kw">fn </span>write(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        map: HashMap&lt;i64, AuthCredentialResponse&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CredentialsCacheError&gt; {
+        (<span class="kw-2">**</span><span class="self">self</span>).write(map)
     }
 }
 
@@ -623,4 +663,4 @@
         .decrypt_group(encrypted_group)<span class="question-mark">?</span>)
 }
 </code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.0 (2c8cc3432 2023-03-06)" data-search-js="search-98d53477a794af0b.js" data-settings-js="settings-c3c521c753752a1a.js" data-settings-css="settings-08ddfdda51b8ee2e.css" ></div></body></html>
+</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.68.1 (8460ca823 2023-03-20)" data-search-js="search-98d53477a794af0b.js" data-settings-js="settings-c3c521c753752a1a.js" data-settings-css="settings-08ddfdda51b8ee2e.css" ></div></body></html>
