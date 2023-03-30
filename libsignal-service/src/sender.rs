@@ -20,6 +20,7 @@ use crate::{
     },
     push_service::*,
     session_store::SessionStoreExt,
+    unidentified_access::UnidentifiedAccess,
     websocket::SignalWebSocket,
     ServiceAddress,
 };
@@ -78,6 +79,7 @@ pub struct AttachmentSpec {
 #[derive(Clone)]
 pub struct MessageSender<Service, S, I, SP, P, SK, R> {
     ws: SignalWebSocket,
+    unidentified_ws: SignalWebSocket,
     service: Service,
     cipher: ServiceCipher<S, I, SP, P, SK, R>,
     csprng: R,
@@ -131,6 +133,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         ws: SignalWebSocket,
+        unidentified_ws: SignalWebSocket,
         service: Service,
         cipher: ServiceCipher<S, I, SP, P, SK, R>,
         csprng: R,
@@ -142,6 +145,7 @@ where
         MessageSender {
             service,
             ws,
+            unidentified_ws,
             cipher,
             csprng,
             session_store,
@@ -310,7 +314,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -373,7 +377,7 @@ where
     /// Send a message to the recipients in a group.
     pub async fn send_message_to_group(
         &mut self,
-        recipients: impl AsRef<[(ServiceAddress, Option<&SenderCertificate>)]>,
+        recipients: impl AsRef<[(ServiceAddress, Option<&UnidentifiedAccess>)]>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -446,7 +450,7 @@ where
     async fn try_send_message(
         &mut self,
         recipient: ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
         timestamp: u64,
         online: bool,
@@ -459,7 +463,7 @@ where
             let messages = self
                 .create_encrypted_messages(
                     &recipient,
-                    unidentified_access,
+                    unidentified_access.as_ref().map(|x| &x.certificate),
                     &content_bytes,
                 )
                 .await?;
@@ -471,7 +475,15 @@ where
                 online,
             };
 
-            match self.ws.send_messages(messages).await {
+            let send = if let Some(unidentified) = unidentified_access {
+                self.unidentified_ws
+                    .send_messages_unidentified(messages, unidentified)
+                    .await
+            } else {
+                self.ws.send_messages(messages).await
+            };
+
+            match send {
                 Ok(SendMessageResponse { needs_sync }) => {
                     log::debug!("message sent!");
                     return Ok(SentMessage {
@@ -569,7 +581,7 @@ where
     pub async fn send_groups_details<Groups>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of GroupDetails directly,
         //     because it allows us to add the avatar content.
@@ -602,7 +614,7 @@ where
     pub async fn send_contact_details<Contacts>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of ContactDetails directly,
         //     because it allows us to add the avatar content.

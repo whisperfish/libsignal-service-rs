@@ -466,10 +466,24 @@ impl SignalWebSocket {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
+        self.put_json_with_headers(path, value, vec![]).await
+    }
+
+    pub(crate) async fn put_json_with_headers<'h, D, S>(
+        &mut self,
+        path: &str,
+        value: S,
+        mut extra_headers: Vec<String>,
+    ) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: Serialize,
+    {
+        extra_headers.push("content-type:application/json".into());
         let request = WebSocketRequestMessage {
             path: Some(path.into()),
             verb: Some("PUT".into()),
-            headers: vec!["content-type:application/json".into()],
+            headers: extra_headers,
             body: Some(serde_json::to_vec(&value).map_err(|e| {
                 ServiceError::SendError {
                     reason: format!("Serializing JSON {}", e),
