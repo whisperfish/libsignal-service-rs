@@ -364,7 +364,7 @@ where
 
         if end_session {
             log::debug!("ending session with {}", recipient.uuid);
-            self.session_store.delete_all_sessions(&recipient).await?;
+            self.session_store.delete_all_sessions(recipient).await?;
         }
 
         results.remove(0)
@@ -546,13 +546,16 @@ where
                 Err(ServiceError::NotFoundError) => {
                     log::debug!("Not found when sending a message");
                     return Err(MessageSenderError::NotFound {
-                        uuid: recipient.uuid.unwrap(),
+                        uuid: recipient.uuid,
                     });
                 },
                 Err(e) => {
-                    log::debug!("Default error handler for ws.send_messages: {}", e);
-                    return Err(MessageSenderError::ServiceError(e))
-                }
+                    log::debug!(
+                        "Default error handler for ws.send_messages: {}",
+                        e
+                    );
+                    return Err(MessageSenderError::ServiceError(e));
+                },
             }
         }
 
@@ -725,21 +728,24 @@ where
             let pre_keys = match self
                 .service
                 .get_pre_keys(recipient, device_id.into())
-                .await {
-                    Ok(ok) => {
-                        log::trace!("Get prekeys OK");
-                        ok
-                    },
-                    Err(e) => {
-                        log::trace!("Get prekeys failed: {}", e);
-                        return match e {
-                            ServiceError::NotFoundError => {
-                                Err(MessageSenderError::NotFound { uuid: recipient.uuid.unwrap() })
-                            },
-                            _ => Err(From::from(e)),
-                        }
-                    },
-                };
+                .await
+            {
+                Ok(ok) => {
+                    log::trace!("Get prekeys OK");
+                    ok
+                },
+                Err(e) => {
+                    log::trace!("Get prekeys failed: {}", e);
+                    return match e {
+                        ServiceError::NotFoundError => {
+                            Err(MessageSenderError::NotFound {
+                                uuid: recipient.uuid,
+                            })
+                        },
+                        _ => Err(From::from(e)),
+                    };
+                },
+            };
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_address
                     && self.device_id == pre_key_bundle.device_id()?
