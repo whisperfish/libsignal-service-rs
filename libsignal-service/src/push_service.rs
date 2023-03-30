@@ -161,6 +161,12 @@ pub enum AvatarWrite<C> {
     NoAvatar,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SenderCertificate {
+    certificate: Vec<u8>,
+}
+
 impl fmt::Debug for HttpAuth {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "HTTP auth with username {}", self.username)
@@ -711,6 +717,32 @@ pub trait PushService: MaybeSend {
             HttpAuthOverride::Identified(credentials),
         )
         .await
+    }
+
+    async fn get_sender_certificate(
+        &mut self,
+    ) -> Result<Vec<u8>, ServiceError> {
+        let cert: SenderCertificate = self
+            .get_json(
+                Endpoint::Service,
+                "/v1/certificate/delivery",
+                HttpAuthOverride::NoOverride,
+            )
+            .await?;
+        Ok(cert.certificate)
+    }
+
+    async fn get_uuid_only_sender_certificate(
+        &mut self,
+    ) -> Result<Vec<u8>, ServiceError> {
+        let cert: SenderCertificate = self
+            .get_json(
+                Endpoint::Service,
+                "/v1/certificate/delivery?includeE164=false",
+                HttpAuthOverride::NoOverride,
+            )
+            .await?;
+        Ok(cert.certificate)
     }
 
     async fn set_account_attributes(
