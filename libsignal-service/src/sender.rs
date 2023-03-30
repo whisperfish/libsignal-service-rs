@@ -373,8 +373,7 @@ where
     /// Send a message to the recipients in a group.
     pub async fn send_message_to_group(
         &mut self,
-        recipients: impl AsRef<[ServiceAddress]>,
-        unidentified_access: Option<&SenderCertificate>,
+        recipients: impl AsRef<[(ServiceAddress, Option<&SenderCertificate>)]>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -389,11 +388,11 @@ where
 
         let recipients = recipients.as_ref();
         let mut needs_sync_in_results = false;
-        for recipient in recipients.iter() {
+        for (recipient, unidentified_access) in recipients.iter() {
             let result = self
                 .try_send_message(
                     *recipient,
-                    unidentified_access,
+                    *unidentified_access,
                     &content_body,
                     timestamp,
                     online,
@@ -429,7 +428,7 @@ where
                 let result = self
                     .try_send_message(
                         self.local_address,
-                        unidentified_access,
+                        None,
                         &sync_message,
                         timestamp,
                         false,
@@ -458,7 +457,11 @@ where
 
         for _ in 0..4u8 {
             let messages = self
-                .create_encrypted_messages(&recipient, None, &content_bytes)
+                .create_encrypted_messages(
+                    &recipient,
+                    unidentified_access,
+                    &content_bytes,
+                )
                 .await?;
 
             let messages = OutgoingPushMessages {
