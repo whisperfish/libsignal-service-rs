@@ -54,9 +54,9 @@ pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
 
 #[derive(Debug, Clone)]
 pub struct SentMessage {
-    recipient: ServiceAddress,
-    unidentified: bool,
-    needs_sync: bool,
+    pub recipient: ServiceAddress,
+    pub unidentified: bool,
+    pub needs_sync: bool,
 }
 
 /// Attachment specification to be used for uploading.
