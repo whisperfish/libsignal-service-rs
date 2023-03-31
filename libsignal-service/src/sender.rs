@@ -372,8 +372,8 @@ where
         }
 
         if end_session {
-            log::debug!("ending session with {}", recipient.uuid);
-            self.session_store.delete_all_sessions(recipient).await?;
+            let n = self.session_store.delete_all_sessions(recipient).await?;
+            log::debug!("ended {} sessions with {}", n, recipient.uuid);
         }
 
         results.remove(0)
