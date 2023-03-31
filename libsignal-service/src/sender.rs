@@ -470,7 +470,7 @@ where
     async fn try_send_message(
         &mut self,
         recipient: ServiceAddress,
-        unidentified_access: Option<&UnidentifiedAccess>,
+        mut unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
         timestamp: u64,
         online: bool,
@@ -513,6 +513,12 @@ where
                         unidentified: unidentified_access.is_some(),
                         needs_sync,
                     });
+                },
+                Err(ServiceError::Unauthorized)
+                    if unidentified_access.is_some() =>
+                {
+                    log::trace!("unauthorized error using unidentified; retry over identified");
+                    unidentified_access = None;
                 },
                 Err(ServiceError::MismatchedDevicesException(ref m)) => {
                     log::debug!("{:?}", m);
