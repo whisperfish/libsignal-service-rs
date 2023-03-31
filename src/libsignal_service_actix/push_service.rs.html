@@ -555,6 +555,14 @@
 <a href="#555" id="555">555</a>
 <a href="#556" id="556">556</a>
 <a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{sync::Arc, time::Duration};
 
 <span class="kw">use </span>awc::{
@@ -636,6 +644,10 @@
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN =&gt; {
                 <span class="prelude-val">Err</span>(ServiceError::Unauthorized)
             },
+            StatusCode::NOT_FOUND =&gt; {
+                <span class="comment">// This is 404 and means that e.g. recipient is not registered
+                </span><span class="prelude-val">Err</span>(ServiceError::NotFoundError)
+            },
             StatusCode::PAYLOAD_TOO_LARGE =&gt; {
                 <span class="comment">// This is 413 and means rate limit exceeded for Signal.
                 </span><span class="prelude-val">Err</span>(ServiceError::RateLimitExceeded)
@@ -676,7 +688,11 @@
             <span class="comment">// XXX: fill in rest from PushServiceSocket
             </span>code =&gt; {
                 <span class="kw">let </span>contents = response.body().<span class="kw">await</span>;
-                <span class="macro">log::trace!</span>(<span class="string">&quot;Unhandled response with body: {:?}&quot;</span>, contents);
+                <span class="macro">log::trace!</span>(
+                    <span class="string">&quot;Unhandled response {} with body: {:?}&quot;</span>,
+                    code.as_u16(),
+                    contents,
+                );
                 <span class="prelude-val">Err</span>(ServiceError::UnhandledResponseCode {
                     http_code: code.as_u16(),
                 })

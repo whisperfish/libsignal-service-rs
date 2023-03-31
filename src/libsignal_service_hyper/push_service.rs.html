@@ -508,6 +508,11 @@
 <a href="#508" id="508">508</a>
 <a href="#509" id="509">509</a>
 <a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{io::Read, time::Duration};
 
 <span class="kw">use </span>bytes::{Buf, Bytes};
@@ -653,6 +658,10 @@
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN =&gt; {
                 <span class="prelude-val">Err</span>(ServiceError::Unauthorized)
             },
+            StatusCode::NOT_FOUND =&gt; {
+                <span class="comment">// This is 404 and means that e.g. recipient is not registered
+                </span><span class="prelude-val">Err</span>(ServiceError::NotFoundError)
+            },
             StatusCode::PAYLOAD_TOO_LARGE =&gt; {
                 <span class="comment">// This is 413 and means rate limit exceeded for Signal.
                 </span><span class="prelude-val">Err</span>(ServiceError::RateLimitExceeded)
@@ -702,9 +711,10 @@
             <span class="comment">// XXX: fill in rest from PushServiceSocket
             </span>code =&gt; {
                 <span class="macro">log::trace!</span>(
-                    <span class="string">&quot;Unhandled response with body: {}&quot;</span>,
-                    <span class="self">Self</span>::text(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?
-                </span>);
+                    <span class="string">&quot;Unhandled response {} with body: {}&quot;</span>,
+                    code.as_u16(),
+                    <span class="self">Self</span>::text(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>,
+                );
                 <span class="prelude-val">Err</span>(ServiceError::UnhandledResponseCode {
                     http_code: code.as_u16(),
                 })

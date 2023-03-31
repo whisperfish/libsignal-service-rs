@@ -820,6 +820,9 @@
 <a href="#820" id="820">820</a>
 <a href="#821" id="821">821</a>
 <a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{fmt, time::Duration};
 
 <span class="kw">use crate</span>::{
@@ -1204,6 +1207,9 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 
     <span class="attr">#[error(transparent)]
     </span>ParseServiceAddress(<span class="attr">#[from] </span>ParseServiceAddressError),
+
+    <span class="attr">#[error(<span class="string">&quot;Not found.&quot;</span>)]
+    </span>NotFoundError,
 }
 
 <span class="attr">#[cfg_attr(feature = <span class="string">&quot;unsend-futures&quot;</span>, async_trait::async_trait(<span class="question-mark">?</span>Send))]
