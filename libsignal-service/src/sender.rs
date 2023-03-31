@@ -332,7 +332,11 @@ where
         let mut results = vec![
             self.try_send_message(
                 *recipient,
-                unidentified_access.as_ref(),
+                if !end_session {
+                    unidentified_access.as_ref()
+                } else {
+                    None
+                },
                 &content_body,
                 timestamp,
                 online,
@@ -425,7 +429,18 @@ where
 
         // we only need to send a synchronization message once
         if let Some(message) = message {
-            if needs_sync_in_results {
+            let sub_device_count = match self
+                .session_store
+                .get_sub_device_sessions(&self.local_address)
+                .await
+            {
+                Ok(x) => x.len(),
+                Err(e) => {
+                    log::error!("Attempt to count local subdevices failed; assuming zero: {}", e);
+                    0
+                },
+            };
+            if needs_sync_in_results || sub_device_count > 0 {
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         None,
