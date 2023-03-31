@@ -8,6 +8,7 @@ use libsignal_protocol::{
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
+use uuid::Uuid;
 
 use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
@@ -112,6 +113,9 @@ pub enum MessageSenderError {
 
     #[error("Proof of type {options:?} required using token {token}")]
     ProofRequired { token: String, options: Vec<String> },
+
+    #[error("Recipient not found: {uuid}")]
+    NotFound { uuid: Uuid },
 }
 
 impl<Service, S, I, SP, P, SK, R> MessageSender<Service, S, I, SP, P, SK, R>
@@ -360,7 +364,7 @@ where
 
         if end_session {
             log::debug!("ending session with {}", recipient.uuid);
-            self.session_store.delete_all_sessions(&recipient).await?;
+            self.session_store.delete_all_sessions(recipient).await?;
         }
 
         results.remove(0)
@@ -539,7 +543,19 @@ where
                         options: p.options.clone(),
                     });
                 },
-                Err(e) => return Err(MessageSenderError::ServiceError(e)),
+                Err(ServiceError::NotFoundError) => {
+                    log::debug!("Not found when sending a message");
+                    return Err(MessageSenderError::NotFound {
+                        uuid: recipient.uuid,
+                    });
+                },
+                Err(e) => {
+                    log::debug!(
+                        "Default error handler for ws.send_messages: {}",
+                        e
+                    );
+                    return Err(MessageSenderError::ServiceError(e));
+                },
             }
         }
 
@@ -709,10 +725,22 @@ where
             .is_none()
         {
             info!("establishing new session with {:?}", recipient_address);
-            let pre_keys = self
+            let pre_keys = match self
                 .service
                 .get_pre_keys(recipient, device_id.into())
-                .await?;
+                .await
+            {
+                Ok(ok) => {
+                    log::trace!("Get prekeys OK");
+                    ok
+                },
+                Err(ServiceError::NotFoundError) => {
+                    return Err(MessageSenderError::NotFound {
+                        uuid: recipient.uuid,
+                    });
+                },
+                Err(e) => Err(e)?,
+            };
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_address
                     && self.device_id == pre_key_bundle.device_id()?

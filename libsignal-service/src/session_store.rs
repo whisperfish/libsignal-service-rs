@@ -39,7 +39,7 @@ pub trait SessionStoreExt: SessionStore {
         address: &ProtocolAddress,
     ) -> Result<usize, SignalProtocolError> {
         let mut count = 0;
-        match self.delete_session(&address).await {
+        match self.delete_session(address).await {
             Ok(()) => {
                 count += 1;
             },

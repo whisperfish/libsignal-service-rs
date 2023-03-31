@@ -79,6 +79,10 @@ impl AwcPushService {
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
             },
+            StatusCode::NOT_FOUND => {
+                // This is 404 and means that e.g. recipient is not registered
+                Err(ServiceError::NotFoundError)
+            },
             StatusCode::PAYLOAD_TOO_LARGE => {
                 // This is 413 and means rate limit exceeded for Signal.
                 Err(ServiceError::RateLimitExceeded)
@@ -119,7 +123,11 @@ impl AwcPushService {
             // XXX: fill in rest from PushServiceSocket
             code => {
                 let contents = response.body().await;
-                log::trace!("Unhandled response with body: {:?}", contents);
+                log::trace!(
+                    "Unhandled response {} with body: {:?}",
+                    code.as_u16(),
+                    contents,
+                );
                 Err(ServiceError::UnhandledResponseCode {
                     http_code: code.as_u16(),
                 })
