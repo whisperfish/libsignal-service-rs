@@ -186,12 +186,12 @@
     plaintext.reserve(plaintext.len() + <span class="number">16 </span>+ <span class="number">16</span>);
 
     <span class="comment">// Prepend IV
-    </span>plaintext.extend([<span class="number">0u8</span>; <span class="number">16</span>]);
+    </span>plaintext.extend(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>]);
     plaintext.copy_within(..plaintext_len, <span class="number">16</span>);
     plaintext[<span class="number">0</span>..<span class="number">16</span>].copy_from_slice(<span class="kw-2">&amp;</span>iv);
 
     <span class="comment">// Pad with zeroes for padding
-    </span>plaintext.extend([<span class="number">0u8</span>; <span class="number">16</span>]);
+    </span>plaintext.extend(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">16</span>]);
 
     <span class="kw">let </span>cipher = Cbc::&lt;Aes256, Pkcs7&gt;::new_from_slices(aes_half, <span class="kw-2">&amp;</span>iv)
         .expect(<span class="string">&quot;fixed length key material&quot;</span>);
