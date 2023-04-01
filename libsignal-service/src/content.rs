@@ -5,8 +5,8 @@ pub use crate::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
         group_context::Type as GroupType, sync_message, AttachmentPointer,
-        CallMessage, DataMessage, GroupContext, GroupContextV2, ReceiptMessage,
-        SyncMessage, TypingMessage,
+        CallMessage, DataMessage, GroupContext, GroupContextV2, NullMessage,
+        ReceiptMessage, SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };
@@ -70,6 +70,7 @@ impl Content {
 #[derive(Clone, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum ContentBody {
+    NullMessage(NullMessage),
     DataMessage(DataMessage),
     SynchronizeMessage(SyncMessage),
     CallMessage(CallMessage),
@@ -80,6 +81,10 @@ pub enum ContentBody {
 impl ContentBody {
     pub fn into_proto(self) -> crate::proto::Content {
         match self {
+            Self::NullMessage(msg) => crate::proto::Content {
+                null_message: Some(msg),
+                ..Default::default()
+            },
             Self::DataMessage(msg) => crate::proto::Content {
                 data_message: Some(msg),
                 ..Default::default()
@@ -114,6 +119,7 @@ macro_rules! impl_from_for_content_body {
     };
 }
 
+impl_from_for_content_body!(NullMessage(NullMessage));
 impl_from_for_content_body!(DataMessage(DataMessage));
 impl_from_for_content_body!(SynchronizeMessage(SyncMessage));
 impl_from_for_content_body!(CallMessage(CallMessage));
