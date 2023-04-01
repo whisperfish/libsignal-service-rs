@@ -23,12 +23,12 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
     plaintext.reserve(plaintext.len() + 16 + 16);
 
     // Prepend IV
-    plaintext.extend([0u8; 16]);
+    plaintext.extend(&[0u8; 16]);
     plaintext.copy_within(..plaintext_len, 16);
     plaintext[0..16].copy_from_slice(&iv);
 
     // Pad with zeroes for padding
-    plaintext.extend([0u8; 16]);
+    plaintext.extend(&[0u8; 16]);
 
     let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_half, &iv)
         .expect("fixed length key material");
