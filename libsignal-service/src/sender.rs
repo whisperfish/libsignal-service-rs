@@ -20,6 +20,7 @@ use crate::{
     },
     push_service::*,
     session_store::SessionStoreExt,
+    unidentified_access::UnidentifiedAccess,
     websocket::SignalWebSocket,
     ServiceAddress,
 };
@@ -53,9 +54,9 @@ pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
 
 #[derive(Debug, Clone)]
 pub struct SentMessage {
-    recipient: ServiceAddress,
-    unidentified: bool,
-    needs_sync: bool,
+    pub recipient: ServiceAddress,
+    pub unidentified: bool,
+    pub needs_sync: bool,
 }
 
 /// Attachment specification to be used for uploading.
@@ -78,6 +79,7 @@ pub struct AttachmentSpec {
 #[derive(Clone)]
 pub struct MessageSender<Service, S, I, SP, P, SK, R> {
     ws: SignalWebSocket,
+    unidentified_ws: SignalWebSocket,
     service: Service,
     cipher: ServiceCipher<S, I, SP, P, SK, R>,
     csprng: R,
@@ -131,6 +133,7 @@ where
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         ws: SignalWebSocket,
+        unidentified_ws: SignalWebSocket,
         service: Service,
         cipher: ServiceCipher<S, I, SP, P, SK, R>,
         csprng: R,
@@ -142,6 +145,7 @@ where
         MessageSender {
             service,
             ws,
+            unidentified_ws,
             cipher,
             csprng,
             session_store,
@@ -310,7 +314,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -328,7 +332,11 @@ where
         let mut results = vec![
             self.try_send_message(
                 *recipient,
-                unidentified_access,
+                if !end_session {
+                    unidentified_access.as_ref()
+                } else {
+                    None
+                },
                 &content_body,
                 timestamp,
                 online,
@@ -336,12 +344,17 @@ where
             .await,
         ];
 
+        let sub_device_count = self
+            .session_store
+            .get_sub_device_sessions(&self.local_address)
+            .await?
+            .len();
         match (&content_body, &results[0]) {
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
                 Ok(SentMessage { needs_sync, .. }),
-            ) if *needs_sync => {
+            ) if *needs_sync || sub_device_count > 0 => {
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
@@ -363,8 +376,8 @@ where
         }
 
         if end_session {
-            log::debug!("ending session with {}", recipient.uuid);
-            self.session_store.delete_all_sessions(recipient).await?;
+            let n = self.session_store.delete_all_sessions(recipient).await?;
+            log::debug!("ended {} sessions with {}", n, recipient.uuid);
         }
 
         results.remove(0)
@@ -373,8 +386,7 @@ where
     /// Send a message to the recipients in a group.
     pub async fn send_message_to_group(
         &mut self,
-        recipients: impl AsRef<[ServiceAddress]>,
-        unidentified_access: Option<&SenderCertificate>,
+        recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>)]>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -389,11 +401,11 @@ where
 
         let recipients = recipients.as_ref();
         let mut needs_sync_in_results = false;
-        for recipient in recipients.iter() {
+        for (recipient, unidentified_access) in recipients.iter() {
             let result = self
                 .try_send_message(
                     *recipient,
-                    unidentified_access,
+                    unidentified_access.as_ref(),
                     &content_body,
                     timestamp,
                     online,
@@ -417,7 +429,18 @@ where
 
         // we only need to send a synchronization message once
         if let Some(message) = message {
-            if needs_sync_in_results {
+            let sub_device_count = match self
+                .session_store
+                .get_sub_device_sessions(&self.local_address)
+                .await
+            {
+                Ok(x) => x.len(),
+                Err(e) => {
+                    log::error!("Attempt to count local subdevices failed; assuming zero: {}", e);
+                    0
+                },
+            };
+            if needs_sync_in_results || sub_device_count > 0 {
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         None,
@@ -429,7 +452,7 @@ where
                 let result = self
                     .try_send_message(
                         self.local_address,
-                        unidentified_access,
+                        None,
                         &sync_message,
                         timestamp,
                         false,
@@ -447,7 +470,7 @@ where
     async fn try_send_message(
         &mut self,
         recipient: ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        mut unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
         timestamp: u64,
         online: bool,
@@ -458,7 +481,11 @@ where
 
         for _ in 0..4u8 {
             let messages = self
-                .create_encrypted_messages(&recipient, None, &content_bytes)
+                .create_encrypted_messages(
+                    &recipient,
+                    unidentified_access.as_ref().map(|x| &x.certificate),
+                    &content_bytes,
+                )
                 .await?;
 
             let messages = OutgoingPushMessages {
@@ -468,7 +495,17 @@ where
                 online,
             };
 
-            match self.ws.send_messages(messages).await {
+            let send = if let Some(unidentified) = &unidentified_access {
+                log::trace!("Sending via unidentified");
+                self.unidentified_ws
+                    .send_messages_unidentified(messages, unidentified)
+                    .await
+            } else {
+                log::trace!("Sending identified");
+                self.ws.send_messages(messages).await
+            };
+
+            match send {
                 Ok(SendMessageResponse { needs_sync }) => {
                     log::debug!("message sent!");
                     return Ok(SentMessage {
@@ -476,6 +513,12 @@ where
                         unidentified: unidentified_access.is_some(),
                         needs_sync,
                     });
+                },
+                Err(ServiceError::Unauthorized)
+                    if unidentified_access.is_some() =>
+                {
+                    log::trace!("unauthorized error using unidentified; retry over identified");
+                    unidentified_access = None;
                 },
                 Err(ServiceError::MismatchedDevicesException(ref m)) => {
                     log::debug!("{:?}", m);
@@ -566,7 +609,7 @@ where
     pub async fn send_groups_details<Groups>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<UnidentifiedAccess>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of GroupDetails directly,
         //     because it allows us to add the avatar content.
@@ -599,7 +642,7 @@ where
     pub async fn send_contact_details<Contacts>(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<UnidentifiedAccess>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of ContactDetails directly,
         //     because it allows us to add the avatar content.
@@ -636,7 +679,7 @@ where
     async fn create_encrypted_messages(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<SenderCertificate>,
+        unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
@@ -648,7 +691,7 @@ where
             messages.push(
                 self.create_encrypted_message(
                     recipient,
-                    unidentified_access.as_ref(),
+                    unidentified_access,
                     DEFAULT_DEVICE_ID.into(),
                     content,
                 )
@@ -688,7 +731,7 @@ where
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
-                        unidentified_access.as_ref(),
+                        unidentified_access,
                         device_id.into(),
                         content,
                     )

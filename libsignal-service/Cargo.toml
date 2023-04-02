@@ -7,8 +7,8 @@ license = "GPLv3"
 readme = "../README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.20.0" }
-zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.20.0" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.22.2" }
+zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.22.2" }
 async-trait = "0.1"
 url = { version = "2.1", features = ["serde"] }
 base64 = "0.13"

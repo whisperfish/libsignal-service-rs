@@ -20,6 +20,7 @@ use aes_gcm::{
 use chrono::prelude::*;
 use libsignal_protocol::{
     error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
+    SenderCertificate,
 };
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
@@ -159,6 +160,13 @@ pub enum AvatarWrite<C> {
     NewAvatar(C),
     RetainAvatar,
     NoAvatar,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SenderCertificateJson {
+    #[serde(with = "serde_base64")]
+    certificate: Vec<u8>,
 }
 
 impl fmt::Debug for HttpAuth {
@@ -711,6 +719,32 @@ pub trait PushService: MaybeSend {
             HttpAuthOverride::Identified(credentials),
         )
         .await
+    }
+
+    async fn get_sender_certificate(
+        &mut self,
+    ) -> Result<SenderCertificate, ServiceError> {
+        let cert: SenderCertificateJson = self
+            .get_json(
+                Endpoint::Service,
+                "/v1/certificate/delivery",
+                HttpAuthOverride::NoOverride,
+            )
+            .await?;
+        Ok(SenderCertificate::deserialize(&cert.certificate)?)
+    }
+
+    async fn get_uuid_only_sender_certificate(
+        &mut self,
+    ) -> Result<SenderCertificate, ServiceError> {
+        let cert: SenderCertificateJson = self
+            .get_json(
+                Endpoint::Service,
+                "/v1/certificate/delivery?includeE164=false",
+                HttpAuthOverride::NoOverride,
+            )
+            .await?;
+        Ok(SenderCertificate::deserialize(&cert.certificate)?)
     }
 
     async fn set_account_attributes(
