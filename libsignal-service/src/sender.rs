@@ -679,7 +679,7 @@ where
     async fn create_encrypted_messages(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<SenderCertificate>,
+        unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
@@ -691,7 +691,7 @@ where
             messages.push(
                 self.create_encrypted_message(
                     recipient,
-                    unidentified_access.as_ref(),
+                    unidentified_access,
                     DEFAULT_DEVICE_ID.into(),
                     content,
                 )
@@ -731,7 +731,7 @@ where
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
-                        unidentified_access.as_ref(),
+                        unidentified_access,
                         device_id.into(),
                         content,
                     )
