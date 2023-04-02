@@ -480,6 +480,20 @@
 <a href="#480" id="480">480</a>
 <a href="#481" id="481">481</a>
 <a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 <span class="kw">use </span>std::sync::{Arc, Mutex, MutexGuard};
 
@@ -948,10 +962,24 @@
         for</span>&lt;<span class="lifetime">&#39;de</span>&gt; D: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
         S: Serialize,
     {
+        <span class="self">self</span>.put_json_with_headers(path, value, <span class="macro">vec!</span>[]).<span class="kw">await
+    </span>}
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>put_json_with_headers&lt;<span class="lifetime">&#39;h</span>, D, S&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: <span class="kw-2">&amp;</span>str,
+        value: S,
+        <span class="kw-2">mut </span>extra_headers: Vec&lt;String&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;D, ServiceError&gt;
+    <span class="kw">where
+        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; D: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+        S: Serialize,
+    {
+        extra_headers.push(<span class="string">&quot;content-type:application/json&quot;</span>.into());
         <span class="kw">let </span>request = WebSocketRequestMessage {
             path: <span class="prelude-val">Some</span>(path.into()),
             verb: <span class="prelude-val">Some</span>(<span class="string">&quot;PUT&quot;</span>.into()),
-            headers: <span class="macro">vec!</span>[<span class="string">&quot;content-type:application/json&quot;</span>.into()],
+            headers: extra_headers,
             body: <span class="prelude-val">Some</span>(serde_json::to_vec(<span class="kw-2">&amp;</span>value).map_err(|e| {
                 ServiceError::SendError {
                     reason: <span class="macro">format!</span>(<span class="string">&quot;Serializing JSON {}&quot;</span>, e),
