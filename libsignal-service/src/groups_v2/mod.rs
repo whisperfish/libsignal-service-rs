@@ -7,4 +7,7 @@ pub use manager::{
     decrypt_group, CredentialsCache, CredentialsCacheError, GroupsManager,
     InMemoryCredentialsCache,
 };
-pub use operations::{Group, GroupChange, GroupChanges, GroupDecryptionError};
+pub use operations::{
+    Group, GroupChange, GroupChanges, GroupDecryptionError, Member,
+    PendingMember, RequestingMember, Timer,
+};
