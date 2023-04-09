@@ -164,6 +164,20 @@ where
                 )?;
                 Plaintext { metadata, data }
             },
+            Type::PlaintextContent => {
+                log::warn!("Envelope with plaintext content.  This usually indicates a decryption retry.");
+                let metadata = Metadata {
+                    sender: envelope.source_address(),
+                    sender_device: envelope.source_device(),
+                    timestamp: envelope.server_timestamp(),
+                    needs_receipt: false,
+                    unidentified_sender: false,
+                };
+                Plaintext {
+                    metadata,
+                    data: ciphertext.clone(),
+                }
+            },
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
                     &self.session_store,
