@@ -3,7 +3,7 @@ use std::time::Duration;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
-    groups_v2::GroupDecryptionError,
+    groups_v2::GroupDecodingError,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
@@ -380,7 +380,7 @@ pub enum ServiceError {
     GroupsV2Error,
 
     #[error(transparent)]
-    GroupsV2DecryptionError(#[from] GroupDecryptionError),
+    GroupsV2DecryptionError(#[from] GroupDecodingError),
 
     #[error("unsupported content")]
     UnsupportedContent,

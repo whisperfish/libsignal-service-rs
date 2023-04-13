@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
 
-use super::GroupDecryptionError;
+use super::GroupDecodingError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Role {
@@ -139,7 +139,7 @@ pub struct Timer {
 /// Conversion from protobuf definitions
 
 impl TryFrom<i32> for Role {
-    type Error = GroupDecryptionError;
+    type Error = GroupDecodingError;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         use crate::proto::member::Role::*;
@@ -147,13 +147,13 @@ impl TryFrom<i32> for Role {
             Some(Unknown) => Ok(Role::Unknown),
             Some(Default) => Ok(Role::Default),
             Some(Administrator) => Ok(Role::Administrator),
-            None => Err(GroupDecryptionError::WrongEnumValue),
+            None => Err(GroupDecodingError::WrongEnumValue),
         }
     }
 }
 
 impl TryFrom<i32> for AccessRequired {
-    type Error = GroupDecryptionError;
+    type Error = GroupDecodingError;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         use crate::proto::access_control::AccessRequired::*;
@@ -163,13 +163,13 @@ impl TryFrom<i32> for AccessRequired {
             Some(Member) => Ok(AccessRequired::Member),
             Some(Administrator) => Ok(AccessRequired::Administrator),
             Some(Unsatisfiable) => Ok(AccessRequired::Unsatisfiable),
-            None => Err(GroupDecryptionError::WrongEnumValue),
+            None => Err(GroupDecodingError::WrongEnumValue),
         }
     }
 }
 
 impl TryFrom<crate::proto::AccessControl> for AccessControl {
-    type Error = GroupDecryptionError;
+    type Error = GroupDecodingError;
 
     fn try_from(
         value: crate::proto::AccessControl,

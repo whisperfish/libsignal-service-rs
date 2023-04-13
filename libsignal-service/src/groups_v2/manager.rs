@@ -7,7 +7,7 @@ use std::{
 use crate::{
     configuration::Endpoint,
     groups_v2::model::{Group, GroupChanges},
-    groups_v2::operations::{GroupDecryptionError, GroupOperations},
+    groups_v2::operations::{GroupDecodingError, GroupOperations},
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride},
@@ -294,12 +294,12 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
     pub fn decrypt_group_context(
         &self,
         group_context: GroupContextV2,
-    ) -> Result<Option<GroupChanges>, GroupDecryptionError> {
+    ) -> Result<Option<GroupChanges>, GroupDecodingError> {
         match (group_context.master_key, group_context.group_change) {
             (Some(master_key), Some(group_change)) => {
                 let master_key_bytes: [u8; 32] = master_key
                     .try_into()
-                    .map_err(|_| GroupDecryptionError::WrongBlob)?;
+                    .map_err(|_| GroupDecodingError::WrongBlob)?;
                 let group_master_key = GroupMasterKey::new(master_key_bytes);
                 let group_secret_params =
                     GroupSecretParams::derive_from_master_key(group_master_key);

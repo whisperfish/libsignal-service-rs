@@ -26,7 +26,7 @@ pub(crate) struct GroupOperations {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum GroupDecryptionError {
+pub enum GroupDecodingError {
     #[error("zero-knowledge group deserialization failure")]
     ZkGroupDeserializationFailure,
     #[error("zero-knowledge group verification failure")]
@@ -41,20 +41,20 @@ pub enum GroupDecryptionError {
     WrongEnumValue,
 }
 
-impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecryptionError {
+impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecodingError {
     fn from(_: zkgroup::ZkGroupDeserializationFailure) -> Self {
-        GroupDecryptionError::ZkGroupDeserializationFailure
+        GroupDecodingError::ZkGroupDeserializationFailure
     }
 }
 
-impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecryptionError {
+impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecodingError {
     fn from(_: zkgroup::ZkGroupVerificationFailure) -> Self {
-        GroupDecryptionError::ZkGroupVerificationFailure
+        GroupDecodingError::ZkGroupVerificationFailure
     }
 }
 
 impl GroupOperations {
-    fn decrypt_uuid(&self, uuid: &[u8]) -> Result<Uuid, GroupDecryptionError> {
+    fn decrypt_uuid(&self, uuid: &[u8]) -> Result<Uuid, GroupDecodingError> {
         let bytes = self
             .group_secret_params
             .decrypt_uuid(bincode::deserialize(uuid)?)?;
@@ -65,7 +65,7 @@ impl GroupOperations {
         &self,
         encrypted_profile_key: &[u8],
         decrypted_uuid: &Uuid,
-    ) -> Result<ProfileKey, GroupDecryptionError> {
+    ) -> Result<ProfileKey, GroupDecodingError> {
         Ok(self.group_secret_params.decrypt_profile_key(
             bincode::deserialize(encrypted_profile_key)?,
             *decrypted_uuid.as_bytes(),
@@ -75,7 +75,7 @@ impl GroupOperations {
     fn decrypt_profile_key_presentation(
         &self,
         presentation: &[u8],
-    ) -> Result<(Uuid, ProfileKey), GroupDecryptionError> {
+    ) -> Result<(Uuid, ProfileKey), GroupDecodingError> {
         let profile_key_credential_presentation =
             AnyProfileKeyCredentialPresentation::new(presentation)?;
         let uuid = Uuid::from_bytes(self.group_secret_params.decrypt_uuid(
@@ -91,7 +91,7 @@ impl GroupOperations {
     fn decrypt_member(
         &self,
         member: EncryptedMember,
-    ) -> Result<Member, GroupDecryptionError> {
+    ) -> Result<Member, GroupDecodingError> {
         let (uuid, profile_key) = if member.presentation.is_empty() {
             let uuid = self.decrypt_uuid(&member.user_id)?;
             let profile_key =
@@ -111,9 +111,9 @@ impl GroupOperations {
     fn decrypt_pending_member(
         &self,
         member: proto::PendingMember,
-    ) -> Result<PendingMember, GroupDecryptionError> {
+    ) -> Result<PendingMember, GroupDecodingError> {
         let inner_member =
-            member.member.ok_or(GroupDecryptionError::WrongBlob)?;
+            member.member.ok_or(GroupDecodingError::WrongBlob)?;
         // "Unknown" UUID with zeroes in case of errors, see: UuidUtil.java:16
         let uuid = self.decrypt_uuid(&inner_member.user_id).unwrap_or_default();
         let added_by_uuid = self.decrypt_uuid(&member.added_by_user_id)?;
@@ -129,7 +129,7 @@ impl GroupOperations {
     fn decrypt_requesting_member(
         &self,
         member: proto::RequestingMember,
-    ) -> Result<RequestingMember, GroupDecryptionError> {
+    ) -> Result<RequestingMember, GroupDecodingError> {
         let (uuid, profile_key) = if member.presentation.is_empty() {
             let uuid = self.decrypt_uuid(&member.user_id)?;
             let profile_key =
@@ -154,10 +154,10 @@ impl GroupOperations {
         } else {
             self.group_secret_params
                 .decrypt_blob(bytes)
-                .map_err(GroupDecryptionError::from)
+                .map_err(GroupDecodingError::from)
                 .and_then(|b| {
                     GroupAttributeBlob::decode(Bytes::copy_from_slice(&b[4..]))
-                        .map_err(GroupDecryptionError::ProtobufDecodeError)
+                        .map_err(GroupDecodingError::ProtobufDecodeError)
                 })
                 .unwrap_or_else(|e| {
                     log::warn!("bad encrypted blob: {}", e);
@@ -204,7 +204,7 @@ impl GroupOperations {
     pub fn decrypt_group(
         &self,
         group: proto::Group,
-    ) -> Result<Group, GroupDecryptionError> {
+    ) -> Result<Group, GroupDecodingError> {
         let title = self.decrypt_title(&group.title);
 
         let description = self.decrypt_description(&group.description);
@@ -252,7 +252,7 @@ impl GroupOperations {
     pub fn decrypt_group_change(
         &self,
         group_change: proto::GroupChange,
-    ) -> Result<GroupChanges, GroupDecryptionError> {
+    ) -> Result<GroupChanges, GroupDecodingError> {
         let actions: proto::group_change::Actions =
             Message::decode(Bytes::from(group_change.actions))?;
 
@@ -392,27 +392,26 @@ impl GroupOperations {
             .into_iter()
             .map(|m| Ok(GroupChange::AnnouncementOnly(m.announcements_only)));
 
-        let changes: Result<Vec<GroupChange>, GroupDecryptionError> =
-            new_members
-                .chain(delete_members)
-                .chain(modify_member_roles)
-                .chain(modify_member_profile_keys)
-                .chain(add_pending_members)
-                .chain(delete_pending_members)
-                .chain(promote_pending_members)
-                .chain(modify_title)
-                .chain(modify_avatar)
-                .chain(modify_disappearing_messages_timer)
-                .chain(modify_attributes_access)
-                .chain(modify_description)
-                .chain(modify_member_access)
-                .chain(modify_add_from_invite_link_access)
-                .chain(add_requesting_members)
-                .chain(delete_requesting_members)
-                .chain(promote_requesting_members)
-                .chain(modify_invite_link_password)
-                .chain(modify_announcements_only)
-                .collect();
+        let changes: Result<Vec<GroupChange>, GroupDecodingError> = new_members
+            .chain(delete_members)
+            .chain(modify_member_roles)
+            .chain(modify_member_profile_keys)
+            .chain(add_pending_members)
+            .chain(delete_pending_members)
+            .chain(promote_pending_members)
+            .chain(modify_title)
+            .chain(modify_avatar)
+            .chain(modify_disappearing_messages_timer)
+            .chain(modify_attributes_access)
+            .chain(modify_description)
+            .chain(modify_member_access)
+            .chain(modify_add_from_invite_link_access)
+            .chain(add_requesting_members)
+            .chain(delete_requesting_members)
+            .chain(promote_requesting_members)
+            .chain(modify_invite_link_password)
+            .chain(modify_announcements_only)
+            .collect();
 
         Ok(GroupChanges {
             editor: uuid,
