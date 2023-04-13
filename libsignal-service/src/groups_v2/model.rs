@@ -1,5 +1,6 @@
-use std::{convert::TryFrom, convert::TryInto, fmt};
+use std::{convert::TryFrom, convert::TryInto};
 
+use derivative::Derivative;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
@@ -13,10 +14,12 @@ pub enum Role {
     Administrator,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Derivative, Clone, Deserialize, Serialize)]
+#[derivative(Debug)]
 pub struct Member {
     pub uuid: Uuid,
     pub role: Role,
+    #[derivative(Debug = "ignore")]
     pub profile_key: ProfileKey,
     pub joined_at_revision: u32,
 }
@@ -24,16 +27,6 @@ pub struct Member {
 impl PartialEq for Member {
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
-    }
-}
-
-impl fmt::Debug for Member {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Member")
-            .field("uuid", &self.uuid)
-            .field("role", &self.role)
-            .field("joined_at_revision", &self.joined_at_revision)
-            .finish()
     }
 }
 
@@ -45,9 +38,11 @@ pub struct PendingMember {
     pub timestamp: u64,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Derivative, Clone, Deserialize, Serialize)]
+#[derivative(Debug)]
 pub struct RequestingMember {
     pub uuid: Uuid,
+    #[derivative(Debug = "ignore")]
     pub profile_key: ProfileKey,
     pub timestamp: u64,
 }
@@ -55,15 +50,6 @@ pub struct RequestingMember {
 impl PartialEq for RequestingMember {
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
-    }
-}
-
-impl fmt::Debug for RequestingMember {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RequestingMember")
-            .field("uuid", &self.uuid)
-            .field("timestamp", &self.timestamp)
-            .finish()
     }
 }
 
@@ -97,27 +83,42 @@ pub struct Group {
     pub description: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct GroupChanges {
     pub editor: Uuid,
     pub revision: u32,
     pub changes: Vec<GroupChange>,
 }
 
-#[derive(Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub enum GroupChange {
     NewMember(Member),
     DeleteMember(Uuid),
-    ModifyMemberRole { uuid: Uuid, role: Role },
-    ModifyMemberProfileKey { uuid: Uuid, profile_key: ProfileKey },
+    ModifyMemberRole {
+        uuid: Uuid,
+        role: Role,
+    },
+    ModifyMemberProfileKey {
+        uuid: Uuid,
+        #[derivative(Debug = "ignore")]
+        profile_key: ProfileKey,
+    },
     // for open groups
     NewPendingMember(PendingMember),
     DeletePendingMember(Uuid),
-    PromotePendingMember { uuid: Uuid, profile_key: ProfileKey },
+    PromotePendingMember {
+        uuid: Uuid,
+        #[derivative(Debug = "ignore")]
+        profile_key: ProfileKey,
+    },
     // when admin control is enabled
     NewRequestingMember(RequestingMember),
     DeleteRequestingMember(Uuid),
-    PromoteRequestingMember { uuid: Uuid, role: Role },
+    PromoteRequestingMember {
+        uuid: Uuid,
+        role: Role,
+    },
     // group metadata
     Title(String),
     Avatar(String),
@@ -128,70 +129,6 @@ pub enum GroupChange {
     InviteLinkAccess(AccessRequired),
     InviteLinkPassword(String),
     AnnouncementOnly(bool),
-}
-
-impl fmt::Debug for GroupChange {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NewMember(arg0) => {
-                f.debug_tuple("NewMember").field(arg0).finish()
-            },
-            Self::DeleteMember(arg0) => {
-                f.debug_tuple("DeleteMember").field(arg0).finish()
-            },
-            Self::ModifyMemberRole { uuid, role } => f
-                .debug_struct("ModifyMemberRole")
-                .field("uuid", uuid)
-                .field("role", role)
-                .finish(),
-            Self::ModifyMemberProfileKey { uuid, .. } => f
-                .debug_struct("ModifyMemberProfileKey")
-                .field("uuid", uuid)
-                .finish(),
-            Self::NewPendingMember(arg0) => {
-                f.debug_tuple("NewPendingMember").field(arg0).finish()
-            },
-            Self::DeletePendingMember(arg0) => {
-                f.debug_tuple("DeletePendingMember").field(arg0).finish()
-            },
-            Self::PromotePendingMember { uuid, .. } => f
-                .debug_struct("PromotePendingMember")
-                .field("uuid", uuid)
-                .finish(),
-            Self::NewRequestingMember(arg0) => {
-                f.debug_tuple("NewRequestingMember").field(arg0).finish()
-            },
-            Self::DeleteRequestingMember(arg0) => {
-                f.debug_tuple("DeleteRequestingMember").field(arg0).finish()
-            },
-            Self::PromoteRequestingMember { uuid, role } => f
-                .debug_struct("PromoteRequestingMember")
-                .field("uuid", uuid)
-                .field("role", role)
-                .finish(),
-            Self::Title(arg0) => f.debug_tuple("Title").field(arg0).finish(),
-            Self::Avatar(arg0) => f.debug_tuple("Avatar").field(arg0).finish(),
-            Self::Timer(arg0) => f.debug_tuple("Timer").field(arg0).finish(),
-            Self::Description(arg0) => {
-                f.debug_tuple("Description").field(arg0).finish()
-            },
-            Self::AttributeAccess(arg0) => {
-                f.debug_tuple("AttributeAccess").field(arg0).finish()
-            },
-            Self::MemberAccess(arg0) => {
-                f.debug_tuple("MemberAccess").field(arg0).finish()
-            },
-            Self::InviteLinkAccess(arg0) => {
-                f.debug_tuple("InviteLinkAccess").field(arg0).finish()
-            },
-            Self::InviteLinkPassword(arg0) => {
-                f.debug_tuple("InviteLinkPassword").field(arg0).finish()
-            },
-            Self::AnnouncementOnly(arg0) => {
-                f.debug_tuple("AnnouncementOnly").field(arg0).finish()
-            },
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
