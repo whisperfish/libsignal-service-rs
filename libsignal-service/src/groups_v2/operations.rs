@@ -1,4 +1,4 @@
-use core::fmt;
+use std::convert::TryInto;
 
 use bytes::Bytes;
 use prost::Message;
@@ -8,198 +8,25 @@ use zkgroup::{
     profiles::{AnyProfileKeyCredentialPresentation, ProfileKey},
 };
 
-use crate::proto::{
-    self, access_control::AccessRequired, group_attribute_blob, member::Role,
-    AccessControl, GroupAttributeBlob, Member as EncryptedMember,
+use crate::{
+    groups_v2::model::Timer,
+    proto::{
+        self, group_attribute_blob, GroupAttributeBlob,
+        Member as EncryptedMember,
+    },
+};
+
+use super::{
+    model::{Member, PendingMember, RequestingMember},
+    Group, GroupChange, GroupChanges,
 };
 
 pub(crate) struct GroupOperations {
     pub group_secret_params: GroupSecretParams,
 }
 
-#[derive(Clone)]
-pub struct Member {
-    pub uuid: Uuid,
-    pub role: Role,
-    pub profile_key: ProfileKey,
-    pub joined_at_revision: u32,
-}
-
-impl PartialEq for Member {
-    fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid
-    }
-}
-
-impl fmt::Debug for Member {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Member")
-            .field("uuid", &self.uuid)
-            .field("role", &self.role)
-            .field("joined_at_revision", &self.joined_at_revision)
-            .finish()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PendingMember {
-    pub uuid: Uuid,
-    pub role: Role,
-    pub added_by_uuid: Uuid,
-    pub timestamp: u64,
-}
-
-#[derive(Clone)]
-pub struct RequestingMember {
-    pub uuid: Uuid,
-    pub profile_key: ProfileKey,
-    pub timestamp: u64,
-}
-
-impl PartialEq for RequestingMember {
-    fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid
-    }
-}
-
-impl fmt::Debug for RequestingMember {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RequestingMember")
-            .field("uuid", &self.uuid)
-            .field("timestamp", &self.timestamp)
-            .finish()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Group {
-    pub title: String,
-    pub avatar: String,
-    pub disappearing_messages_timer: Option<Timer>,
-    pub access_control: Option<AccessControl>,
-    pub revision: u32,
-    pub members: Vec<Member>,
-    pub pending_members: Vec<PendingMember>,
-    pub requesting_members: Vec<RequestingMember>,
-    pub invite_link_password: Vec<u8>,
-    pub description: Option<String>,
-}
-
-#[derive(Clone, Debug)]
-pub struct GroupChanges {
-    pub editor: Uuid,
-    pub revision: u32,
-    pub changes: Vec<GroupChange>,
-}
-
-#[derive(Clone)]
-pub enum GroupChange {
-    NewMember(Member),
-    DeleteMember(Uuid),
-    ModifyMemberRole { uuid: Uuid, role: Role },
-    ModifyMemberProfileKey { uuid: Uuid, profile_key: ProfileKey },
-    // for open groups
-    NewPendingMember(PendingMember),
-    DeletePendingMember(Uuid),
-    PromotePendingMember { uuid: Uuid, profile_key: ProfileKey },
-    // when admin control is enabled
-    NewRequestingMember(RequestingMember),
-    DeleteRequestingMember(Uuid),
-    PromoteRequestingMember { uuid: Uuid, role: Role },
-    // group metadata
-    Title(String),
-    Avatar(String),
-    Timer(Option<Timer>),
-    Description(Option<String>),
-    AttributeAccess(AccessRequired),
-    MemberAccess(AccessRequired),
-    InviteLinkAccess(AccessRequired),
-    InviteLinkPassword(String),
-    AnnouncementOnly(bool),
-}
-
-impl fmt::Debug for GroupChange {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::NewMember(arg0) => {
-                f.debug_tuple("NewMember").field(arg0).finish()
-            },
-            Self::DeleteMember(arg0) => {
-                f.debug_tuple("DeleteMember").field(arg0).finish()
-            },
-            Self::ModifyMemberRole { uuid, role } => f
-                .debug_struct("ModifyMemberRole")
-                .field("uuid", uuid)
-                .field("role", role)
-                .finish(),
-            Self::ModifyMemberProfileKey { uuid, .. } => f
-                .debug_struct("ModifyMemberProfileKey")
-                .field("uuid", uuid)
-                .finish(),
-            Self::NewPendingMember(arg0) => {
-                f.debug_tuple("NewPendingMember").field(arg0).finish()
-            },
-            Self::DeletePendingMember(arg0) => {
-                f.debug_tuple("DeletePendingMember").field(arg0).finish()
-            },
-            Self::PromotePendingMember { uuid, .. } => f
-                .debug_struct("PromotePendingMember")
-                .field("uuid", uuid)
-                .finish(),
-            Self::NewRequestingMember(arg0) => {
-                f.debug_tuple("NewRequestingMember").field(arg0).finish()
-            },
-            Self::DeleteRequestingMember(arg0) => {
-                f.debug_tuple("DeleteRequestingMember").field(arg0).finish()
-            },
-            Self::PromoteRequestingMember { uuid, role } => f
-                .debug_struct("PromoteRequestingMember")
-                .field("uuid", uuid)
-                .field("role", role)
-                .finish(),
-            Self::Title(arg0) => f.debug_tuple("Title").field(arg0).finish(),
-            Self::Avatar(arg0) => f.debug_tuple("Avatar").field(arg0).finish(),
-            Self::Timer(arg0) => f.debug_tuple("Timer").field(arg0).finish(),
-            Self::Description(arg0) => {
-                f.debug_tuple("Description").field(arg0).finish()
-            },
-            Self::AttributeAccess(arg0) => {
-                f.debug_tuple("AttributeAccess").field(arg0).finish()
-            },
-            Self::MemberAccess(arg0) => {
-                f.debug_tuple("MemberAccess").field(arg0).finish()
-            },
-            Self::InviteLinkAccess(arg0) => {
-                f.debug_tuple("InviteLinkAccess").field(arg0).finish()
-            },
-            Self::InviteLinkPassword(arg0) => {
-                f.debug_tuple("InviteLinkPassword").field(arg0).finish()
-            },
-            Self::AnnouncementOnly(arg0) => {
-                f.debug_tuple("AnnouncementOnly").field(arg0).finish()
-            },
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Timer {
-    pub duration: u32,
-}
-
-#[derive(Clone, PartialEq, Eq)]
-pub struct GroupJoinInfo {
-    pub title: String,
-    pub avatar: String,
-    pub member_count: u32,
-    pub add_from_invite_link: i32,
-    pub revision: u32,
-    pub pending_admin_approval: bool,
-    pub description: String,
-}
-
 #[derive(Debug, thiserror::Error)]
-pub enum GroupDecryptionError {
+pub enum GroupDecodingError {
     #[error("zero-knowledge group deserialization failure")]
     ZkGroupDeserializationFailure,
     #[error("zero-knowledge group verification failure")]
@@ -214,20 +41,20 @@ pub enum GroupDecryptionError {
     WrongEnumValue,
 }
 
-impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecryptionError {
+impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecodingError {
     fn from(_: zkgroup::ZkGroupDeserializationFailure) -> Self {
-        GroupDecryptionError::ZkGroupDeserializationFailure
+        GroupDecodingError::ZkGroupDeserializationFailure
     }
 }
 
-impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecryptionError {
+impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecodingError {
     fn from(_: zkgroup::ZkGroupVerificationFailure) -> Self {
-        GroupDecryptionError::ZkGroupVerificationFailure
+        GroupDecodingError::ZkGroupVerificationFailure
     }
 }
 
 impl GroupOperations {
-    fn decrypt_uuid(&self, uuid: &[u8]) -> Result<Uuid, GroupDecryptionError> {
+    fn decrypt_uuid(&self, uuid: &[u8]) -> Result<Uuid, GroupDecodingError> {
         let bytes = self
             .group_secret_params
             .decrypt_uuid(bincode::deserialize(uuid)?)?;
@@ -238,7 +65,7 @@ impl GroupOperations {
         &self,
         encrypted_profile_key: &[u8],
         decrypted_uuid: &Uuid,
-    ) -> Result<ProfileKey, GroupDecryptionError> {
+    ) -> Result<ProfileKey, GroupDecodingError> {
         Ok(self.group_secret_params.decrypt_profile_key(
             bincode::deserialize(encrypted_profile_key)?,
             *decrypted_uuid.as_bytes(),
@@ -248,7 +75,7 @@ impl GroupOperations {
     fn decrypt_profile_key_presentation(
         &self,
         presentation: &[u8],
-    ) -> Result<(Uuid, ProfileKey), GroupDecryptionError> {
+    ) -> Result<(Uuid, ProfileKey), GroupDecodingError> {
         let profile_key_credential_presentation =
             AnyProfileKeyCredentialPresentation::new(presentation)?;
         let uuid = Uuid::from_bytes(self.group_secret_params.decrypt_uuid(
@@ -264,7 +91,7 @@ impl GroupOperations {
     fn decrypt_member(
         &self,
         member: EncryptedMember,
-    ) -> Result<Member, GroupDecryptionError> {
+    ) -> Result<Member, GroupDecodingError> {
         let (uuid, profile_key) = if member.presentation.is_empty() {
             let uuid = self.decrypt_uuid(&member.user_id)?;
             let profile_key =
@@ -276,8 +103,7 @@ impl GroupOperations {
         Ok(Member {
             uuid,
             profile_key,
-            role: Role::from_i32(member.role)
-                .ok_or(GroupDecryptionError::WrongBlob)?,
+            role: member.role.try_into()?,
             joined_at_revision: member.joined_at_revision,
         })
     }
@@ -285,17 +111,16 @@ impl GroupOperations {
     fn decrypt_pending_member(
         &self,
         member: proto::PendingMember,
-    ) -> Result<PendingMember, GroupDecryptionError> {
+    ) -> Result<PendingMember, GroupDecodingError> {
         let inner_member =
-            member.member.ok_or(GroupDecryptionError::WrongBlob)?;
+            member.member.ok_or(GroupDecodingError::WrongBlob)?;
         // "Unknown" UUID with zeroes in case of errors, see: UuidUtil.java:16
         let uuid = self.decrypt_uuid(&inner_member.user_id).unwrap_or_default();
         let added_by_uuid = self.decrypt_uuid(&member.added_by_user_id)?;
 
         Ok(PendingMember {
             uuid,
-            role: Role::from_i32(inner_member.role)
-                .ok_or(GroupDecryptionError::WrongBlob)?,
+            role: inner_member.role.try_into()?,
             added_by_uuid,
             timestamp: member.timestamp,
         })
@@ -304,7 +129,7 @@ impl GroupOperations {
     fn decrypt_requesting_member(
         &self,
         member: proto::RequestingMember,
-    ) -> Result<RequestingMember, GroupDecryptionError> {
+    ) -> Result<RequestingMember, GroupDecodingError> {
         let (uuid, profile_key) = if member.presentation.is_empty() {
             let uuid = self.decrypt_uuid(&member.user_id)?;
             let profile_key =
@@ -329,10 +154,10 @@ impl GroupOperations {
         } else {
             self.group_secret_params
                 .decrypt_blob(bytes)
-                .map_err(GroupDecryptionError::from)
+                .map_err(GroupDecodingError::from)
                 .and_then(|b| {
                     GroupAttributeBlob::decode(Bytes::copy_from_slice(&b[4..]))
-                        .map_err(GroupDecryptionError::ProtobufDecodeError)
+                        .map_err(GroupDecodingError::ProtobufDecodeError)
                 })
                 .unwrap_or_else(|e| {
                     log::warn!("bad encrypted blob: {}", e);
@@ -379,7 +204,7 @@ impl GroupOperations {
     pub fn decrypt_group(
         &self,
         group: proto::Group,
-    ) -> Result<Group, GroupDecryptionError> {
+    ) -> Result<Group, GroupDecodingError> {
         let title = self.decrypt_title(&group.title);
 
         let description = self.decrypt_description(&group.description);
@@ -411,7 +236,10 @@ impl GroupOperations {
             title,
             avatar: group.avatar,
             disappearing_messages_timer,
-            access_control: group.access_control,
+            access_control: group
+                .access_control
+                .map(TryInto::try_into)
+                .transpose()?,
             revision: group.revision,
             members,
             pending_members,
@@ -424,7 +252,7 @@ impl GroupOperations {
     pub fn decrypt_group_change(
         &self,
         group_change: proto::GroupChange,
-    ) -> Result<GroupChanges, GroupDecryptionError> {
+    ) -> Result<GroupChanges, GroupDecodingError> {
         let actions: proto::group_change::Actions =
             Message::decode(Bytes::from(group_change.actions))?;
 
@@ -445,8 +273,7 @@ impl GroupOperations {
             actions.modify_member_roles.into_iter().map(|m| {
                 Ok(GroupChange::ModifyMemberRole {
                     uuid: self.decrypt_uuid(&m.user_id)?,
-                    role: Role::from_i32(m.role)
-                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
+                    role: m.role.try_into()?,
                 })
             });
 
@@ -510,17 +337,13 @@ impl GroupOperations {
         let modify_attributes_access =
             actions.modify_attributes_access.into_iter().map(|m| {
                 Ok(GroupChange::AttributeAccess(
-                    AccessRequired::from_i32(m.attributes_access)
-                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
+                    m.attributes_access.try_into()?,
                 ))
             });
 
         let modify_member_access =
             actions.modify_member_access.into_iter().map(|m| {
-                Ok(GroupChange::MemberAccess(
-                    AccessRequired::from_i32(m.members_access)
-                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
-                ))
+                Ok(GroupChange::MemberAccess(m.members_access.try_into()?))
             });
 
         let modify_add_from_invite_link_access = actions
@@ -528,8 +351,7 @@ impl GroupOperations {
             .into_iter()
             .map(|m| {
                 Ok(GroupChange::InviteLinkAccess(
-                    AccessRequired::from_i32(m.add_from_invite_link_access)
-                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
+                    m.add_from_invite_link_access.try_into()?,
                 ))
             });
 
@@ -554,8 +376,7 @@ impl GroupOperations {
             actions.promote_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::PromoteRequestingMember {
                     uuid: self.decrypt_uuid(&m.user_id)?,
-                    role: Role::from_i32(m.role)
-                        .ok_or(GroupDecryptionError::WrongEnumValue)?,
+                    role: m.role.try_into()?,
                 })
             });
 
@@ -571,27 +392,26 @@ impl GroupOperations {
             .into_iter()
             .map(|m| Ok(GroupChange::AnnouncementOnly(m.announcements_only)));
 
-        let changes: Result<Vec<GroupChange>, GroupDecryptionError> =
-            new_members
-                .chain(delete_members)
-                .chain(modify_member_roles)
-                .chain(modify_member_profile_keys)
-                .chain(add_pending_members)
-                .chain(delete_pending_members)
-                .chain(promote_pending_members)
-                .chain(modify_title)
-                .chain(modify_avatar)
-                .chain(modify_disappearing_messages_timer)
-                .chain(modify_attributes_access)
-                .chain(modify_description)
-                .chain(modify_member_access)
-                .chain(modify_add_from_invite_link_access)
-                .chain(add_requesting_members)
-                .chain(delete_requesting_members)
-                .chain(promote_requesting_members)
-                .chain(modify_invite_link_password)
-                .chain(modify_announcements_only)
-                .collect();
+        let changes: Result<Vec<GroupChange>, GroupDecodingError> = new_members
+            .chain(delete_members)
+            .chain(modify_member_roles)
+            .chain(modify_member_profile_keys)
+            .chain(add_pending_members)
+            .chain(delete_pending_members)
+            .chain(promote_pending_members)
+            .chain(modify_title)
+            .chain(modify_avatar)
+            .chain(modify_disappearing_messages_timer)
+            .chain(modify_attributes_access)
+            .chain(modify_description)
+            .chain(modify_member_access)
+            .chain(modify_add_from_invite_link_access)
+            .chain(add_requesting_members)
+            .chain(delete_requesting_members)
+            .chain(promote_requesting_members)
+            .chain(modify_invite_link_password)
+            .chain(modify_announcements_only)
+            .collect();
 
         Ok(GroupChanges {
             editor: uuid,

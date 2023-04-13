@@ -1,9 +1,9 @@
-use std::{fmt, time::Duration};
+use std::time::Duration;
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
-    groups_v2::GroupDecryptionError,
+    groups_v2::GroupDecodingError,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
@@ -18,6 +18,7 @@ use aes_gcm::{
     Aes256Gcm, NewAead,
 };
 use chrono::prelude::*;
+use derivative::Derivative;
 use libsignal_protocol::{
     error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
     SenderCertificate,
@@ -142,9 +143,11 @@ pub struct PreKeyStatus {
     pub count: u32,
 }
 
-#[derive(Clone)]
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 pub struct HttpAuth {
     pub username: String,
+    #[derivative(Debug = "ignore")]
     pub password: String,
 }
 
@@ -167,12 +170,6 @@ pub enum AvatarWrite<C> {
 struct SenderCertificateJson {
     #[serde(with = "serde_base64")]
     certificate: Vec<u8>,
-}
-
-impl fmt::Debug for HttpAuth {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "HTTP auth with username {}", self.username)
-    }
 }
 
 pub trait ProfileKeyExt {
@@ -383,7 +380,7 @@ pub enum ServiceError {
     GroupsV2Error,
 
     #[error(transparent)]
-    GroupsV2DecryptionError(#[from] GroupDecryptionError),
+    GroupsV2DecryptionError(#[from] GroupDecodingError),
 
     #[error("unsupported content")]
     UnsupportedContent,
