@@ -854,15 +854,12 @@
 <a href="#854" id="854">854</a>
 <a href="#855" id="855">855</a>
 <a href="#856" id="856">856</a>
-<a href="#857" id="857">857</a>
-<a href="#858" id="858">858</a>
-<a href="#859" id="859">859</a>
-</pre><pre class="rust"><code><span class="kw">use </span>std::{fmt, time::Duration};
+</pre><pre class="rust"><code><span class="kw">use </span>std::time::Duration;
 
 <span class="kw">use crate</span>::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::<span class="kw-2">*</span>,
-    groups_v2::GroupDecryptionError,
+    groups_v2::GroupDecodingError,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
@@ -877,6 +874,7 @@
     Aes256Gcm, NewAead,
 };
 <span class="kw">use </span>chrono::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>derivative::Derivative;
 <span class="kw">use </span>libsignal_protocol::{
     error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
     SenderCertificate,
@@ -1001,10 +999,12 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub </span>count: u32,
 }
 
-<span class="attr">#[derive(Clone)]
+<span class="attr">#[derive(Derivative, Clone)]
+#[derivative(Debug)]
 </span><span class="kw">pub struct </span>HttpAuth {
     <span class="kw">pub </span>username: String,
-    <span class="kw">pub </span>password: String,
+    <span class="attr">#[derivative(Debug = <span class="string">&quot;ignore&quot;</span>)]
+    </span><span class="kw">pub </span>password: String,
 }
 
 <span class="attr">#[derive(Debug, Clone)]
@@ -1026,12 +1026,6 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 </span><span class="kw">struct </span>SenderCertificateJson {
     <span class="attr">#[serde(with = <span class="string">&quot;serde_base64&quot;</span>)]
     </span>certificate: Vec&lt;u8&gt;,
-}
-
-<span class="kw">impl </span>fmt::Debug <span class="kw">for </span>HttpAuth {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">&quot;HTTP auth with username {}&quot;</span>, <span class="self">self</span>.username)
-    }
 }
 
 <span class="kw">pub trait </span>ProfileKeyExt {
@@ -1242,7 +1236,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     </span>GroupsV2Error,
 
     <span class="attr">#[error(transparent)]
-    </span>GroupsV2DecryptionError(<span class="attr">#[from] </span>GroupDecryptionError),
+    </span>GroupsV2DecryptionError(<span class="attr">#[from] </span>GroupDecodingError),
 
     <span class="attr">#[error(<span class="string">&quot;unsupported content&quot;</span>)]
     </span>UnsupportedContent,

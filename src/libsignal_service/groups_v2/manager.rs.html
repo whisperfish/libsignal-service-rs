@@ -329,7 +329,6 @@
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{
     collections::HashMap,
     convert::TryInto,
@@ -338,9 +337,8 @@
 
 <span class="kw">use crate</span>::{
     configuration::Endpoint,
-    groups_v2::operations::{
-        Group, GroupChanges, GroupDecryptionError, GroupOperations,
-    },
+    groups_v2::model::{Group, GroupChanges},
+    groups_v2::operations::{GroupDecodingError, GroupOperations},
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride},
@@ -627,12 +625,12 @@
     <span class="kw">pub fn </span>decrypt_group_context(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         group_context: GroupContextV2,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;GroupChanges&gt;, GroupDecryptionError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;GroupChanges&gt;, GroupDecodingError&gt; {
         <span class="kw">match </span>(group_context.master_key, group_context.group_change) {
             (<span class="prelude-val">Some</span>(master_key), <span class="prelude-val">Some</span>(group_change)) =&gt; {
                 <span class="kw">let </span>master_key_bytes: [u8; <span class="number">32</span>] = master_key
                     .try_into()
-                    .map_err(|<span class="kw">_</span>| GroupDecryptionError::WrongBlob)<span class="question-mark">?</span>;
+                    .map_err(|<span class="kw">_</span>| GroupDecodingError::WrongBlob)<span class="question-mark">?</span>;
                 <span class="kw">let </span>group_master_key = GroupMasterKey::new(master_key_bytes);
                 <span class="kw">let </span>group_secret_params =
                     GroupSecretParams::derive_from_master_key(group_master_key);
