@@ -8,5 +8,8 @@ pub use manager::{
     decrypt_group, CredentialsCache, CredentialsCacheError, GroupsManager,
     InMemoryCredentialsCache,
 };
-pub use model::{Group, GroupChange, GroupChanges};
+pub use model::{
+    AccessControl, Group, GroupChange, GroupChanges, Member, PendingMember,
+    RequestingMember, Timer,
+};
 pub use operations::GroupDecryptionError;

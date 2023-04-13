@@ -199,17 +199,6 @@ pub struct Timer {
     pub duration: u32,
 }
 
-#[derive(Clone, PartialEq, Eq)]
-pub struct GroupJoinInfo {
-    pub title: String,
-    pub avatar: String,
-    pub member_count: u32,
-    pub add_from_invite_link: i32,
-    pub revision: u32,
-    pub pending_admin_approval: bool,
-    pub description: String,
-}
-
 /// Conversion from protobuf definitions
 
 impl TryFrom<i32> for Role {
