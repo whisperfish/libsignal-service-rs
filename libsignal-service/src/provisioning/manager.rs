@@ -1,5 +1,4 @@
-use core::fmt;
-
+use derivative::Derivative;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
 use libsignal_protocol::{PrivateKey, PublicKey};
 use phonenumber::PhoneNumber;
@@ -61,6 +60,8 @@ pub struct ProvisioningManager<'a, P: PushService + 'a> {
     password: String,
 }
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub enum SecondaryDeviceProvisioning {
     Url(Url),
     NewDeviceRegistration {
@@ -68,35 +69,12 @@ pub enum SecondaryDeviceProvisioning {
         device_id: DeviceId,
         registration_id: u32,
         uuid: Uuid,
+        #[derivative(Debug = "ignore")]
         private_key: PrivateKey,
         public_key: PublicKey,
+        #[derivative(Debug = "ignore")]
         profile_key: Vec<u8>,
     },
-}
-
-impl fmt::Debug for SecondaryDeviceProvisioning {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Url(url) => f.debug_tuple("Url").field(url).finish(),
-            Self::NewDeviceRegistration {
-                phone_number,
-                device_id,
-                registration_id,
-                uuid,
-                public_key,
-                profile_key,
-                ..
-            } => f
-                .debug_struct("NewDeviceRegistration")
-                .field("phone_number", phone_number)
-                .field("device_id", device_id)
-                .field("registration_id", registration_id)
-                .field("uuid", uuid)
-                .field("public_key", public_key)
-                .field("profile_key", profile_key)
-                .finish(),
-        }
-    }
 }
 
 impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
