@@ -7,7 +7,7 @@ use zkgroup::profiles::ProfileKey;
 
 use super::GroupDecodingError;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Role {
     Unknown,
     Default,
@@ -53,7 +53,7 @@ impl PartialEq for RequestingMember {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AccessRequired {
     Unknown,
     Any,
@@ -136,7 +136,7 @@ pub struct Timer {
     pub duration: u32,
 }
 
-/// Conversion from protobuf definitions
+// Conversion from and to protobuf definitions
 
 impl TryFrom<i32> for Role {
     type Error = GroupDecodingError;
@@ -149,6 +149,18 @@ impl TryFrom<i32> for Role {
             Some(Administrator) => Ok(Role::Administrator),
             None => Err(GroupDecodingError::WrongEnumValue),
         }
+    }
+}
+
+impl From<Role> for i32 {
+    fn from(val: Role) -> Self {
+        use crate::proto::member::Role::*;
+        match val {
+            Role::Unknown => Unknown,
+            Role::Default => Default,
+            Role::Administrator => Administrator,
+        }
+        .into()
     }
 }
 
@@ -165,6 +177,20 @@ impl TryFrom<i32> for AccessRequired {
             Some(Unsatisfiable) => Ok(AccessRequired::Unsatisfiable),
             None => Err(GroupDecodingError::WrongEnumValue),
         }
+    }
+}
+
+impl From<AccessRequired> for i32 {
+    fn from(val: AccessRequired) -> Self {
+        use crate::proto::access_control::AccessRequired::*;
+        match val {
+            AccessRequired::Unknown => Unknown,
+            AccessRequired::Any => Any,
+            AccessRequired::Member => Member,
+            AccessRequired::Administrator => Administrator,
+            AccessRequired::Unsatisfiable => Unsatisfiable,
+        }
+        .into()
     }
 }
 
