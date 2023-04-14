@@ -7,7 +7,7 @@ use zkgroup::profiles::ProfileKey;
 
 use super::GroupDecodingError;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Role {
     Unknown,
     Default,
@@ -53,7 +53,7 @@ impl PartialEq for RequestingMember {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AccessRequired {
     Unknown,
     Any,
