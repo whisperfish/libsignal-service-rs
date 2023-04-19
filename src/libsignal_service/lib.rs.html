@@ -101,6 +101,10 @@
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
 </pre><pre class="rust"><code><span class="attr">#![recursion_limit = <span class="string">&quot;256&quot;</span>]
 #![deny(clippy::dbg_macro)]
 </span><span class="comment">// TODO: we cannot use this until whisperfish builds with a newer Rust version
@@ -176,6 +180,10 @@
         },
         content::Content,
         envelope::Envelope,
+        groups_v2::{
+            AccessControl, Group, Member, PendingMember, RequestingMember,
+            Timer,
+        },
         proto::{
             attachment_pointer::AttachmentIdentifier, sync_message::Contacts,
             AttachmentPointer,
