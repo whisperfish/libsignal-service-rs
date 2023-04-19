@@ -73,6 +73,10 @@ pub mod prelude {
         },
         content::Content,
         envelope::Envelope,
+        groups_v2::{
+            AccessControl, Group, Member, PendingMember, RequestingMember,
+            Timer,
+        },
         proto::{
             attachment_pointer::AttachmentIdentifier, sync_message::Contacts,
             AttachmentPointer,
