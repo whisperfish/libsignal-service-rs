@@ -99,7 +99,6 @@ impl CredentialsCache for InMemoryCredentialsCache {
         &mut self,
         map: HashMap<u64, AuthCredentialWithPniResponse>,
     ) -> Result<(), CredentialsCacheError> {
-        dbg!(map.keys());
         self.map = map;
         Ok(())
     }
@@ -260,7 +259,6 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
         let authorization = self
             .get_authorization_for_today(group_secret_params)
             .await?;
-        dbg!(&authorization);
         self.push_service.get_group(authorization).await
     }
 
