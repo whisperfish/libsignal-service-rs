@@ -15,7 +15,7 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalingKey},
     push_service::{
         AccountAttributes, DeviceId, HttpAuthOverride, PushService,
-        ServiceError,
+        ServiceError, ServiceIds,
     },
     utils::serde_base64,
 };
@@ -50,7 +50,7 @@ pub enum VerificationCodeResponse {
 #[serde(rename_all = "camelCase")]
 pub struct VerifyAccountResponse {
     pub uuid: Uuid,
-    pub pni: String,
+    pub pni: Uuid,
     pub storage_capable: bool,
 }
 
@@ -68,10 +68,13 @@ pub enum SecondaryDeviceProvisioning {
         phone_number: phonenumber::PhoneNumber,
         device_id: DeviceId,
         registration_id: u32,
-        uuid: Uuid,
+        service_ids: ServiceIds,
         #[derivative(Debug = "ignore")]
-        private_key: PrivateKey,
-        public_key: PublicKey,
+        aci_private_key: PrivateKey,
+        aci_public_key: PublicKey,
+        #[derivative(Debug = "ignore")]
+        pni_private_key: PrivateKey,
+        pni_public_key: PublicKey,
         #[derivative(Debug = "ignore")]
         profile_key: Vec<u8>,
     },
@@ -258,7 +261,7 @@ impl<P: PushService> LinkingManager<P> {
                         .expect("failed to send provisioning Url in channel");
                 },
                 Ok(ProvisioningStep::Message(message)) => {
-                    let uuid = message
+                    let aci_uuid = message
                         .aci
                         .ok_or(ProvisioningError::InvalidData {
                             reason: "missing client UUID".into(),
@@ -271,7 +274,20 @@ impl<P: PushService> LinkingManager<P> {
                             })
                         })?;
 
-                    let public_key = PublicKey::deserialize(
+                    let pni_uuid = message
+                        .pni
+                        .ok_or(ProvisioningError::InvalidData {
+                            reason: "missing client UUID".into(),
+                        })
+                        .and_then(|ref s| {
+                            Uuid::parse_str(s).map_err(|e| {
+                                ProvisioningError::InvalidData {
+                                    reason: format!("invalid UUID: {}", e),
+                                }
+                            })
+                        })?;
+
+                    let aci_public_key = PublicKey::deserialize(
                         &message.aci_identity_key_public.ok_or(
                             ProvisioningError::InvalidData {
                                 reason: "missing public key".into(),
@@ -279,8 +295,24 @@ impl<P: PushService> LinkingManager<P> {
                         )?,
                     )?;
 
-                    let private_key = PrivateKey::deserialize(
+                    let aci_private_key = PrivateKey::deserialize(
                         &message.aci_identity_key_private.ok_or(
+                            ProvisioningError::InvalidData {
+                                reason: "missing public key".into(),
+                            },
+                        )?,
+                    )?;
+
+                    let pni_public_key = PublicKey::deserialize(
+                        &message.pni_identity_key_public.ok_or(
+                            ProvisioningError::InvalidData {
+                                reason: "missing public key".into(),
+                            },
+                        )?,
+                    )?;
+
+                    let pni_private_key = PrivateKey::deserialize(
+                        &message.pni_identity_key_private.ok_or(
                             ProvisioningError::InvalidData {
                                 reason: "missing public key".into(),
                             },
@@ -337,9 +369,14 @@ impl<P: PushService> LinkingManager<P> {
                             phone_number,
                             device_id,
                             registration_id,
-                            uuid,
-                            private_key,
-                            public_key,
+                            service_ids: ServiceIds {
+                                aci: aci_uuid,
+                                pni: pni_uuid,
+                            },
+                            aci_private_key,
+                            aci_public_key,
+                            pni_private_key,
+                            pni_public_key,
                             profile_key,
                         },
                     )

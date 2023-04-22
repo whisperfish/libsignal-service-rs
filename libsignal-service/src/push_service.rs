@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -66,6 +66,18 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ServiceIds {
+    pub aci: Uuid,
+    pub pni: Uuid,
+}
+
+impl fmt::Display for ServiceIds {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "aci={} pni={}", self.aci, self.pni)
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
