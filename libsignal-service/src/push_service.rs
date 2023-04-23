@@ -67,6 +67,23 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
 
+#[derive(Debug)]
+pub enum ServiceIdType {
+    // Account Identity
+    ACI,
+    // Phone number identity
+    PNI,
+}
+
+impl fmt::Display for ServiceIdType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ServiceIdType::ACI => f.write_str("aci"),
+            ServiceIdType::PNI => f.write_str("pni"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServiceIds {
     pub aci: Uuid,

@@ -6,8 +6,8 @@ use libsignal_protocol::{
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
     CiphertextMessageType, Context, DeviceId, IdentityKeyStore,
-    PreKeySignalMessage, PreKeyStore, ProtocolAddress, PublicKey,
-    SealedSenderDecryptionResult, SenderCertificate,
+    PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
+    PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, SessionStore, SignalMessage,
     SignalProtocolError, SignedPreKeyStore,
 };
@@ -26,11 +26,8 @@ use crate::{
 ///
 /// Equivalent of SignalServiceCipher in Java.
 #[derive(Clone)]
-pub struct ServiceCipher<S, I, SP, P, SK, R> {
-    session_store: S,
-    identity_key_store: I,
-    signed_pre_key_store: SP,
-    pre_key_store: P,
+pub struct ServiceCipher<S, SK, R> {
+    protocol_store: S,
     sender_key_store: SK,
     csprng: R,
     trust_root: PublicKey,
@@ -38,21 +35,15 @@ pub struct ServiceCipher<S, I, SP, P, SK, R> {
     local_device_id: u32,
 }
 
-impl<S, I, SP, P, SK, R> ServiceCipher<S, I, SP, P, SK, R>
+impl<S, SK, R> ServiceCipher<S, SK, R>
 where
-    S: SessionStore + Clone,
-    I: IdentityKeyStore + Clone,
-    SP: SignedPreKeyStore + Clone,
+    S: ProtocolStore + Clone,
     SK: SenderKeyStore + Clone,
-    P: PreKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        session_store: S,
-        identity_key_store: I,
-        signed_pre_key_store: SP,
-        pre_key_store: P,
+        protocol_store: S,
         sender_key_store: SK,
         csprng: R,
         trust_root: PublicKey,
@@ -60,10 +51,7 @@ where
         local_device_id: u32,
     ) -> Self {
         Self {
-            session_store,
-            identity_key_store,
-            signed_pre_key_store,
-            pre_key_store,
+            protocol_store,
             sender_key_store,
             csprng,
             trust_root,
@@ -125,7 +113,7 @@ where
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
-                    &self.session_store,
+                    &self.protocol_store,
                     &envelope.source_address(),
                     envelope.source_device().into(),
                 )
@@ -141,10 +129,10 @@ where
                 let mut data = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&ciphertext[..]).unwrap(),
                     &sender,
-                    &mut self.session_store,
-                    &mut self.identity_key_store,
-                    &mut self.pre_key_store,
-                    &mut self.signed_pre_key_store,
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
                     &mut self.csprng,
                     None,
                 )
@@ -153,7 +141,7 @@ where
                 .to_vec();
 
                 let session_record = self
-                    .session_store
+                    .protocol_store
                     .load_session(&sender, None)
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
@@ -180,7 +168,7 @@ where
             },
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
-                    &self.session_store,
+                    &self.protocol_store,
                     &envelope.source_address(),
                     envelope.source_device().into(),
                 )
@@ -196,8 +184,8 @@ where
                 let mut data = message_decrypt_signal(
                     &SignalMessage::try_from(&ciphertext[..])?,
                     &sender,
-                    &mut self.session_store,
-                    &mut self.identity_key_store,
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
                     &mut self.csprng,
                     None,
                 )
@@ -206,7 +194,7 @@ where
                 .to_vec();
 
                 let session_record = self
-                    .session_store
+                    .protocol_store
                     .load_session(&sender, None)
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
@@ -230,10 +218,10 @@ where
                     None,
                     self.local_uuid.to_string(),
                     self.local_device_id.into(),
-                    &mut self.identity_key_store,
-                    &mut self.session_store,
-                    &mut self.pre_key_store,
-                    &mut self.signed_pre_key_store,
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store,
                     &mut self.sender_key_store,
                     None,
                 )
@@ -289,7 +277,7 @@ where
         content: &[u8],
     ) -> Result<OutgoingPushMessage, ServiceError> {
         let session_record = self
-            .session_store
+            .protocol_store
             .load_session(address, None)
             .await?
             .ok_or_else(|| {
@@ -307,8 +295,8 @@ where
                 address,
                 unindentified_access,
                 &padded_content,
-                &mut self.session_store,
-                &mut self.identity_key_store,
+                &mut self.protocol_store.clone(),
+                &mut self.protocol_store,
                 None,
                 &mut self.csprng,
             )
@@ -325,8 +313,8 @@ where
             let message = message_encrypt(
                 &padded_content,
                 address,
-                &mut self.session_store,
-                &mut self.identity_key_store,
+                &mut self.protocol_store.clone(),
+                &mut self.protocol_store.clone(),
                 None,
             )
             .await?;

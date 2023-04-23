@@ -7,8 +7,8 @@ use aes::cipher::{NewCipher, StreamCipher};
 use aes::Aes256Ctr;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    IdentityKeyStore, KeyPair, PreKeyRecord, PreKeyStore, PrivateKey,
-    PublicKey, SignalProtocolError, SignedPreKeyRecord, SignedPreKeyStore,
+    IdentityKeyStore, KeyPair, PreKeyRecord, PrivateKey,
+    PublicKey, SignalProtocolError, SignedPreKeyRecord, ProtocolStore,
 };
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -84,11 +84,9 @@ impl<Service: PushService> AccountManager<Service> {
     ///
     /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
     #[allow(clippy::too_many_arguments)]
-    pub async fn update_pre_key_bundle<R: rand::Rng + rand::CryptoRng>(
+    pub async fn update_pre_key_bundle<R: rand::Rng + rand::CryptoRng, P: ProtocolStore>(
         &mut self,
-        identity_store: &dyn IdentityKeyStore,
-        pre_key_store: &mut dyn PreKeyStore,
-        signed_pre_key_store: &mut dyn SignedPreKeyStore,
+        protocol_store: &mut P,
         csprng: &mut R,
         pre_keys_offset_id: u32,
         next_signed_pre_key_id: u32,
@@ -119,7 +117,7 @@ impl<Service: PushService> AccountManager<Service> {
                 + 1)
             .into();
             let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-            pre_key_store
+            protocol_store
                 .save_pre_key(pre_key_id, &pre_key_record, None)
                 .await?;
 
@@ -128,7 +126,7 @@ impl<Service: PushService> AccountManager<Service> {
 
         // Generate and store the next signed prekey
         let identity_key_pair =
-            identity_store.get_identity_key_pair(None).await?;
+            protocol_store.get_identity_key_pair(None).await?;
         let signed_pre_key_pair = KeyPair::generate(csprng);
         let signed_pre_key_public = signed_pre_key_pair.public_key;
         let signed_pre_key_signature = identity_key_pair
@@ -146,7 +144,7 @@ impl<Service: PushService> AccountManager<Service> {
             &signed_pre_key_signature,
         );
 
-        signed_pre_key_store
+        protocol_store
             .save_signed_pre_key(
                 next_signed_pre_key_id.into(),
                 &signed_prekey_record,
