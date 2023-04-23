@@ -170,31 +170,35 @@ impl PushService for AwcPushService {
 
         Self::from_response(&mut response).await?;
 
-        // In order to debug the output, we collect the whole response.
-        // The actix-web api is meant to used as a streaming deserializer,
-        // so we have this little awkward switch.
+        // In order to catch the zero-length output, we have to collect
+        // the whole response. The actix-web api is meant to used as a
+        // streaming deserializer, so we have this little awkward match.
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        if log::log_enabled!(log::Level::Debug) {
-            let text = response.body().await.map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })?;
-            log::debug!("GET response: {:?}", String::from_utf8_lossy(&text));
-            serde_json::from_slice(&text).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        } else {
-            response
-                .json()
-                .await
-                .map_err(|e| ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
+        match response.body().await {
+            Ok(text) if text.len() == 0 => {
+                log::debug!("Empty GET response");
+                serde_json::from_slice(b"null").map_err(|e| {
+                    ServiceError::JsonDecodeError {
+                        reason: e.to_string(),
+                    }
                 })
+            },
+            Ok(text) => {
+                log::debug!(
+                    "GET response: {:?}",
+                    String::from_utf8_lossy(&text)
+                );
+                serde_json::from_slice(&text).map_err(|e| {
+                    ServiceError::JsonDecodeError {
+                        reason: e.to_string(),
+                    }
+                })
+            },
+            Err(e) => Err(ServiceError::JsonDecodeError {
+                reason: e.to_string(),
+            }),
         }
     }
 
@@ -231,34 +235,35 @@ impl PushService for AwcPushService {
 
         Self::from_response(&mut response).await?;
 
-        // In order to debug the output, we collect the whole response.
-        // The actix-web api is meant to used as a streaming deserializer,
-        // so we have this little awkward switch.
+        // In order to catch the zero-length output, we have to collect
+        // the whole response. The actix-web api is meant to used as a
+        // streaming deserializer, so we have this little awkward match.
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        if log::log_enabled!(log::Level::Debug) {
-            let text = response.body().await.map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })?;
-            log::debug!(
-                "DELETE response: {:?}",
-                String::from_utf8_lossy(&text)
-            );
-            serde_json::from_slice(&text).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        } else {
-            response
-                .json()
-                .await
-                .map_err(|e| ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
+        match response.body().await {
+            Ok(text) if text.len() == 0 => {
+                log::debug!("Empty DELETE response");
+                serde_json::from_slice(b"null").map_err(|e| {
+                    ServiceError::JsonDecodeError {
+                        reason: e.to_string(),
+                    }
                 })
+            },
+            Ok(text) => {
+                log::debug!(
+                    "DELETE response: {:?}",
+                    String::from_utf8_lossy(&text)
+                );
+                serde_json::from_slice(&text).map_err(|e| {
+                    ServiceError::JsonDecodeError {
+                        reason: e.to_string(),
+                    }
+                })
+            },
+            Err(e) => Err(ServiceError::JsonDecodeError {
+                reason: e.to_string(),
+            }),
         }
     }
 
@@ -285,39 +290,35 @@ impl PushService for AwcPushService {
 
         Self::from_response(&mut response).await?;
 
-        // In order to debug the output, we collect the whole response.
-        // The actix-web api is meant to used as a streaming deserializer,
-        // so we have this little awkward switch.
+        // In order to catch the zero-length output, we have to collect
+        // the whole response. The actix-web api is meant to used as a
+        // streaming deserializer, so we have this little awkward match.
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        let result = if log::log_enabled!(log::Level::Debug) {
-            let text = response.body().await.map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })?;
-            log::debug!("PUT response: {:?}", String::from_utf8_lossy(&text));
-            serde_json::from_slice(&text).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        } else {
-            response
-                .json()
-                .await
-                .map_err(|e| ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
+        match response.body().await {
+            Ok(text) if text.len() == 0 => {
+                log::debug!("Empty PUT response");
+                serde_json::from_slice(b"null").map_err(|e| {
+                    ServiceError::JsonDecodeError {
+                        reason: e.to_string(),
+                    }
                 })
-        };
-
-        if result.is_err()
-            && response.status() == awc::http::StatusCode::NO_CONTENT
-        {
-            serde_json::from_slice(b"null").or(result)
-        } else {
-            result
+            },
+            Ok(text) => {
+                log::debug!(
+                    "PUT response: {:?}",
+                    String::from_utf8_lossy(&text)
+                );
+                serde_json::from_slice(&text).map_err(|e| {
+                    ServiceError::JsonDecodeError {
+                        reason: e.to_string(),
+                    }
+                })
+            },
+            Err(e) => Err(ServiceError::JsonDecodeError {
+                reason: e.to_string(),
+            }),
         }
     }
 
@@ -561,5 +562,11 @@ mod tests {
                 "libsignal-service test".to_string(),
             );
         }
+    }
+
+    #[test]
+    fn serde_json_from_null() {
+        // We are using this to generate empty JSON from empty responses
+        assert_eq!("{}", serde_json::from_slice::<&str>(b"null").unwrap());
     }
 }
