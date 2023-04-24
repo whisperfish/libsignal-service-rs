@@ -176,30 +176,24 @@ impl PushService for AwcPushService {
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        match response.body().await {
-            Ok(text) if text.len() == 0 => {
-                log::debug!("Empty GET response");
-                serde_json::from_slice(b"null").map_err(|e| {
-                    ServiceError::JsonDecodeError {
-                        reason: e.to_string(),
-                    }
-                })
-            },
+        let text = match response.body().await {
             Ok(text) => {
                 log::debug!(
                     "GET response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
-                serde_json::from_slice(&text).map_err(|e| {
-                    ServiceError::JsonDecodeError {
-                        reason: e.to_string(),
-                    }
+                text
+            },
+            Err(e) => {
+                return Err(ServiceError::ResponseError {
+                    reason: e.to_string(),
                 })
             },
-            Err(e) => Err(ServiceError::JsonDecodeError {
+        };
+        serde_json::from_slice(if text.len() > 0 { &text } else { b"null" })
+            .map_err(|e| ServiceError::JsonDecodeError {
                 reason: e.to_string(),
-            }),
-        }
+            })
     }
 
     /// Deletes a resource through the HTTP DELETE verb.
@@ -241,30 +235,24 @@ impl PushService for AwcPushService {
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        match response.body().await {
-            Ok(text) if text.len() == 0 => {
-                log::debug!("Empty DELETE response");
-                serde_json::from_slice(b"null").map_err(|e| {
-                    ServiceError::JsonDecodeError {
-                        reason: e.to_string(),
-                    }
-                })
-            },
+        let text = match response.body().await {
             Ok(text) => {
                 log::debug!(
-                    "DELETE response: {:?}",
+                    "GET response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
-                serde_json::from_slice(&text).map_err(|e| {
-                    ServiceError::JsonDecodeError {
-                        reason: e.to_string(),
-                    }
+                text
+            },
+            Err(e) => {
+                return Err(ServiceError::ResponseError {
+                    reason: e.to_string(),
                 })
             },
-            Err(e) => Err(ServiceError::JsonDecodeError {
+        };
+        serde_json::from_slice(if text.len() > 0 { &text } else { b"null" })
+            .map_err(|e| ServiceError::JsonDecodeError {
                 reason: e.to_string(),
-            }),
-        }
+            })
     }
 
     async fn put_json<D, S>(
@@ -296,30 +284,24 @@ impl PushService for AwcPushService {
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        match response.body().await {
-            Ok(text) if text.len() == 0 => {
-                log::debug!("Empty PUT response");
-                serde_json::from_slice(b"null").map_err(|e| {
-                    ServiceError::JsonDecodeError {
-                        reason: e.to_string(),
-                    }
-                })
-            },
+        let text = match response.body().await {
             Ok(text) => {
                 log::debug!(
-                    "PUT response: {:?}",
+                    "GET response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
-                serde_json::from_slice(&text).map_err(|e| {
-                    ServiceError::JsonDecodeError {
-                        reason: e.to_string(),
-                    }
+                text
+            },
+            Err(e) => {
+                return Err(ServiceError::ResponseError {
+                    reason: e.to_string(),
                 })
             },
-            Err(e) => Err(ServiceError::JsonDecodeError {
+        };
+        serde_json::from_slice(if text.len() > 0 { &text } else { b"null" })
+            .map_err(|e| ServiceError::JsonDecodeError {
                 reason: e.to_string(),
-            }),
-        }
+            })
     }
 
     async fn get_protobuf<T>(
