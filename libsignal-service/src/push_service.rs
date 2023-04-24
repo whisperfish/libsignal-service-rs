@@ -86,6 +86,7 @@ impl fmt::Display for ServiceIdType {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServiceIds {
+    #[serde(rename = "uuid")]
     pub aci: Uuid,
     pub pni: Uuid,
 }
