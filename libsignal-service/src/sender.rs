@@ -76,11 +76,11 @@ pub struct AttachmentSpec {
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
-pub struct MessageSender<Service, S, SK, R> {
+pub struct MessageSender<Service, S, R> {
     ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
     service: Service,
-    cipher: ServiceCipher<S, SK, R>,
+    cipher: ServiceCipher<S, R>,
     csprng: R,
     protocol_store: S,
     local_address: ServiceAddress,
@@ -118,11 +118,10 @@ pub enum MessageSenderError {
     NotFound { uuid: Uuid },
 }
 
-impl<Service, S, SK, R> MessageSender<Service, S, SK, R>
+impl<Service, S, R> MessageSender<Service, S, R>
 where
     Service: PushService + Clone,
-    S: ProtocolStore + SessionStoreExt + Sync + Clone,
-    SK: SenderKeyStore + Clone,
+    S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
     R: Rng + CryptoRng + Clone,
 {
     #[allow(clippy::too_many_arguments)]
@@ -130,7 +129,7 @@ where
         ws: SignalWebSocket,
         unidentified_ws: SignalWebSocket,
         service: Service,
-        cipher: ServiceCipher<S, SK, R>,
+        cipher: ServiceCipher<S, R>,
         csprng: R,
         protocol_store: S,
         local_address: ServiceAddress,

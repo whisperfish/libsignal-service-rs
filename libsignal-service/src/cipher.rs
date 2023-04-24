@@ -26,25 +26,21 @@ use crate::{
 ///
 /// Equivalent of SignalServiceCipher in Java.
 #[derive(Clone)]
-pub struct ServiceCipher<S, SK, R> {
+pub struct ServiceCipher<S, R> {
     protocol_store: S,
-    sender_key_store: SK,
     csprng: R,
     trust_root: PublicKey,
     local_uuid: Uuid,
     local_device_id: u32,
 }
 
-impl<S, SK, R> ServiceCipher<S, SK, R>
+impl<S, R> ServiceCipher<S, R>
 where
-    S: ProtocolStore + Clone,
-    SK: SenderKeyStore + Clone,
+    S: ProtocolStore + SenderKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         protocol_store: S,
-        sender_key_store: SK,
         csprng: R,
         trust_root: PublicKey,
         local_uuid: Uuid,
@@ -52,7 +48,6 @@ where
     ) -> Self {
         Self {
             protocol_store,
-            sender_key_store,
             csprng,
             trust_root,
             local_uuid,
@@ -76,7 +71,7 @@ where
                 process_sender_key_distribution_message(
                     &plaintext.metadata.protocol_address(),
                     &skdm,
-                    &mut self.sender_key_store,
+                    &mut self.protocol_store,
                     None,
                 )
                 .await?;
@@ -221,8 +216,8 @@ where
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
                     &mut self.protocol_store,
-                    &mut self.sender_key_store,
                     None,
                 )
                 .await?;
