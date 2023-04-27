@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":[["AwcPushService",""]]};
+window.SIDEBAR_ITEMS = {"struct":["AwcPushService"]};
