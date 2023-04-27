@@ -7,8 +7,8 @@ use aes::cipher::{NewCipher, StreamCipher};
 use aes::Aes256Ctr;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    IdentityKeyStore, KeyPair, PreKeyRecord, PrivateKey,
-    PublicKey, SignalProtocolError, SignedPreKeyRecord, ProtocolStore,
+    IdentityKeyStore, KeyPair, PreKeyRecord, PrivateKey, ProtocolStore,
+    PublicKey, SignalProtocolError, SignedPreKeyRecord,
 };
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -84,7 +84,10 @@ impl<Service: PushService> AccountManager<Service> {
     ///
     /// Returns the next pre-key offset and next signed pre-key offset as a tuple.
     #[allow(clippy::too_many_arguments)]
-    pub async fn update_pre_key_bundle<R: rand::Rng + rand::CryptoRng, P: ProtocolStore>(
+    pub async fn update_pre_key_bundle<
+        R: rand::Rng + rand::CryptoRng,
+        P: ProtocolStore,
+    >(
         &mut self,
         protocol_store: &mut P,
         csprng: &mut R,
