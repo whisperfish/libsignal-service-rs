@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
-use crate::push_service::{AvatarWrite, RecaptchaAttributes};
+use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
 use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -95,7 +95,11 @@ impl<Service: PushService> AccountManager<Service> {
         next_signed_pre_key_id: u32,
         use_last_resort_key: bool,
     ) -> Result<(u32, u32), ServiceError> {
-        let prekey_count = match self.service.get_pre_key_status().await {
+        let prekey_count = match self
+            .service
+            .get_pre_key_status(ServiceIdType::AccountIdentity)
+            .await
+        {
             Ok(status) => status.count,
             Err(ServiceError::Unauthorized) => {
                 log::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
@@ -169,7 +173,9 @@ impl<Service: PushService> AccountManager<Service> {
             },
         };
 
-        self.service.register_pre_keys(pre_key_state).await?;
+        self.service
+            .register_pre_keys(ServiceIdType::AccountIdentity, pre_key_state)
+            .await?;
 
         log::trace!("Successfully refreshed prekeys");
         Ok((

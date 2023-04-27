@@ -67,7 +67,7 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ServiceIdType {
     /// Account Identity (an account UUID without an associated phone number, probably in the future to a username)
     AccountIdentity,
@@ -525,10 +525,11 @@ pub trait PushService: MaybeSend {
 
     async fn get_pre_key_status(
         &mut self,
+        service_id_type: ServiceIdType,
     ) -> Result<PreKeyStatus, ServiceError> {
         self.get_json(
             Endpoint::Service,
-            "/v2/keys/",
+            &format!("/v2/keys?identity={}", service_id_type),
             HttpAuthOverride::NoOverride,
         )
         .await
@@ -536,12 +537,13 @@ pub trait PushService: MaybeSend {
 
     async fn register_pre_keys(
         &mut self,
+        service_id_type: ServiceIdType,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         match self
             .put_json(
                 Endpoint::Service,
-                "/v2/keys/",
+                &format!("/v2/keys?identity={}", service_id_type),
                 HttpAuthOverride::NoOverride,
                 pre_key_state,
             )
