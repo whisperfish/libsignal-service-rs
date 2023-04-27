@@ -69,9 +69,13 @@ pub const DEFAULT_DEVICE_ID: u32 = 1;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ServiceIdType {
-    /// Account Identity (an account UUID without an associated phone number, probably in the future to a username)
+    /// Account Identity (ACI)
+    ///
+    /// An account UUID without an associated phone number, probably in the future to a username
     AccountIdentity,
-    /// Phone number identity (a UUID associated with a phone number)
+    /// Phone number identity (PNI)
+    ///
+    /// A UUID associated with a phone number
     PhoneNumberIdentity,
 }
 
