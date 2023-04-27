@@ -69,17 +69,17 @@ pub const DEFAULT_DEVICE_ID: u32 = 1;
 
 #[derive(Debug)]
 pub enum ServiceIdType {
-    // Account Identity
-    ACI,
-    // Phone number identity
-    PNI,
+    /// Account Identity (an account UUID without an associated phone number, probably in the future to a username)
+    AccountIdentity,
+    /// Phone number identity (a UUID associated with a phone number)
+    PhoneNumberIdentity,
 }
 
 impl fmt::Display for ServiceIdType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ServiceIdType::ACI => f.write_str("aci"),
-            ServiceIdType::PNI => f.write_str("pni"),
+            ServiceIdType::AccountIdentity => f.write_str("aci"),
+            ServiceIdType::PhoneNumberIdentity => f.write_str("pni"),
         }
     }
 }
