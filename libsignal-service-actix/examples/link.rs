@@ -67,12 +67,17 @@ async fn main() -> Result<(), Error> {
                         phone_number: _,
                         device_id: _,
                         registration_id: _,
-                        uuid,
-                        private_key: _,
-                        public_key: _,
+                        service_ids,
                         profile_key: _,
+                        aci_private_key: _,
+                        aci_public_key: _,
+                        pni_private_key: _,
+                        pni_public_key: _,
                     } => {
-                        log::info!("successfully registered device {}", &uuid);
+                        log::info!(
+                            "successfully registered device {}",
+                            &service_ids
+                        );
                         // here you would store all of this data somehow to use it later!
                     },
                 }
