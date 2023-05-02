@@ -247,7 +247,6 @@ impl<P: PushService> LinkingManager<P> {
             .ws("/v1/websocket/provisioning/", None, false)
             .await?;
 
-        // see libsignal-protocol-c / signal_protocol_key_helper_generate_registration_id
         let registration_id = csprng.gen_range(1, 256);
 
         let provisioning_pipe = ProvisioningPipe::from_socket(ws)?;
