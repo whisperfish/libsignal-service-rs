@@ -890,6 +890,13 @@
 <a href="#890" id="890">890</a>
 <a href="#891" id="891">891</a>
 <a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{fmt, time::Duration};
 
 <span class="kw">use crate</span>::{
@@ -900,7 +907,7 @@
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
-    utils::{serde_base64, serde_optional_base64},
+    utils::{serde_base64, serde_optional_base64, serde_phone_number},
     websocket::SignalWebSocket,
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
@@ -915,6 +922,7 @@
     error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
     SenderCertificate,
 };
+<span class="kw">use </span>phonenumber::PhoneNumber;
 <span class="kw">use </span>prost::Message <span class="kw">as </span>ProtobufMessage;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>uuid::Uuid;
@@ -984,7 +992,8 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 </span><span class="kw">pub struct </span>ServiceIds {
     <span class="attr">#[serde(rename = <span class="string">&quot;uuid&quot;</span>)]
     </span><span class="kw">pub </span>aci: Uuid,
-    <span class="kw">pub </span>pni: Uuid,
+    <span class="attr">#[serde(default)] </span><span class="comment">// nil when not present (yet)
+    </span><span class="kw">pub </span>pni: Uuid,
 }
 
 <span class="kw">impl </span>fmt::Display <span class="kw">for </span>ServiceIds {
@@ -1016,6 +1025,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="attr">#[serde(default, with = <span class="string">&quot;serde_optional_base64&quot;</span>)]
     </span><span class="kw">pub </span>signaling_key: <span class="prelude-ty">Option</span>&lt;Vec&lt;u8&gt;&gt;,
     <span class="kw">pub </span>registration_id: u32,
+    <span class="kw">pub </span>pni_registration_id: u32,
     <span class="kw">pub </span>voice: bool,
     <span class="kw">pub </span>video: bool,
     <span class="kw">pub </span>fetches_messages: bool,
@@ -1026,7 +1036,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub </span>unrestricted_unidentified_access: bool,
     <span class="kw">pub </span>discoverable_by_phone_number: bool,
     <span class="kw">pub </span>capabilities: DeviceCapabilities,
-    <span class="kw">pub </span>name: String,
+    <span class="kw">pub </span>name: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
 <span class="attr">#[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Clone)]
@@ -1122,10 +1132,14 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub </span>devices: Vec&lt;PreKeyResponseItem&gt;,
 }
 
-<span class="attr">#[derive(Debug, Deserialize, Default)]
+<span class="attr">#[derive(Debug, Deserialize)]
 #[serde(rename_all = <span class="string">&quot;camelCase&quot;</span>)]
 </span><span class="kw">pub struct </span>WhoAmIResponse {
     <span class="kw">pub </span>uuid: Uuid,
+    <span class="attr">#[serde(default)] </span><span class="comment">// nil when not present (yet)
+    </span><span class="kw">pub </span>pni: Uuid,
+    <span class="attr">#[serde(with = <span class="string">&quot;serde_phone_number&quot;</span>)]
+    </span><span class="kw">pub </span>number: PhoneNumber,
 }
 
 <span class="attr">#[derive(Debug, Deserialize)]
