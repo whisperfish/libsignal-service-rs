@@ -13,7 +13,6 @@ use super::{
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalingKey},
-    provisioning::generate_registration_id,
     push_service::{
         AccountAttributes, DeviceId, HttpAuthOverride, PushService,
         ServiceError, ServiceIds,
