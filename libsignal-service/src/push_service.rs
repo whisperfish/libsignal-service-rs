@@ -8,7 +8,7 @@ use crate::{
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
-    utils::{serde_base64, serde_optional_base64},
+    utils::{serde_base64, serde_optional_base64, serde_phone_number},
     websocket::SignalWebSocket,
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
@@ -23,6 +23,7 @@ use libsignal_protocol::{
     error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
     SenderCertificate,
 };
+use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -92,6 +93,7 @@ impl fmt::Display for ServiceIdType {
 pub struct ServiceIds {
     #[serde(rename = "uuid")]
     pub aci: Uuid,
+    #[serde(default)] // nil when not present (yet)
     pub pni: Uuid,
 }
 
@@ -124,6 +126,7 @@ pub struct AccountAttributes {
     #[serde(default, with = "serde_optional_base64")]
     pub signaling_key: Option<Vec<u8>>,
     pub registration_id: u32,
+    pub pni_registration_id: u32,
     pub voice: bool,
     pub video: bool,
     pub fetches_messages: bool,
@@ -134,7 +137,7 @@ pub struct AccountAttributes {
     pub unrestricted_unidentified_access: bool,
     pub discoverable_by_phone_number: bool,
     pub capabilities: DeviceCapabilities,
-    pub name: String,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Clone)]
@@ -230,10 +233,14 @@ pub struct PreKeyResponse {
     pub devices: Vec<PreKeyResponseItem>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WhoAmIResponse {
     pub uuid: Uuid,
+    #[serde(default)] // nil when not present (yet)
+    pub pni: Uuid,
+    #[serde(with = "serde_phone_number")]
+    pub number: PhoneNumber,
 }
 
 #[derive(Debug, Deserialize)]

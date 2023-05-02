@@ -142,3 +142,26 @@ pub mod serde_signaling_key {
             })
     }
 }
+
+pub mod serde_phone_number {
+    use phonenumber::PhoneNumber;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        phone_number: &PhoneNumber,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&phone_number.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<PhoneNumber, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        phonenumber::parse(None, String::deserialize(deserializer)?)
+            .map_err(serde::de::Error::custom)
+    }
+}
