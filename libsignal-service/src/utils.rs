@@ -23,6 +23,8 @@ pub mod serde_base64 {
 pub mod serde_optional_base64 {
     use serde::{Deserialize, Deserializer, Serializer};
 
+    use super::serde_base64;
+
     pub fn serialize<T, S>(
         bytes: &Option<T>,
         serializer: S,
@@ -32,9 +34,7 @@ pub mod serde_optional_base64 {
         S: Serializer,
     {
         match bytes {
-            Some(bytes) => {
-                serializer.serialize_str(&base64::encode(bytes.as_ref()))
-            },
+            Some(bytes) => serde_base64::serialize(bytes, serializer),
             None => serializer.serialize_none(),
         }
     }
@@ -82,6 +82,46 @@ pub mod serde_public_key {
     }
 }
 
+pub mod serde_optional_public_key {
+    use libsignal_protocol::PublicKey;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use super::serde_public_key;
+
+    pub fn serialize<S>(
+        public_key: &Option<PublicKey>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match public_key {
+            Some(public_key) => {
+                serde_public_key::serialize(public_key, serializer)
+            },
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<PublicKey>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(public_key) => Ok(Some(
+                PublicKey::deserialize(
+                    &base64::decode(public_key)
+                        .map_err(serde::de::Error::custom)?,
+                )
+                .map_err(serde::de::Error::custom)?,
+            )),
+            None => Ok(None),
+        }
+    }
+}
+
 pub mod serde_private_key {
     use libsignal_protocol::PrivateKey;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -106,6 +146,46 @@ pub mod serde_private_key {
                 .map_err(serde::de::Error::custom)?,
         )
         .map_err(serde::de::Error::custom)
+    }
+}
+
+pub mod serde_optional_private_key {
+    use libsignal_protocol::PrivateKey;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use super::serde_private_key;
+
+    pub fn serialize<S>(
+        private_key: &Option<PrivateKey>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match private_key {
+            Some(private_key) => {
+                serde_private_key::serialize(private_key, serializer)
+            },
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<PrivateKey>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(private_key) => Ok(Some(
+                PrivateKey::deserialize(
+                    &base64::decode(private_key)
+                        .map_err(serde::de::Error::custom)?,
+                )
+                .map_err(serde::de::Error::custom)?,
+            )),
+            None => Ok(None),
+        }
     }
 }
 
