@@ -73,6 +73,7 @@ async fn main() -> Result<(), Error> {
                         aci_public_key: _,
                         pni_private_key: _,
                         pni_public_key: _,
+                        pni_registration_id: _,
                     } => {
                         log::info!(
                             "successfully registered device {}",

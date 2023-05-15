@@ -29,6 +29,7 @@ pub(crate) struct ConfirmDeviceMessage {
     pub supports_sms: bool,
     pub fetches_messages: bool,
     pub registration_id: u32,
+    pub pni_registration_id: u32,
     #[serde(with = "serde_base64", skip_serializing_if = "Vec::is_empty")]
     pub name: Vec<u8>,
 }
@@ -68,6 +69,7 @@ pub enum SecondaryDeviceProvisioning {
         phone_number: phonenumber::PhoneNumber,
         device_id: DeviceId,
         registration_id: u32,
+        pni_registration_id: u32,
         service_ids: ServiceIds,
         #[derivative(Debug = "ignore")]
         aci_private_key: PrivateKey,
@@ -248,6 +250,7 @@ impl<P: PushService> LinkingManager<P> {
             .await?;
 
         let registration_id = csprng.gen_range(1, 256);
+        let pni_registration_id = csprng.gen_range(1, 256);
 
         let provisioning_pipe = ProvisioningPipe::from_socket(ws)?;
         let provision_stream = provisioning_pipe.stream();
@@ -358,6 +361,7 @@ impl<P: PushService> LinkingManager<P> {
                                 supports_sms: false,
                                 fetches_messages: true,
                                 registration_id,
+                                pni_registration_id,
                                 name: vec![],
                             },
                         )
@@ -368,6 +372,7 @@ impl<P: PushService> LinkingManager<P> {
                             phone_number,
                             device_id,
                             registration_id,
+                            pni_registration_id,
                             service_ids: ServiceIds {
                                 aci: aci_uuid,
                                 pni: pni_uuid,
