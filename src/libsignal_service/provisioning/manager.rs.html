@@ -391,6 +391,11 @@
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
 <a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
 </pre><pre class="rust"><code><span class="kw">use </span>derivative::Derivative;
 <span class="kw">use </span>futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
 <span class="kw">use </span>libsignal_protocol::{PrivateKey, PublicKey};
@@ -422,6 +427,7 @@
     <span class="kw">pub </span>supports_sms: bool,
     <span class="kw">pub </span>fetches_messages: bool,
     <span class="kw">pub </span>registration_id: u32,
+    <span class="kw">pub </span>pni_registration_id: u32,
     <span class="attr">#[serde(with = <span class="string">&quot;serde_base64&quot;</span>, skip_serializing_if = <span class="string">&quot;Vec::is_empty&quot;</span>)]
     </span><span class="kw">pub </span>name: Vec&lt;u8&gt;,
 }
@@ -461,6 +467,7 @@
         phone_number: phonenumber::PhoneNumber,
         device_id: DeviceId,
         registration_id: u32,
+        pni_registration_id: u32,
         service_ids: ServiceIds,
         <span class="attr">#[derivative(Debug = <span class="string">&quot;ignore&quot;</span>)]
         </span>aci_private_key: PrivateKey,
@@ -641,6 +648,7 @@
             .<span class="kw">await</span><span class="question-mark">?</span>;
 
         <span class="kw">let </span>registration_id = csprng.gen_range(<span class="number">1</span>, <span class="number">256</span>);
+        <span class="kw">let </span>pni_registration_id = csprng.gen_range(<span class="number">1</span>, <span class="number">256</span>);
 
         <span class="kw">let </span>provisioning_pipe = ProvisioningPipe::from_socket(ws)<span class="question-mark">?</span>;
         <span class="kw">let </span>provision_stream = provisioning_pipe.stream();
@@ -751,6 +759,7 @@
                                 supports_sms: <span class="bool-val">false</span>,
                                 fetches_messages: <span class="bool-val">true</span>,
                                 registration_id,
+                                pni_registration_id,
                                 name: <span class="macro">vec!</span>[],
                             },
                         )
@@ -761,6 +770,7 @@
                             phone_number,
                             device_id,
                             registration_id,
+                            pni_registration_id,
                             service_ids: ServiceIds {
                                 aci: aci_uuid,
                                 pni: pni_uuid,
