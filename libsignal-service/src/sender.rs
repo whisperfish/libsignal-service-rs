@@ -843,6 +843,15 @@ where
             sent: Some(sync_message::Sent {
                 destination_uuid: recipient.map(|r| r.uuid.to_string()),
                 destination_e164: None,
+                expiration_start_timestamp: if data_message
+                    .as_ref()
+                    .and_then(|m| m.expire_timer)
+                    .is_some()
+                {
+                    Some(timestamp)
+                } else {
+                    None
+                },
                 message: data_message,
                 timestamp: Some(timestamp),
                 unidentified_status,
