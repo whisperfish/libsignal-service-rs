@@ -270,7 +270,7 @@ impl HyperPushService {
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 impl PushService for HyperPushService {
     // This is in principle known at compile time, but long to write out.
-    type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
+    type ByteStream = Box<dyn futures::io::AsyncRead + Send + Unpin>;
 
     async fn get_json<T>(
         &mut self,

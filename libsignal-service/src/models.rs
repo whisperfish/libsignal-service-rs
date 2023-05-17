@@ -42,6 +42,8 @@ pub enum ParseContactError {
     Protobuf(#[from] prost::DecodeError),
     #[error(transparent)]
     Uuid(#[from] uuid::Error),
+    #[error("missing data blob")]
+    MissingBlob,
     #[error("missing UUID")]
     MissingUuid,
     #[error("missing profile key")]

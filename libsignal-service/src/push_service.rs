@@ -4,6 +4,7 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
     groups_v2::GroupDecodingError,
+    models::ParseContactError,
     pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
@@ -323,7 +324,7 @@ pub struct AttachmentV2UploadAttributes {
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
-    Timeout { reason: String },
+    Timeout { reason: &'static str },
 
     #[error("invalid URL: {0}")]
     InvalidUrl(#[from] url::ParseError),
@@ -387,6 +388,9 @@ pub enum ServiceError {
 
     #[error(transparent)]
     ParseServiceAddress(#[from] ParseServiceAddressError),
+
+    #[error(transparent)]
+    ParseContact(#[from] ParseContactError),
 
     #[error("Not found.")]
     NotFoundError,

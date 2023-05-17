@@ -1,4 +1,5 @@
 use bytes::{Buf, Bytes};
+use log::info;
 
 use crate::{
     attachment_cipher::decrypt_in_place,
@@ -6,8 +7,11 @@ use crate::{
     envelope::Envelope,
     messagepipe::MessagePipe,
     models::{Contact, ParseContactError},
-    push_service::*,
+    proto::{AttachmentPointer, GroupDetails, group_details::Avatar},
+    push_service::*, groups_v2::GroupDecodingError,
 };
+
+const MAX_ATTACHMENT_RETRIES: u8 = 3;
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
 #[derive(Clone)]
@@ -52,58 +56,77 @@ impl<Service: PushService> MessageReceiver<Service> {
         Ok(MessagePipe::from_socket(ws, credentials))
     }
 
+    async fn get_attachment(
+        &mut self,
+        attachment: AttachmentPointer,
+        max_retries: u8,
+    ) -> Result<Bytes, ServiceError> {
+        use futures::io::AsyncReadExt;
+
+        let mut retries = 0;
+        let mut stream = loop {
+            let r = self.service.get_attachment(&attachment).await;
+            match r {
+                Ok(stream) => break stream,
+                Err(ServiceError::Timeout { .. }) => {
+                    log::warn!("get_attachment timed out, retrying");
+                    retries += 1;
+                    if retries >= max_retries {
+                        return Err(ServiceError::Timeout {
+                            reason: "too many retries",
+                        });
+                    }
+                },
+                Err(e) => return Err(e),
+            }
+        };
+
+        let mut ciphertext = Vec::with_capacity(attachment.size() as usize);
+        stream
+            .read_to_end(&mut ciphertext)
+            .await
+            .expect("streamed attachment");
+
+        let key_material = attachment.key();
+        assert_eq!(
+            key_material.len(),
+            64,
+            "key material for attachments is ought to be 64 bytes"
+        );
+        let mut key = [0u8; 64];
+        key.copy_from_slice(key_material);
+
+        decrypt_in_place(key, &mut ciphertext).expect("attachment decryption");
+
+        Ok(Bytes::from(ciphertext))
+    }
+
     pub async fn retrieve_contacts(
         &mut self,
-        contacts: &crate::proto::sync_message::Contacts,
+        contacts: crate::proto::sync_message::Contacts,
     ) -> Result<
         impl Iterator<Item = Result<Contact, ParseContactError>>,
         ServiceError,
     > {
-        if let Some(ref blob) = contacts.blob {
-            use futures::io::AsyncReadExt;
+        let attachment = contacts.blob.ok_or(ParseContactError::MissingBlob)?;
+        let bytes = self
+            .get_attachment(attachment, MAX_ATTACHMENT_RETRIES)
+            .await?;
+        Ok(DeviceContactsIterator::new(bytes))
+    }
 
-            const MAX_DOWNLOAD_RETRIES: u8 = 3;
-            let mut retries = 0;
-
-            let mut stream = loop {
-                let r = self.service.get_attachment(blob).await;
-                match r {
-                    Ok(stream) => break stream,
-                    Err(ServiceError::Timeout { .. }) => {
-                        log::warn!("get_attachment timed out, retrying");
-                        retries += 1;
-                        if retries >= MAX_DOWNLOAD_RETRIES {
-                            return Err(ServiceError::Timeout {
-                                reason: "too many retries".into(),
-                            });
-                        }
-                    },
-                    Err(e) => return Err(e),
-                }
-            };
-
-            let mut ciphertext = Vec::new();
-            stream
-                .read_to_end(&mut ciphertext)
-                .await
-                .expect("streamed attachment");
-
-            let key_material = blob.key();
-            assert_eq!(
-                key_material.len(),
-                64,
-                "key material for attachments is ought to be 64 bytes"
-            );
-            let mut key = [0u8; 64];
-            key.copy_from_slice(key_material);
-
-            decrypt_in_place(key, &mut ciphertext)
-                .expect("attachment decryption");
-
-            Ok(DeviceContactsIterator::new(Bytes::from(ciphertext)))
-        } else {
-            Ok(DeviceContactsIterator::default())
-        }
+    pub async fn retrieve_groups(
+        &mut self,
+        groups: crate::proto::sync_message::Groups,
+    ) -> Result<
+        impl Iterator<Item = Result<GroupDetails, GroupDecodingError>>,
+        ServiceError,
+    > {
+        let attachment = groups.blob.ok_or(GroupDecodingError::WrongBlob)?;
+        let bytes = self
+            .get_attachment(attachment, MAX_ATTACHMENT_RETRIES)
+            .await?;
+        Ok(DeviceGroupsIterator::new(bytes))
     }
 }
 
@@ -144,5 +167,44 @@ impl Iterator for DeviceContactsIterator {
         };
 
         Some(Contact::from_proto(contact_details, avatar_data))
+    }
+}
+
+#[derive(Default)]
+struct DeviceGroupsIterator {
+    decrypted_buffer: Bytes,
+}
+
+impl DeviceGroupsIterator {
+    fn new(decrypted_buffer: Bytes) -> Self {
+        Self { decrypted_buffer }
+    }
+}
+
+impl Iterator for DeviceGroupsIterator {
+    type Item = Result<GroupDetails, GroupDecodingError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.decrypted_buffer.has_remaining() {
+            return None;
+        }
+
+        let group_details: GroupDetails =
+            prost::Message::decode_length_delimited(&mut self.decrypted_buffer)
+                .map_err(GroupDecodingError::ProtobufDecodeError)
+                .ok()?;
+
+        let avatar_data = if let Some(Avatar {
+            length: Some(length),
+            ..
+        }) = group_details.avatar
+        {
+            info!("GOT GROUP AVATAR DATA");
+            Some(self.decrypted_buffer.copy_to_bytes(length as usize))
+        } else {
+            None
+        };
+
+        Some(Ok(group_details))
     }
 }
