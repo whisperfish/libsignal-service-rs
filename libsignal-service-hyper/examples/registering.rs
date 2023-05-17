@@ -79,6 +79,7 @@ async fn confirm_registration<'a, T: PushService>(
     confirmation_code: impl AsRef<str>,
 ) -> Result<VerifyAccountResponse, ServiceError> {
     let registration_id = generate_registration_id(&mut rand::thread_rng());
+    let pni_registration_id = generate_registration_id(&mut rand::thread_rng());
     let signaling_key = generate_signaling_key();
     let mut profile_key = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut profile_key);
@@ -90,6 +91,7 @@ async fn confirm_registration<'a, T: PushService>(
             AccountAttributes {
                 signaling_key: Some(signaling_key.to_vec()),
                 registration_id,
+                pni_registration_id,
                 voice: false,
                 video: false,
                 fetches_messages: true,
@@ -98,7 +100,7 @@ async fn confirm_registration<'a, T: PushService>(
                 unidentified_access_key: Some(profile_key.derive_access_key()),
                 unrestricted_unidentified_access: false, // TODO: make this configurable?
                 discoverable_by_phone_number: true,
-                name: "libsignal-service-hyper test".into(),
+                name: Some("libsignal-service-hyper test".into()),
                 capabilities: DeviceCapabilities::default(),
             },
         )

@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fmt, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -9,7 +9,7 @@ use crate::{
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
-    utils::{serde_base64, serde_optional_base64},
+    utils::{serde_base64, serde_optional_base64, serde_phone_number},
     websocket::SignalWebSocket,
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
@@ -24,6 +24,7 @@ use libsignal_protocol::{
     error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
     SenderCertificate,
 };
+use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -68,6 +69,41 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
 
+#[derive(Debug, Clone, Copy)]
+pub enum ServiceIdType {
+    /// Account Identity (ACI)
+    ///
+    /// An account UUID without an associated phone number, probably in the future to a username
+    AccountIdentity,
+    /// Phone number identity (PNI)
+    ///
+    /// A UUID associated with a phone number
+    PhoneNumberIdentity,
+}
+
+impl fmt::Display for ServiceIdType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ServiceIdType::AccountIdentity => f.write_str("aci"),
+            ServiceIdType::PhoneNumberIdentity => f.write_str("pni"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ServiceIds {
+    #[serde(rename = "uuid")]
+    pub aci: Uuid,
+    #[serde(default)] // nil when not present (yet)
+    pub pni: Uuid,
+}
+
+impl fmt::Display for ServiceIds {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "aci={} pni={}", self.aci, self.pni)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
@@ -91,6 +127,7 @@ pub struct AccountAttributes {
     #[serde(default, with = "serde_optional_base64")]
     pub signaling_key: Option<Vec<u8>>,
     pub registration_id: u32,
+    pub pni_registration_id: u32,
     pub voice: bool,
     pub video: bool,
     pub fetches_messages: bool,
@@ -101,7 +138,7 @@ pub struct AccountAttributes {
     pub unrestricted_unidentified_access: bool,
     pub discoverable_by_phone_number: bool,
     pub capabilities: DeviceCapabilities,
-    pub name: String,
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Clone)]
@@ -197,10 +234,14 @@ pub struct PreKeyResponse {
     pub devices: Vec<PreKeyResponseItem>,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WhoAmIResponse {
     pub uuid: Uuid,
+    #[serde(default)] // nil when not present (yet)
+    pub pni: Uuid,
+    #[serde(with = "serde_phone_number")]
+    pub number: PhoneNumber,
 }
 
 #[derive(Debug, Deserialize)]
@@ -499,10 +540,11 @@ pub trait PushService: MaybeSend {
 
     async fn get_pre_key_status(
         &mut self,
+        service_id_type: ServiceIdType,
     ) -> Result<PreKeyStatus, ServiceError> {
         self.get_json(
             Endpoint::Service,
-            "/v2/keys/",
+            &format!("/v2/keys?identity={}", service_id_type),
             HttpAuthOverride::NoOverride,
         )
         .await
@@ -510,12 +552,13 @@ pub trait PushService: MaybeSend {
 
     async fn register_pre_keys(
         &mut self,
+        service_id_type: ServiceIdType,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         match self
             .put_json(
                 Endpoint::Service,
-                "/v2/keys/",
+                &format!("/v2/keys?identity={}", service_id_type),
                 HttpAuthOverride::NoOverride,
                 pre_key_state,
             )

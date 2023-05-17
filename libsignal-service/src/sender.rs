@@ -2,9 +2,8 @@ use std::time::SystemTime;
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, DeviceId, IdentityKeyStore, PreKeyStore,
-    SenderCertificate, SenderKeyStore, SessionStore, SignalProtocolError,
-    SignedPreKeyStore,
+    process_prekey_bundle, DeviceId, ProtocolStore, SenderCertificate,
+    SenderKeyStore, SignalProtocolError,
 };
 use log::{info, trace};
 use rand::{CryptoRng, Rng};
@@ -77,14 +76,13 @@ pub struct AttachmentSpec {
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
-pub struct MessageSender<Service, S, I, SP, P, SK, R> {
+pub struct MessageSender<Service, S, R> {
     ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
     service: Service,
-    cipher: ServiceCipher<S, I, SP, P, SK, R>,
+    cipher: ServiceCipher<S, R>,
     csprng: R,
-    session_store: S,
-    identity_key_store: I,
+    protocol_store: S,
     local_address: ServiceAddress,
     device_id: DeviceId,
 }
@@ -120,14 +118,10 @@ pub enum MessageSenderError {
     NotFound { uuid: Uuid },
 }
 
-impl<Service, S, I, SP, P, SK, R> MessageSender<Service, S, I, SP, P, SK, R>
+impl<Service, S, R> MessageSender<Service, S, R>
 where
     Service: PushService + Clone,
-    S: SessionStore + SessionStoreExt + Sync + Clone,
-    I: IdentityKeyStore + Clone,
-    SP: SignedPreKeyStore + Clone,
-    SK: SenderKeyStore + Clone,
-    P: PreKeyStore + Clone,
+    S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
     R: Rng + CryptoRng + Clone,
 {
     #[allow(clippy::too_many_arguments)]
@@ -135,10 +129,9 @@ where
         ws: SignalWebSocket,
         unidentified_ws: SignalWebSocket,
         service: Service,
-        cipher: ServiceCipher<S, I, SP, P, SK, R>,
+        cipher: ServiceCipher<S, R>,
         csprng: R,
-        session_store: S,
-        identity_key_store: I,
+        protocol_store: S,
         local_address: ServiceAddress,
         device_id: DeviceId,
     ) -> Self {
@@ -148,8 +141,7 @@ where
             unidentified_ws,
             cipher,
             csprng,
-            session_store,
-            identity_key_store,
+            protocol_store,
             local_address,
             device_id,
         }
@@ -345,7 +337,7 @@ where
         ];
 
         let sub_device_count = self
-            .session_store
+            .protocol_store
             .get_sub_device_sessions(&self.local_address)
             .await?
             .len();
@@ -376,7 +368,7 @@ where
         }
 
         if end_session {
-            let n = self.session_store.delete_all_sessions(recipient).await?;
+            let n = self.protocol_store.delete_all_sessions(recipient).await?;
             log::debug!("ended {} sessions with {}", n, recipient.uuid);
         }
 
@@ -430,7 +422,7 @@ where
         // we only need to send a synchronization message once
         if let Some(message) = message {
             let sub_device_count = match self
-                .session_store
+                .protocol_store
                 .get_sub_device_sessions(&self.local_address)
                 .await
             {
@@ -527,7 +519,7 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
-                        self.session_store
+                        self.protocol_store
                             .delete_service_addr_device_session(
                                 &recipient
                                     .to_protocol_address(*extra_device_id),
@@ -549,8 +541,8 @@ where
 
                         process_prekey_bundle(
                             &remote_address,
-                            &mut self.session_store,
-                            &mut self.identity_key_store,
+                            &mut self.protocol_store.clone(),
+                            &mut self.protocol_store,
                             &pre_key,
                             &mut self.csprng,
                             None,
@@ -571,7 +563,7 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
-                        self.session_store
+                        self.protocol_store
                             .delete_service_addr_device_session(
                                 &recipient
                                     .to_protocol_address(*extra_device_id),
@@ -702,7 +694,7 @@ where
         }
 
         devices.extend(
-            self.session_store
+            self.protocol_store
                 .get_sub_device_sessions(recipient)
                 .await?,
         );
@@ -722,12 +714,17 @@ where
         for device_id in devices {
             trace!("sending message to device {}", device_id);
             let ppa = get_preferred_protocol_address(
-                &self.session_store,
+                &self.protocol_store,
                 recipient,
                 device_id.into(),
             )
             .await?;
-            if self.session_store.load_session(&ppa, None).await?.is_some() {
+            if self
+                .protocol_store
+                .load_session(&ppa, None)
+                .await?
+                .is_some()
+            {
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
@@ -754,7 +751,7 @@ where
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_address = get_preferred_protocol_address(
-            &self.session_store,
+            &self.protocol_store,
             recipient,
             device_id,
         )
@@ -762,7 +759,7 @@ where
         log::trace!("encrypting message for {:?}", recipient_address);
 
         if self
-            .session_store
+            .protocol_store
             .load_session(&recipient_address, None)
             .await?
             .is_none()
@@ -793,7 +790,7 @@ where
                 }
 
                 let pre_key_address = get_preferred_protocol_address(
-                    &self.session_store,
+                    &self.protocol_store,
                     recipient,
                     pre_key_bundle.device_id()?,
                 )
@@ -801,8 +798,8 @@ where
 
                 process_prekey_bundle(
                     &pre_key_address,
-                    &mut self.session_store,
-                    &mut self.identity_key_store,
+                    &mut self.protocol_store.clone(),
+                    &mut self.protocol_store,
                     &pre_key_bundle,
                     &mut self.csprng,
                     None,
@@ -846,6 +843,15 @@ where
             sent: Some(sync_message::Sent {
                 destination_uuid: recipient.map(|r| r.uuid.to_string()),
                 destination_e164: None,
+                expiration_start_timestamp: if data_message
+                    .as_ref()
+                    .and_then(|m| m.expire_timer)
+                    .is_some()
+                {
+                    Some(timestamp)
+                } else {
+                    None
+                },
                 message: data_message,
                 timestamp: Some(timestamp),
                 unidentified_status,

@@ -98,10 +98,10 @@ pub mod prelude {
         pub use libsignal_protocol::{
             Context, DeviceId, Direction, IdentityKey, IdentityKeyPair,
             IdentityKeyStore, KeyPair, PreKeyId, PreKeyRecord, PreKeyStore,
-            PrivateKey, ProtocolAddress, PublicKey, SenderCertificate,
-            SenderKeyRecord, SenderKeyStore, SessionRecord, SessionStore,
-            SignalProtocolError, SignedPreKeyId, SignedPreKeyRecord,
-            SignedPreKeyStore,
+            PrivateKey, ProtocolAddress, ProtocolStore, PublicKey,
+            SenderCertificate, SenderKeyRecord, SenderKeyStore, SessionRecord,
+            SessionStore, SignalProtocolError, SignedPreKeyId,
+            SignedPreKeyRecord, SignedPreKeyStore,
         };
     }
 }
