@@ -81,7 +81,7 @@ impl<Service: PushService> MessageReceiver<Service> {
             }
         };
 
-        let mut ciphertext = Vec::with_capacity(attachment.size() as usize);
+        let mut ciphertext = Vec::with_capacity(dbg!(attachment.size() as usize));
         stream
             .read_to_end(&mut ciphertext)
             .await
@@ -93,6 +93,7 @@ impl<Service: PushService> MessageReceiver<Service> {
             64,
             "key material for attachments is ought to be 64 bytes"
         );
+        dbg!(key_material.len());
         let mut key = [0u8; 64];
         key.copy_from_slice(key_material);
 
@@ -204,7 +205,24 @@ impl Iterator for DeviceGroupsIterator {
         } else {
             None
         };
+        dbg!(self.decrypted_buffer.remaining());
 
         Some(Ok(group_details))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+
+    use super::DeviceGroupsIterator;
+
+    #[test]
+    fn decode_groups() {
+        let bytes = Bytes::from(std::fs::read("/Users/gferon/Downloads/2738893419980511538").unwrap());
+        let it = DeviceGroupsIterator::new(bytes);
+        for g in it {
+            dbg!(g);
+        }
     }
 }
