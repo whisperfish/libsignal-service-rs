@@ -897,6 +897,23 @@
 <a href="#897" id="897">897</a>
 <a href="#898" id="898">898</a>
 <a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
 </pre><pre class="rust"><code><span class="kw">use </span>std::{fmt, time::Duration};
 
 <span class="kw">use crate</span>::{
@@ -1490,6 +1507,23 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             </span>},
         }
     }
+
+    <span class="kw">async fn </span>get_sticker_pack_manifest(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        id: <span class="kw-2">&amp;</span>str,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::ByteStream, ServiceError&gt; {
+        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">&quot;/stickers/{}/manifest.proto&quot;</span>, id);
+        <span class="self">self</span>.get_from_cdn(<span class="number">0</span>, <span class="kw-2">&amp;</span>path).<span class="kw">await
+    </span>}
+
+    <span class="kw">async fn </span>get_sticker(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        pack_id: <span class="kw-2">&amp;</span>str,
+        sticker_id: u32,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>::ByteStream, ServiceError&gt; {
+        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">&quot;/stickers/{}/full/{}&quot;</span>, pack_id, sticker_id);
+        <span class="self">self</span>.get_from_cdn(<span class="number">0</span>, <span class="kw-2">&amp;</span>path).<span class="kw">await
+    </span>}
 
     <span class="kw">async fn </span>send_messages(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
