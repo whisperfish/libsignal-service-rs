@@ -7,6 +7,7 @@ mod account_manager;
 pub mod attachment_cipher;
 pub mod cipher;
 pub mod profile_cipher;
+pub mod sticker_cipher;
 
 pub mod configuration;
 pub mod content;
