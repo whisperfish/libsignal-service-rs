@@ -558,11 +558,6 @@
 <a href="#558" id="558">558</a>
 <a href="#559" id="559">559</a>
 <a href="#560" id="560">560</a>
-<a href="#561" id="561">561</a>
-<a href="#562" id="562">562</a>
-<a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a>
-<a href="#565" id="565">565</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{sync::Arc, time::Duration};
 
 <span class="kw">use </span>awc::{
@@ -630,6 +625,20 @@
             HttpAuthOverride::Unidentified =&gt; builder,
         };
         <span class="prelude-val">Ok</span>(builder)
+    }
+
+    <span class="kw">fn </span>json&lt;T&gt;(text: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;T, ServiceError&gt;
+    <span class="kw">where
+        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; T: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+    {
+        <span class="kw">let </span>value = <span class="kw">if </span>text.is_empty() {
+            serde_json::from_value(serde_json::Value::Null)
+        } <span class="kw">else </span>{
+            serde_json::from_slice(text)
+        };
+        value.map_err(|e| ServiceError::JsonDecodeError {
+            reason: e.to_string(),
+        })
     }
 
     <span class="kw">async fn </span>from_response&lt;S&gt;(
@@ -735,32 +744,27 @@
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="comment">// In order to debug the output, we collect the whole response.
-        // The actix-web api is meant to used as a streaming deserializer,
-        // so we have this little awkward switch.
+        <span class="comment">// In order to catch the zero-length output, we have to collect
+        // the whole response. The actix-web api is meant to used as a
+        // streaming deserializer, so we have this little awkward match.
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        </span><span class="kw">if </span><span class="macro">log::log_enabled!</span>(log::Level::Debug) {
-            <span class="kw">let </span>text = response.body().<span class="kw">await</span>.map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })<span class="question-mark">?</span>;
-            <span class="macro">log::debug!</span>(<span class="string">&quot;GET response: {:?}&quot;</span>, String::from_utf8_lossy(<span class="kw-2">&amp;</span>text));
-            serde_json::from_slice(<span class="kw-2">&amp;</span>text).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        } <span class="kw">else </span>{
-            response
-                .json()
-                .<span class="kw">await
-                </span>.map_err(|e| ServiceError::JsonDecodeError {
+        </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(text) =&gt; {
+                <span class="macro">log::debug!</span>(
+                    <span class="string">&quot;GET response: {:?}&quot;</span>,
+                    String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
+                );
+                text
+            },
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(ServiceError::ResponseError {
                     reason: e.to_string(),
                 })
-        }
+            },
+        };
+        <span class="self">Self</span>::json(<span class="kw-2">&amp;</span>text)
     }
 
     <span class="doccomment">/// Deletes a resource through the HTTP DELETE verb.
@@ -796,35 +800,28 @@
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="comment">// In order to debug the output, we collect the whole response.
-        // The actix-web api is meant to used as a streaming deserializer,
-        // so we have this little awkward switch.
+        <span class="comment">// In order to catch the zero-length output, we have to collect
+        // the whole response. The actix-web api is meant to used as a
+        // streaming deserializer, so we have this little awkward match.
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        </span><span class="kw">if </span><span class="macro">log::log_enabled!</span>(log::Level::Debug) {
-            <span class="kw">let </span>text = response.body().<span class="kw">await</span>.map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })<span class="question-mark">?</span>;
-            <span class="macro">log::debug!</span>(
-                <span class="string">&quot;DELETE response: {:?}&quot;</span>,
-                String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
-            );
-            serde_json::from_slice(<span class="kw-2">&amp;</span>text).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        } <span class="kw">else </span>{
-            response
-                .json()
-                .<span class="kw">await
-                </span>.map_err(|e| ServiceError::JsonDecodeError {
+        </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(text) =&gt; {
+                <span class="macro">log::debug!</span>(
+                    <span class="string">&quot;GET response: {:?}&quot;</span>,
+                    String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
+                );
+                text
+            },
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(ServiceError::ResponseError {
                     reason: e.to_string(),
                 })
-        }
+            },
+        };
+
+        <span class="self">Self</span>::json(<span class="kw-2">&amp;</span>text)
     }
 
     <span class="kw">async fn </span>put_json&lt;D, S&gt;(
@@ -850,40 +847,27 @@
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="comment">// In order to debug the output, we collect the whole response.
-        // The actix-web api is meant to used as a streaming deserializer,
-        // so we have this little awkward switch.
+        <span class="comment">// In order to catch the zero-length output, we have to collect
+        // the whole response. The actix-web api is meant to used as a
+        // streaming deserializer, so we have this little awkward match.
         //
         // This is also the reason we depend directly on serde_json, however
         // actix already imports that anyway.
-        </span><span class="kw">let </span>result = <span class="kw">if </span><span class="macro">log::log_enabled!</span>(log::Level::Debug) {
-            <span class="kw">let </span>text = response.body().<span class="kw">await</span>.map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })<span class="question-mark">?</span>;
-            <span class="macro">log::debug!</span>(<span class="string">&quot;PUT response: {:?}&quot;</span>, String::from_utf8_lossy(<span class="kw-2">&amp;</span>text));
-            serde_json::from_slice(<span class="kw-2">&amp;</span>text).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        } <span class="kw">else </span>{
-            response
-                .json()
-                .<span class="kw">await
-                </span>.map_err(|e| ServiceError::JsonDecodeError {
+        </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
+            <span class="prelude-val">Ok</span>(text) =&gt; {
+                <span class="macro">log::debug!</span>(
+                    <span class="string">&quot;GET response: {:?}&quot;</span>,
+                    String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
+                );
+                text
+            },
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(ServiceError::ResponseError {
                     reason: e.to_string(),
                 })
+            },
         };
-
-        <span class="kw">if </span>result.is_err()
-            &amp;&amp; response.status() == awc::http::StatusCode::NO_CONTENT
-        {
-            serde_json::from_slice(<span class="string">b&quot;null&quot;</span>).or(result)
-        } <span class="kw">else </span>{
-            result
-        }
+        <span class="self">Self</span>::json(<span class="kw-2">&amp;</span>text)
     }
 
     <span class="kw">async fn </span>get_protobuf&lt;T&gt;(
@@ -1126,6 +1110,12 @@
                 <span class="string">&quot;libsignal-service test&quot;</span>.to_string(),
             );
         }
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>serde_json_from_null() {
+        <span class="comment">// We are using this to generate empty JSON from empty responses
+        </span><span class="macro">assert_eq!</span>(<span class="string">&quot;{}&quot;</span>, serde_json::from_slice::&lt;<span class="kw-2">&amp;</span>str&gt;(<span class="string">b&quot;null&quot;</span>).unwrap());
     }
 }
 </code></pre></div></section></main></body></html>
