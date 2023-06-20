@@ -220,10 +220,13 @@ impl HyperPushService {
             }
         })?;
 
-        serde_json::from_reader(body.reader()).map_err(|e| {
-            ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            }
+        if body.has_remaining() {
+            serde_json::from_reader(body.reader())
+        } else {
+            serde_json::from_value(serde_json::Value::Null)
+        }
+        .map_err(|e| ServiceError::JsonDecodeError {
+            reason: e.to_string(),
         })
     }
 
@@ -498,6 +501,7 @@ impl PushService for HyperPushService {
 
 #[cfg(test)]
 mod tests {
+    use bytes::{Buf, Bytes};
     use libsignal_service::configuration::SignalServers;
 
     #[test]
@@ -511,5 +515,23 @@ mod tests {
                 "libsignal-service test".to_string(),
             );
         }
+    }
+
+    #[test]
+    fn serde_json_from_empty_reader() {
+        // This fails, so we have handle empty response body separately in HyperPushService::json()
+        let bytes: Bytes = "".into();
+        assert!(
+            serde_json::from_reader::<bytes::buf::Reader<Bytes>, String>(
+                bytes.reader()
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn serde_json_form_empty_vec() {
+        // If we're trying to send and empty payload, serde_json must be able to make a Vec out of it
+        assert!(serde_json::to_vec(b"").is_ok());
     }
 }
