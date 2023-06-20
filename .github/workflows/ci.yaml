@@ -40,14 +40,56 @@ jobs:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
         toolchain: ["stable", "nightly"]
         can-fail: [false]
+        coverage: [false, true]
+        exclude:
+          - toolchain: stable
+            coverage: true
+          - toolchain: beta
+            coverage: true
+          - toolchain: nightly
+            coverage: false
         include:
           - project: "libsignal-service-actix"
             # toolchain: "1.52.1"
             toolchain: "nightly-2021-05-06"
             features: "rust-1-52"
             can-fail: true
+            coverage: false
     steps:
       - uses: actions/checkout@v3
-      - run: rustup toolchain install --profile minimal ${{ matrix.toolchain }}
-      - run: cargo +${{ matrix.toolchain }} build --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
-      - run: cargo +${{ matrix.toolchain }} test --manifest-path ${{ matrix.project }}/Cargo.toml
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        if: ${{ !matrix.coverage }}
+        with:
+          command: test
+          args: --all-targets --no-fail-fast --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.coverage }}
+        with:
+          command: test
+          args: --all-targets --no-fail-fast --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
+        env:
+          CARGO_INCREMENTAL: '0'
+          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+
+      - name: Generate code coverage
+        uses: actions-rs/grcov@v0.1
+        if: ${{ matrix.coverage }}
+
+      - name: Upload coverage reports to Codecov with GitHub Action
+        uses: codecov/codecov-action@v3
+        if: ${{ matrix.coverage }}
