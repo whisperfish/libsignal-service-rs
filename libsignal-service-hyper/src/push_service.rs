@@ -221,18 +221,13 @@ impl HyperPushService {
         })?;
 
         if body.has_remaining() {
-            serde_json::from_reader(body.reader()).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
+            serde_json::from_reader(body.reader())
         } else {
-            serde_json::from_slice(b"null").map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
+            serde_json::from_value(serde_json::Value::Null)
         }
+        .map_err(|e| ServiceError::JsonDecodeError {
+            reason: e.to_string(),
+        })
     }
 
     async fn protobuf<M>(

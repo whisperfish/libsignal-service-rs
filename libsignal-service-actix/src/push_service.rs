@@ -67,6 +67,20 @@ impl AwcPushService {
         Ok(builder)
     }
 
+    fn json<T>(text: &[u8]) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>,
+    {
+        let value = if text.is_empty() {
+            serde_json::from_value(serde_json::Value::Null)
+        } else {
+            serde_json::from_slice(text)
+        };
+        value.map_err(|e| ServiceError::JsonDecodeError {
+            reason: e.to_string(),
+        })
+    }
+
     async fn from_response<S>(
         response: &mut ClientResponse<S>,
     ) -> Result<(), ServiceError>
@@ -190,10 +204,7 @@ impl PushService for AwcPushService {
                 })
             },
         };
-        serde_json::from_slice(if text.len() > 0 { &text } else { b"null" })
-            .map_err(|e| ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            })
+        Self::json(&text)
     }
 
     /// Deletes a resource through the HTTP DELETE verb.
@@ -249,10 +260,8 @@ impl PushService for AwcPushService {
                 })
             },
         };
-        serde_json::from_slice(if text.len() > 0 { &text } else { b"null" })
-            .map_err(|e| ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            })
+
+        Self::json(&text)
     }
 
     async fn put_json<D, S>(
@@ -298,10 +307,7 @@ impl PushService for AwcPushService {
                 })
             },
         };
-        serde_json::from_slice(if text.len() > 0 { &text } else { b"null" })
-            .map_err(|e| ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            })
+        Self::json(&text)
     }
 
     async fn get_protobuf<T>(
