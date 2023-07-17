@@ -15,10 +15,6 @@ use crate::{
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
 
-use aes_gcm::{
-    aead::{generic_array::GenericArray, Aead},
-    Aes256Gcm, NewAead,
-};
 use chrono::prelude::*;
 use derivative::Derivative;
 use libsignal_protocol::{
@@ -30,7 +26,7 @@ use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use zkgroup::profiles::{ProfileKey, ProfileKeyCommitment, ProfileKeyVersion};
+use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 /**
 Since we can't use format!() with constants, the URLs here are just for reference purposes
@@ -211,22 +207,6 @@ pub enum AvatarWrite<C> {
 struct SenderCertificateJson {
     #[serde(with = "serde_base64")]
     certificate: Vec<u8>,
-}
-
-pub trait ProfileKeyExt {
-    fn derive_access_key(&self) -> Vec<u8>;
-}
-
-impl ProfileKeyExt for ProfileKey {
-    fn derive_access_key(&self) -> Vec<u8> {
-        let key = GenericArray::from_slice(&self.bytes);
-        let cipher = Aes256Gcm::new(key);
-        let nonce = GenericArray::from_slice(&[0u8; 12]);
-        let buf = [0u8; 16];
-        let mut ciphertext = cipher.encrypt(nonce, &buf[..]).unwrap();
-        ciphertext.truncate(16);
-        ciphertext
-    }
 }
 
 #[derive(Debug, Deserialize)]
