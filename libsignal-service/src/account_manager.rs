@@ -7,8 +7,8 @@ use aes::cipher::{NewCipher, StreamCipher};
 use aes::Aes256Ctr;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    IdentityKeyStore, KeyPair, PreKeyRecord, PrivateKey, ProtocolStore,
-    PublicKey, SignalProtocolError, SignedPreKeyRecord,
+    GenericSignedPreKey, IdentityKeyStore, KeyPair, PreKeyRecord, PrivateKey,
+    ProtocolStore, PublicKey, SignalProtocolError, SignedPreKeyRecord,
 };
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;

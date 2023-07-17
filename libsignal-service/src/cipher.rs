@@ -6,8 +6,8 @@ use libsignal_protocol::{
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
     CiphertextMessageType, Context, DeviceId, IdentityKeyStore,
-    PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
-    PublicKey, SealedSenderDecryptionResult, SenderCertificate,
+    KyberPreKeyStore, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
+    ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, SessionStore, SignalMessage,
     SignalProtocolError, SignedPreKeyStore,
 };
@@ -36,7 +36,7 @@ pub struct ServiceCipher<S, R> {
 
 impl<S, R> ServiceCipher<S, R>
 where
-    S: ProtocolStore + SenderKeyStore + Clone,
+    S: ProtocolStore + KyberPreKeyStore + SenderKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
     pub fn new(
@@ -128,6 +128,7 @@ where
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
+                    &mut self.protocol_store.clone(),
                     &mut self.csprng,
                     None,
                 )
@@ -213,6 +214,7 @@ where
                     None,
                     self.local_uuid.to_string(),
                     self.local_device_id.into(),
+                    &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
@@ -431,6 +433,7 @@ async fn sealed_sender_decrypt(
     pre_key_store: &mut dyn PreKeyStore,
     signed_pre_key_store: &mut dyn SignedPreKeyStore,
     sender_key_store: &mut dyn SenderKeyStore,
+    kyber_pre_key_store: &mut dyn KyberPreKeyStore,
     ctx: Context,
 ) -> Result<SealedSenderDecryptionResult, SignalProtocolError> {
     let usmc =
@@ -484,6 +487,7 @@ async fn sealed_sender_decrypt(
                 identity_store,
                 pre_key_store,
                 signed_pre_key_store,
+                kyber_pre_key_store,
                 &mut rng,
                 ctx,
             )

@@ -2,7 +2,8 @@ use std::convert::TryFrom;
 
 use crate::utils::{serde_base64, serde_public_key};
 use libsignal_protocol::{
-    error::SignalProtocolError, PreKeyRecord, PublicKey, SignedPreKeyRecord,
+    error::SignalProtocolError, GenericSignedPreKey, PreKeyRecord, PublicKey,
+    SignedPreKeyRecord,
 };
 
 use serde::{Deserialize, Serialize};
