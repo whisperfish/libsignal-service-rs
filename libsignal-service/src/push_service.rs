@@ -4,7 +4,9 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
     groups_v2::GroupDecodingError,
-    pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
+    pre_keys::{
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
+    },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
@@ -20,8 +22,9 @@ use aes_gcm::{
 use chrono::prelude::*;
 use derivative::Derivative;
 use libsignal_protocol::{
-    error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
-    SenderCertificate,
+    error::SignalProtocolError,
+    kem::{Key, Public},
+    IdentityKey, PreKeyBundle, PublicKey, SenderCertificate,
 };
 use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
@@ -178,6 +181,7 @@ pub struct ProofRequired {
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyStatus {
     pub count: u32,
+    pub pq_count: u32,
 }
 
 #[derive(Derivative, Clone)]
@@ -250,6 +254,7 @@ pub struct PreKeyResponseItem {
     pub registration_id: u32,
     pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
+    pub pq_pre_key: Option<KyberPreKeyEntity>,
 }
 
 impl PreKeyResponseItem {
@@ -257,7 +262,7 @@ impl PreKeyResponseItem {
         self,
         identity: IdentityKey,
     ) -> Result<PreKeyBundle, SignalProtocolError> {
-        PreKeyBundle::new(
+        let b = PreKeyBundle::new(
             self.registration_id,
             self.device_id.into(),
             self.pre_key
@@ -273,7 +278,17 @@ impl PreKeyResponseItem {
             PublicKey::deserialize(&self.signed_pre_key.public_key)?,
             self.signed_pre_key.signature,
             identity,
-        )
+        )?;
+
+        if let Some(pq_pk) = self.pq_pre_key {
+            Ok(b.with_kyber_pre_key(
+                pq_pk.key_id.into(),
+                Key::<Public>::deserialize(&pq_pk.public_key)?,
+                pq_pk.signature,
+            ))
+        } else {
+            Ok(b)
+        }
     }
 }
 
