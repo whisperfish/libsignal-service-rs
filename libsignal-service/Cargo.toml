@@ -7,8 +7,8 @@ license = "GPLv3"
 readme = "../README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.22.2" }
-zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.22.2" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.28.1" }
+zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.28.1" }
 
 aes = { version = "0.7", features = ["ctr"] }
 aes-gcm = "0.9"
