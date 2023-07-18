@@ -207,6 +207,12 @@ impl<Service: PushService> AccountManager<Service> {
             pq_pre_keys: pq_pre_key_entities,
             pq_last_resort_key: if use_last_resort_key {
                 log::warn!("Last resort Kyber key unimplemented");
+                // Note about the last-resort key:
+                // mark_kyber_pre_key_used() should retain the last-resort key, but can safely
+                // remove the ephemeral pre keys.  This implies that generating the last-resort key
+                // should notify the pre-key store, when saving the key, that it concerns a
+                // last-resort key.  I don't see how this can be communicated to the store, and I
+                // fear that we need to reengineer the whole prekeystore system as a whole.
                 None
                 // Some(KyberPreKeyEntity {
                 //     key_id: 0x7fffffff,
