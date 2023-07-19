@@ -2,7 +2,8 @@ use std::convert::TryFrom;
 
 use crate::utils::{serde_base64, serde_public_key};
 use libsignal_protocol::{
-    error::SignalProtocolError, PreKeyRecord, PublicKey, SignedPreKeyRecord,
+    error::SignalProtocolError, GenericSignedPreKey, KyberPreKeyRecord,
+    PreKeyRecord, PublicKey, SignedPreKeyRecord,
 };
 
 use serde::{Deserialize, Serialize};
@@ -58,6 +59,28 @@ impl TryFrom<SignedPreKeyRecord> for SignedPreKey {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KyberPreKeyEntity {
+    pub key_id: u32,
+    #[serde(with = "serde_base64")]
+    pub public_key: Vec<u8>,
+    #[serde(with = "serde_base64")]
+    pub signature: Vec<u8>,
+}
+
+impl TryFrom<KyberPreKeyRecord> for KyberPreKeyEntity {
+    type Error = SignalProtocolError;
+
+    fn try_from(key: KyberPreKeyRecord) -> Result<Self, Self::Error> {
+        Ok(KyberPreKeyEntity {
+            key_id: key.id()?.into(),
+            public_key: key.key_pair()?.public_key.serialize().to_vec(),
+            signature: key.signature()?,
+        })
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyState {
@@ -66,5 +89,6 @@ pub struct PreKeyState {
     #[serde(with = "serde_public_key")]
     pub identity_key: PublicKey,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_resort_key: Option<PreKeyEntity>,
+    pub pq_last_resort_key: Option<KyberPreKeyEntity>,
+    pub pq_pre_keys: Vec<KyberPreKeyEntity>,
 }

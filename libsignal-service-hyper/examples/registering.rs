@@ -8,8 +8,7 @@ use libsignal_service::provisioning::{
     VerifyAccountResponse,
 };
 use libsignal_service::push_service::{
-    AccountAttributes, DeviceCapabilities, ProfileKeyExt, PushService,
-    ServiceError,
+    AccountAttributes, DeviceCapabilities, PushService, ServiceError,
 };
 use libsignal_service::USER_AGENT;
 
@@ -97,7 +96,9 @@ async fn confirm_registration<'a, T: PushService>(
                 fetches_messages: true,
                 pin: None,
                 registration_lock: None,
-                unidentified_access_key: Some(profile_key.derive_access_key()),
+                unidentified_access_key: Some(
+                    profile_key.derive_access_key().to_vec(),
+                ),
                 unrestricted_unidentified_access: false, // TODO: make this configurable?
                 discoverable_by_phone_number: true,
                 name: Some("libsignal-service-hyper test".into()),

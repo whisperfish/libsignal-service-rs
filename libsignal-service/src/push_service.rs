@@ -4,7 +4,9 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
     groups_v2::GroupDecodingError,
-    pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
+    pre_keys::{
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
+    },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
@@ -13,21 +15,18 @@ use crate::{
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
 
-use aes_gcm::{
-    aead::{generic_array::GenericArray, Aead},
-    Aes256Gcm, NewAead,
-};
 use chrono::prelude::*;
 use derivative::Derivative;
 use libsignal_protocol::{
-    error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
-    SenderCertificate,
+    error::SignalProtocolError,
+    kem::{Key, Public},
+    IdentityKey, PreKeyBundle, PublicKey, SenderCertificate,
 };
 use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use zkgroup::profiles::{ProfileKey, ProfileKeyCommitment, ProfileKeyVersion};
+use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 /**
 Since we can't use format!() with constants, the URLs here are just for reference purposes
@@ -178,6 +177,7 @@ pub struct ProofRequired {
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyStatus {
     pub count: u32,
+    pub pq_count: u32,
 }
 
 #[derive(Derivative, Clone)]
@@ -209,22 +209,6 @@ struct SenderCertificateJson {
     certificate: Vec<u8>,
 }
 
-pub trait ProfileKeyExt {
-    fn derive_access_key(&self) -> Vec<u8>;
-}
-
-impl ProfileKeyExt for ProfileKey {
-    fn derive_access_key(&self) -> Vec<u8> {
-        let key = GenericArray::from_slice(&self.bytes);
-        let cipher = Aes256Gcm::new(key);
-        let nonce = GenericArray::from_slice(&[0u8; 12]);
-        let buf = [0u8; 16];
-        let mut ciphertext = cipher.encrypt(nonce, &buf[..]).unwrap();
-        ciphertext.truncate(16);
-        ciphertext
-    }
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyResponse {
@@ -250,6 +234,7 @@ pub struct PreKeyResponseItem {
     pub registration_id: u32,
     pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
+    pub pq_pre_key: Option<KyberPreKeyEntity>,
 }
 
 impl PreKeyResponseItem {
@@ -257,7 +242,7 @@ impl PreKeyResponseItem {
         self,
         identity: IdentityKey,
     ) -> Result<PreKeyBundle, SignalProtocolError> {
-        PreKeyBundle::new(
+        let b = PreKeyBundle::new(
             self.registration_id,
             self.device_id.into(),
             self.pre_key
@@ -273,7 +258,17 @@ impl PreKeyResponseItem {
             PublicKey::deserialize(&self.signed_pre_key.public_key)?,
             self.signed_pre_key.signature,
             identity,
-        )
+        )?;
+
+        if let Some(pq_pk) = self.pq_pre_key {
+            Ok(b.with_kyber_pre_key(
+                pq_pk.key_id.into(),
+                Key::<Public>::deserialize(&pq_pk.public_key)?,
+                pq_pk.signature,
+            ))
+        } else {
+            Ok(b)
+        }
     }
 }
 
@@ -733,7 +728,8 @@ pub trait PushService: MaybeSend {
         destination: &ServiceAddress,
         device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
-        let path = format!("/v2/keys/{}/{}", destination.uuid, device_id);
+        let path =
+            format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id);
 
         let mut pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
@@ -751,9 +747,9 @@ pub trait PushService: MaybeSend {
         device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
         let path = if device_id == 1 {
-            format!("/v2/keys/{}/*", destination.uuid)
+            format!("/v2/keys/{}/*?pq=true", destination.uuid)
         } else {
-            format!("/v2/keys/{}/{}", destination.uuid, device_id)
+            format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id)
         };
         let pre_key_response: PreKeyResponse = self
             .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
