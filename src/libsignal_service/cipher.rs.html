@@ -513,6 +513,10 @@
 <a href="#513" id="513">513</a>
 <a href="#514" id="514">514</a>
 <a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::convert::TryFrom;
 
 <span class="kw">use </span>block_modes::block_padding::{Iso7816, Padding};
@@ -521,8 +525,8 @@
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
     CiphertextMessageType, Context, DeviceId, IdentityKeyStore,
-    PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
-    PublicKey, SealedSenderDecryptionResult, SenderCertificate,
+    KyberPreKeyStore, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
+    ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, SessionStore, SignalMessage,
     SignalProtocolError, SignedPreKeyStore,
 };
@@ -551,7 +555,7 @@
 
 <span class="kw">impl</span>&lt;S, R&gt; ServiceCipher&lt;S, R&gt;
 <span class="kw">where
-    </span>S: ProtocolStore + SenderKeyStore + Clone,
+    </span>S: ProtocolStore + KyberPreKeyStore + SenderKeyStore + Clone,
     R: Rng + CryptoRng + Clone,
 {
     <span class="kw">pub fn </span>new(
@@ -643,6 +647,7 @@
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
+                    <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.csprng,
                     <span class="prelude-val">None</span>,
                 )
@@ -728,6 +733,7 @@
                     <span class="prelude-val">None</span>,
                     <span class="self">self</span>.local_uuid.to_string(),
                     <span class="self">self</span>.local_device_id.into(),
+                    <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
                     <span class="kw-2">&amp;mut </span><span class="self">self</span>.protocol_store.clone(),
@@ -946,6 +952,7 @@
     pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>PreKeyStore,
     signed_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SignedPreKeyStore,
     sender_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SenderKeyStore,
+    kyber_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>KyberPreKeyStore,
     ctx: Context,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;SealedSenderDecryptionResult, SignalProtocolError&gt; {
     <span class="kw">let </span>usmc =
@@ -999,6 +1006,7 @@
                 identity_store,
                 pre_key_store,
                 signed_pre_key_store,
+                kyber_pre_key_store,
                 <span class="kw-2">&amp;mut </span>rng,
                 ctx,
             )

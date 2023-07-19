@@ -910,17 +910,15 @@
 <a href="#910" id="910">910</a>
 <a href="#911" id="911">911</a>
 <a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{fmt, time::Duration};
 
 <span class="kw">use crate</span>::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::<span class="kw-2">*</span>,
     groups_v2::GroupDecodingError,
-    pre_keys::{PreKeyEntity, PreKeyState, SignedPreKeyEntity},
+    pre_keys::{
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
+    },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
     sender::{OutgoingPushMessages, SendMessageResponse},
@@ -929,21 +927,18 @@
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
 };
 
-<span class="kw">use </span>aes_gcm::{
-    aead::{generic_array::GenericArray, Aead},
-    Aes256Gcm, NewAead,
-};
 <span class="kw">use </span>chrono::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>derivative::Derivative;
 <span class="kw">use </span>libsignal_protocol::{
-    error::SignalProtocolError, IdentityKey, PreKeyBundle, PublicKey,
-    SenderCertificate,
+    error::SignalProtocolError,
+    kem::{Key, Public},
+    IdentityKey, PreKeyBundle, PublicKey, SenderCertificate,
 };
 <span class="kw">use </span>phonenumber::PhoneNumber;
 <span class="kw">use </span>prost::Message <span class="kw">as </span>ProtobufMessage;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>uuid::Uuid;
-<span class="kw">use </span>zkgroup::profiles::{ProfileKey, ProfileKeyCommitment, ProfileKeyVersion};
+<span class="kw">use </span>zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 <span class="doccomment">/**
 Since we can&#39;t use format!() with constants, the URLs here are just for reference purposes
@@ -1094,6 +1089,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 #[serde(rename_all = <span class="string">&quot;camelCase&quot;</span>)]
 </span><span class="kw">pub struct </span>PreKeyStatus {
     <span class="kw">pub </span>count: u32,
+    <span class="kw">pub </span>pq_count: u32,
 }
 
 <span class="attr">#[derive(Derivative, Clone)]
@@ -1125,22 +1121,6 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     </span>certificate: Vec&lt;u8&gt;,
 }
 
-<span class="kw">pub trait </span>ProfileKeyExt {
-    <span class="kw">fn </span>derive_access_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;u8&gt;;
-}
-
-<span class="kw">impl </span>ProfileKeyExt <span class="kw">for </span>ProfileKey {
-    <span class="kw">fn </span>derive_access_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;u8&gt; {
-        <span class="kw">let </span>key = GenericArray::from_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.bytes);
-        <span class="kw">let </span>cipher = Aes256Gcm::new(key);
-        <span class="kw">let </span>nonce = GenericArray::from_slice(<span class="kw-2">&amp;</span>[<span class="number">0u8</span>; <span class="number">12</span>]);
-        <span class="kw">let </span>buf = [<span class="number">0u8</span>; <span class="number">16</span>];
-        <span class="kw">let </span><span class="kw-2">mut </span>ciphertext = cipher.encrypt(nonce, <span class="kw-2">&amp;</span>buf[..]).unwrap();
-        ciphertext.truncate(<span class="number">16</span>);
-        ciphertext
-    }
-}
-
 <span class="attr">#[derive(Debug, Deserialize)]
 #[serde(rename_all = <span class="string">&quot;camelCase&quot;</span>)]
 </span><span class="kw">pub struct </span>PreKeyResponse {
@@ -1166,6 +1146,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub </span>registration_id: u32,
     <span class="kw">pub </span>signed_pre_key: SignedPreKeyEntity,
     <span class="kw">pub </span>pre_key: <span class="prelude-ty">Option</span>&lt;PreKeyEntity&gt;,
+    <span class="kw">pub </span>pq_pre_key: <span class="prelude-ty">Option</span>&lt;KyberPreKeyEntity&gt;,
 }
 
 <span class="kw">impl </span>PreKeyResponseItem {
@@ -1173,7 +1154,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         <span class="self">self</span>,
         identity: IdentityKey,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;PreKeyBundle, SignalProtocolError&gt; {
-        PreKeyBundle::new(
+        <span class="kw">let </span>b = PreKeyBundle::new(
             <span class="self">self</span>.registration_id,
             <span class="self">self</span>.device_id.into(),
             <span class="self">self</span>.pre_key
@@ -1189,7 +1170,17 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             PublicKey::deserialize(<span class="kw-2">&amp;</span><span class="self">self</span>.signed_pre_key.public_key)<span class="question-mark">?</span>,
             <span class="self">self</span>.signed_pre_key.signature,
             identity,
-        )
+        )<span class="question-mark">?</span>;
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(pq_pk) = <span class="self">self</span>.pq_pre_key {
+            <span class="prelude-val">Ok</span>(b.with_kyber_pre_key(
+                pq_pk.key_id.into(),
+                Key::&lt;Public&gt;::deserialize(<span class="kw-2">&amp;</span>pq_pk.public_key)<span class="question-mark">?</span>,
+                pq_pk.signature,
+            ))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(b)
+        }
     }
 }
 
@@ -1649,7 +1640,8 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         destination: <span class="kw-2">&amp;</span>ServiceAddress,
         device_id: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;PreKeyBundle, ServiceError&gt; {
-        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">&quot;/v2/keys/{}/{}&quot;</span>, destination.uuid, device_id);
+        <span class="kw">let </span>path =
+            <span class="macro">format!</span>(<span class="string">&quot;/v2/keys/{}/{}?pq=true&quot;</span>, destination.uuid, device_id);
 
         <span class="kw">let </span><span class="kw-2">mut </span>pre_key_response: PreKeyResponse = <span class="self">self
             </span>.get_json(Endpoint::Service, <span class="kw-2">&amp;</span>path, HttpAuthOverride::NoOverride)
@@ -1667,9 +1659,9 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
         device_id: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;PreKeyBundle&gt;, ServiceError&gt; {
         <span class="kw">let </span>path = <span class="kw">if </span>device_id == <span class="number">1 </span>{
-            <span class="macro">format!</span>(<span class="string">&quot;/v2/keys/{}/*&quot;</span>, destination.uuid)
+            <span class="macro">format!</span>(<span class="string">&quot;/v2/keys/{}/*?pq=true&quot;</span>, destination.uuid)
         } <span class="kw">else </span>{
-            <span class="macro">format!</span>(<span class="string">&quot;/v2/keys/{}/{}&quot;</span>, destination.uuid, device_id)
+            <span class="macro">format!</span>(<span class="string">&quot;/v2/keys/{}/{}?pq=true&quot;</span>, destination.uuid, device_id)
         };
         <span class="kw">let </span>pre_key_response: PreKeyResponse = <span class="self">self
             </span>.get_json(Endpoint::Service, <span class="kw-2">&amp;</span>path, HttpAuthOverride::NoOverride)
