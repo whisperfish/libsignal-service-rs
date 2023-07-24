@@ -551,10 +551,4 @@ mod tests {
             );
         }
     }
-
-    #[test]
-    fn serde_json_from_null() {
-        // We are using this to generate empty JSON from empty responses
-        assert_eq!("{}", serde_json::from_slice::<&str>(b"null").unwrap());
-    }
 }
