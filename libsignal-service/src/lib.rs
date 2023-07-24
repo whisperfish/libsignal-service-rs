@@ -97,13 +97,13 @@ pub mod prelude {
     pub mod protocol {
         pub use crate::session_store::SessionStoreExt;
         pub use libsignal_protocol::{
-            Context, DeviceId, Direction, IdentityKey, IdentityKeyPair,
-            IdentityKeyStore, KeyPair, KyberPreKeyId, KyberPreKeyRecord,
-            KyberPreKeyStore, PreKeyId, PreKeyRecord, PreKeyStore, PrivateKey,
-            ProtocolAddress, ProtocolStore, PublicKey, SenderCertificate,
-            SenderKeyRecord, SenderKeyStore, SessionRecord, SessionStore,
-            SignalProtocolError, SignedPreKeyId, SignedPreKeyRecord,
-            SignedPreKeyStore,
+            Context, DeviceId, Direction, GenericSignedPreKey, IdentityKey,
+            IdentityKeyPair, IdentityKeyStore, KeyPair, KyberPreKeyId,
+            KyberPreKeyRecord, KyberPreKeyStore, PreKeyId, PreKeyRecord,
+            PreKeyStore, PrivateKey, ProtocolAddress, ProtocolStore, PublicKey,
+            SenderCertificate, SenderKeyRecord, SenderKeyStore, SessionRecord,
+            SessionStore, SignalProtocolError, SignedPreKeyId,
+            SignedPreKeyRecord, SignedPreKeyStore,
         };
     }
 }
