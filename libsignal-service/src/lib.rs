@@ -26,7 +26,7 @@ pub mod push_service;
 pub mod receiver;
 pub mod sender;
 pub mod service_address;
-mod session_store;
+pub mod session_store;
 pub mod unidentified_access;
 pub mod utils;
 pub mod websocket;
@@ -85,6 +85,7 @@ pub mod prelude {
         push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
+        session_store::SessionStoreExt,
     };
     pub use phonenumber;
     pub use prost::Message as ProtobufMessage;
