@@ -93,6 +93,8 @@ pub mod prelude {
         groups::{GroupMasterKey, GroupSecretParams},
         profiles::ProfileKey,
     };
+
+    pub use libsignal_protocol::DeviceId;
 }
 
 pub use libsignal_protocol as protocol;
