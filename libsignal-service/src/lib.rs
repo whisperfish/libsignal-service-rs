@@ -89,21 +89,7 @@ pub mod prelude {
     pub use phonenumber;
     pub use prost::Message as ProtobufMessage;
     pub use uuid::{Error as UuidError, Uuid};
-    pub use zkgroup::{
-        groups::{GroupMasterKey, GroupSecretParams},
-        profiles::ProfileKey,
-    };
-
-    pub mod protocol {
-        pub use crate::session_store::SessionStoreExt;
-        pub use libsignal_protocol::{
-            Context, DeviceId, Direction, GenericSignedPreKey, IdentityKey,
-            IdentityKeyPair, IdentityKeyStore, KeyPair, KyberPreKeyId,
-            KyberPreKeyRecord, KyberPreKeyStore, PreKeyId, PreKeyRecord,
-            PreKeyStore, PrivateKey, ProtocolAddress, ProtocolStore, PublicKey,
-            SenderCertificate, SenderKeyRecord, SenderKeyStore, SessionRecord,
-            SessionStore, SignalProtocolError, SignedPreKeyId,
-            SignedPreKeyRecord, SignedPreKeyStore,
-        };
-    }
 }
+
+pub use libsignal_protocol as protocol;
+pub use zkgroup;
