@@ -89,6 +89,10 @@ pub mod prelude {
     pub use phonenumber;
     pub use prost::Message as ProtobufMessage;
     pub use uuid::{Error as UuidError, Uuid};
+    pub use zkgroup::{
+        groups::{GroupMasterKey, GroupSecretParams},
+        profiles::ProfileKey,
+    };
 }
 
 pub use libsignal_protocol as protocol;
