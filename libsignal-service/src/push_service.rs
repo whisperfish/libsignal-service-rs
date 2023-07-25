@@ -58,6 +58,11 @@ pub const SENDER_CERTIFICATE_LEGACY_PATH: &str = "/v1/certificate/delivery";
 pub const SENDER_CERTIFICATE_PATH: &str =
     "/v1/certificate/delivery?includeUuid=true";
 
+pub const VERIFICATION_SESSION_PATH: &str = "/v1/verification/session";
+pub const VERIFICATION_CODE_PATH: &str    = "/v1/verification/session/%s/code";
+
+pub const REGISTRATION_PATH: &str    = "/v1/registration";
+
 pub const ATTACHMENT_DOWNLOAD_PATH: &str = "attachments/%d";
 
 pub const STICKER_MANIFEST_PATH: &str = "stickers/%s/manifest.proto";
@@ -225,6 +230,38 @@ pub struct WhoAmIResponse {
     pub pni: Uuid,
     #[serde(with = "serde_phone_number")]
     pub number: PhoneNumber,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrationSessionMetadataResponse {
+    pub id: String,
+    #[serde(default)]
+    pub next_sms: Option<i32>,
+    #[serde(default)]
+    pub next_call: Option<i32>,
+    #[serde(default)]
+    pub next_verification_attempt: Option<i32>,
+    pub allowed_to_request_code: bool,
+    #[serde(default)]
+    pub requested_information: Vec<String>,
+    pub verified: bool,
+}
+
+impl RegistrationSessionMetadataResponse {
+    pub fn push_challenge_required(&self) -> bool {
+        // .contains() requires &String ...
+        self.requested_information
+            .iter()
+            .any(|x| x.as_str() == "pushChallenge")
+    }
+
+    pub fn captcha_required(&self) -> bool {
+        // .contains() requires &String ...
+        self.requested_information
+            .iter()
+            .any(|x| x.as_str() == "captcha")
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -919,5 +956,43 @@ pub trait PushService: MaybeSend {
                 Ok(None)
             },
         }
+    }
+
+    // Equivalent of Java's
+    // RegistrationSessionMetadataResponse createVerificationSession(@Nullable String pushToken, @Nullable String mcc, @Nullable String mnc)
+    async fn create_verification_session<'a>(
+        &mut self,
+        number: &'a str,
+        push_token: Option<&'a str>,
+        mcc: Option<&'a str>,
+        mnc: Option<&'a str>,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct VerificationSessionMetadataRequestBody<'a> {
+            number: &'a str,
+            push_token: Option<&'a str>,
+            mcc: Option<&'a str>,
+            mnc: Option<&'a str>,
+            push_token_type: Option<&'a str>,
+        }
+
+        let req = VerificationSessionMetadataRequestBody {
+            number,
+            push_token_type: push_token.as_ref().map(|_| "fcm"),
+            push_token,
+            mcc,
+            mnc,
+        };
+
+        let res: RegistrationSessionMetadataResponse = self
+            .post_json(
+                Endpoint::Service,
+                "/v1/verification/session",
+                HttpAuthOverride::Unidentified,
+                req,
+            )
+            .await?;
+        Ok(res)
     }
 }
