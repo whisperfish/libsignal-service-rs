@@ -9,6 +9,7 @@ use crate::{
     },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
+    provisioning::VerifyAccountResponse,
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64, serde_phone_number},
     websocket::SignalWebSocket,
@@ -275,6 +276,28 @@ impl VerificationTransport {
         match self {
             Self::Sms => "sms",
             Self::Voice => "voice",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum RegistrationMethod<'a> {
+    SessionId(&'a str),
+    RecoveryPassword(&'a str),
+}
+
+impl<'a> RegistrationMethod<'a> {
+    pub fn session_id(&'a self) -> Option<&'a str> {
+        match self {
+            Self::SessionId(x) => Some(x),
+            _ => None,
+        }
+    }
+
+    pub fn recovery_password(&'a self) -> Option<&'a str> {
+        match self {
+            Self::RecoveryPassword(x) => Some(x),
+            _ => None,
         }
     }
 }
@@ -1057,6 +1080,41 @@ pub trait PushService: MaybeSend {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/verification/session/{}/code", session_id),
+                HttpAuthOverride::Unidentified,
+                req,
+            )
+            .await?;
+        Ok(res)
+    }
+
+    async fn submit_registration_request<'a>(
+        &mut self,
+        registration_method: RegistrationMethod<'a>,
+        account_attributes: AccountAttributes,
+        skip_device_transfer: bool,
+    ) -> Result<VerifyAccountResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct RegistrationSessionRequestBody<'a> {
+            // TODO: This is an "old" version of the request. The new one includes atomic
+            // registration of prekeys and identities, but I'm to lazy to implement them today.
+            session_id: Option<&'a str>,
+            recovery_password: Option<&'a str>,
+            account_attributes: AccountAttributes,
+            skip_device_transfer: bool,
+        }
+
+        let req = RegistrationSessionRequestBody {
+            session_id: registration_method.session_id(),
+            recovery_password: registration_method.recovery_password(),
+            account_attributes,
+            skip_device_transfer,
+        };
+
+        let res: VerifyAccountResponse = self
+            .post_json(
+                Endpoint::Service,
+                "/v1/registration",
                 HttpAuthOverride::Unidentified,
                 req,
             )
