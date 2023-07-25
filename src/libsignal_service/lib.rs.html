@@ -99,6 +99,7 @@
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
 <a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
 </pre></div><pre class="rust"><code><span class="attr">#![recursion_limit = <span class="string">&quot;256&quot;</span>]
 #![deny(clippy::dbg_macro)]
 </span><span class="comment">// TODO: we cannot use this until whisperfish builds with a newer Rust version
@@ -127,7 +128,7 @@
 <span class="kw">pub mod </span>receiver;
 <span class="kw">pub mod </span>sender;
 <span class="kw">pub mod </span>service_address;
-<span class="kw">mod </span>session_store;
+<span class="kw">pub mod </span>session_store;
 <span class="kw">pub mod </span>unidentified_access;
 <span class="kw">pub mod </span>utils;
 <span class="kw">pub mod </span>websocket;
@@ -186,6 +187,7 @@
         push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
+        session_store::SessionStoreExt,
     };
     <span class="kw">pub use </span>phonenumber;
     <span class="kw">pub use </span>prost::Message <span class="kw">as </span>ProtobufMessage;
