@@ -264,6 +264,21 @@ impl RegistrationSessionMetadataResponse {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum VerificationTransport {
+    Sms,
+    Voice,
+}
+
+impl VerificationTransport {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Sms => "sms",
+            Self::Voice => "voice",
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyResponseItem {
@@ -989,6 +1004,40 @@ pub trait PushService: MaybeSend {
             .post_json(
                 Endpoint::Service,
                 "/v1/verification/session",
+                HttpAuthOverride::Unidentified,
+                req,
+            )
+            .await?;
+        Ok(res)
+    }
+
+    // Equivalent of Java's
+    // RegistrationSessionMetadataResponse requestVerificationCode(String sessionId, Locale locale, boolean androidSmsRetriever, VerificationCodeTransport transport)
+    /// Request a verification code.
+    ///
+    /// Signal requires a client type, and they use these three strings internally:
+    /// - "android-2021-03"
+    /// - "android"
+    /// - "ios"
+    /// "android-2021-03" allegedly implies FCM support, whereas the other strings don't.  In
+    /// principle, they will consider any string as "unknown", so other strings may work too.
+    async fn request_verification_code(
+        &mut self,
+        session_id: &str,
+        client: &str,
+        // XXX: We currently don't support this, because we need to set some headers in the
+        //      post_json() call
+        // locale: Option<String>,
+        transport: VerificationTransport,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        let mut req = std::collections::HashMap::new();
+        req.insert("transport", transport.as_str());
+        req.insert("client", client);
+
+        let res: RegistrationSessionMetadataResponse = self
+            .post_json(
+                Endpoint::Service,
+                &format!("/v1/verification/session/{}/code", session_id),
                 HttpAuthOverride::Unidentified,
                 req,
             )
