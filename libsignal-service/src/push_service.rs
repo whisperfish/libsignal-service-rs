@@ -1044,4 +1044,23 @@ pub trait PushService: MaybeSend {
             .await?;
         Ok(res)
     }
+
+    async fn submit_verification_code(
+        &mut self,
+        session_id: &str,
+        verification_code: &str,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        let mut req = std::collections::HashMap::new();
+        req.insert("code", verification_code);
+
+        let res: RegistrationSessionMetadataResponse = self
+            .put_json(
+                Endpoint::Service,
+                &format!("/v1/verification/session/{}/code", session_id),
+                HttpAuthOverride::Unidentified,
+                req,
+            )
+            .await?;
+        Ok(res)
+    }
 }
