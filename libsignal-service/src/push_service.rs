@@ -1046,6 +1046,48 @@ pub trait PushService: MaybeSend {
     }
 
     // Equivalent of Java's
+    // RegistrationSessionMetadataResponse patchVerificationSession(String sessionId, @Nullable String pushToken, @Nullable String mcc, @Nullable String mnc, @Nullable String captchaToken, @Nullable String pushChallengeToken)
+    async fn patch_verification_session<'a>(
+        &mut self,
+        session_id: &'a str,
+        push_token: Option<&'a str>,
+        mcc: Option<&'a str>,
+        mnc: Option<&'a str>,
+        captcha: Option<&'a str>,
+        push_challenge: Option<&'a str>,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct UpdateVerificationSessionRequestBody<'a> {
+            captcha: Option<&'a str>,
+            push_token: Option<&'a str>,
+            push_challenge: Option<&'a str>,
+            mcc: Option<&'a str>,
+            mnc: Option<&'a str>,
+            push_token_type: Option<&'a str>,
+        }
+
+        let req = UpdateVerificationSessionRequestBody {
+            captcha,
+            push_token_type: push_token.as_ref().map(|_| "fcm"),
+            push_token,
+            mcc,
+            mnc,
+            push_challenge,
+        };
+
+        let res: RegistrationSessionMetadataResponse = self
+            .patch_json(
+                Endpoint::Service,
+                &format!("/v1/verification/session/{}", session_id),
+                HttpAuthOverride::Unidentified,
+                req,
+            )
+            .await?;
+        Ok(res)
+    }
+
+    // Equivalent of Java's
     // RegistrationSessionMetadataResponse requestVerificationCode(String sessionId, Locale locale, boolean androidSmsRetriever, VerificationCodeTransport transport)
     /// Request a verification code.
     ///
