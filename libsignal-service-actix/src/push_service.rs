@@ -310,6 +310,52 @@ impl PushService for AwcPushService {
         Self::json(&text)
     }
 
+    async fn patch_json<D, S>(
+        &mut self,
+        endpoint: Endpoint,
+        path: &str,
+        credentials_override: HttpAuthOverride,
+        value: S,
+    ) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: Serialize,
+    {
+        let mut response = self
+            .request(Method::PATCH, endpoint, path, credentials_override)?
+            .send_json(&value)
+            .await
+            .map_err(|e| ServiceError::SendError {
+                reason: e.to_string(),
+            })?;
+
+        log::debug!("AwcPushService::patch response: {:?}", response);
+
+        Self::from_response(&mut response).await?;
+
+        // In order to catch the zero-length output, we have to collect
+        // the whole response. The actix-web api is meant to used as a
+        // streaming deserializer, so we have this little awkward match.
+        //
+        // This is also the reason we depend directly on serde_json, however
+        // actix already imports that anyway.
+        let text = match response.body().await {
+            Ok(text) => {
+                log::debug!(
+                    "PATCH response: {:?}",
+                    String::from_utf8_lossy(&text)
+                );
+                text
+            },
+            Err(e) => {
+                return Err(ServiceError::ResponseError {
+                    reason: e.to_string(),
+                })
+            },
+        };
+        Self::json(&text)
+    }
+
     async fn post_json<D, S>(
         &mut self,
         endpoint: Endpoint,

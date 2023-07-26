@@ -345,6 +345,39 @@ impl PushService for HyperPushService {
         Self::json(&mut response).await
     }
 
+    async fn patch_json<D, S>(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        credentials_override: HttpAuthOverride,
+        value: S,
+    ) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: MaybeSend + Serialize,
+    {
+        let json = serde_json::to_vec(&value).map_err(|e| {
+            ServiceError::JsonDecodeError {
+                reason: e.to_string(),
+            }
+        })?;
+
+        let mut response = self
+            .request(
+                Method::PATCH,
+                service,
+                path,
+                credentials_override,
+                Some(RequestBody {
+                    contents: json,
+                    content_type: "application/json".into(),
+                }),
+            )
+            .await?;
+
+        Self::json(&mut response).await
+    }
+
     async fn post_json<D, S>(
         &mut self,
         service: Endpoint,

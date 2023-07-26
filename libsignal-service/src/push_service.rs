@@ -536,6 +536,17 @@ pub trait PushService: MaybeSend {
         for<'de> D: Deserialize<'de>,
         S: MaybeSend + Serialize;
 
+    async fn patch_json<D, S>(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        credentials_override: HttpAuthOverride,
+        value: S,
+    ) -> Result<D, ServiceError>
+    where
+        for<'de> D: Deserialize<'de>,
+        S: MaybeSend + Serialize;
+
     async fn post_json<D, S>(
         &mut self,
         service: Endpoint,
