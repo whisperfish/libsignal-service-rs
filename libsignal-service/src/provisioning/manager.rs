@@ -41,12 +41,6 @@ pub struct ConfirmCodeResponse {
     pub storage_capable: bool,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum VerificationCodeResponse {
-    CaptchaRequired,
-    Issued,
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VerifyAccountResponse {
