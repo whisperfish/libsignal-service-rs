@@ -14,8 +14,7 @@ use super::{
 use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalingKey},
     push_service::{
-        AccountAttributes, DeviceId, HttpAuthOverride, PushService,
-        ServiceError, ServiceIds,
+        DeviceId, HttpAuthOverride, PushService, ServiceError, ServiceIds,
     },
     utils::serde_base64,
 };
@@ -38,14 +37,6 @@ pub(crate) struct ConfirmDeviceMessage {
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmCodeResponse {
     pub uuid: Uuid,
-    pub storage_capable: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct VerifyAccountResponse {
-    pub uuid: Uuid,
-    pub pni: Uuid,
     pub storage_capable: bool,
 }
 
@@ -87,21 +78,6 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
             phone_number,
             password,
         }
-    }
-
-    pub async fn confirm_verification_code(
-        &mut self,
-        confirm_code: impl AsRef<str>,
-        account_attributes: AccountAttributes,
-    ) -> Result<VerifyAccountResponse, ServiceError> {
-        self.push_service
-            .put_json(
-                Endpoint::Service,
-                &format!("/v1/accounts/code/{}", confirm_code.as_ref()),
-                self.auth_override(),
-                account_attributes,
-            )
-            .await
     }
 
     pub(crate) async fn confirm_device(

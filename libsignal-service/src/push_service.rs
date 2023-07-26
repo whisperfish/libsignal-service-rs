@@ -9,7 +9,6 @@ use crate::{
     },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
-    provisioning::VerifyAccountResponse,
     sender::{OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64, serde_phone_number},
     websocket::SignalWebSocket,
@@ -263,6 +262,16 @@ impl RegistrationSessionMetadataResponse {
             .iter()
             .any(|x| x.as_str() == "captcha")
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyAccountResponse {
+    pub uuid: Uuid,
+    pub pni: Uuid,
+    pub storage_capable: bool,
+    #[serde(default)]
+    pub number: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
