@@ -76,6 +76,6 @@ version 2.0 (https://www.mozilla.org/en-US/MPL/2.0/).
 [lsg]: https://github.com/signalapp/libsignal
 [signal]: https://signal.org/
 [whisperfish]: https://gitlab.com/whisperfish/whisperfish/
-[presage]: https://gitlab.com/whisperfish/presage/
+[presage]: https://github.com/whisperfish/presage/
 [ci_workflow]: https://github.com/whisperfish/libsignal-service-rs/actions/workflows/ci.yaml?query=branch:main
 [rustdocs]: https://whisperfish.github.io/libsignal-service-rs/libsignal_service
