@@ -82,7 +82,7 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
 
     pub(crate) async fn confirm_device(
         &mut self,
-        confirm_code: u32,
+        confirm_code: &str,
         confirm_code_message: ConfirmDeviceMessage,
     ) -> Result<DeviceId, ServiceError> {
         self.push_service
@@ -235,16 +235,15 @@ impl<P: PushService> LinkingManager<P> {
                         self.password.clone(),
                     );
 
+                    let provisioning_code = message.provisioning_code.ok_or(
+                        ProvisioningError::InvalidData {
+                            reason: "no provisioning confirmation code".into(),
+                        },
+                    )?;
+
                     let device_id = provisioning_manager
                         .confirm_device(
-                            message
-                                .provisioning_code
-                                .ok_or(ProvisioningError::InvalidData {
-                                    reason: "no provisioning confirmation code"
-                                        .into(),
-                                })?
-                                .parse()
-                                .unwrap(),
+                            &provisioning_code,
                             ConfirmDeviceMessage {
                                 signaling_key: signaling_key.to_vec(),
                                 supports_sms: false,
