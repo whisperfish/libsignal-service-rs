@@ -1177,7 +1177,7 @@ pub trait PushService: MaybeSend {
             .post_json(
                 Endpoint::Service,
                 "/v1/registration",
-                HttpAuthOverride::Unidentified,
+                HttpAuthOverride::NoOverride,
                 req,
             )
             .await?;
