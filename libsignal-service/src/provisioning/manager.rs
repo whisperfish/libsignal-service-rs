@@ -14,8 +14,7 @@ use super::{
 use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalingKey},
     push_service::{
-        AccountAttributes, DeviceId, HttpAuthOverride, PushService,
-        ServiceError, ServiceIds,
+        DeviceId, HttpAuthOverride, PushService, ServiceError, ServiceIds,
     },
     utils::serde_base64,
 };
@@ -38,20 +37,6 @@ pub(crate) struct ConfirmDeviceMessage {
 #[serde(rename_all = "camelCase")]
 pub struct ConfirmCodeResponse {
     pub uuid: Uuid,
-    pub storage_capable: bool,
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum VerificationCodeResponse {
-    CaptchaRequired,
-    Issued,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct VerifyAccountResponse {
-    pub uuid: Uuid,
-    pub pni: Uuid,
     pub storage_capable: bool,
 }
 
@@ -95,79 +80,6 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
         }
     }
 
-    pub async fn request_sms_verification_code(
-        &mut self,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> Result<VerificationCodeResponse, ServiceError> {
-        let res = match self
-            .push_service
-            .get_json(
-                Endpoint::Service,
-                self.build_verification_code_request_url(
-                    "sms", captcha, challenge,
-                )
-                .as_ref(),
-                self.auth_override(),
-            )
-            .await
-        {
-            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
-            r => r,
-        };
-        match res {
-            Ok(_) => Ok(VerificationCodeResponse::Issued),
-            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(VerificationCodeResponse::CaptchaRequired)
-            },
-            Err(e) => Err(e),
-        }
-    }
-
-    pub async fn request_voice_verification_code(
-        &mut self,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> Result<VerificationCodeResponse, ServiceError> {
-        let res = match self
-            .push_service
-            .get_json(
-                Endpoint::Service,
-                self.build_verification_code_request_url(
-                    "voice", captcha, challenge,
-                )
-                .as_ref(),
-                self.auth_override(),
-            )
-            .await
-        {
-            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
-            r => r,
-        };
-        match res {
-            Ok(_) => Ok(VerificationCodeResponse::Issued),
-            Err(ServiceError::UnhandledResponseCode { http_code: 402 }) => {
-                Ok(VerificationCodeResponse::CaptchaRequired)
-            },
-            Err(e) => Err(e),
-        }
-    }
-
-    pub async fn confirm_verification_code(
-        &mut self,
-        confirm_code: impl AsRef<str>,
-        account_attributes: AccountAttributes,
-    ) -> Result<VerifyAccountResponse, ServiceError> {
-        self.push_service
-            .put_json(
-                Endpoint::Service,
-                &format!("/v1/accounts/code/{}", confirm_code.as_ref()),
-                self.auth_override(),
-                account_attributes,
-            )
-            .await
-    }
-
     pub(crate) async fn confirm_device(
         &mut self,
         confirm_code: &str,
@@ -181,29 +93,6 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
                 confirm_code_message,
             )
             .await
-    }
-
-    fn build_verification_code_request_url(
-        &self,
-        msg_type: &str,
-        captcha: Option<&str>,
-        challenge: Option<&str>,
-    ) -> String {
-        let phone_number =
-            self.phone_number.format().mode(phonenumber::Mode::E164);
-        if let Some(cl) = challenge {
-            format!(
-                "/v1/accounts/{}/code/{}?challenge={}",
-                msg_type, phone_number, cl
-            )
-        } else if let Some(cc) = captcha {
-            format!(
-                "/v1/accounts/{}/code/{}?captcha={}",
-                msg_type, phone_number, cc
-            )
-        } else {
-            format!("/v1/accounts/{}/code/{}", msg_type, phone_number)
-        }
     }
 
     fn auth_override(&self) -> HttpAuthOverride {

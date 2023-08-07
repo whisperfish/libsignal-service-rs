@@ -3,12 +3,10 @@ use std::str::FromStr;
 use libsignal_service::configuration::{ServiceCredentials, SignalServers};
 use libsignal_service::prelude::phonenumber::PhoneNumber;
 use libsignal_service::prelude::ProfileKey;
-use libsignal_service::provisioning::{
-    generate_registration_id, ProvisioningManager, VerificationCodeResponse,
-    VerifyAccountResponse,
-};
+use libsignal_service::provisioning::generate_registration_id;
 use libsignal_service::push_service::{
-    AccountAttributes, DeviceCapabilities, PushService, ServiceError,
+    AccountAttributes, DeviceCapabilities, PushService, RegistrationMethod,
+    VerificationTransport,
 };
 use libsignal_service::USER_AGENT;
 
@@ -18,75 +16,97 @@ use rand::RngCore;
 
 #[tokio::main]
 async fn main() {
+    let client = "libsignal-service-hyper-example";
     let phonenumber = let_user_enter_phone_number();
     let password = let_user_enter_password();
     let use_voice = does_user_want_voice_confirmation();
     let captcha = let_user_solve_captcha();
+    let push_token = None;
+    // Mobile country code and mobile network code can in theory be extracted from the phone
+    // number, but it's not necessary for the API to function correctly.
+    // XXX: We could internalize this if statement to create_verification_session
+    let (mcc, mnc) = if let Some(carrier) = phonenumber.carrier() {
+        (Some(&carrier[0..3]), Some(&carrier[3..]))
+    } else {
+        (None, None)
+    };
 
     let mut push_service =
         create_push_service(phonenumber.clone(), password.clone());
-    let mut manager =
-        ProvisioningManager::new(&mut push_service, phonenumber, password);
-
+    let mut session = push_service
+        .create_verification_session(
+            &phonenumber.to_string(),
+            push_token,
+            mcc,
+            mnc,
+        )
+        .await
+        .expect("create a registration verification session");
     println!("Sending registration request...");
 
-    let registration_result = register_user(&mut manager, captcha, use_voice)
-        .await
-        .expect("Sending registration request failed.");
-
-    match registration_result {
-        VerificationCodeResponse::Issued => {
-            println!("Registration request was sent");
-        },
-        VerificationCodeResponse::CaptchaRequired => {
-            println!("Captcha was wrong or not provided.");
-            // Here you would go back to entering the Captcha
-        },
+    if session.captcha_required() {
+        session = push_service
+            .patch_verification_session(
+                &session.id,
+                None,
+                None,
+                None,
+                Some(&captcha),
+                None,
+            )
+            .await
+            .expect("submit captcha");
     }
+
+    if session.push_challenge_required() {
+        eprintln!("Push challenge required, but not implemented.");
+        return;
+    }
+
+    if !session.allowed_to_request_code {
+        eprintln!(
+            "Not allowed to request verification code, reason unknown: {session:?}",
+        );
+        return;
+    }
+
+    session = push_service
+        .request_verification_code(
+            &session.id,
+            client,
+            if use_voice {
+                VerificationTransport::Voice
+            } else {
+                VerificationTransport::Sms
+            },
+        )
+        .await
+        .expect("request verification code");
 
     let confirmation_code = let_user_enter_confirmation_code();
 
-    println!("Sending confirmation code...");
+    println!("Submitting confirmation code...");
 
-    let _registration_data =
-        confirm_registration(&mut manager, confirmation_code)
-            .await
-            .expect("Sending confirmation code failed.");
-    // You would want to store the registration data
+    session = push_service
+        .submit_verification_code(&session.id, confirmation_code)
+        .await
+        .expect("Sending confirmation code failed.");
 
-    println!("Registration completed!");
-}
-
-pub async fn register_user<'a, T: PushService>(
-    manager: &mut ProvisioningManager<'a, T>,
-    captcha: String,
-    use_voice: bool,
-) -> Result<VerificationCodeResponse, ServiceError> {
-    if use_voice {
-        manager
-            .request_voice_verification_code(Some(&captcha), None)
-            .await
-    } else {
-        manager
-            .request_sms_verification_code(Some(&captcha), None)
-            .await
+    if !session.verified {
+        eprintln!("Session is not verified");
+        return;
     }
-}
 
-async fn confirm_registration<'a, T: PushService>(
-    manager: &mut ProvisioningManager<'a, T>,
-    confirmation_code: impl AsRef<str>,
-) -> Result<VerifyAccountResponse, ServiceError> {
     let registration_id = generate_registration_id(&mut rand::thread_rng());
     let pni_registration_id = generate_registration_id(&mut rand::thread_rng());
     let signaling_key = generate_signaling_key();
     let mut profile_key = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut profile_key);
     let profile_key = ProfileKey::create(profile_key);
-
-    manager
-        .confirm_verification_code(
-            confirmation_code,
+    let skip_device_transfer = false;
+    let _registration_data = push_service
+        .submit_registration_request(
+            RegistrationMethod::SessionId(&session.id),
             AccountAttributes {
                 signaling_key: Some(signaling_key.to_vec()),
                 registration_id,
@@ -104,8 +124,13 @@ async fn confirm_registration<'a, T: PushService>(
                 name: Some("libsignal-service-hyper test".into()),
                 capabilities: DeviceCapabilities::default(),
             },
+            skip_device_transfer,
         )
-        .await
+        .await;
+
+    // You would want to store the registration data
+
+    println!("Registration completed!");
 }
 
 fn generate_signaling_key() -> [u8; 52] {

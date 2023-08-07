@@ -5,8 +5,7 @@ pub(crate) mod pipe;
 pub use cipher::ProvisioningCipher;
 pub use manager::{
     ConfirmCodeResponse, LinkingManager, ProvisioningManager,
-    SecondaryDeviceProvisioning, VerificationCodeResponse,
-    VerifyAccountResponse,
+    SecondaryDeviceProvisioning,
 };
 
 use crate::prelude::ServiceError;
