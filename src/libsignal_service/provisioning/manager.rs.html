@@ -395,7 +395,6 @@
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
 <a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>derivative::Derivative;
 <span class="kw">use </span>futures::{channel::mpsc::Sender, pin_mut, SinkExt, StreamExt};
 <span class="kw">use </span>libsignal_protocol::{PrivateKey, PublicKey};
@@ -568,7 +567,7 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>confirm_device(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        confirm_code: u32,
+        confirm_code: <span class="kw-2">&amp;</span>str,
         confirm_code_message: ConfirmDeviceMessage,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;DeviceId, ServiceError&gt; {
         <span class="self">self</span>.push_service
@@ -744,16 +743,15 @@
                         <span class="self">self</span>.password.clone(),
                     );
 
+                    <span class="kw">let </span>provisioning_code = message.provisioning_code.ok_or(
+                        ProvisioningError::InvalidData {
+                            reason: <span class="string">&quot;no provisioning confirmation code&quot;</span>.into(),
+                        },
+                    )<span class="question-mark">?</span>;
+
                     <span class="kw">let </span>device_id = provisioning_manager
                         .confirm_device(
-                            message
-                                .provisioning_code
-                                .ok_or(ProvisioningError::InvalidData {
-                                    reason: <span class="string">&quot;no provisioning confirmation code&quot;
-                                        </span>.into(),
-                                })<span class="question-mark">?
-                                </span>.parse()
-                                .unwrap(),
+                            <span class="kw-2">&amp;</span>provisioning_code,
                             ConfirmDeviceMessage {
                                 signaling_key: signaling_key.to_vec(),
                                 supports_sms: <span class="bool-val">false</span>,
