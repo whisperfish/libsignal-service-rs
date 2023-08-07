@@ -346,12 +346,11 @@ impl<P: PushService> LinkingManager<P> {
                         self.password.clone(),
                     );
 
-                    let provisioning_code = message
-                        .provisioning_code
-                        .ok_or(ProvisioningError::InvalidData {
-                            reason: "no provisioning confirmation code"
-                                .into(),
-                        })?;
+                    let provisioning_code = message.provisioning_code.ok_or(
+                        ProvisioningError::InvalidData {
+                            reason: "no provisioning confirmation code".into(),
+                        },
+                    )?;
 
                     let device_id = provisioning_manager
                         .confirm_device(
