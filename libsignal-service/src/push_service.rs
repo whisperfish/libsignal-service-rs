@@ -1020,10 +1020,8 @@ pub trait PushService: MaybeSend {
     // RegistrationSessionMetadataResponse createVerificationSession(@Nullable String pushToken, @Nullable String mcc, @Nullable String mnc)
     async fn create_verification_session<'a>(
         &mut self,
-        number: &'a str,
+        number: &'a PhoneNumber,
         push_token: Option<&'a str>,
-        mcc: Option<&'a str>,
-        mnc: Option<&'a str>,
     ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
         #[derive(serde::Serialize, Debug)]
         #[serde(rename_all = "camelCase")]
@@ -1036,12 +1034,14 @@ pub trait PushService: MaybeSend {
         }
 
         let req = VerificationSessionMetadataRequestBody {
-            number,
+            number: &number.to_string(),
             push_token_type: push_token.as_ref().map(|_| "fcm"),
             push_token,
-            mcc,
-            mnc,
+            mcc: number.mcc(),
+            mnc: number.mnc(),
         };
+
+        dbg!(&req);
 
         let res: RegistrationSessionMetadataResponse = self
             .post_json(
@@ -1058,10 +1058,9 @@ pub trait PushService: MaybeSend {
     // RegistrationSessionMetadataResponse patchVerificationSession(String sessionId, @Nullable String pushToken, @Nullable String mcc, @Nullable String mnc, @Nullable String captchaToken, @Nullable String pushChallengeToken)
     async fn patch_verification_session<'a>(
         &mut self,
+        number: &PhoneNumber,
         session_id: &'a str,
         push_token: Option<&'a str>,
-        mcc: Option<&'a str>,
-        mnc: Option<&'a str>,
         captcha: Option<&'a str>,
         push_challenge: Option<&'a str>,
     ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
@@ -1080,8 +1079,8 @@ pub trait PushService: MaybeSend {
             captcha,
             push_token_type: push_token.as_ref().map(|_| "fcm"),
             push_token,
-            mcc,
-            mnc,
+            mcc: number.mcc(),
+            mnc: number.mnc(),
             push_challenge,
         };
 
@@ -1182,5 +1181,20 @@ pub trait PushService: MaybeSend {
             )
             .await?;
         Ok(res)
+    }
+}
+
+trait PhoneNumberExt {
+    fn mcc(&self) -> Option<&str>;
+    fn mnc(&self) -> Option<&str>; 
+}
+
+impl PhoneNumberExt for PhoneNumber {
+    fn mcc(&self) -> Option<&str> {
+        self.carrier().and_then(|carrier| carrier.get(0..3))
+    }
+
+    fn mnc(&self) -> Option<&str> {
+        self.carrier().and_then(|carrier| carrier.get(3..))
     }
 }

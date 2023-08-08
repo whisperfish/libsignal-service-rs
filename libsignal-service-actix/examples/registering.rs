@@ -82,9 +82,8 @@ async fn main() -> Result<(), Error> {
     if session.captcha_required() {
         session = push_service
             .patch_verification_session(
+                &phonenumber,
                 &session.id,
-                None,
-                None,
                 None,
                 captcha.as_deref(),
                 None,

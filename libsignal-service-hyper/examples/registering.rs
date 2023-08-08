@@ -22,23 +22,13 @@ async fn main() {
     let use_voice = does_user_want_voice_confirmation();
     let captcha = let_user_solve_captcha();
     let push_token = None;
-    // Mobile country code and mobile network code can in theory be extracted from the phone
-    // number, but it's not necessary for the API to function correctly.
-    // XXX: We could internalize this if statement to create_verification_session
-    let (mcc, mnc) = if let Some(carrier) = phonenumber.carrier() {
-        (Some(&carrier[0..3]), Some(&carrier[3..]))
-    } else {
-        (None, None)
-    };
 
     let mut push_service =
         create_push_service(phonenumber.clone(), password.clone());
     let mut session = push_service
         .create_verification_session(
-            &phonenumber.to_string(),
+            &phonenumber,
             push_token,
-            mcc,
-            mnc,
         )
         .await
         .expect("create a registration verification session");
@@ -47,9 +37,8 @@ async fn main() {
     if session.captcha_required() {
         session = push_service
             .patch_verification_session(
+                &phonenumber,
                 &session.id,
-                None,
-                None,
                 None,
                 Some(&captcha),
                 None,
@@ -87,7 +76,7 @@ async fn main() {
 
     println!("Submitting confirmation code...");
 
-    session = push_service
+    let session = push_service
         .submit_verification_code(&session.id, confirmation_code)
         .await
         .expect("Sending confirmation code failed.");
@@ -126,7 +115,7 @@ async fn main() {
             },
             skip_device_transfer,
         )
-        .await;
+        .await.expect("failed to register");
 
     // You would want to store the registration data
 
