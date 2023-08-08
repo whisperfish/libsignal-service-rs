@@ -1186,7 +1186,7 @@ pub trait PushService: MaybeSend {
 
 trait PhoneNumberExt {
     fn mcc(&self) -> Option<&str>;
-    fn mnc(&self) -> Option<&str>; 
+    fn mnc(&self) -> Option<&str>;
 }
 
 impl PhoneNumberExt for PhoneNumber {

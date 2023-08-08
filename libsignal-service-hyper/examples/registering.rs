@@ -26,10 +26,7 @@ async fn main() {
     let mut push_service =
         create_push_service(phonenumber.clone(), password.clone());
     let mut session = push_service
-        .create_verification_session(
-            &phonenumber,
-            push_token,
-        )
+        .create_verification_session(&phonenumber, push_token)
         .await
         .expect("create a registration verification session");
     println!("Sending registration request...");
@@ -115,7 +112,8 @@ async fn main() {
             },
             skip_device_transfer,
         )
-        .await.expect("failed to register");
+        .await
+        .expect("failed to register");
 
     // You would want to store the registration data
 
