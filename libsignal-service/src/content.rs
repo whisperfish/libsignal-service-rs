@@ -13,6 +13,7 @@ pub use crate::{
 };
 
 mod data_message;
+mod story_message;
 
 #[derive(Clone, Debug)]
 pub struct Metadata {
