@@ -137,7 +137,7 @@ impl<P: PushService> LinkingManager<P> {
         // open a websocket without authentication, to receive a tsurl://
         let ws = self
             .push_service
-            .ws("/v1/websocket/provisioning/", None, false)
+            .ws("/v1/websocket/provisioning/", &[], None, false)
             .await?;
 
         let registration_id = csprng.gen_range(1, 256);

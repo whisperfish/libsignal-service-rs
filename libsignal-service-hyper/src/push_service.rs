@@ -582,6 +582,7 @@ impl PushService for HyperPushService {
     async fn ws(
         &mut self,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
         keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError> {
@@ -589,6 +590,7 @@ impl PushService for HyperPushService {
             Self::tls_config(&self.cfg),
             self.cfg.base_url(Endpoint::Service),
             path,
+            additional_headers,
             credentials.as_ref(),
         )
         .await?;

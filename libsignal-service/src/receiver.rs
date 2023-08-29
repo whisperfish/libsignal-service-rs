@@ -45,10 +45,15 @@ impl<Service: PushService> MessageReceiver<Service> {
     pub async fn create_message_pipe(
         &mut self,
         credentials: ServiceCredentials,
+        allow_stories: bool,
     ) -> Result<MessagePipe, ServiceError> {
+        let headers = &[(
+            "X-Signal-Receive-Stories",
+            if allow_stories { "true" } else { "false" },
+        )];
         let ws = self
             .service
-            .ws("/v1/websocket/", Some(credentials.clone()), true)
+            .ws("/v1/websocket/", headers, Some(credentials.clone()), true)
             .await?;
         Ok(MessagePipe::from_socket(ws, credentials))
     }
