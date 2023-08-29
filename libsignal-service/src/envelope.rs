@@ -120,6 +120,15 @@ impl Envelope {
         self.r#type() == crate::proto::envelope::Type::Ciphertext
     }
 
+    pub fn is_urgent(&self) -> bool {
+        // SignalServiceEnvelopeEntity: return urgent == null || urgent;
+        self.urgent.unwrap_or(true)
+    }
+
+    pub fn is_story(&self) -> bool {
+        self.story.unwrap_or(false)
+    }
+
     pub fn source_address(&self) -> ServiceAddress {
         let uuid = self
             .source_uuid
