@@ -15,6 +15,7 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalingKey},
     push_service::{
         DeviceId, HttpAuthOverride, PushService, ServiceError, ServiceIds,
+        NO_ADDITIONAL_HEADERS,
     },
     utils::serde_base64,
 };
@@ -89,6 +90,7 @@ impl<'a, P: PushService + 'a> ProvisioningManager<'a, P> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/devices/{}", confirm_code),
+                NO_ADDITIONAL_HEADERS,
                 self.auth_override(),
                 confirm_code_message,
             )

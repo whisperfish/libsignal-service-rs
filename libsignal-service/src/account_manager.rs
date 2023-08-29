@@ -16,7 +16,9 @@ use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
 use crate::pre_keys::KyberPreKeyEntity;
-use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
+use crate::push_service::{
+    AvatarWrite, RecaptchaAttributes, ServiceIdType, NO_ADDITIONAL_HEADERS,
+};
 use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -249,6 +251,7 @@ impl<Service: PushService> AccountManager<Service> {
             .get_json(
                 Endpoint::Service,
                 "/v1/devices/provisioning/code",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
             )
             .await?;
@@ -273,6 +276,7 @@ impl<Service: PushService> AccountManager<Service> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/provisioning/{}", destination),
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
                 &ProvisioningMessage {
                     body: base64::encode(body),
@@ -487,6 +491,7 @@ impl<Service: PushService> AccountManager<Service> {
             .put_json(
                 Endpoint::Service,
                 "/v1/accounts/name",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
                 Data {
                     device_name: prost::Message::encode_to_vec(
@@ -519,6 +524,7 @@ impl<Service: PushService> AccountManager<Service> {
             .put_json(
                 Endpoint::Service,
                 "/v1/challenge",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
                 payload,
             )

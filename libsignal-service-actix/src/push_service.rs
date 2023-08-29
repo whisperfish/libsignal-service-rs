@@ -159,26 +159,28 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
         use awc::error::{ConnectError, SendRequestError};
-        let mut response = self
-            .request(Method::GET, endpoint, path, credentials_override)?
-            .send()
-            .await
-            .map_err(|e| match e {
-                SendRequestError::Connect(ConnectError::Timeout) => {
-                    ServiceError::Timeout {
-                        reason: e.to_string(),
-                    }
-                },
-                _ => ServiceError::SendError {
+        let mut request =
+            self.request(Method::GET, endpoint, path, credentials_override)?;
+        for &header in additional_headers {
+            request = request.insert_header(header);
+        }
+        let mut response = request.send().await.map_err(|e| match e {
+            SendRequestError::Connect(ConnectError::Timeout) => {
+                ServiceError::Timeout {
                     reason: e.to_string(),
-                },
-            })?;
+                }
+            },
+            _ => ServiceError::SendError {
+                reason: e.to_string(),
+            },
+        })?;
 
         log::debug!("AwcPushService::get response: {:?}", response);
 
@@ -212,29 +214,30 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
-        let mut response = self
-            .request(
-                Method::DELETE,
-                endpoint,
-                path,
-                HttpAuthOverride::NoOverride,
-            )?
-            .send()
-            .await
-            .map_err(|e| match e {
-                SendRequestError::Connect(ConnectError::Timeout) => {
-                    ServiceError::Timeout {
-                        reason: e.to_string(),
-                    }
-                },
-                _ => ServiceError::SendError {
+        let mut request = self.request(
+            Method::DELETE,
+            endpoint,
+            path,
+            HttpAuthOverride::NoOverride,
+        )?;
+        for &header in additional_headers {
+            request = request.insert_header(header);
+        }
+        let mut response = request.send().await.map_err(|e| match e {
+            SendRequestError::Connect(ConnectError::Timeout) => {
+                ServiceError::Timeout {
                     reason: e.to_string(),
-                },
-            })?;
+                }
+            },
+            _ => ServiceError::SendError {
+                reason: e.to_string(),
+            },
+        })?;
 
         log::debug!("AwcPushService::delete response: {:?}", response);
 
@@ -268,6 +271,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -275,13 +279,16 @@ impl PushService for AwcPushService {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
-        let mut response = self
-            .request(Method::PUT, endpoint, path, credentials_override)?
-            .send_json(&value)
-            .await
-            .map_err(|e| ServiceError::SendError {
+        let mut request =
+            self.request(Method::PUT, endpoint, path, credentials_override)?;
+        for &header in additional_headers {
+            request = request.insert_header(header);
+        }
+        let mut response = request.send_json(&value).await.map_err(|e| {
+            ServiceError::SendError {
                 reason: e.to_string(),
-            })?;
+            }
+        })?;
 
         log::debug!("AwcPushService::put response: {:?}", response);
 
@@ -314,6 +321,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -321,13 +329,16 @@ impl PushService for AwcPushService {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
-        let mut response = self
-            .request(Method::PATCH, endpoint, path, credentials_override)?
-            .send_json(&value)
-            .await
-            .map_err(|e| ServiceError::SendError {
+        let mut request =
+            self.request(Method::PATCH, endpoint, path, credentials_override)?;
+        for &header in additional_headers {
+            request = request.insert_header(header);
+        }
+        let mut response = request.send_json(&value).await.map_err(|e| {
+            ServiceError::SendError {
                 reason: e.to_string(),
-            })?;
+            }
+        })?;
 
         log::debug!("AwcPushService::patch response: {:?}", response);
 
@@ -360,6 +371,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -367,13 +379,16 @@ impl PushService for AwcPushService {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
-        let mut response = self
-            .request(Method::POST, endpoint, path, credentials_override)?
-            .send_json(&value)
-            .await
-            .map_err(|e| ServiceError::SendError {
+        let mut request =
+            self.request(Method::POST, endpoint, path, credentials_override)?;
+        for &header in additional_headers {
+            request = request.insert_header(header);
+        }
+        let mut response = request.send_json(&value).await.map_err(|e| {
+            ServiceError::SendError {
                 reason: e.to_string(),
-            })?;
+            }
+        })?;
 
         log::debug!("AwcPushService::post response: {:?}", response);
 
@@ -406,16 +421,19 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         T: Default + ProtobufMessage,
     {
-        let mut response = self
-            .request(Method::GET, endpoint, path, credentials_override)?
-            .send()
-            .await
-            .map_err(|e| ServiceError::SendError {
+        let mut request =
+            self.request(Method::GET, endpoint, path, credentials_override)?;
+        for &header in additional_headers {
+            request = request.insert_header(header);
+        }
+        let mut response =
+            request.send().await.map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
             })?;
 
@@ -433,6 +451,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -441,8 +460,16 @@ impl PushService for AwcPushService {
     {
         let buf = value.encode_to_vec();
 
-        let mut response = self
-            .request(Method::PUT, endpoint, path, HttpAuthOverride::NoOverride)?
+        let mut request = self.request(
+            Method::PUT,
+            endpoint,
+            path,
+            HttpAuthOverride::NoOverride,
+        )?;
+        for &header in additional_headers {
+            request = request.insert_header(header);
+        }
+        let mut response = request
             .content_type(HeaderValue::from_static("application/x-protobuf"))
             .send_body(buf)
             .await

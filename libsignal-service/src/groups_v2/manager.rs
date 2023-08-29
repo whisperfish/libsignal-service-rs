@@ -6,7 +6,9 @@ use crate::{
     groups_v2::operations::{GroupDecodingError, GroupOperations},
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
-    push_service::{HttpAuth, HttpAuthOverride, ServiceIds},
+    push_service::{
+        HttpAuth, HttpAuthOverride, ServiceIds, NO_ADDITIONAL_HEADERS,
+    },
 };
 
 use bytes::Bytes;
@@ -166,6 +168,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
                 .get_json(
                     Endpoint::Service,
                     &path,
+                    NO_ADDITIONAL_HEADERS,
                     HttpAuthOverride::NoOverride,
                 )
                 .await?;

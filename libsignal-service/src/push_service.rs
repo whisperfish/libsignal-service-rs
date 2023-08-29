@@ -512,6 +512,8 @@ pub enum ServiceError {
     NotFoundError,
 }
 
+pub(crate) const NO_ADDITIONAL_HEADERS: &[(&str, &str)] = &[];
+
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait PushService: MaybeSend {
@@ -521,6 +523,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
@@ -530,6 +533,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>;
@@ -538,6 +542,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -549,6 +554,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -560,6 +566,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -571,6 +578,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
@@ -580,6 +588,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -623,6 +632,7 @@ pub trait PushService: MaybeSend {
             .get_json(
                 Endpoint::Service,
                 "/v1/devices/",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
             )
             .await?;
@@ -631,8 +641,12 @@ pub trait PushService: MaybeSend {
     }
 
     async fn unlink_device(&mut self, id: i64) -> Result<(), ServiceError> {
-        self.delete_json(Endpoint::Service, &format!("/v1/devices/{}", id))
-            .await
+        self.delete_json(
+            Endpoint::Service,
+            &format!("/v1/devices/{}", id),
+            NO_ADDITIONAL_HEADERS,
+        )
+        .await
     }
 
     async fn get_pre_key_status(
@@ -642,6 +656,7 @@ pub trait PushService: MaybeSend {
         self.get_json(
             Endpoint::Service,
             &format!("/v2/keys?identity={}", service_id_type),
+            NO_ADDITIONAL_HEADERS,
             HttpAuthOverride::NoOverride,
         )
         .await
@@ -656,6 +671,7 @@ pub trait PushService: MaybeSend {
             .put_json(
                 Endpoint::Service,
                 &format!("/v2/keys?identity={}", service_id_type),
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
                 pre_key_state,
             )
@@ -718,6 +734,7 @@ pub trait PushService: MaybeSend {
         self.put_json(
             Endpoint::Service,
             &path,
+            NO_ADDITIONAL_HEADERS,
             HttpAuthOverride::NoOverride,
             messages,
         )
@@ -733,6 +750,7 @@ pub trait PushService: MaybeSend {
         self.get_json(
             Endpoint::Service,
             "/v2/attachments/form/upload",
+            NO_ADDITIONAL_HEADERS,
             HttpAuthOverride::NoOverride,
         )
         .await
@@ -775,6 +793,7 @@ pub trait PushService: MaybeSend {
             .get_json(
                 Endpoint::Service,
                 "/v1/messages/",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
             )
             .await?;
@@ -786,6 +805,7 @@ pub trait PushService: MaybeSend {
         self.get_json(
             Endpoint::Service,
             "/v1/accounts/whoami",
+            NO_ADDITIONAL_HEADERS,
             HttpAuthOverride::NoOverride,
         )
         .await
@@ -810,6 +830,7 @@ pub trait PushService: MaybeSend {
         self.get_json(
             Endpoint::Service,
             &endpoint,
+            NO_ADDITIONAL_HEADERS,
             HttpAuthOverride::NoOverride,
         )
         .await
@@ -838,7 +859,12 @@ pub trait PushService: MaybeSend {
             format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id);
 
         let mut pre_key_response: PreKeyResponse = self
-            .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
+            .get_json(
+                Endpoint::Service,
+                &path,
+                NO_ADDITIONAL_HEADERS,
+                HttpAuthOverride::NoOverride,
+            )
             .await?;
         assert!(!pre_key_response.devices.is_empty());
 
@@ -858,7 +884,12 @@ pub trait PushService: MaybeSend {
             format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id)
         };
         let pre_key_response: PreKeyResponse = self
-            .get_json(Endpoint::Service, &path, HttpAuthOverride::NoOverride)
+            .get_json(
+                Endpoint::Service,
+                &path,
+                NO_ADDITIONAL_HEADERS,
+                HttpAuthOverride::NoOverride,
+            )
             .await?;
         let mut pre_keys = vec![];
         let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
@@ -875,6 +906,7 @@ pub trait PushService: MaybeSend {
         self.get_protobuf(
             Endpoint::Storage,
             "/v1/groups/",
+            NO_ADDITIONAL_HEADERS,
             HttpAuthOverride::Identified(credentials),
         )
         .await
@@ -887,6 +919,7 @@ pub trait PushService: MaybeSend {
             .get_json(
                 Endpoint::Service,
                 "/v1/certificate/delivery",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
             )
             .await?;
@@ -900,6 +933,7 @@ pub trait PushService: MaybeSend {
             .get_json(
                 Endpoint::Service,
                 "/v1/certificate/delivery?includeE164=false",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
             )
             .await?;
@@ -919,6 +953,7 @@ pub trait PushService: MaybeSend {
             .put_json(
                 Endpoint::Service,
                 "/v1/accounts/attributes/",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
                 attributes,
             )
@@ -982,6 +1017,7 @@ pub trait PushService: MaybeSend {
             .put_json(
                 Endpoint::Service,
                 "/v1/profile",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
                 command,
             )
@@ -1047,6 +1083,7 @@ pub trait PushService: MaybeSend {
             .post_json(
                 Endpoint::Service,
                 "/v1/verification/session",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::Unidentified,
                 req,
             )
@@ -1089,6 +1126,7 @@ pub trait PushService: MaybeSend {
             .patch_json(
                 Endpoint::Service,
                 &format!("/v1/verification/session/{}", session_id),
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::Unidentified,
                 req,
             )
@@ -1123,6 +1161,7 @@ pub trait PushService: MaybeSend {
             .post_json(
                 Endpoint::Service,
                 &format!("/v1/verification/session/{}/code", session_id),
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::Unidentified,
                 req,
             )
@@ -1142,6 +1181,7 @@ pub trait PushService: MaybeSend {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/verification/session/{}/code", session_id),
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::Unidentified,
                 req,
             )
@@ -1177,6 +1217,7 @@ pub trait PushService: MaybeSend {
             .post_json(
                 Endpoint::Service,
                 "/v1/registration",
+                NO_ADDITIONAL_HEADERS,
                 HttpAuthOverride::NoOverride,
                 req,
             )
