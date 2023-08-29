@@ -30,10 +30,11 @@ impl<Service: PushService> MessageReceiver<Service> {
     /// [`MessageReceiver::create_message_pipe()`].
     pub async fn retrieve_messages(
         &mut self,
+        allow_stories: bool,
     ) -> Result<Vec<Envelope>, ServiceError> {
         use std::convert::TryFrom;
 
-        let entities = self.service.get_messages().await?;
+        let entities = self.service.get_messages(allow_stories).await?;
         let entities = entities
             .into_iter()
             .map(Envelope::try_from)

@@ -788,12 +788,16 @@ pub trait PushService: MaybeSend {
 
     async fn get_messages(
         &mut self,
+        allow_stories: bool,
     ) -> Result<Vec<EnvelopeEntity>, ServiceError> {
         let entity_list: EnvelopeEntityList = self
             .get_json(
                 Endpoint::Service,
                 "/v1/messages/",
-                NO_ADDITIONAL_HEADERS,
+                &[(
+                    "X-Signal-Receive-Stories",
+                    if allow_stories { "true" } else { "false" },
+                )],
                 HttpAuthOverride::NoOverride,
             )
             .await?;
