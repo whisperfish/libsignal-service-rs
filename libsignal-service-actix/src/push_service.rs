@@ -43,11 +43,15 @@ impl AwcPushService {
         method: Method,
         endpoint: Endpoint,
         path: impl AsRef<str>,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<ClientRequest, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
         log::debug!("HTTP request {} {}", method, url);
         let mut builder = self.client.request(method, url.as_str());
+        for &header in additional_headers {
+            builder = builder.insert_header(header);
+        }
         builder = match credentials_override {
             HttpAuthOverride::NoOverride => {
                 if let Some(credentials) = self.credentials.as_ref() {
@@ -166,21 +170,26 @@ impl PushService for AwcPushService {
         for<'de> T: Deserialize<'de>,
     {
         use awc::error::{ConnectError, SendRequestError};
-        let mut request =
-            self.request(Method::GET, endpoint, path, credentials_override)?;
-        for &header in additional_headers {
-            request = request.insert_header(header);
-        }
-        let mut response = request.send().await.map_err(|e| match e {
-            SendRequestError::Connect(ConnectError::Timeout) => {
-                ServiceError::Timeout {
+        let mut response = self
+            .request(
+                Method::GET,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
+            .send()
+            .await
+            .map_err(|e| match e {
+                SendRequestError::Connect(ConnectError::Timeout) => {
+                    ServiceError::Timeout {
+                        reason: e.to_string(),
+                    }
+                },
+                _ => ServiceError::SendError {
                     reason: e.to_string(),
-                }
-            },
-            _ => ServiceError::SendError {
-                reason: e.to_string(),
-            },
-        })?;
+                },
+            })?;
 
         log::debug!("AwcPushService::get response: {:?}", response);
 
@@ -219,25 +228,26 @@ impl PushService for AwcPushService {
     where
         for<'de> T: Deserialize<'de>,
     {
-        let mut request = self.request(
-            Method::DELETE,
-            endpoint,
-            path,
-            HttpAuthOverride::NoOverride,
-        )?;
-        for &header in additional_headers {
-            request = request.insert_header(header);
-        }
-        let mut response = request.send().await.map_err(|e| match e {
-            SendRequestError::Connect(ConnectError::Timeout) => {
-                ServiceError::Timeout {
+        let mut response = self
+            .request(
+                Method::DELETE,
+                endpoint,
+                path,
+                additional_headers,
+                HttpAuthOverride::NoOverride,
+            )?
+            .send()
+            .await
+            .map_err(|e| match e {
+                SendRequestError::Connect(ConnectError::Timeout) => {
+                    ServiceError::Timeout {
+                        reason: e.to_string(),
+                    }
+                },
+                _ => ServiceError::SendError {
                     reason: e.to_string(),
-                }
-            },
-            _ => ServiceError::SendError {
-                reason: e.to_string(),
-            },
-        })?;
+                },
+            })?;
 
         log::debug!("AwcPushService::delete response: {:?}", response);
 
@@ -279,16 +289,19 @@ impl PushService for AwcPushService {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
-        let mut request =
-            self.request(Method::PUT, endpoint, path, credentials_override)?;
-        for &header in additional_headers {
-            request = request.insert_header(header);
-        }
-        let mut response = request.send_json(&value).await.map_err(|e| {
-            ServiceError::SendError {
+        let mut response = self
+            .request(
+                Method::PUT,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
+            .send_json(&value)
+            .await
+            .map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         log::debug!("AwcPushService::put response: {:?}", response);
 
@@ -329,16 +342,19 @@ impl PushService for AwcPushService {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
-        let mut request =
-            self.request(Method::PATCH, endpoint, path, credentials_override)?;
-        for &header in additional_headers {
-            request = request.insert_header(header);
-        }
-        let mut response = request.send_json(&value).await.map_err(|e| {
-            ServiceError::SendError {
+        let mut response = self
+            .request(
+                Method::PATCH,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
+            .send_json(&value)
+            .await
+            .map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         log::debug!("AwcPushService::patch response: {:?}", response);
 
@@ -379,16 +395,19 @@ impl PushService for AwcPushService {
         for<'de> D: Deserialize<'de>,
         S: Serialize,
     {
-        let mut request =
-            self.request(Method::POST, endpoint, path, credentials_override)?;
-        for &header in additional_headers {
-            request = request.insert_header(header);
-        }
-        let mut response = request.send_json(&value).await.map_err(|e| {
-            ServiceError::SendError {
+        let mut response = self
+            .request(
+                Method::POST,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
+            .send_json(&value)
+            .await
+            .map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         log::debug!("AwcPushService::post response: {:?}", response);
 
@@ -427,13 +446,17 @@ impl PushService for AwcPushService {
     where
         T: Default + ProtobufMessage,
     {
-        let mut request =
-            self.request(Method::GET, endpoint, path, credentials_override)?;
-        for &header in additional_headers {
-            request = request.insert_header(header);
-        }
-        let mut response =
-            request.send().await.map_err(|e| ServiceError::SendError {
+        let mut response = self
+            .request(
+                Method::GET,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
+            .send()
+            .await
+            .map_err(|e| ServiceError::SendError {
                 reason: e.to_string(),
             })?;
 
@@ -460,16 +483,14 @@ impl PushService for AwcPushService {
     {
         let buf = value.encode_to_vec();
 
-        let mut request = self.request(
-            Method::PUT,
-            endpoint,
-            path,
-            HttpAuthOverride::NoOverride,
-        )?;
-        for &header in additional_headers {
-            request = request.insert_header(header);
-        }
-        let mut response = request
+        let mut response = self
+            .request(
+                Method::PUT,
+                endpoint,
+                path,
+                additional_headers,
+                HttpAuthOverride::NoOverride,
+            )?
             .content_type(HeaderValue::from_static("application/x-protobuf"))
             .send_body(buf)
             .await
@@ -497,6 +518,7 @@ impl PushService for AwcPushService {
                 Method::GET,
                 Endpoint::Cdn(cdn_id),
                 path,
+                &[],
                 HttpAuthOverride::Unidentified,
             )?
             .send()
@@ -535,6 +557,7 @@ impl PushService for AwcPushService {
             Method::POST,
             Endpoint::Cdn(0),
             path,
+            &[],
             HttpAuthOverride::NoOverride,
         )?;
 
