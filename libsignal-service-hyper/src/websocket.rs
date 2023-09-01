@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use async_tungstenite::{
     tokio::connect_async_with_tls_connector,
-    tungstenite::{Error as TungsteniteError, Message},
+    tungstenite::{
+        client::IntoClientRequest, http::HeaderName, Error as TungsteniteError,
+        Message,
+    },
 };
 use bytes::Bytes;
 use futures::{channel::mpsc::*, prelude::*};
@@ -157,6 +160,7 @@ impl TungsteniteWebSocket {
         tls_config: rustls::ClientConfig,
         base_url: impl std::borrow::Borrow<Url>,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials: Option<&ServiceCredentials>,
     ) -> Result<
         (Self, <Self as WebSocketService>::Stream),
@@ -179,8 +183,20 @@ impl TungsteniteWebSocket {
 
         log::trace!("Will start websocket at {:?}", url);
 
+        let mut request = url.into_client_request()?;
+
+        for (key, value) in additional_headers {
+            request.headers_mut().insert(
+                // FromStr is implemnted for HeaderName, but that expects a &'static str...
+                HeaderName::from_bytes(key.as_bytes())
+                    .expect("valid header name"),
+                value.parse().expect("valid header value"),
+            );
+        }
+
         let (socket_stream, response) =
-            connect_async_with_tls_connector(url, Some(tls_connector)).await?;
+            connect_async_with_tls_connector(request, Some(tls_connector))
+                .await?;
 
         log::debug!("WebSocket connected: {:?}", response);
 

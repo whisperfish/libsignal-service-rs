@@ -120,6 +120,15 @@ impl Envelope {
         self.r#type() == crate::proto::envelope::Type::Ciphertext
     }
 
+    pub fn is_urgent(&self) -> bool {
+        // SignalServiceEnvelopeEntity: return urgent == null || urgent;
+        self.urgent.unwrap_or(true)
+    }
+
+    pub fn is_story(&self) -> bool {
+        self.story.unwrap_or(false)
+    }
+
     pub fn source_address(&self) -> ServiceAddress {
         let uuid = self
             .source_uuid
@@ -139,10 +148,22 @@ pub struct EnvelopeEntity {
     pub source: Option<String>,
     pub source_uuid: Option<String>,
     pub source_device: u32,
+    #[serde(default)]
+    pub destination_uuid: Option<String>,
     #[serde(default, with = "serde_optional_base64")]
     pub content: Option<Vec<u8>>,
     pub server_timestamp: u64,
     pub guid: String,
+    #[serde(default = "default_true")]
+    pub urgent: bool,
+    #[serde(default)]
+    pub story: bool,
+    #[serde(default, with = "serde_optional_base64")]
+    pub report_spam_token: Option<Vec<u8>>,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

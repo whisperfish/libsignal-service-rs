@@ -249,6 +249,7 @@ impl<Service: PushService> AccountManager<Service> {
             .get_json(
                 Endpoint::Service,
                 "/v1/devices/provisioning/code",
+                &[],
                 HttpAuthOverride::NoOverride,
             )
             .await?;
@@ -273,6 +274,7 @@ impl<Service: PushService> AccountManager<Service> {
             .put_json(
                 Endpoint::Service,
                 &format!("/v1/provisioning/{}", destination),
+                &[],
                 HttpAuthOverride::NoOverride,
                 &ProvisioningMessage {
                     body: base64::encode(body),
@@ -487,6 +489,7 @@ impl<Service: PushService> AccountManager<Service> {
             .put_json(
                 Endpoint::Service,
                 "/v1/accounts/name",
+                &[],
                 HttpAuthOverride::NoOverride,
                 Data {
                     device_name: prost::Message::encode_to_vec(
@@ -519,6 +522,7 @@ impl<Service: PushService> AccountManager<Service> {
             .put_json(
                 Endpoint::Service,
                 "/v1/challenge",
+                &[],
                 HttpAuthOverride::NoOverride,
                 payload,
             )

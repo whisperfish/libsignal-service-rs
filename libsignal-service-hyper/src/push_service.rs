@@ -87,6 +87,7 @@ impl HyperPushService {
         method: Method,
         endpoint: Endpoint,
         path: impl AsRef<str>,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         body: Option<RequestBody>,
     ) -> Result<Response<Body>, ServiceError> {
@@ -96,6 +97,10 @@ impl HyperPushService {
             .method(method)
             .uri(url.as_str())
             .header(USER_AGENT, &self.user_agent);
+
+        for (header, value) in additional_headers {
+            builder = builder.header(*header, *value);
+        }
 
         match credentials_override {
             HttpAuthOverride::NoOverride => {
@@ -279,13 +284,21 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
     {
         let mut response = self
-            .request(Method::GET, service, path, credentials_override, None)
+            .request(
+                Method::GET,
+                service,
+                path,
+                additional_headers,
+                credentials_override,
+                None,
+            )
             .await?;
 
         Self::json(&mut response).await
@@ -295,6 +308,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
@@ -304,6 +318,7 @@ impl PushService for HyperPushService {
                 Method::DELETE,
                 service,
                 path,
+                additional_headers,
                 HttpAuthOverride::NoOverride,
                 None,
             )
@@ -316,6 +331,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -334,6 +350,7 @@ impl PushService for HyperPushService {
                 Method::PUT,
                 service,
                 path,
+                additional_headers,
                 credentials_override,
                 Some(RequestBody {
                     contents: json,
@@ -349,6 +366,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -367,6 +385,7 @@ impl PushService for HyperPushService {
                 Method::PATCH,
                 service,
                 path,
+                additional_headers,
                 credentials_override,
                 Some(RequestBody {
                     contents: json,
@@ -382,6 +401,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -400,6 +420,7 @@ impl PushService for HyperPushService {
                 Method::POST,
                 service,
                 path,
+                additional_headers,
                 credentials_override,
                 Some(RequestBody {
                     contents: json,
@@ -415,13 +436,21 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         T: Default + libsignal_service::prelude::ProtobufMessage,
     {
         let mut response = self
-            .request(Method::GET, service, path, credentials_override, None)
+            .request(
+                Method::GET,
+                service,
+                path,
+                additional_headers,
+                credentials_override,
+                None,
+            )
             .await?;
 
         Self::protobuf(&mut response).await
@@ -431,6 +460,7 @@ impl PushService for HyperPushService {
         &mut self,
         service: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -444,6 +474,7 @@ impl PushService for HyperPushService {
                 Method::PUT,
                 service,
                 path,
+                additional_headers,
                 HttpAuthOverride::NoOverride,
                 Some(RequestBody {
                     contents: protobuf,
@@ -465,6 +496,7 @@ impl PushService for HyperPushService {
                 Method::GET,
                 Endpoint::Cdn(cdn_id),
                 path,
+                &[],
                 HttpAuthOverride::Unidentified, // CDN requests are always without authentication
                 None,
             )
@@ -533,6 +565,7 @@ impl PushService for HyperPushService {
                 Method::POST,
                 Endpoint::Cdn(0),
                 path,
+                &[],
                 HttpAuthOverride::NoOverride,
                 Some(RequestBody {
                     contents: body_contents,
@@ -549,6 +582,7 @@ impl PushService for HyperPushService {
     async fn ws(
         &mut self,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
         keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError> {
@@ -556,6 +590,7 @@ impl PushService for HyperPushService {
             Self::tls_config(&self.cfg),
             self.cfg.base_url(Endpoint::Service),
             path,
+            additional_headers,
             credentials.as_ref(),
         )
         .await?;

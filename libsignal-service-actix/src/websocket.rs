@@ -144,6 +144,7 @@ impl AwcWebSocket {
         client: &mut awc::Client,
         base_url: impl std::borrow::Borrow<Url>,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials: Option<&ServiceCredentials>,
     ) -> Result<(Self, <Self as WebSocketService>::Stream), AwcWebSocketError>
     {
@@ -160,7 +161,11 @@ impl AwcWebSocket {
         }
 
         log::trace!("Will start websocket at {:?}", url);
-        let (response, framed) = client.ws(url.as_str()).connect().await?;
+        let mut ws = client.ws(url.as_str());
+        for (key, value) in additional_headers {
+            ws = ws.header(*key, *value);
+        }
+        let (response, framed) = ws.connect().await?;
 
         log::debug!("WebSocket connected: {:?}", response);
 

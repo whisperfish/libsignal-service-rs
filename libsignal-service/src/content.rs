@@ -1,15 +1,19 @@
 use libsignal_protocol::ProtocolAddress;
 
+use crate::proto::PniSignatureMessage;
 pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
         group_context::Type as GroupType, sync_message, AttachmentPointer,
         CallMessage, DataMessage, GroupContext, GroupContextV2, NullMessage,
-        ReceiptMessage, SyncMessage, TypingMessage,
+        ReceiptMessage, StoryMessage, SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };
+
+mod data_message;
+mod story_message;
 
 #[derive(Clone, Debug)]
 pub struct Metadata {
@@ -61,6 +65,14 @@ impl Content {
             Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.typing_message {
             Ok(Self::from_body(msg, metadata))
+        // } else if let Some(msg) = p.sender_key_distribution_message {
+        //     Ok(Self::from_body(msg, metadata))
+        // } else if let Some(msg) = p.decryption_error_message {
+        //     Ok(Self::from_body(msg, metadata))
+        } else if let Some(msg) = p.story_message {
+            Ok(Self::from_body(msg, metadata))
+        } else if let Some(msg) = p.pni_signature_message {
+            Ok(Self::from_body(msg, metadata))
         } else {
             Err(ServiceError::UnsupportedContent)
         }
@@ -76,6 +88,10 @@ pub enum ContentBody {
     CallMessage(CallMessage),
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
+    // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
+    // DecryptionErrorMessage(DecryptionErrorMessage),
+    StoryMessage(StoryMessage),
+    PniSignatureMessage(PniSignatureMessage),
 }
 
 impl ContentBody {
@@ -105,6 +121,24 @@ impl ContentBody {
                 typing_message: Some(msg),
                 ..Default::default()
             },
+            // XXX Those two are serialized as Vec<u8> and I'm not currently sure how to handle
+            // them.
+            // Self::SenderKeyDistributionMessage(msg) => crate::proto::Content {
+            //     sender_key_distribution_message: Some(msg),
+            //     ..Default::default()
+            // },
+            // Self::DecryptionErrorMessage(msg) => crate::proto::Content {
+            //     decryption_error_message: Some(msg.serialized()),
+            //     ..Default::default()
+            // },
+            Self::StoryMessage(msg) => crate::proto::Content {
+                story_message: Some(msg),
+                ..Default::default()
+            },
+            Self::PniSignatureMessage(msg) => crate::proto::Content {
+                pni_signature_message: Some(msg),
+                ..Default::default()
+            },
         }
     }
 }
@@ -125,3 +159,9 @@ impl_from_for_content_body!(SynchronizeMessage(SyncMessage));
 impl_from_for_content_body!(CallMessage(CallMessage));
 impl_from_for_content_body!(ReceiptMessage(ReceiptMessage));
 impl_from_for_content_body!(TypingMessage(TypingMessage));
+// impl_from_for_content_body!(SenderKeyDistributionMessage(
+//     SenderKeyDistributionMessage
+// ));
+// impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
+impl_from_for_content_body!(StoryMessage(StoryMessage));
+impl_from_for_content_body!(PniSignatureMessage(PniSignatureMessage));

@@ -43,11 +43,15 @@ impl AwcPushService {
         method: Method,
         endpoint: Endpoint,
         path: impl AsRef<str>,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<ClientRequest, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
         log::debug!("HTTP request {} {}", method, url);
         let mut builder = self.client.request(method, url.as_str());
+        for &header in additional_headers {
+            builder = builder.insert_header(header);
+        }
         builder = match credentials_override {
             HttpAuthOverride::NoOverride => {
                 if let Some(credentials) = self.credentials.as_ref() {
@@ -159,6 +163,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
@@ -166,7 +171,13 @@ impl PushService for AwcPushService {
     {
         use awc::error::{ConnectError, SendRequestError};
         let mut response = self
-            .request(Method::GET, endpoint, path, credentials_override)?
+            .request(
+                Method::GET,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
             .send()
             .await
             .map_err(|e| match e {
@@ -212,6 +223,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
     ) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
@@ -221,6 +233,7 @@ impl PushService for AwcPushService {
                 Method::DELETE,
                 endpoint,
                 path,
+                additional_headers,
                 HttpAuthOverride::NoOverride,
             )?
             .send()
@@ -268,6 +281,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -276,7 +290,13 @@ impl PushService for AwcPushService {
         S: Serialize,
     {
         let mut response = self
-            .request(Method::PUT, endpoint, path, credentials_override)?
+            .request(
+                Method::PUT,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
             .send_json(&value)
             .await
             .map_err(|e| ServiceError::SendError {
@@ -314,6 +334,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -322,7 +343,13 @@ impl PushService for AwcPushService {
         S: Serialize,
     {
         let mut response = self
-            .request(Method::PATCH, endpoint, path, credentials_override)?
+            .request(
+                Method::PATCH,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
             .send_json(&value)
             .await
             .map_err(|e| ServiceError::SendError {
@@ -360,6 +387,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
         value: S,
     ) -> Result<D, ServiceError>
@@ -368,7 +396,13 @@ impl PushService for AwcPushService {
         S: Serialize,
     {
         let mut response = self
-            .request(Method::POST, endpoint, path, credentials_override)?
+            .request(
+                Method::POST,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
             .send_json(&value)
             .await
             .map_err(|e| ServiceError::SendError {
@@ -406,13 +440,20 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
         T: Default + ProtobufMessage,
     {
         let mut response = self
-            .request(Method::GET, endpoint, path, credentials_override)?
+            .request(
+                Method::GET,
+                endpoint,
+                path,
+                additional_headers,
+                credentials_override,
+            )?
             .send()
             .await
             .map_err(|e| ServiceError::SendError {
@@ -433,6 +474,7 @@ impl PushService for AwcPushService {
         &mut self,
         endpoint: Endpoint,
         path: &str,
+        additional_headers: &[(&str, &str)],
         value: S,
     ) -> Result<D, ServiceError>
     where
@@ -442,7 +484,13 @@ impl PushService for AwcPushService {
         let buf = value.encode_to_vec();
 
         let mut response = self
-            .request(Method::PUT, endpoint, path, HttpAuthOverride::NoOverride)?
+            .request(
+                Method::PUT,
+                endpoint,
+                path,
+                additional_headers,
+                HttpAuthOverride::NoOverride,
+            )?
             .content_type(HeaderValue::from_static("application/x-protobuf"))
             .send_body(buf)
             .await
@@ -470,6 +518,7 @@ impl PushService for AwcPushService {
                 Method::GET,
                 Endpoint::Cdn(cdn_id),
                 path,
+                &[],
                 HttpAuthOverride::Unidentified,
             )?
             .send()
@@ -508,6 +557,7 @@ impl PushService for AwcPushService {
             Method::POST,
             Endpoint::Cdn(0),
             path,
+            &[],
             HttpAuthOverride::NoOverride,
         )?;
 
@@ -575,6 +625,7 @@ impl PushService for AwcPushService {
     async fn ws(
         &mut self,
         path: &str,
+        additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
         keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError> {
@@ -582,6 +633,7 @@ impl PushService for AwcPushService {
             &mut self.client,
             self.cfg.base_url(Endpoint::Service),
             path,
+            additional_headers,
             credentials.as_ref(),
         )
         .await?;

@@ -166,6 +166,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
                 .get_json(
                     Endpoint::Service,
                     &path,
+                    &[],
                     HttpAuthOverride::NoOverride,
                 )
                 .await?;
