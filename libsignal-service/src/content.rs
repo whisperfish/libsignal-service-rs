@@ -1,4 +1,5 @@
 use libsignal_protocol::ProtocolAddress;
+use uuid::Uuid;
 
 pub use crate::{
     proto::{
@@ -22,6 +23,8 @@ pub struct Metadata {
     pub timestamp: u64,
     pub needs_receipt: bool,
     pub unidentified_sender: bool,
+
+    pub server_guid: Option<Uuid>,
 }
 
 impl Metadata {

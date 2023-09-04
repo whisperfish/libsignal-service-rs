@@ -103,6 +103,15 @@ where
             });
         };
 
+        let server_guid =
+            envelope.server_guid.as_ref().and_then(|g| match g.parse() {
+                Ok(uuid) => Some(uuid),
+                Err(e) => {
+                    log::error!("Unparseable server_guid ({})", e);
+                    None
+                },
+            });
+
         use crate::proto::envelope::Type;
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
@@ -118,6 +127,7 @@ where
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
+                    server_guid,
                 };
 
                 let mut data = message_decrypt_prekey(
@@ -154,6 +164,7 @@ where
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
+                    server_guid,
                 };
                 Plaintext {
                     metadata,
@@ -173,6 +184,7 @@ where
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
+                    server_guid,
                 };
 
                 let mut data = message_decrypt_signal(
@@ -241,6 +253,7 @@ where
                     timestamp: envelope.timestamp(),
                     unidentified_sender: true,
                     needs_receipt,
+                    server_guid,
                 };
 
                 strip_padding(&mut message)?;
