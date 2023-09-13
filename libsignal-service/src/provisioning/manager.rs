@@ -139,8 +139,8 @@ impl<P: PushService> LinkingManager<P> {
             .ws("/v1/websocket/provisioning/", &[], None, false)
             .await?;
 
-        let registration_id = csprng.gen_range(1, 256);
-        let pni_registration_id = csprng.gen_range(1, 256);
+        let registration_id = csprng.gen_range(1..256);
+        let pni_registration_id = csprng.gen_range(1..256);
 
         let provisioning_pipe = ProvisioningPipe::from_socket(ws)?;
         let provision_stream = provisioning_pipe.stream();

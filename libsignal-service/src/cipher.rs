@@ -1,13 +1,13 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, time::SystemTime};
 
 use block_modes::block_padding::{Iso7816, Padding};
 use libsignal_protocol::{
     group_decrypt, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
-    CiphertextMessageType, Context, DeviceId, IdentityKeyStore,
-    KyberPreKeyStore, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
-    ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
+    CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
+    PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
+    PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, SessionStore, SignalMessage,
     SignalProtocolError, SignedPreKeyStore,
 };
@@ -72,7 +72,6 @@ where
                     &plaintext.metadata.protocol_address(),
                     &skdm,
                     &mut self.protocol_store,
-                    None,
                 )
                 .await?;
                 Ok(None)
@@ -130,7 +129,6 @@ where
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.csprng,
-                    None,
                 )
                 .await?
                 .as_slice()
@@ -138,7 +136,7 @@ where
 
                 let session_record = self
                     .protocol_store
-                    .load_session(&sender, None)
+                    .load_session(&sender)
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
@@ -183,7 +181,6 @@ where
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.csprng,
-                    None,
                 )
                 .await?
                 .as_slice()
@@ -191,7 +188,7 @@ where
 
                 let session_record = self
                     .protocol_store
-                    .load_session(&sender, None)
+                    .load_session(&sender)
                     .await?
                     .ok_or(SignalProtocolError::SessionNotFound(sender))?;
 
@@ -220,7 +217,6 @@ where
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store,
-                    None,
                 )
                 .await?;
 
@@ -275,11 +271,11 @@ where
     ) -> Result<OutgoingPushMessage, ServiceError> {
         let session_record = self
             .protocol_store
-            .load_session(address, None)
+            .load_session(address)
             .await?
             .ok_or_else(|| {
-                SignalProtocolError::SessionNotFound(address.clone())
-            })?;
+            SignalProtocolError::SessionNotFound(address.clone())
+        })?;
 
         let padded_content =
             add_padding(session_record.session_version()?, content)?;
@@ -294,7 +290,7 @@ where
                 &padded_content,
                 &mut self.protocol_store.clone(),
                 &mut self.protocol_store,
-                None,
+                SystemTime::now(),
                 &mut self.csprng,
             )
             .await?;
@@ -312,7 +308,7 @@ where
                 address,
                 &mut self.protocol_store.clone(),
                 &mut self.protocol_store.clone(),
-                None,
+                SystemTime::now(),
             )
             .await?;
 
@@ -406,7 +402,7 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
     device_id: DeviceId,
 ) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
     let address = address.to_protocol_address(device_id);
-    if session_store.load_session(&address, None).await?.is_some() {
+    if session_store.load_session(&address).await?.is_some() {
         return Ok(address);
     }
 
@@ -434,10 +430,9 @@ async fn sealed_sender_decrypt(
     signed_pre_key_store: &mut dyn SignedPreKeyStore,
     sender_key_store: &mut dyn SenderKeyStore,
     kyber_pre_key_store: &mut dyn KyberPreKeyStore,
-    ctx: Context,
 ) -> Result<SealedSenderDecryptionResult, SignalProtocolError> {
     let usmc =
-        sealed_sender_decrypt_to_usmc(ciphertext, identity_store, ctx).await?;
+        sealed_sender_decrypt_to_usmc(ciphertext, identity_store).await?;
 
     if !usmc.sender()?.validate(trust_root, timestamp)? {
         return Err(SignalProtocolError::InvalidSealedSenderMessage(
@@ -474,7 +469,6 @@ async fn sealed_sender_decrypt(
                 session_store,
                 identity_store,
                 &mut rng,
-                ctx,
             )
             .await?
         },
@@ -489,18 +483,12 @@ async fn sealed_sender_decrypt(
                 signed_pre_key_store,
                 kyber_pre_key_store,
                 &mut rng,
-                ctx,
             )
             .await?
         },
         CiphertextMessageType::SenderKey => {
-            group_decrypt(
-                usmc.contents()?,
-                sender_key_store,
-                &remote_address,
-                ctx,
-            )
-            .await?
+            group_decrypt(usmc.contents()?, sender_key_store, &remote_address)
+                .await?
         },
         msg_type => {
             return Err(SignalProtocolError::InvalidMessage(

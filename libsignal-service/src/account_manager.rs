@@ -128,8 +128,7 @@ impl<Service: PushService> AccountManager<Service> {
             ));
         }
 
-        let identity_key_pair =
-            protocol_store.get_identity_key_pair(None).await?;
+        let identity_key_pair = protocol_store.get_identity_key_pair().await?;
 
         let mut pre_key_entities = vec![];
         let mut pq_pre_key_entities = vec![];
@@ -143,7 +142,7 @@ impl<Service: PushService> AccountManager<Service> {
             .into();
             let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
             protocol_store
-                .save_pre_key(pre_key_id, &pre_key_record, None)
+                .save_pre_key(pre_key_id, &pre_key_record)
                 .await?;
             // TODO: Shouldn't this also remove the previous pre-keys from storage?
             //       I think we might want to update the storage, and then sync the storage to the
@@ -164,7 +163,7 @@ impl<Service: PushService> AccountManager<Service> {
                 identity_key_pair.private_key(),
             )?;
             protocol_store
-                .save_kyber_pre_key(pre_key_id, &pre_key_record, None)
+                .save_kyber_pre_key(pre_key_id, &pre_key_record)
                 .await?;
             // TODO: Shouldn't this also remove the previous pre-keys from storage?
             //       I think we might want to update the storage, and then sync the storage to the
@@ -196,7 +195,6 @@ impl<Service: PushService> AccountManager<Service> {
             .save_signed_pre_key(
                 next_signed_pre_key_id.into(),
                 &signed_prekey_record,
-                None,
             )
             .await?;
 
@@ -311,8 +309,7 @@ impl<Service: PushService> AccountManager<Service> {
         let pub_key = PublicKey::deserialize(&pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
 
-        let identity_key_pair =
-            identity_store.get_identity_key_pair(None).await?;
+        let identity_key_pair = identity_store.get_identity_key_pair().await?;
 
         if credentials.uuid.is_none() {
             log::warn!("No local UUID set");
@@ -363,14 +360,14 @@ impl<Service: PushService> AccountManager<Service> {
     /// currently set avatar.
     pub async fn upload_versioned_profile_without_avatar<S: AsRef<str>>(
         &mut self,
-        uuid: uuid::Uuid,
+        aci: libsignal_protocol::Aci,
         name: ProfileName<S>,
         about: Option<String>,
         about_emoji: Option<String>,
         retain_avatar: bool,
     ) -> Result<(), ProfileManagerError> {
         self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(
-            uuid,
+            aci,
             name,
             about,
             about_emoji,
@@ -411,7 +408,7 @@ impl<Service: PushService> AccountManager<Service> {
         S: AsRef<str>,
     >(
         &mut self,
-        uuid: uuid::Uuid,
+        aci: libsignal_protocol::Aci,
         name: ProfileName<S>,
         about: Option<String>,
         about_emoji: Option<String>,
@@ -436,9 +433,8 @@ impl<Service: PushService> AccountManager<Service> {
         }
 
         let profile_key = profile_cipher.into_inner();
-        let commitment = profile_key.get_commitment(*uuid.as_bytes());
-        let profile_key_version =
-            profile_key.get_profile_key_version(*uuid.as_bytes());
+        let commitment = profile_key.get_commitment(aci);
+        let profile_key_version = profile_key.get_profile_key_version(aci);
 
         Ok(self
             .service

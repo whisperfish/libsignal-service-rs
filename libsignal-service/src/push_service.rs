@@ -101,6 +101,16 @@ pub struct ServiceIds {
     pub pni: Uuid,
 }
 
+impl ServiceIds {
+    pub fn aci(&self) -> libsignal_protocol::Aci {
+        libsignal_protocol::Aci::from_uuid_bytes(self.aci.into_bytes())
+    }
+
+    pub fn pni(&self) -> libsignal_protocol::Pni {
+        libsignal_protocol::Pni::from_uuid_bytes(self.pni.into_bytes())
+    }
+}
+
 impl fmt::Display for ServiceIds {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "aci={} pni={}", self.aci, self.pni)
@@ -816,9 +826,9 @@ pub trait PushService: MaybeSend {
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
         let endpoint = if let Some(key) = profile_key {
-            let uid_bytes = address.uuid.as_bytes();
-            let version =
-                bincode::serialize(&key.get_profile_key_version(*uid_bytes))?;
+            let version = bincode::serialize(
+                &key.get_profile_key_version(address.aci()),
+            )?;
             let version = std::str::from_utf8(&version)
                 .expect("hex encoded profile key version");
             format!("/v1/profile/{}/{}", address.uuid, version)

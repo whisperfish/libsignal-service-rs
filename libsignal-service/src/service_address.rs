@@ -25,6 +25,10 @@ impl ServiceAddress {
     ) -> ProtocolAddress {
         ProtocolAddress::new(self.uuid.to_string(), device_id.into())
     }
+
+    pub fn aci(&self) -> libsignal_protocol::Aci {
+        libsignal_protocol::Aci::from_uuid_bytes(self.uuid.into_bytes())
+    }
 }
 
 impl From<Uuid> for ServiceAddress {
