@@ -1,6 +1,4 @@
-use libsignal_protocol::{
-    Context, ProtocolAddress, SessionStore, SignalProtocolError,
-};
+use libsignal_protocol::{ProtocolAddress, SessionStore, SignalProtocolError};
 
 use crate::{push_service::DEFAULT_DEVICE_ID, ServiceAddress};
 
@@ -56,7 +54,6 @@ pub trait SessionStoreExt: SessionStore {
         &'s self,
         local_address: &'s ServiceAddress,
         address: &'s ServiceAddress,
-        context: Context,
     ) -> std::pin::Pin<
         Box<
             dyn std::future::Future<
@@ -75,11 +72,11 @@ pub trait SessionStoreExt: SessionStore {
             )
             .await?;
             let ident = self
-                .get_identity(&addr, context)
+                .get_identity(&addr)
                 .await?
                 .ok_or(SignalProtocolError::UntrustedIdentity(addr))?;
             let local = self
-                .get_identity_key_pair(context)
+                .get_identity_key_pair()
                 .await
                 .expect("valid local identity");
             let fp = libsignal_protocol::Fingerprint::new(

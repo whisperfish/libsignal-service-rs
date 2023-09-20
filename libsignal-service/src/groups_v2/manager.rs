@@ -196,9 +196,9 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
     ) -> Result<HttpAuth, ServiceError> {
         let auth_credential = self
             .server_public_params
-            .receive_auth_credential_with_pni(
-                self.service_ids.aci.into_bytes(),
-                self.service_ids.pni.into_bytes(),
+            .receive_auth_credential_with_pni_as_aci(
+                self.service_ids.aci(),
+                self.service_ids.pni(),
                 today,
                 credential_response,
             )

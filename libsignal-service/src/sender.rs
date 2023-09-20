@@ -544,8 +544,8 @@ where
                             &mut self.protocol_store.clone(),
                             &mut self.protocol_store,
                             &pre_key,
+                            SystemTime::now(),
                             &mut self.csprng,
-                            None,
                         )
                         .await
                         .map_err(|e| {
@@ -719,12 +719,7 @@ where
                 device_id.into(),
             )
             .await?;
-            if self
-                .protocol_store
-                .load_session(&ppa, None)
-                .await?
-                .is_some()
-            {
+            if self.protocol_store.load_session(&ppa).await?.is_some() {
                 messages.push(
                     self.create_encrypted_message(
                         recipient,
@@ -760,7 +755,7 @@ where
 
         if self
             .protocol_store
-            .load_session(&recipient_address, None)
+            .load_session(&recipient_address)
             .await?
             .is_none()
         {
@@ -801,8 +796,8 @@ where
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store,
                     &pre_key_bundle,
+                    SystemTime::now(),
                     &mut self.csprng,
-                    None,
                 )
                 .await?;
             }

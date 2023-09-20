@@ -26,12 +26,15 @@ async fn main() -> Result<(), Error> {
     let args = Args::from_args();
 
     // generate a random 16 bytes password
-    let mut csprng = rand::thread_rng();
-    let password: String = csprng.sample_iter(&Alphanumeric).take(24).collect();
+    let password: String = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(24)
+        .map(char::from)
+        .collect();
 
     // generate a 52 bytes signaling key
     let mut signaling_key = [0u8; 52];
-    csprng.fill_bytes(&mut signaling_key);
+    rand::thread_rng().fill_bytes(&mut signaling_key);
     log::info!("generated signaling key: {}", base64::encode(signaling_key));
 
     let push_service =
@@ -44,7 +47,7 @@ async fn main() -> Result<(), Error> {
 
     let (fut1, fut2) = future::join(
         provision_manager.provision_secondary_device(
-            &mut csprng,
+            &mut rand::thread_rng(),
             signaling_key,
             tx,
         ),

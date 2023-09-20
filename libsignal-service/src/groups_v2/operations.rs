@@ -1,8 +1,8 @@
 use std::convert::TryInto;
 
 use bytes::Bytes;
+use libsignal_protocol::{Aci, ServiceId};
 use prost::Message;
-use uuid::Uuid;
 use zkgroup::{
     groups::GroupSecretParams,
     profiles::{AnyProfileKeyCredentialPresentation, ProfileKey},
@@ -39,6 +39,8 @@ pub enum GroupDecodingError {
     WrongBlob,
     #[error("wrong enum value")]
     WrongEnumValue,
+    #[error("wrong service ID type: should be ACI")]
+    NotAci,
 }
 
 impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecodingError {
@@ -54,54 +56,67 @@ impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecodingError {
 }
 
 impl GroupOperations {
-    fn decrypt_uuid(&self, uuid: &[u8]) -> Result<Uuid, GroupDecodingError> {
-        let bytes = self
+    fn decrypt_aci(
+        &self,
+        ciphertext: &[u8],
+    ) -> Result<Aci, GroupDecodingError> {
+        match self
             .group_secret_params
-            .decrypt_uuid(bincode::deserialize(uuid)?)?;
-        Ok(Uuid::from_bytes(bytes))
+            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+        {
+            ServiceId::Aci(aci) => Ok(aci),
+            ServiceId::Pni(_pni) => Err(GroupDecodingError::NotAci),
+        }
     }
 
     fn decrypt_profile_key(
         &self,
         encrypted_profile_key: &[u8],
-        decrypted_uuid: &Uuid,
+        decrypted_aci: libsignal_protocol::Aci,
     ) -> Result<ProfileKey, GroupDecodingError> {
         Ok(self.group_secret_params.decrypt_profile_key(
             bincode::deserialize(encrypted_profile_key)?,
-            *decrypted_uuid.as_bytes(),
+            decrypted_aci,
         )?)
     }
 
     fn decrypt_profile_key_presentation(
         &self,
         presentation: &[u8],
-    ) -> Result<(Uuid, ProfileKey), GroupDecodingError> {
+    ) -> Result<(Aci, ProfileKey), GroupDecodingError> {
         let profile_key_credential_presentation =
             AnyProfileKeyCredentialPresentation::new(presentation)?;
-        let uuid = Uuid::from_bytes(self.group_secret_params.decrypt_uuid(
+
+        match self.group_secret_params.decrypt_service_id(
             profile_key_credential_presentation.get_uuid_ciphertext(),
-        )?);
-        let profile_key = self.group_secret_params.decrypt_profile_key(
-            profile_key_credential_presentation.get_profile_key_ciphertext(),
-            *uuid.as_bytes(),
-        )?;
-        Ok((uuid, profile_key))
+        )? {
+            ServiceId::Aci(aci) => {
+                let profile_key =
+                    self.group_secret_params.decrypt_profile_key(
+                        profile_key_credential_presentation
+                            .get_profile_key_ciphertext(),
+                        aci,
+                    )?;
+                Ok((aci, profile_key))
+            },
+            _ => Err(GroupDecodingError::NotAci),
+        }
     }
 
     fn decrypt_member(
         &self,
         member: EncryptedMember,
     ) -> Result<Member, GroupDecodingError> {
-        let (uuid, profile_key) = if member.presentation.is_empty() {
-            let uuid = self.decrypt_uuid(&member.user_id)?;
+        let (aci, profile_key) = if member.presentation.is_empty() {
+            let aci = self.decrypt_aci(&member.user_id)?;
             let profile_key =
-                self.decrypt_profile_key(&member.profile_key, &uuid)?;
-            (uuid, profile_key)
+                self.decrypt_profile_key(&member.profile_key, aci)?;
+            (aci, profile_key)
         } else {
             self.decrypt_profile_key_presentation(&member.presentation)?
         };
         Ok(Member {
-            uuid,
+            uuid: aci.into(),
             profile_key,
             role: member.role.try_into()?,
             joined_at_revision: member.joined_at_revision,
@@ -114,14 +129,13 @@ impl GroupOperations {
     ) -> Result<PendingMember, GroupDecodingError> {
         let inner_member =
             member.member.ok_or(GroupDecodingError::WrongBlob)?;
-        // "Unknown" UUID with zeroes in case of errors, see: UuidUtil.java:16
-        let uuid = self.decrypt_uuid(&inner_member.user_id).unwrap_or_default();
-        let added_by_uuid = self.decrypt_uuid(&member.added_by_user_id)?;
+        let aci = self.decrypt_aci(&inner_member.user_id)?;
+        let added_by_uuid = self.decrypt_aci(&member.added_by_user_id)?;
 
         Ok(PendingMember {
-            uuid,
+            uuid: aci.into(),
             role: inner_member.role.try_into()?,
-            added_by_uuid,
+            added_by_uuid: added_by_uuid.into(),
             timestamp: member.timestamp,
         })
     }
@@ -130,17 +144,17 @@ impl GroupOperations {
         &self,
         member: proto::RequestingMember,
     ) -> Result<RequestingMember, GroupDecodingError> {
-        let (uuid, profile_key) = if member.presentation.is_empty() {
-            let uuid = self.decrypt_uuid(&member.user_id)?;
+        let (aci, profile_key) = if member.presentation.is_empty() {
+            let aci = self.decrypt_aci(&member.user_id)?;
             let profile_key =
-                self.decrypt_profile_key(&member.profile_key, &uuid)?;
-            (uuid, profile_key)
+                self.decrypt_profile_key(&member.profile_key, aci)?;
+            (aci, profile_key)
         } else {
             self.decrypt_profile_key_presentation(&member.presentation)?
         };
         Ok(RequestingMember {
             profile_key,
-            uuid,
+            uuid: aci.into(),
             timestamp: member.timestamp,
         })
     }
@@ -256,7 +270,7 @@ impl GroupOperations {
         let actions: proto::group_change::Actions =
             Message::decode(Bytes::from(group_change.actions))?;
 
-        let uuid = self.decrypt_uuid(&actions.source_uuid)?;
+        let aci = self.decrypt_aci(&actions.source_uuid)?;
 
         let new_members =
             actions.add_members.into_iter().filter_map(|m| m.added).map(
@@ -265,23 +279,26 @@ impl GroupOperations {
 
         let delete_members = actions.delete_members.into_iter().map(|c| {
             Ok(GroupChange::DeleteMember(
-                self.decrypt_uuid(&c.deleted_user_id)?,
+                self.decrypt_aci(&c.deleted_user_id)?.into(),
             ))
         });
 
         let modify_member_roles =
             actions.modify_member_roles.into_iter().map(|m| {
                 Ok(GroupChange::ModifyMemberRole {
-                    uuid: self.decrypt_uuid(&m.user_id)?,
+                    uuid: self.decrypt_aci(&m.user_id)?.into(),
                     role: m.role.try_into()?,
                 })
             });
 
         let modify_member_profile_keys =
             actions.modify_member_profile_keys.into_iter().map(|m| {
-                let (uuid, profile_key) =
+                let (aci, profile_key) =
                     self.decrypt_profile_key_presentation(&m.presentation)?;
-                Ok(GroupChange::ModifyMemberProfileKey { uuid, profile_key })
+                Ok(GroupChange::ModifyMemberProfileKey {
+                    uuid: aci.into(),
+                    profile_key,
+                })
             });
 
         let add_pending_members = actions
@@ -297,15 +314,18 @@ impl GroupOperations {
         let delete_pending_members =
             actions.delete_pending_members.into_iter().map(|m| {
                 Ok(GroupChange::DeletePendingMember(
-                    self.decrypt_uuid(&m.deleted_user_id)?,
+                    self.decrypt_aci(&m.deleted_user_id)?.into(),
                 ))
             });
 
         let promote_pending_members =
             actions.promote_pending_members.into_iter().map(|m| {
-                let (uuid, profile_key) =
+                let (aci, profile_key) =
                     self.decrypt_profile_key_presentation(&m.presentation)?;
-                Ok(GroupChange::PromotePendingMember { uuid, profile_key })
+                Ok(GroupChange::PromotePendingMember {
+                    uuid: aci.into(),
+                    profile_key,
+                })
             });
 
         let modify_title = actions
@@ -368,14 +388,14 @@ impl GroupOperations {
         let delete_requesting_members =
             actions.delete_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::DeleteRequestingMember(
-                    self.decrypt_uuid(&m.deleted_user_id)?,
+                    self.decrypt_aci(&m.deleted_user_id)?.into(),
                 ))
             });
 
         let promote_requesting_members =
             actions.promote_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::PromoteRequestingMember {
-                    uuid: self.decrypt_uuid(&m.user_id)?,
+                    uuid: self.decrypt_aci(&m.user_id)?.into(),
                     role: m.role.try_into()?,
                 })
             });
@@ -414,7 +434,7 @@ impl GroupOperations {
             .collect();
 
         Ok(GroupChanges {
-            editor: uuid,
+            editor: aci.into(),
             revision: actions.revision,
             changes: changes?,
         })
