@@ -31,7 +31,7 @@ jobs:
           args: --manifest-path ${{ matrix.project }}/Cargo.toml
 
   build:
-    name: Build
+    name: Build ${{ matrix.project }} / Rust ${{ matrix.toolchain }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
