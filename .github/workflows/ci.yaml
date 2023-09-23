@@ -50,10 +50,7 @@ jobs:
             coverage: false
         include:
           - project: "libsignal-service-actix"
-            # toolchain: "1.52.1"
-            toolchain: "nightly-2021-05-06"
-            features: "rust-1-52"
-            can-fail: true
+            toolchain: "1.61"
             coverage: false
     steps:
       - uses: actions/checkout@v3
