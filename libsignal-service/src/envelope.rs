@@ -1,5 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
+use aes8::cipher::block_padding::Pkcs7;
+use aes8::cipher::{BlockDecryptMut, KeyIvInit};
 use prost::Message;
 use uuid::Uuid;
 
@@ -65,15 +67,17 @@ impl Envelope {
                 return Err(ServiceError::MacError);
             }
 
-            use aes::Aes256;
             // libsignal-service-java uses Pkcs5,
             // but that should not matter.
             // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-            use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
-            let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_key, iv)
-                .expect("initalization of CBC/AES/PKCS7");
+            let cipher = cbc::Decryptor::<aes8::Aes256>::new(
+                aes_key.try_into().expect("fixed length key material"),
+                iv.try_into().expect("fixed length iv material"),
+            );
             let input = &input[CIPHERTEXT_OFFSET..(input.len() - MAC_SIZE)];
-            let input = cipher.decrypt_vec(input).expect("decryption");
+            let input = cipher
+                .decrypt_padded_vec_mut::<Pkcs7>(input)
+                .expect("decryption");
 
             log::trace!("Envelope::decrypt: decrypted, decoding");
 
@@ -213,6 +217,29 @@ mod tests {
         ];
 
         let signaling_key = [0u8; 52];
-        let _ = Envelope::decrypt(&body, &signaling_key, true).unwrap();
+        let envelope = Envelope::decrypt(&body, &signaling_key, true).unwrap();
+        assert_eq!(envelope.server_timestamp(), 1594373582421);
+        assert_eq!(envelope.timestamp(), 1594373580977);
+        assert_eq!(
+            envelope.content(),
+            [
+                51, 10, 33, 5, 239, 254, 183, 191, 204, 223, 85, 150, 43, 192,
+                240, 57, 46, 189, 153, 7, 48, 17, 9, 166, 185, 157, 205, 181,
+                66, 235, 99, 221, 114, 58, 187, 117, 16, 76, 24, 0, 34, 160, 1,
+                85, 61, 73, 83, 99, 213, 160, 109, 122, 125, 204, 137, 178,
+                237, 146, 87, 183, 107, 33, 213, 234, 64, 152, 132, 122, 173,
+                25, 33, 4, 65, 20, 134, 117, 62, 116, 80, 151, 18, 132, 187,
+                101, 235, 208, 74, 78, 214, 66, 59, 71, 171, 124, 167, 217,
+                157, 36, 194, 156, 12, 50, 239, 185, 230, 253, 38, 107, 106,
+                149, 194, 39, 214, 35, 245, 58, 216, 250, 225, 150, 170, 26,
+                241, 153, 133, 173, 197, 194, 27, 127, 56, 77, 119, 242, 26,
+                252, 168, 61, 221, 44, 76, 128, 69, 27, 203, 6, 173, 193, 179,
+                69, 27, 243, 36, 185, 181, 157, 41, 23, 72, 113, 40, 209, 46,
+                189, 63, 167, 156, 148, 118, 76, 153, 91, 40, 179, 180, 245,
+                193, 123, 180, 47, 115, 220, 191, 148, 245, 116, 32, 194, 232,
+                55, 13, 0, 217, 52, 116, 21, 48, 244, 17, 222, 26, 240, 31,
+                236, 199, 237, 94, 255, 93, 137, 192,
+            ]
+        );
     }
 }
