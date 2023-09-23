@@ -10,6 +10,9 @@ readme = "../README.md"
 libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.32.0" }
 zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.32.0" }
 
+aes8 = { version = "0.8", package = "aes" }
+cbc = "0.1"
+
 aes = { version = "0.7", features = ["ctr"] }
 aes-gcm = "0.9"
 async-trait = "0.1"
