@@ -1,11 +1,6 @@
-use aes_gcm::{
-    aead::{
-        generic_array::typenum::U32, generic_array::GenericArray, Aead,
-        AeadInPlace,
-    },
-    Aes256Gcm, NewAead,
-};
-use rand::Rng;
+use std::convert::TryInto;
+
+use aes_gcm10::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
 use zkgroup::profiles::ProfileKey;
 
 use crate::profile_name::ProfileName;
@@ -87,10 +82,6 @@ impl ProfileCipher {
         self.profile_key
     }
 
-    fn get_key(&self) -> GenericArray<u8, U32> {
-        GenericArray::from(self.profile_key.get_bytes())
-    }
-
     fn pad_and_encrypt(
         &self,
         mut bytes: Vec<u8>,
@@ -98,16 +89,15 @@ impl ProfileCipher {
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let _len = pad_plaintext(&mut bytes, padding_brackets)?;
 
-        let cipher = Aes256Gcm::new(&self.get_key());
-        let nonce: [u8; 12] = rand::thread_rng().gen();
-        let nonce = GenericArray::from_slice(&nonce);
+        let cipher = Aes256Gcm::new(&self.profile_key.get_bytes().into());
+        let nonce = Aes256Gcm::generate_nonce(rand::thread_rng());
 
         cipher
-            .encrypt_in_place(nonce, b"", &mut bytes)
+            .encrypt_in_place(&nonce, b"", &mut bytes)
             .map_err(|_| ProfileCipherError::EncryptionError)?;
 
         let mut concat = Vec::with_capacity(nonce.len() + bytes.len());
-        concat.extend_from_slice(nonce);
+        concat.extend_from_slice(&nonce);
         concat.extend_from_slice(&bytes);
         Ok(concat)
     }
@@ -117,11 +107,13 @@ impl ProfileCipher {
         bytes: impl AsRef<[u8]>,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let bytes = bytes.as_ref();
-        let nonce = GenericArray::from_slice(&bytes[0..12]);
-        let cipher = Aes256Gcm::new(&self.get_key());
+        let nonce: [u8; 12] = bytes[0..12]
+            .try_into()
+            .expect("fixed length nonce material");
+        let cipher = Aes256Gcm::new(&self.profile_key.get_bytes().into());
 
         let mut plaintext = cipher
-            .decrypt(nonce, &bytes[12..])
+            .decrypt(&nonce.into(), &bytes[12..])
             .map_err(|_| ProfileCipherError::EncryptionError)?;
 
         // Unpad
