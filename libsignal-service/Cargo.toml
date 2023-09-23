@@ -3,7 +3,7 @@ name = "libsignal-service"
 version = "0.1.0"
 authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>", "Gabriel Féron <g@leirbag.net>", "Michael Bryan <michaelfbryan@gmail.com>", "Shady Khalifa <shekohex@gmail.com>"]
 edition = "2018"
-license = "GPLv3"
+license = "AGPL-3.0"
 readme = "../README.md"
 
 [dependencies]
