@@ -2,9 +2,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
-use aes::cipher::generic_array::GenericArray;
-use aes::cipher::{NewCipher, StreamCipher};
-use aes::Aes256Ctr;
+use aes8::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, GenericSignedPreKey, IdentityKeyStore, KeyPair, KyberPreKeyRecord,
@@ -30,6 +28,8 @@ use crate::{
     },
     utils::{serde_base64, serde_public_key},
 };
+
+type Aes256Ctr128BE = ctr::Ctr128BE<aes8::Aes256>;
 
 pub struct AccountManager<Service> {
     service: Service,
@@ -580,9 +580,14 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     let cipher_key = calculate_hmac256(&key2, &synthetic_iv)?;
 
     let mut ciphertext = plaintext;
-    let mut cipher = Aes256Ctr::new(
-        GenericArray::from_slice(&cipher_key),
-        GenericArray::from_slice(&[0u8; 16]),
+
+    const IV: [u8; 16] = [0; 16];
+    let mut cipher = Aes256Ctr128BE::new(
+        cipher_key
+            .as_slice()
+            .try_into()
+            .expect("fixed length key material"),
+        &IV.into(),
     );
     cipher.apply_keystream(&mut ciphertext);
 
@@ -608,9 +613,13 @@ pub fn decrypt_device_name(
     let cipher_key = calculate_hmac256(&key2, synthetic_iv)?;
 
     let mut plaintext = ciphertext.to_vec();
-    let mut cipher = Aes256Ctr::new(
-        GenericArray::from_slice(&cipher_key),
-        GenericArray::from_slice(&[0u8; 16]),
+    const IV: [u8; 16] = [0; 16];
+    let mut cipher = Aes256Ctr128BE::new(
+        cipher_key
+            .as_slice()
+            .try_into()
+            .expect("fixed length key material"),
+        &IV.into(),
     );
     cipher.apply_keystream(&mut plaintext);
 
@@ -669,7 +678,8 @@ mod tests {
         };
 
         let decrypted_device_name =
-            super::decrypt_device_name(&ephemeral_private_key, &device_name)?;
+            super::decrypt_device_name(&ephemeral_private_key, &device_name)
+                .unwrap();
 
         assert_eq!(decrypted_device_name, "Nokia 3310 Millenial Edition");
 
