@@ -31,9 +31,6 @@ base64 = "0.13"
 
 phonenumber = "0.3"
 
-proc-macro2 = { version = "1.0.66", optional = true }
-quote = { version = "1.0.33", optional = true }
-
 [dev-dependencies]
 env_logger = "0.9"
 image = { version = "0.23", default-features = false, features = ["png"] }
@@ -42,6 +39,3 @@ qrcode = "0.12"
 structopt = "0.3"
 tokio = { version = "1", features = ["macros"] }
 anyhow = "1.0"
-
-[features]
-rust-1-52 = ["proc-macro2", "quote"]

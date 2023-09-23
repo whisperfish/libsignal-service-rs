@@ -31,29 +31,22 @@ jobs:
           args: --manifest-path ${{ matrix.project }}/Cargo.toml
 
   build:
-    name: Build
+    name: Build (${{ matrix.project }}, Rust ${{ matrix.toolchain }})
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.can-fail }}
     strategy:
       fail-fast: false
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
         toolchain: ["stable", "nightly"]
-        can-fail: [false]
         coverage: [false, true]
         exclude:
           - toolchain: stable
-            coverage: true
-          - toolchain: beta
             coverage: true
           - toolchain: nightly
             coverage: false
         include:
           - project: "libsignal-service-actix"
-            # toolchain: "1.52.1"
-            toolchain: "nightly-2021-05-06"
-            features: "rust-1-52"
-            can-fail: true
+            toolchain: "1.61"
             coverage: false
     steps:
       - uses: actions/checkout@v3
@@ -67,20 +60,20 @@ jobs:
         if: ${{ !matrix.coverage }}
         with:
           command: test
-          args: --all-targets --no-fail-fast --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
+          args: --all-targets --no-fail-fast --manifest-path ${{ matrix.project }}/Cargo.toml
 
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
+          args: --all-targets --manifest-path ${{ matrix.project }}/Cargo.toml
 
       - name: Run tests
         uses: actions-rs/cargo@v1
         if: ${{ matrix.coverage }}
         with:
           command: test
-          args: --all-targets --no-fail-fast --manifest-path ${{ matrix.project }}/Cargo.toml --features "${{ matrix.features }}"
+          args: --all-targets --no-fail-fast --manifest-path ${{ matrix.project }}/Cargo.toml
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
