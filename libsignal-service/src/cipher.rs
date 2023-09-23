@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, time::SystemTime};
 
-use block_modes::block_padding::{Iso7816, Padding};
+use aes8::cipher::block_padding::{Iso7816, RawPadding};
 use libsignal_protocol::{
     group_decrypt, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, process_sender_key_distribution_message,
@@ -358,11 +358,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
 
         let mut buffer = vec![0u8; message_length_with_padding];
         buffer[..message_length].copy_from_slice(contents);
-        Iso7816::pad_block(&mut buffer, message_length).map_err(|e| {
-            ServiceError::InvalidFrameError {
-                reason: format!("Invalid message padding: {:?}", e),
-            }
-        })?;
+        Iso7816::raw_pad(&mut buffer, message_length);
         Ok(buffer)
     }
 }
@@ -386,7 +382,7 @@ fn strip_padding_version(
 
 #[allow(clippy::comparison_chain)]
 fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
-    let new_length = Iso7816::unpad(contents)
+    let new_length = Iso7816::raw_unpad(contents)
         .map_err(|e| ServiceError::InvalidFrameError {
             reason: format!("Invalid message padding: {:?}", e),
         })?
