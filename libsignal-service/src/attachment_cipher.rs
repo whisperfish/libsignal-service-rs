@@ -1,12 +1,12 @@
 use std::convert::TryInto;
 
-use aes8::cipher::block_padding::Pkcs7;
-use aes8::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
-type Aes256CbcEnc = cbc::Encryptor<aes8::Aes256>;
-type Aes256CbcDec = cbc::Decryptor<aes8::Aes256>;
+type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
+type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum AttachmentCipherError {

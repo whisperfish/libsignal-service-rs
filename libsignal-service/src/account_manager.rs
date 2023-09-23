@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
-use aes8::cipher::{KeyIvInit, StreamCipher as _};
+use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, GenericSignedPreKey, IdentityKeyStore, KeyPair, KyberPreKeyRecord,
@@ -29,7 +29,7 @@ use crate::{
     utils::{serde_base64, serde_public_key},
 };
 
-type Aes256Ctr128BE = ctr::Ctr128BE<aes8::Aes256>;
+type Aes256Ctr128BE = ctr::Ctr128BE<aes::Aes256>;
 
 pub struct AccountManager<Service> {
     service: Service,

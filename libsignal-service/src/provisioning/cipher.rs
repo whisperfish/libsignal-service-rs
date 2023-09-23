@@ -1,9 +1,9 @@
 use std::convert::TryInto;
 use std::fmt::{self, Debug};
 
-use aes8::cipher::block_padding::Pkcs7;
-use aes8::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
-use aes8::Aes256;
+use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use aes::Aes256;
 use bytes::Bytes;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{KeyPair, PublicKey};

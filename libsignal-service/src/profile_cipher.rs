@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use aes_gcm10::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
+use aes_gcm::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
 use zkgroup::profiles::ProfileKey;
 
 use crate::profile_name::ProfileName;
