@@ -234,40 +234,6 @@ where
         })
     }
 
-    /// Upload group details to the CDN
-    ///
-    /// Returns attachment ID and the attachment digest
-    async fn upload_group_details<Groups>(
-        &mut self,
-        groups: Groups,
-    ) -> Result<AttachmentPointer, AttachmentUploadError>
-    where
-        Groups: IntoIterator<Item = GroupDetails>,
-    {
-        use prost::Message;
-        let mut out = Vec::new();
-        for group in groups {
-            group
-                .encode_length_delimited(&mut out)
-                .expect("infallible encoding");
-            // XXX add avatar here
-        }
-
-        let spec = AttachmentSpec {
-            content_type: "application/octet-stream".into(),
-            length: out.len(),
-            file_name: None,
-            preview: None,
-            voice_note: None,
-            borderless: None,
-            width: None,
-            height: None,
-            caption: None,
-            blur_hash: None,
-        };
-        self.upload_attachment(spec, out).await
-    }
-
     /// Upload contact details to the CDN
     ///
     /// Returns attachment ID and the attachment digest
@@ -597,39 +563,6 @@ where
         Err(MessageSenderError::MaximumRetriesLimitExceeded)
     }
 
-    /// Upload group details to the CDN and send a sync message
-    pub async fn send_groups_details<Groups>(
-        &mut self,
-        recipient: &ServiceAddress,
-        unidentified_access: Option<UnidentifiedAccess>,
-        // XXX It may be interesting to use an intermediary type,
-        //     instead of GroupDetails directly,
-        //     because it allows us to add the avatar content.
-        groups: Groups,
-        online: bool,
-    ) -> Result<(), MessageSenderError>
-    where
-        Groups: IntoIterator<Item = GroupDetails>,
-    {
-        let ptr = self.upload_group_details(groups).await?;
-
-        let msg = SyncMessage {
-            groups: Some(sync_message::Groups { blob: Some(ptr) }),
-            ..Default::default()
-        };
-
-        self.send_message(
-            recipient,
-            unidentified_access,
-            msg,
-            Utc::now().timestamp_millis() as u64,
-            online,
-        )
-        .await?;
-
-        Ok(())
-    }
-
     /// Upload contact details to the CDN and send a sync message
     pub async fn send_contact_details<Contacts>(
         &mut self,
@@ -829,14 +762,16 @@ where
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
-                        destination_uuid: Some(recipient.uuid.to_string()),
+                        destination_service_id: Some(
+                            recipient.uuid.to_string(),
+                        ),
                         unidentified: Some(*unidentified),
                     }
                 })
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
-                destination_uuid: recipient.map(|r| r.uuid.to_string()),
+                destination_service_id: recipient.map(|r| r.uuid.to_string()),
                 destination_e164: None,
                 expiration_start_timestamp: if data_message
                     .as_ref()
