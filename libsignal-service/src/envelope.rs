@@ -98,7 +98,7 @@ impl Envelope {
             source_device: Some(entity.source_device),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
-            source_uuid: Some(source.uuid.to_string()),
+            source_service_id: Some(source.uuid.to_string()),
             content: entity.content,
             ..Default::default()
         }
@@ -131,7 +131,7 @@ impl Envelope {
 
     pub fn source_address(&self) -> ServiceAddress {
         let uuid = self
-            .source_uuid
+            .source_service_id
             .as_deref()
             .and_then(|u| Uuid::parse_str(u).ok())
             .expect("valid uuid checked in constructor");

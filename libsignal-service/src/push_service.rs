@@ -173,6 +173,8 @@ pub struct DeviceCapabilities {
     pub stories: bool,
     #[serde(default)]
     pub gift_badges: bool,
+    #[serde(default)]
+    pub pnp: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

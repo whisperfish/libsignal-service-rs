@@ -57,7 +57,7 @@ impl Contact {
     ) -> Result<Self, ParseContactError> {
         Ok(Self {
             uuid: contact_details
-                .uuid
+                .aci
                 .as_ref()
                 .ok_or(ParseContactError::MissingUuid)?
                 .parse()?,
