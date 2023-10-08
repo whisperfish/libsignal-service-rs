@@ -171,6 +171,8 @@
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>libsignal_protocol::ProtocolAddress;
 
 <span class="kw">pub use crate</span>::{
@@ -245,6 +247,8 @@
         </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.story_message {
             <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.pni_signature_message {
+            <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(msg) = p.edit_message {
             <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_body(msg, metadata))
         } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(ServiceError::UnsupportedContent)
