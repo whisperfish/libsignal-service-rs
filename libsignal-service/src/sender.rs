@@ -339,7 +339,7 @@ where
                     );
                 self.try_send_message(
                     self.local_address,
-                    None,
+                    unidentified_access.as_ref(),
                     &sync_message,
                     timestamp,
                     false,
@@ -415,7 +415,7 @@ where
                 let result = self
                     .try_send_message(
                         self.local_address,
-                        None,
+                        unidentified_access.as_ref(),
                         &sync_message,
                         timestamp,
                         false,
