@@ -73,6 +73,8 @@ impl Content {
             Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.pni_signature_message {
             Ok(Self::from_body(msg, metadata))
+        } else if let Some(msg) = p.edit_message {
+            Ok(Self::from_body(msg, metadata))
         } else {
             Err(ServiceError::UnsupportedContent)
         }
