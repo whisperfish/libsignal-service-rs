@@ -104,6 +104,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
             }),
             (Type::Request, Some(request), _) => {
                 let (sink, recv) = oneshot::channel();
+                log::trace!("sending request with body");
                 self.request_sink.send((request, sink)).await.map_err(
                     |_| ServiceError::WsError {
                         reason: "request handler failed".into(),
