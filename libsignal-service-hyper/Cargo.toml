@@ -12,6 +12,7 @@ libsignal-service = { path = "../libsignal-service" }
 async-trait = "0.1"
 bytes = "1.0"
 futures = "0.3"
+tracing = "0.1"
 log = "0.4"
 mpart-async = "0.6"
 serde = "1.0"

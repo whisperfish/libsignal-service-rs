@@ -35,6 +35,8 @@ thiserror = "1.0"
 url = { version = "2.1", features = ["serde"] }
 uuid = { version = "1", features = ["serde"] }
 
+tracing = "0.1"
+
 [build-dependencies]
 prost-build = "0.10"
 

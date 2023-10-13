@@ -58,6 +58,7 @@ where
     /// Opens ("decrypts") an envelope.
     ///
     /// Envelopes may be empty, in which case this method returns `Ok(None)`
+    #[tracing::instrument]
     pub async fn open_envelope(
         &mut self,
         envelope: Envelope,
@@ -89,6 +90,7 @@ where
     /// Triage of legacy messages happens inside this method, as opposed to the
     /// Java implementation, because it makes the borrow checker and the
     /// author happier.
+    #[tracing::instrument]
     async fn decrypt(
         &mut self,
         envelope: &Envelope,
@@ -276,6 +278,7 @@ where
         Ok(plaintext)
     }
 
+    #[tracing::instrument]
     pub(crate) async fn encrypt(
         &mut self,
         address: &ProtocolAddress,
@@ -426,6 +429,7 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 /// is then validated against the `trust_root` baked into the client to ensure that the sender's
 /// identity was not forged.
 #[allow(clippy::too_many_arguments)]
+#[tracing::instrument]
 async fn sealed_sender_decrypt(
     ciphertext: &[u8],
     trust_root: &PublicKey,
