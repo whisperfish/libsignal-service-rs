@@ -37,10 +37,12 @@ jobs:
       fail-fast: false
       matrix:
         project: ["libsignal-service-actix", "libsignal-service-hyper"]
-        toolchain: ["stable", "nightly"]
+        toolchain: ["stable", "beta", "nightly"]
         coverage: [false, true]
         exclude:
           - toolchain: stable
+            coverage: true
+          - toolchain: beta
             coverage: true
           - toolchain: nightly
             coverage: false
