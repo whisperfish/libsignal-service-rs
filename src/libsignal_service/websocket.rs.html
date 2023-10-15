@@ -494,6 +494,7 @@
 <a href="#494" id="494">494</a>
 <a href="#495" id="495">495</a>
 <a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 <span class="kw">use </span>std::sync::{Arc, Mutex, MutexGuard};
 
@@ -600,6 +601,7 @@
             }),
             (Type::Request, <span class="prelude-val">Some</span>(request), <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>(sink, recv) = oneshot::channel();
+                <span class="macro">log::trace!</span>(<span class="string">&quot;sending request with body&quot;</span>);
                 <span class="self">self</span>.request_sink.send((request, sink)).<span class="kw">await</span>.map_err(
                     |<span class="kw">_</span>| ServiceError::WsError {
                         reason: <span class="string">&quot;request handler failed&quot;</span>.into(),
