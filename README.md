@@ -36,7 +36,7 @@ If you're using a Cargo workspace, you should add the `[patch.crates.io]` sectio
 
 ### Note on supported Rust versions
 
-`libsignal-service-rs` is the at the core of [Whisperfish][whisperfish], a SailfishOS application. The SailfishOS Rust compiler is relatively old, and therefore the MSRV for `libsignal-service-actix` maps on the compiler for that operating system, including some lag. At moment of writing, this is **Rust 1.61**.
+`libsignal-service-rs` is the at the core of [Whisperfish][whisperfish], a SailfishOS application. The SailfishOS Rust compiler is relatively old, and therefore the MSRV for `libsignal-service-actix` maps on the compiler for that operating system, including some lag. At moment of writing, this is **Rust 1.64**.
 
 For other platforms, we don't mandate MSRV.
 
