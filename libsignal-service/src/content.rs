@@ -24,6 +24,9 @@ pub struct Metadata {
     pub needs_receipt: bool,
     pub unidentified_sender: bool,
 
+    /// A unique UUID for this specific message, produced by the Signal servers.
+    ///
+    /// The server GUID is used to report spam messages.
     pub server_guid: Option<Uuid>,
 }
 
