@@ -29,7 +29,7 @@ libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", br
 zkgroup = { version = "0.9.0", git = "https://github.com/signalapp/libsignal-client", branch = "main" }
 
 [patch.crates-io]
-"curve25519-dalek" = { git = "https://github.com/signalapp/curve25519-dalek", branch = "lizard2" }
+"curve25519-dalek" = { git = "https://github.com/signalapp/curve25519-dalek", tag = "signal-curve25519-4.0.0" }
 ```
 
 If you're using a Cargo workspace, you should add the `[patch.crates.io]` section in the root `Cargo.toml` file instead.
