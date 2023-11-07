@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Gabriel Féron <g@leirbag.net>"]
 edition = "2018"
 license = "AGPL-3.0"
+rust-version = "1.70.0"
 
 [dependencies]
 libsignal-service = { path = "../libsignal-service" }
