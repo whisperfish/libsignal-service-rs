@@ -48,7 +48,7 @@ jobs:
             coverage: false
         include:
           - project: "libsignal-service-actix"
-            toolchain: "1.61"
+            toolchain: "1.70"
             coverage: false
     steps:
       - uses: actions/checkout@v3
