@@ -380,25 +380,26 @@ where
             results.push(result);
         }
 
-        if needs_sync_in_results != message.is_some() {
+        if needs_sync_in_results && message.is_none() {
             // XXX: does this happen?
             log::warn!("Server claims need sync, but not sending datamessage.");
         }
 
         // we only need to send a synchronization message once
         if let Some(message) = message {
-            let sub_device_count = match self
+            let is_multi_device = self
                 .protocol_store
                 .get_sub_device_sessions(&self.local_address)
                 .await
-            {
-                Ok(x) => x.len(),
-                Err(e) => {
-                    log::error!("Attempt to count local subdevices failed; assuming zero: {}", e);
-                    0
-                },
-            };
-            if needs_sync_in_results || sub_device_count > 0 {
+                .map(|sessions| !sessions.is_empty())
+                .unwrap_or_else(|e| {
+                    log::error!(
+                        "Attempt to count local subdevices failed; \
+                         assuming zero: {e}"
+                    );
+                    false
+                });
+            if needs_sync_in_results || is_multi_device {
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         None,
