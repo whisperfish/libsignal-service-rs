@@ -1,6 +1,6 @@
 # libsignal-service-rs
 
-[![Build Status](https://github.com/whisperfish/libsignal-service-rs/workflows/CI/badge.svg?branch=main)][ci_workflow]
+[![Build Status](https://github.com/whisperfish/libsignal-service-rs/actions/workflows/ci.yaml/badge.svg?branch=main)][ci_workflow]
 [![API Docs](https://img.shields.io/badge/docs-libsignal--service-blue)][rustdocs]
 
 A Rust version of the [libsignal-service-java][lsj] library which implements the core functionality to communicate with [Signal][signal] servers. It is based on the official Rust version of [libsignal][lsg]
