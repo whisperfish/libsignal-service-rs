@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>"]
 edition = "2018"
 license = "AGPL-3.0"
+rust-version = "1.70.0"
 
 [dependencies]
 # Contrary to hyper, actix does not have Send compatible futures, which means
@@ -12,7 +13,6 @@ libsignal-service = { path = "../libsignal-service", features = ["unsend-futures
 
 awc = { version = "3.0.0-beta.19", features = ["rustls"] }
 actix = "0.13"
-actix-http = "3.0.0-beta.19"
 actix-rt = "2.4"
 # mpart-async 0.6 requires Rust 2021, violating MSRV = 1.52
 mpart-async = "0.5"
