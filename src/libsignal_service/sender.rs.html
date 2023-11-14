@@ -791,6 +791,7 @@
 <a href="#791" id="791">791</a>
 <a href="#792" id="792">792</a>
 <a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::time::SystemTime;
 
 <span class="kw">use </span>chrono::prelude::<span class="kw-2">*</span>;
@@ -1173,25 +1174,26 @@
             results.push(result);
         }
 
-        <span class="kw">if </span>needs_sync_in_results != message.is_some() {
+        <span class="kw">if </span>needs_sync_in_results &amp;&amp; message.is_none() {
             <span class="comment">// XXX: does this happen?
             </span><span class="macro">log::warn!</span>(<span class="string">&quot;Server claims need sync, but not sending datamessage.&quot;</span>);
         }
 
         <span class="comment">// we only need to send a synchronization message once
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(message) = message {
-            <span class="kw">let </span>sub_device_count = <span class="kw">match </span><span class="self">self
+            <span class="kw">let </span>is_multi_device = <span class="self">self
                 </span>.protocol_store
                 .get_sub_device_sessions(<span class="kw-2">&amp;</span><span class="self">self</span>.local_address)
                 .<span class="kw">await
-            </span>{
-                <span class="prelude-val">Ok</span>(x) =&gt; x.len(),
-                <span class="prelude-val">Err</span>(e) =&gt; {
-                    <span class="macro">log::error!</span>(<span class="string">&quot;Attempt to count local subdevices failed; assuming zero: {}&quot;</span>, e);
-                    <span class="number">0
-                </span>},
-            };
-            <span class="kw">if </span>needs_sync_in_results || sub_device_count &gt; <span class="number">0 </span>{
+                </span>.map(|sessions| !sessions.is_empty())
+                .unwrap_or_else(|e| {
+                    <span class="macro">log::error!</span>(
+                        <span class="string">&quot;Attempt to count local subdevices failed; \
+                         assuming zero: {e}&quot;
+                    </span>);
+                    <span class="bool-val">false
+                </span>});
+            <span class="kw">if </span>needs_sync_in_results || is_multi_device {
                 <span class="kw">let </span>sync_message = <span class="self">self
                     </span>.create_multi_device_sent_transcript_content(
                         <span class="prelude-val">None</span>,
