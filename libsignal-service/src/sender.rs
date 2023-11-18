@@ -268,6 +268,21 @@ where
         self.upload_attachment(spec, out).await
     }
 
+    /// Return whether we have to prepare sync messages for other devices
+    ///
+    /// - If we are the main registered device, and there are established sub-device sessions (linked clients), return true
+    /// - If we are a secondary linked device, return true
+    async fn is_multi_device(&self) -> bool {
+        if self.device_id == DEFAULT_DEVICE_ID.into() {
+            self.protocol_store
+                .get_sub_device_sessions(&self.local_address)
+                .await
+                .map_or(false, |s| !s.is_empty())
+        } else {
+            true
+        }
+    }
+
     /// Send a message `content` to a single `recipient`.
     pub async fn send_message(
         &mut self,
@@ -302,17 +317,12 @@ where
             .await,
         ];
 
-        let sub_device_count = self
-            .protocol_store
-            .get_sub_device_sessions(&self.local_address)
-            .await?
-            .len();
         match (&content_body, &results[0]) {
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
                 Ok(SentMessage { needs_sync, .. }),
-            ) if *needs_sync || sub_device_count > 0 => {
+            ) if *needs_sync || self.is_multi_device().await => {
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
@@ -387,19 +397,7 @@ where
 
         // we only need to send a synchronization message once
         if let Some(message) = message {
-            let is_multi_device = self
-                .protocol_store
-                .get_sub_device_sessions(&self.local_address)
-                .await
-                .map(|sessions| !sessions.is_empty())
-                .unwrap_or_else(|e| {
-                    log::error!(
-                        "Attempt to count local subdevices failed; \
-                         assuming zero: {e}"
-                    );
-                    false
-                });
-            if needs_sync_in_results || is_multi_device {
+            if needs_sync_in_results || self.is_multi_device().await {
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         None,
