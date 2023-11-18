@@ -23,6 +23,7 @@ pub enum WebSocketStreamItem {
     KeepAliveRequest,
 }
 
+#[derive(Debug)]
 pub enum Incoming {
     Envelope(Envelope),
     QueueEmpty,
