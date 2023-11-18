@@ -790,8 +790,6 @@
 <a href="#790" id="790">790</a>
 <a href="#791" id="791">791</a>
 <a href="#792" id="792">792</a>
-<a href="#793" id="793">793</a>
-<a href="#794" id="794">794</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::time::SystemTime;
 
 <span class="kw">use </span>chrono::prelude::<span class="kw-2">*</span>;
@@ -1062,6 +1060,21 @@
         <span class="self">self</span>.upload_attachment(spec, out).<span class="kw">await
     </span>}
 
+    <span class="doccomment">/// Return whether we have to prepare sync messages for other devices
+    ///
+    /// - If we are the main registered device, and there are established sub-device sessions (linked clients), return true
+    /// - If we are a secondary linked device, return true
+    </span><span class="kw">async fn </span>is_multi_device(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">if </span><span class="self">self</span>.device_id == DEFAULT_DEVICE_ID.into() {
+            <span class="self">self</span>.protocol_store
+                .get_sub_device_sessions(<span class="kw-2">&amp;</span><span class="self">self</span>.local_address)
+                .<span class="kw">await
+                </span>.map_or(<span class="bool-val">false</span>, |s| !s.is_empty())
+        } <span class="kw">else </span>{
+            <span class="bool-val">true
+        </span>}
+    }
+
     <span class="doccomment">/// Send a message `content` to a single `recipient`.
     </span><span class="kw">pub async fn </span>send_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1096,17 +1109,12 @@
             .<span class="kw">await</span>,
         ];
 
-        <span class="kw">let </span>sub_device_count = <span class="self">self
-            </span>.protocol_store
-            .get_sub_device_sessions(<span class="kw-2">&amp;</span><span class="self">self</span>.local_address)
-            .<span class="kw">await</span><span class="question-mark">?
-            </span>.len();
         <span class="kw">match </span>(<span class="kw-2">&amp;</span>content_body, <span class="kw-2">&amp;</span>results[<span class="number">0</span>]) {
             <span class="comment">// if we sent a data message and we have linked devices, we need to send a sync message
             </span>(
                 ContentBody::DataMessage(message),
                 <span class="prelude-val">Ok</span>(SentMessage { needs_sync, .. }),
-            ) <span class="kw">if </span><span class="kw-2">*</span>needs_sync || sub_device_count &gt; <span class="number">0 </span>=&gt; {
+            ) <span class="kw">if </span><span class="kw-2">*</span>needs_sync || <span class="self">self</span>.is_multi_device().<span class="kw">await </span>=&gt; {
                 <span class="macro">log::debug!</span>(<span class="string">&quot;sending multi-device sync message&quot;</span>);
                 <span class="kw">let </span>sync_message = <span class="self">self
                     </span>.create_multi_device_sent_transcript_content(
@@ -1181,19 +1189,7 @@
 
         <span class="comment">// we only need to send a synchronization message once
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(message) = message {
-            <span class="kw">let </span>is_multi_device = <span class="self">self
-                </span>.protocol_store
-                .get_sub_device_sessions(<span class="kw-2">&amp;</span><span class="self">self</span>.local_address)
-                .<span class="kw">await
-                </span>.map(|sessions| !sessions.is_empty())
-                .unwrap_or_else(|e| {
-                    <span class="macro">log::error!</span>(
-                        <span class="string">&quot;Attempt to count local subdevices failed; \
-                         assuming zero: {e}&quot;
-                    </span>);
-                    <span class="bool-val">false
-                </span>});
-            <span class="kw">if </span>needs_sync_in_results || is_multi_device {
+            <span class="kw">if </span>needs_sync_in_results || <span class="self">self</span>.is_multi_device().<span class="kw">await </span>{
                 <span class="kw">let </span>sync_message = <span class="self">self
                     </span>.create_multi_device_sent_transcript_content(
                         <span class="prelude-val">None</span>,
