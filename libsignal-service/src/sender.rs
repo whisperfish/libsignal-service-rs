@@ -290,7 +290,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<UnidentifiedAccess>,
+        mut unidentified_access: Option<UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -298,26 +298,30 @@ where
         let content_body = message.into();
 
         use crate::proto::data_message::Flags;
+
         let end_session = match &content_body {
             ContentBody::DataMessage(message) => {
+                unidentified_access.take(); // don't send end session as sealed sender
                 message.flags == Some(Flags::EndSession as u32)
             },
             _ => false,
         };
 
+        // we never send sync messages or to our own account as sealed sender
+        if recipient == &self.local_address
+            || matches!(&content_body, ContentBody::SynchronizeMessage(_))
+        {
+            unidentified_access.take();
+        }
+
         // try to send the original message to all the recipient's devices
         let mut results = vec![
             self.try_send_message(
                 *recipient,
-                if !end_session {
-                    unidentified_access.as_ref()
-                } else {
-                    None
-                },
+                unidentified_access.as_ref(),
                 &content_body,
                 timestamp,
                 online,
-                false,
             )
             .await,
         ];
@@ -342,7 +346,6 @@ where
                     &sync_message,
                     timestamp,
                     false,
-                    true,
                 )
                 .await?;
             },
@@ -383,7 +386,6 @@ where
                     &content_body,
                     timestamp,
                     online,
-                    false,
                 )
                 .await;
 
@@ -420,7 +422,6 @@ where
                         &sync_message,
                         timestamp,
                         false,
-                        true,
                     )
                     .await;
 
@@ -439,7 +440,6 @@ where
         content_body: &ContentBody,
         timestamp: u64,
         online: bool,
-        is_sync_message: bool,
     ) -> SendMessageResult {
         use prost::Message;
 
@@ -453,7 +453,6 @@ where
                     &recipient,
                     unidentified_access.map(|x| &x.certificate),
                     &content_bytes,
-                    is_sync_message,
                 )
                 .await?;
 
@@ -596,7 +595,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..Default::default()
+            ..SyncMessage::with_padding()
         };
 
         self.send_message(
@@ -617,7 +616,6 @@ where
         recipient: &ServiceAddress,
         unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
-        is_sync_message: bool,
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
 
@@ -632,30 +630,22 @@ where
         // always send to the primary device no matter what
         devices.insert(DEFAULT_DEVICE_ID.into());
 
-        // when sending a sync message, we always send it to all devices except the current one
-        if is_sync_message {
+        // when sending an identified message, remove ourselves from the list of recipients
+        if unidentified_access.is_none() {
             devices.remove(&self.device_id);
         }
 
         for device_id in devices {
             debug!("sending message to device {}", device_id);
-            if device_id == DEFAULT_DEVICE_ID.into()
-                || self
-                    .protocol_store
-                    .load_session(&recipient.to_protocol_address(device_id))
-                    .await?
-                    .is_some()
-            {
-                messages.push(
-                    self.create_encrypted_message(
-                        recipient,
-                        unidentified_access,
-                        device_id.into(),
-                        content,
-                    )
-                    .await?,
+            messages.push(
+                self.create_encrypted_message(
+                    recipient,
+                    unidentified_access,
+                    device_id.into(),
+                    content,
                 )
-            }
+                .await?,
+            )
         }
 
         Ok(messages)
@@ -674,8 +664,6 @@ where
         let recipient_protocol_address =
             recipient.to_protocol_address(device_id);
 
-        // let is_self =
-        //     recipient == &self.local_address && device_id == self.device_id;
         log::debug!("encrypting message for {}", recipient_protocol_address);
 
         // establish a session with the recipient/device if necessary
@@ -786,7 +774,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..Default::default()
+            ..SyncMessage::with_padding()
         })
     }
 }
