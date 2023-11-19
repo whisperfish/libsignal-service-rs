@@ -227,8 +227,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             self.ws.send_message(buffer.into()).await?
                         }
                         Some(WebSocketStreamItem::KeepAliveRequest) => {
-                            log::trace!("keep-alive is disabled");
-                            continue;
+                            log::trace!("keep alive is disabled: ignoring request");
                         }
                         None => {
                             return Err(ServiceError::WsError {
