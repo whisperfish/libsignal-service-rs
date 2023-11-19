@@ -1,4 +1,6 @@
 #![allow(clippy::all)]
+
+use rand::{Rng, RngCore};
 include!(concat!(env!("OUT_DIR"), "/signalservice.rs"));
 include!(concat!(env!("OUT_DIR"), "/signal.rs"));
 
@@ -62,6 +64,20 @@ impl WebSocketResponseMessage {
                 message: Some("Unknown".to_string()),
                 ..Default::default()
             }
+        }
+    }
+}
+
+impl SyncMessage {
+    pub fn with_padding() -> Self {
+        let mut rng = rand::thread_rng();
+        let random_size = rng.gen_range(1..=512);
+        let mut padding: Vec<u8> = vec![0; random_size];
+        rng.fill_bytes(&mut padding);
+
+        Self {
+            padding: Some(padding),
+            ..Default::default()
         }
     }
 }
