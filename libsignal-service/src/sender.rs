@@ -126,7 +126,7 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        ws: SignalWebSocket,
+        identified_ws: SignalWebSocket,
         unidentified_ws: SignalWebSocket,
         service: Service,
         cipher: ServiceCipher<S, R>,
@@ -137,7 +137,7 @@ where
     ) -> Self {
         MessageSender {
             service,
-            identified_ws: ws,
+            identified_ws,
             unidentified_ws,
             cipher,
             csprng,
