@@ -641,7 +641,7 @@ where
                 self.create_encrypted_message(
                     recipient,
                     unidentified_access,
-                    device_id.into(),
+                    device_id,
                     content,
                 )
                 .await?,
