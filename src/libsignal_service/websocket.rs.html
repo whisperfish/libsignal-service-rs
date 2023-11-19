@@ -592,7 +592,7 @@
         frame: Bytes,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt; {
         <span class="kw">let </span>msg = WebSocketMessage::decode(frame)<span class="question-mark">?</span>;
-        <span class="macro">log::trace!</span>(<span class="string">&quot;Decoded {:?}&quot;</span>, msg);
+        <span class="macro">log::trace!</span>(<span class="string">&quot;decoded {:?}&quot;</span>, msg);
 
         <span class="kw">use </span>web_socket_message::Type;
         <span class="kw">match </span>(msg.r#type(), msg.request, msg.response) {
@@ -681,7 +681,7 @@
                                     .filter(|x| !<span class="self">self</span>.outgoing_request_map.contains_key(x))
                                     .unwrap_or_else(|| <span class="self">self</span>.next_request_id()),
                             );
-                            <span class="macro">log::trace!</span>(<span class="string">&quot;Sending request {:?}&quot;</span>, request);
+                            <span class="macro">log::trace!</span>(<span class="string">&quot;sending request {:?}&quot;</span>, request);
 
                             <span class="self">self</span>.outgoing_request_map.insert(request.id.unwrap(), responder);
                             <span class="kw">let </span>msg = WebSocketMessage {
@@ -724,7 +724,7 @@
                             <span class="self">self</span>.ws.send_message(buffer.into()).<span class="kw">await</span><span class="question-mark">?
                         </span>}
                         <span class="prelude-val">Some</span>(WebSocketStreamItem::KeepAliveRequest) =&gt; {
-                            <span class="macro">log::debug!</span>(<span class="string">&quot;keep alive is disabled: ignoring request&quot;</span>);
+                            <span class="macro">log::trace!</span>(<span class="string">&quot;keep alive is disabled: ignoring request&quot;</span>);
                         }
                         <span class="prelude-val">None </span>=&gt; {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(ServiceError::WsError {
@@ -736,7 +736,7 @@
                 response = <span class="self">self</span>.outgoing_responses.next() =&gt; {
                     <span class="kw">match </span>response {
                         <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(response)) =&gt; {
-                            <span class="macro">log::trace!</span>(<span class="string">&quot;Sending response {:?}&quot;</span>, response);
+                            <span class="macro">log::trace!</span>(<span class="string">&quot;sending response {:?}&quot;</span>, response);
 
                             <span class="kw">let </span>msg = WebSocketMessage {
                                 r#type: <span class="prelude-val">Some</span>(web_socket_message::Type::Response.into()),
