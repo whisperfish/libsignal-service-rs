@@ -1410,8 +1410,8 @@
         <span class="comment">// always send to the primary device no matter what
         </span>devices.insert(DEFAULT_DEVICE_ID.into());
 
-        <span class="comment">// when sending an identified message, remove ourselves from the list of recipients
-        </span><span class="kw">if </span>unidentified_access.is_none() {
+        <span class="comment">// never try to send messages to the sender device
+        </span><span class="kw">if </span>recipient.aci() == <span class="self">self</span>.local_address.aci() {
             devices.remove(<span class="kw-2">&amp;</span><span class="self">self</span>.device_id);
         }
 
