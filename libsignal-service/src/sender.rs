@@ -630,8 +630,8 @@ where
         // always send to the primary device no matter what
         devices.insert(DEFAULT_DEVICE_ID.into());
 
-        // when sending an identified message, remove ourselves from the list of recipients
-        if unidentified_access.is_none() {
+        // never try to send messages to the sender device
+        if recipient.aci() == self.local_address.aci() {
             devices.remove(&self.device_id);
         }
 
