@@ -301,16 +301,13 @@ where
 
         let end_session = match &content_body {
             ContentBody::DataMessage(message) => {
-                unidentified_access.take(); // don't send end session as sealed sender
                 message.flags == Some(Flags::EndSession as u32)
             },
             _ => false,
         };
 
-        // we never send sync messages or to our own account as sealed sender
-        if recipient == &self.local_address
-            || matches!(&content_body, ContentBody::SynchronizeMessage(_))
-        {
+        // don't send anything to self nor session enders to others as sealed sender
+        if recipient == &self.local_address || end_session {
             unidentified_access.take();
         }
 
