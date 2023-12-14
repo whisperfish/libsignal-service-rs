@@ -669,7 +669,7 @@ fn get_client(cfg: &ServiceConfiguration, user_agent: String) -> Client {
     ssl_config.alpn_protocols = vec![b"http/1.1".to_vec()];
 
     let connector = Connector::new()
-        .rustls(Arc::new(ssl_config))
+        .rustls_021(Arc::new(ssl_config))
         .timeout(Duration::from_secs(10)); // https://github.com/actix/actix-web/issues/1047
     let client = awc::ClientBuilder::new()
         .connector(connector)
