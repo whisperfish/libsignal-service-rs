@@ -62,8 +62,8 @@ struct SignalWebSocketInner {
 }
 
 struct SignalWebSocketProcess<WS: WebSocketService> {
-    /// Whether to enable keep-alive or not
-    keep_alive: bool,
+    /// Whether to enable keep-alive or not (and send a request to this path)
+    keep_alive_path: String,
 
     /// Receives requests from the application, which we forward to Signal.
     requests: mpsc::Receiver<(
@@ -207,13 +207,13 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                         Some(WebSocketStreamItem::Message(frame)) => {
                             self.process_frame(frame).await?;
                         }
-                        Some(WebSocketStreamItem::KeepAliveRequest) if self.keep_alive => {
+                        Some(WebSocketStreamItem::KeepAliveRequest) => {
                             // XXX: would be nicer if we could drop this request into the request
                             // queue above.
                             log::debug!("Sending keep alive upon request");
                             let request = WebSocketRequestMessage {
                                 id: Some(self.next_request_id()),
-                                path: Some("/v1/keepalive".into()),
+                                path: Some(self.keep_alive_path.clone()),
                                 verb: Some("GET".into()),
                                 ..Default::default()
                             };
@@ -224,10 +224,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            self.ws.send_message(buffer.into()).await?
-                        }
-                        Some(WebSocketStreamItem::KeepAliveRequest) => {
-                            log::trace!("keep alive is disabled: ignoring request");
+                            self.ws.send_message(buffer.into()).await?;
                         }
                         None => {
                             return Err(ServiceError::WsError {
@@ -270,14 +267,14 @@ impl SignalWebSocket {
     pub fn from_socket<WS: WebSocketService + 'static>(
         ws: WS,
         stream: WS::Stream,
-        keep_alive: bool,
+        keep_alive_path: String,
     ) -> (Self, impl Future<Output = ()>) {
         // Create process
         let (incoming_request_sink, incoming_request_stream) = mpsc::channel(1);
         let (outgoing_request_sink, outgoing_requests) = mpsc::channel(1);
 
         let process = SignalWebSocketProcess {
-            keep_alive,
+            keep_alive_path,
             requests: outgoing_requests,
             request_sink: incoming_request_sink,
             outgoing_request_map: HashMap::default(),

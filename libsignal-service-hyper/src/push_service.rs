@@ -582,9 +582,9 @@ impl PushService for HyperPushService {
     async fn ws(
         &mut self,
         path: &str,
+        keepalive_path: &str,
         additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
-        keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError> {
         let (ws, stream) = TungsteniteWebSocket::with_tls_config(
             Self::tls_config(&self.cfg),
@@ -594,7 +594,8 @@ impl PushService for HyperPushService {
             credentials.as_ref(),
         )
         .await?;
-        let (ws, task) = SignalWebSocket::from_socket(ws, stream, keep_alive);
+        let (ws, task) =
+            SignalWebSocket::from_socket(ws, stream, keepalive_path.into());
         tokio::task::spawn(task);
         Ok(ws)
     }
