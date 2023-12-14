@@ -1367,7 +1367,7 @@
     ssl_config.alpn_protocols = <span class="macro">vec!</span>[<span class="string">b&quot;http/1.1&quot;</span>.to_vec()];
 
     <span class="kw">let </span>connector = Connector::new()
-        .rustls(Arc::new(ssl_config))
+        .rustls_021(Arc::new(ssl_config))
         .timeout(Duration::from_secs(<span class="number">10</span>)); <span class="comment">// https://github.com/actix/actix-web/issues/1047
     </span><span class="kw">let </span>client = awc::ClientBuilder::new()
         .connector(connector)
