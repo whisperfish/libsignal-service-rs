@@ -1,6 +1,7 @@
 use std::convert::{TryFrom, TryInto};
 
 use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::generic_array::GenericArray;
 use aes::cipher::{BlockDecryptMut, KeyIvInit};
 use prost::Message;
 use uuid::Uuid;
@@ -71,8 +72,8 @@ impl Envelope {
             // but that should not matter.
             // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
             let cipher = cbc::Decryptor::<aes::Aes256>::new(
-                aes_key.try_into().expect("fixed length key material"),
-                iv.try_into().expect("fixed length iv material"),
+                GenericArray::from_slice(aes_key),
+                GenericArray::from_slice(iv),
             );
             let input = &input[CIPHERTEXT_OFFSET..(input.len() - MAC_SIZE)];
             let input = cipher

@@ -1,6 +1,5 @@
-use std::convert::TryInto;
-
 use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::generic_array::GenericArray;
 use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -35,10 +34,8 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
     // Pad with zeroes for padding
     plaintext.extend(&[0u8; 16]);
 
-    let cipher = Aes256CbcEnc::new(
-        aes_half.try_into().expect("fixed length key material"),
-        &iv.into(),
-    );
+    let cipher =
+        Aes256CbcEnc::new(GenericArray::from_slice(aes_half), &iv.into());
 
     let buffer = plaintext;
     let ciphertext_slice = cipher
@@ -79,8 +76,8 @@ pub fn decrypt_in_place(
     let (iv, buffer) = buffer.split_at_mut(16);
 
     let cipher = Aes256CbcDec::new(
-        aes_half.try_into().expect("fixed length key material"),
-        (&*iv).try_into().expect("fixed length iv material"),
+        GenericArray::from_slice(aes_half),
+        GenericArray::from_slice(iv),
     );
 
     let plaintext_slice = cipher

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
+use aes::cipher::generic_array::GenericArray;
 use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
@@ -583,10 +584,7 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
 
     const IV: [u8; 16] = [0; 16];
     let mut cipher = Aes256Ctr128BE::new(
-        cipher_key
-            .as_slice()
-            .try_into()
-            .expect("fixed length key material"),
+        GenericArray::from_slice(cipher_key.as_slice()),
         &IV.into(),
     );
     cipher.apply_keystream(&mut ciphertext);
@@ -615,10 +613,7 @@ pub fn decrypt_device_name(
     let mut plaintext = ciphertext.to_vec();
     const IV: [u8; 16] = [0; 16];
     let mut cipher = Aes256Ctr128BE::new(
-        cipher_key
-            .as_slice()
-            .try_into()
-            .expect("fixed length key material"),
+        GenericArray::from_slice(cipher_key.as_slice()),
         &IV.into(),
     );
     cipher.apply_keystream(&mut plaintext);
@@ -678,8 +673,7 @@ mod tests {
         };
 
         let decrypted_device_name =
-            super::decrypt_device_name(&ephemeral_private_key, &device_name)
-                .unwrap();
+            super::decrypt_device_name(&ephemeral_private_key, &device_name)?;
 
         assert_eq!(decrypted_device_name, "Nokia 3310 Millenial Edition");
 
