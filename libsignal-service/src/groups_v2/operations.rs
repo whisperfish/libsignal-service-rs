@@ -270,7 +270,7 @@ impl GroupOperations {
         let actions: proto::group_change::Actions =
             Message::decode(Bytes::from(group_change.actions))?;
 
-        let aci = self.decrypt_aci(&actions.source_uuid)?;
+        let aci = self.decrypt_aci(&actions.source_service_id)?;
 
         let new_members =
             actions.add_members.into_iter().filter_map(|m| m.added).map(

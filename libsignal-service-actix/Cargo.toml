@@ -3,22 +3,23 @@ name = "libsignal-service-actix"
 version = "0.1.0"
 authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>"]
 edition = "2018"
+license = "AGPL-3.0"
+rust-version = "1.70.0"
 
 [dependencies]
 # Contrary to hyper, actix does not have Send compatible futures, which means
 # the Send requirement in libsignal-service needs to be lifted by enabling `unsend-futures`.
 libsignal-service = { path = "../libsignal-service", features = ["unsend-futures"] }
 
-awc = { version = "3.0.0-beta.19", features = ["rustls"] }
+awc = { version = "3.2.0", features = ["rustls-0_21"] }
 actix = "0.13"
-actix-http = "3.0.0-beta.19"
+actix-http = "3.2.0"
 actix-rt = "2.4"
-# mpart-async 0.6 requires Rust 2021, violating MSRV = 1.52
-mpart-async = "0.5"
+mpart-async = "0.6"
 serde_json = "1.0"
 futures = "0.3"
 bytes = "1"
-rustls = "0.20"
+rustls = "0.21"
 rustls-pemfile = "0.3"
 url = "2.1"
 serde = "1.0"
@@ -31,9 +32,6 @@ base64 = "0.13"
 
 phonenumber = "0.3"
 
-proc-macro2 = { version = "1.0.66", optional = true }
-quote = { version = "1.0.33", optional = true }
-
 [dev-dependencies]
 env_logger = "0.9"
 image = { version = "0.23", default-features = false, features = ["png"] }
@@ -42,6 +40,3 @@ qrcode = "0.12"
 structopt = "0.3"
 tokio = { version = "1", features = ["macros"] }
 anyhow = "1.0"
-
-[features]
-rust-1-52 = ["proc-macro2", "quote"]

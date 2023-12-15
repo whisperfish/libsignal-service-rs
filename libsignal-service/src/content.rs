@@ -1,13 +1,13 @@
 use libsignal_protocol::ProtocolAddress;
 
-use crate::proto::PniSignatureMessage;
 pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
         group_context::Type as GroupType, sync_message, AttachmentPointer,
-        CallMessage, DataMessage, GroupContext, GroupContextV2, NullMessage,
-        ReceiptMessage, StoryMessage, SyncMessage, TypingMessage,
+        CallMessage, DataMessage, EditMessage, GroupContext, GroupContextV2,
+        NullMessage, PniSignatureMessage, ReceiptMessage, StoryMessage,
+        SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
 };
@@ -73,6 +73,8 @@ impl Content {
             Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.pni_signature_message {
             Ok(Self::from_body(msg, metadata))
+        } else if let Some(msg) = p.edit_message {
+            Ok(Self::from_body(msg, metadata))
         } else {
             Err(ServiceError::UnsupportedContent)
         }
@@ -92,6 +94,7 @@ pub enum ContentBody {
     // DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
     PniSignatureMessage(PniSignatureMessage),
+    EditMessage(EditMessage),
 }
 
 impl ContentBody {
@@ -139,6 +142,10 @@ impl ContentBody {
                 pni_signature_message: Some(msg),
                 ..Default::default()
             },
+            Self::EditMessage(msg) => crate::proto::Content {
+                edit_message: Some(msg),
+                ..Default::default()
+            },
         }
     }
 }
@@ -165,3 +172,4 @@ impl_from_for_content_body!(TypingMessage(TypingMessage));
 // impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
 impl_from_for_content_body!(StoryMessage(StoryMessage));
 impl_from_for_content_body!(PniSignatureMessage(PniSignatureMessage));
+impl_from_for_content_body!(EditMessage(EditMessage));

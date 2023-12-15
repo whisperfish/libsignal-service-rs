@@ -228,7 +228,7 @@ where
                     })?,
                 };
 
-                let needs_receipt = if envelope.source_uuid.is_some() {
+                let needs_receipt = if envelope.source_service_id.is_some() {
                     log::warn!("Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
                     false
                 } else {

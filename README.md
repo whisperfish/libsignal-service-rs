@@ -1,6 +1,6 @@
 # libsignal-service-rs
 
-[![Build Status](https://github.com/whisperfish/libsignal-service-rs/workflows/CI/badge.svg?branch=main)][ci_workflow]
+[![Build Status](https://github.com/whisperfish/libsignal-service-rs/actions/workflows/ci.yaml/badge.svg?branch=main)][ci_workflow]
 [![API Docs](https://img.shields.io/badge/docs-libsignal--service-blue)][rustdocs]
 
 A Rust version of the [libsignal-service-java][lsj] library which implements the core functionality to communicate with [Signal][signal] servers. It is based on the official Rust version of [libsignal][lsg]
@@ -29,16 +29,16 @@ libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", br
 zkgroup = { version = "0.9.0", git = "https://github.com/signalapp/libsignal-client", branch = "main" }
 
 [patch.crates-io]
-"curve25519-dalek" = { git = "https://github.com/signalapp/curve25519-dalek", branch = "lizard2" }
+"curve25519-dalek" = { git = "https://github.com/signalapp/curve25519-dalek", tag = "signal-curve25519-4.0.0" }
 ```
 
 If you're using a Cargo workspace, you should add the `[patch.crates.io]` section in the root `Cargo.toml` file instead.
 
 ### Note on supported Rust versions
 
-`libsignal-service-rs` is the at the core of [Whisperfish][whisperfish], a SailfishOS application. The SailfishOS Rust compiler is relatively old, and therefore the MSRV for `libsignal-service-actix` maps on the compiler for that operating system, including some lag. At moment of writing, this is **Rust 1.52.1** (soon to be updated to 1.61).
+`libsignal-service-rs` is the at the core of [Whisperfish][whisperfish], a SailfishOS application. The SailfishOS Rust compiler updates seldomly, and therefore the MSRV maps on the compiler for that operating system. At moment of writing, this is **Rust 1.72**.
 
-For other platforms, we don't mandate MSRV.
+For other platforms, we don't mandate MSRV. In practice, however, it is **Rust 1.70**.
 
 ## Contributing
 

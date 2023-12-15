@@ -95,7 +95,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
         frame: Bytes,
     ) -> Result<(), ServiceError> {
         let msg = WebSocketMessage::decode(frame)?;
-        log::trace!("Decoded {:?}", msg);
+        log::trace!("decoded {:?}", msg);
 
         use web_socket_message::Type;
         match (msg.r#type(), msg.request, msg.response) {
@@ -104,6 +104,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
             }),
             (Type::Request, Some(request), _) => {
                 let (sink, recv) = oneshot::channel();
+                log::trace!("sending request with body");
                 self.request_sink.send((request, sink)).await.map_err(
                     |_| ServiceError::WsError {
                         reason: "request handler failed".into(),
@@ -183,7 +184,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                     .filter(|x| !self.outgoing_request_map.contains_key(x))
                                     .unwrap_or_else(|| self.next_request_id()),
                             );
-                            log::trace!("Sending request {:?}", request);
+                            log::trace!("sending request {:?}", request);
 
                             self.outgoing_request_map.insert(request.id.unwrap(), responder);
                             let msg = WebSocketMessage {
@@ -226,7 +227,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             self.ws.send_message(buffer.into()).await?
                         }
                         Some(WebSocketStreamItem::KeepAliveRequest) => {
-                            log::debug!("keep alive is disabled: ignoring request");
+                            log::trace!("keep alive is disabled: ignoring request");
                         }
                         None => {
                             return Err(ServiceError::WsError {
@@ -238,7 +239,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                 response = self.outgoing_responses.next() => {
                     match response {
                         Some(Ok(response)) => {
-                            log::trace!("Sending response {:?}", response);
+                            log::trace!("sending response {:?}", response);
 
                             let msg = WebSocketMessage {
                                 r#type: Some(web_socket_message::Type::Response.into()),

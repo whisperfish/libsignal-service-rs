@@ -23,6 +23,12 @@ pub enum WebSocketStreamItem {
     KeepAliveRequest,
 }
 
+#[derive(Debug)]
+pub enum Incoming {
+    Envelope(Envelope),
+    QueueEmpty,
+}
+
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait WebSocketService {
@@ -52,7 +58,7 @@ impl MessagePipe {
     /// Worker task that processes the websocket into Envelopes
     async fn run(
         mut self,
-        mut sink: Sender<Result<Envelope, ServiceError>>,
+        mut sink: Sender<Result<Incoming, ServiceError>>,
     ) -> Result<(), mpsc::SendError> {
         let mut ws = self.ws.clone();
         let mut stream = ws
@@ -61,10 +67,12 @@ impl MessagePipe {
 
         while let Some((request, responder)) = stream.next().await {
             // WebsocketConnection::onMessage(ByteString)
-            let env =
-                self.process_request(request, responder).await.transpose();
-            if let Some(env) = env {
+            if let Some(env) =
+                self.process_request(request, responder).await.transpose()
+            {
                 sink.send(env).await?;
+            } else {
+                log::trace!("got empty message in websocket");
             }
         }
 
@@ -77,7 +85,7 @@ impl MessagePipe {
         &mut self,
         request: WebSocketRequestMessage,
         responder: oneshot::Sender<WebSocketResponseMessage>,
-    ) -> Result<Option<Envelope>, ServiceError> {
+    ) -> Result<Option<Incoming>, ServiceError> {
         // Java: MessagePipe::read
         let response = WebSocketResponseMessage::from_request(&request);
 
@@ -90,14 +98,16 @@ impl MessagePipe {
                     reason: "Request without body.".into(),
                 });
             };
-            Some(Envelope::decrypt(
+            Some(Incoming::Envelope(Envelope::decrypt(
                 body,
                 self.credentials
                     .signaling_key
                     .as_ref()
                     .expect("signaling_key required to decrypt envelopes"),
                 request.is_signal_key_encrypted(),
-            )?)
+            )?))
+        } else if request.is_queue_empty() {
+            Some(Incoming::QueueEmpty)
         } else {
             None
         };
@@ -114,12 +124,12 @@ impl MessagePipe {
     /// Returns the stream of `Envelope`s
     ///
     /// Envelopes yielded are acknowledged.
-    pub fn stream(self) -> impl Stream<Item = Result<Envelope, ServiceError>> {
+    pub fn stream(self) -> impl Stream<Item = Result<Incoming, ServiceError>> {
         let (sink, stream) = mpsc::channel(1);
 
         let stream = stream.map(Some);
         let runner = self.run(sink).map(|e| {
-            log::info!("Sink was closed. Reason: {:?}", e);
+            log::info!("sink was closed: {:?}", e);
             None
         });
 

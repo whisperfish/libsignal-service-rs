@@ -1,11 +1,11 @@
-use std::time::SystemTime;
+use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
 use libsignal_protocol::{
     process_prekey_bundle, DeviceId, ProtocolStore, SenderCertificate,
     SenderKeyStore, SignalProtocolError,
 };
-use log::{info, trace};
+use log::{debug, info, trace};
 use rand::{CryptoRng, Rng};
 use uuid::Uuid;
 
@@ -77,7 +77,7 @@ pub struct AttachmentSpec {
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
 pub struct MessageSender<Service, S, R> {
-    ws: SignalWebSocket,
+    identified_ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
     service: Service,
     cipher: ServiceCipher<S, R>,
@@ -126,7 +126,7 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        ws: SignalWebSocket,
+        identified_ws: SignalWebSocket,
         unidentified_ws: SignalWebSocket,
         service: Service,
         cipher: ServiceCipher<S, R>,
@@ -137,7 +137,7 @@ where
     ) -> Self {
         MessageSender {
             service,
-            ws,
+            identified_ws,
             unidentified_ws,
             cipher,
             csprng,
@@ -192,7 +192,10 @@ where
 
         // Request upload attributes
         log::trace!("Requesting upload attributes");
-        let attrs = self.ws.get_attachment_v2_upload_attributes().await?;
+        let attrs = self
+            .identified_ws
+            .get_attachment_v2_upload_attributes()
+            .await?;
 
         log::trace!("Uploading attachment");
         let (id, digest) = self
@@ -234,40 +237,6 @@ where
         })
     }
 
-    /// Upload group details to the CDN
-    ///
-    /// Returns attachment ID and the attachment digest
-    async fn upload_group_details<Groups>(
-        &mut self,
-        groups: Groups,
-    ) -> Result<AttachmentPointer, AttachmentUploadError>
-    where
-        Groups: IntoIterator<Item = GroupDetails>,
-    {
-        use prost::Message;
-        let mut out = Vec::new();
-        for group in groups {
-            group
-                .encode_length_delimited(&mut out)
-                .expect("infallible encoding");
-            // XXX add avatar here
-        }
-
-        let spec = AttachmentSpec {
-            content_type: "application/octet-stream".into(),
-            length: out.len(),
-            file_name: None,
-            preview: None,
-            voice_note: None,
-            borderless: None,
-            width: None,
-            height: None,
-            caption: None,
-            blur_hash: None,
-        };
-        self.upload_attachment(spec, out).await
-    }
-
     /// Upload contact details to the CDN
     ///
     /// Returns attachment ID and the attachment digest
@@ -302,11 +271,26 @@ where
         self.upload_attachment(spec, out).await
     }
 
+    /// Return whether we have to prepare sync messages for other devices
+    ///
+    /// - If we are the main registered device, and there are established sub-device sessions (linked clients), return true
+    /// - If we are a secondary linked device, return true
+    async fn is_multi_device(&self) -> bool {
+        if self.device_id == DEFAULT_DEVICE_ID.into() {
+            self.protocol_store
+                .get_sub_device_sessions(&self.local_address)
+                .await
+                .map_or(false, |s| !s.is_empty())
+        } else {
+            true
+        }
+    }
+
     /// Send a message `content` to a single `recipient`.
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
-        unidentified_access: Option<UnidentifiedAccess>,
+        mut unidentified_access: Option<UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -314,6 +298,7 @@ where
         let content_body = message.into();
 
         use crate::proto::data_message::Flags;
+
         let end_session = match &content_body {
             ContentBody::DataMessage(message) => {
                 message.flags == Some(Flags::EndSession as u32)
@@ -321,14 +306,16 @@ where
             _ => false,
         };
 
+        // don't send anything to self nor session enders to others as sealed sender
+        if recipient == &self.local_address || end_session {
+            unidentified_access.take();
+        }
+
+        // try to send the original message to all the recipient's devices
         let mut results = vec![
             self.try_send_message(
                 *recipient,
-                if !end_session {
-                    unidentified_access.as_ref()
-                } else {
-                    None
-                },
+                unidentified_access.as_ref(),
                 &content_body,
                 timestamp,
                 online,
@@ -336,17 +323,12 @@ where
             .await,
         ];
 
-        let sub_device_count = self
-            .protocol_store
-            .get_sub_device_sessions(&self.local_address)
-            .await?
-            .len();
         match (&content_body, &results[0]) {
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
                 Ok(SentMessage { needs_sync, .. }),
-            ) if *needs_sync || sub_device_count > 0 => {
+            ) if *needs_sync || self.is_multi_device().await => {
                 log::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
@@ -414,25 +396,14 @@ where
             results.push(result);
         }
 
-        if needs_sync_in_results != message.is_some() {
+        if needs_sync_in_results && message.is_none() {
             // XXX: does this happen?
             log::warn!("Server claims need sync, but not sending datamessage.");
         }
 
         // we only need to send a synchronization message once
         if let Some(message) = message {
-            let sub_device_count = match self
-                .protocol_store
-                .get_sub_device_sessions(&self.local_address)
-                .await
-            {
-                Ok(x) => x.len(),
-                Err(e) => {
-                    log::error!("Attempt to count local subdevices failed; assuming zero: {}", e);
-                    0
-                },
-            };
-            if needs_sync_in_results || sub_device_count > 0 {
+            if needs_sync_in_results || self.is_multi_device().await {
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         None,
@@ -468,14 +439,16 @@ where
         online: bool,
     ) -> SendMessageResult {
         use prost::Message;
+
         let content = content_body.clone().into_proto();
+
         let content_bytes = content.encode_to_vec();
 
         for _ in 0..4u8 {
             let messages = self
                 .create_encrypted_messages(
                     &recipient,
-                    unidentified_access.as_ref().map(|x| &x.certificate),
+                    unidentified_access.map(|x| &x.certificate),
                     &content_bytes,
                 )
                 .await?;
@@ -488,13 +461,13 @@ where
             };
 
             let send = if let Some(unidentified) = &unidentified_access {
-                log::trace!("Sending via unidentified");
+                log::debug!("sending via unidentified");
                 self.unidentified_ws
                     .send_messages_unidentified(messages, unidentified)
                     .await
             } else {
-                log::trace!("Sending identified");
-                self.ws.send_messages(messages).await
+                log::debug!("sending identified");
+                self.identified_ws.send_messages(messages).await
             };
 
             match send {
@@ -597,39 +570,6 @@ where
         Err(MessageSenderError::MaximumRetriesLimitExceeded)
     }
 
-    /// Upload group details to the CDN and send a sync message
-    pub async fn send_groups_details<Groups>(
-        &mut self,
-        recipient: &ServiceAddress,
-        unidentified_access: Option<UnidentifiedAccess>,
-        // XXX It may be interesting to use an intermediary type,
-        //     instead of GroupDetails directly,
-        //     because it allows us to add the avatar content.
-        groups: Groups,
-        online: bool,
-    ) -> Result<(), MessageSenderError>
-    where
-        Groups: IntoIterator<Item = GroupDetails>,
-    {
-        let ptr = self.upload_group_details(groups).await?;
-
-        let msg = SyncMessage {
-            groups: Some(sync_message::Groups { blob: Some(ptr) }),
-            ..Default::default()
-        };
-
-        self.send_message(
-            recipient,
-            unidentified_access,
-            msg,
-            Utc::now().timestamp_millis() as u64,
-            online,
-        )
-        .await?;
-
-        Ok(())
-    }
-
     /// Upload contact details to the CDN and send a sync message
     pub async fn send_contact_details<Contacts>(
         &mut self,
@@ -652,7 +592,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..Default::default()
+            ..SyncMessage::with_padding()
         };
 
         self.send_message(
@@ -675,61 +615,34 @@ where
         content: &[u8],
     ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
         let mut messages = vec![];
-        let mut devices = vec![];
 
-        let myself = *recipient == self.local_address;
-        if !myself || unidentified_access.is_some() {
-            trace!("sending message to default device");
+        let mut devices: HashSet<DeviceId> = self
+            .protocol_store
+            .get_sub_device_sessions(recipient)
+            .await?
+            .into_iter()
+            .map(DeviceId::from)
+            .collect();
+
+        // always send to the primary device no matter what
+        devices.insert(DEFAULT_DEVICE_ID.into());
+
+        // never try to send messages to the sender device
+        if recipient.aci() == self.local_address.aci() {
+            devices.remove(&self.device_id);
+        }
+
+        for device_id in devices {
+            debug!("sending message to device {}", device_id);
             messages.push(
                 self.create_encrypted_message(
                     recipient,
                     unidentified_access,
-                    DEFAULT_DEVICE_ID.into(),
+                    device_id,
                     content,
                 )
                 .await?,
-            );
-        } else {
-            devices.push(DEFAULT_DEVICE_ID);
-        }
-
-        devices.extend(
-            self.protocol_store
-                .get_sub_device_sessions(recipient)
-                .await?,
-        );
-        devices.sort_unstable();
-
-        let original_device_count = devices.len();
-        devices.dedup();
-        if devices.len() != original_device_count {
-            log::warn!("SessionStoreExt::get_sub_device_sessions should return unique device id's, and should not include DEFAULT_DEVICE_ID.");
-        }
-
-        // When sending to ourselves, don't include the local device
-        if myself {
-            devices.retain(|id| DeviceId::from(*id) != self.device_id);
-        }
-
-        for device_id in devices {
-            trace!("sending message to device {}", device_id);
-            let ppa = get_preferred_protocol_address(
-                &self.protocol_store,
-                recipient,
-                device_id.into(),
             )
-            .await?;
-            if self.protocol_store.load_session(&ppa).await?.is_some() {
-                messages.push(
-                    self.create_encrypted_message(
-                        recipient,
-                        unidentified_access,
-                        device_id.into(),
-                        content,
-                    )
-                    .await?,
-                )
-            }
         }
 
         Ok(messages)
@@ -745,21 +658,23 @@ where
         device_id: DeviceId,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
-        let recipient_address = get_preferred_protocol_address(
-            &self.protocol_store,
-            recipient,
-            device_id,
-        )
-        .await?;
-        log::trace!("encrypting message for {:?}", recipient_address);
+        let recipient_protocol_address =
+            recipient.to_protocol_address(device_id);
 
+        log::debug!("encrypting message for {}", recipient_protocol_address);
+
+        // establish a session with the recipient/device if necessary
+        // no need to establish a session with ourselves (and our own current device)
         if self
             .protocol_store
-            .load_session(&recipient_address)
+            .load_session(&recipient_protocol_address)
             .await?
             .is_none()
         {
-            info!("establishing new session with {:?}", recipient_address);
+            info!(
+                "establishing new session with {}",
+                recipient_protocol_address
+            );
             let pre_keys = match self
                 .service
                 .get_pre_keys(recipient, device_id.into())
@@ -776,6 +691,7 @@ where
                 },
                 Err(e) => Err(e)?,
             };
+
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_address
                     && self.device_id == pre_key_bundle.device_id()?
@@ -805,8 +721,9 @@ where
 
         let message = self
             .cipher
-            .encrypt(&recipient_address, unidentified_access, content)
+            .encrypt(&recipient_protocol_address, unidentified_access, content)
             .await?;
+
         Ok(message)
     }
 
@@ -829,14 +746,16 @@ where
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
-                        destination_uuid: Some(recipient.uuid.to_string()),
+                        destination_service_id: Some(
+                            recipient.uuid.to_string(),
+                        ),
                         unidentified: Some(*unidentified),
                     }
                 })
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
-                destination_uuid: recipient.map(|r| r.uuid.to_string()),
+                destination_service_id: recipient.map(|r| r.uuid.to_string()),
                 destination_e164: None,
                 expiration_start_timestamp: if data_message
                     .as_ref()
@@ -852,7 +771,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..Default::default()
+            ..SyncMessage::with_padding()
         })
     }
 }
