@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::fmt::{self, Debug};
 
 use aes::cipher::block_padding::Pkcs7;
@@ -103,10 +102,7 @@ impl ProvisioningCipher {
         let mac_key = &shared_secrets[32..];
         let iv: [u8; IV_LENGTH] = rng.gen();
 
-        let cipher = cbc::Encryptor::<Aes256>::new(
-            aes_key.try_into().expect("fixed length key material"),
-            &iv.into(),
-        );
+        let cipher = cbc::Encryptor::<Aes256>::new(aes_key.into(), &iv.into());
         let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&msg);
         let mut mac = Hmac::<Sha256>::new_from_slice(mac_key)
             .expect("HMAC can take any size key");
@@ -180,10 +176,7 @@ impl ProvisioningCipher {
         // libsignal-service-java uses Pkcs5,
         // but that should not matter.
         // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-        let cipher = cbc::Decryptor::<Aes256>::new(
-            parts1.try_into().expect("fixed length key material"),
-            iv.try_into().expect("fixed length iv material"),
-        );
+        let cipher = cbc::Decryptor::<Aes256>::new(parts1.into(), iv.into());
         let input = cipher
             .decrypt_padded_vec_mut::<Pkcs7>(cipher_text)
             .map_err(|e| ProvisioningError::InvalidData {

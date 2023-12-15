@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
-use aes::cipher::generic_array::GenericArray;
 use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
@@ -583,10 +582,8 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     let mut ciphertext = plaintext;
 
     const IV: [u8; 16] = [0; 16];
-    let mut cipher = Aes256Ctr128BE::new(
-        GenericArray::from_slice(cipher_key.as_slice()),
-        &IV.into(),
-    );
+    let mut cipher =
+        Aes256Ctr128BE::new(cipher_key.as_slice().into(), &IV.into());
     cipher.apply_keystream(&mut ciphertext);
 
     Ok(DeviceName {
@@ -612,10 +609,8 @@ pub fn decrypt_device_name(
 
     let mut plaintext = ciphertext.to_vec();
     const IV: [u8; 16] = [0; 16];
-    let mut cipher = Aes256Ctr128BE::new(
-        GenericArray::from_slice(cipher_key.as_slice()),
-        &IV.into(),
-    );
+    let mut cipher =
+        Aes256Ctr128BE::new(cipher_key.as_slice().into(), &IV.into());
     cipher.apply_keystream(&mut plaintext);
 
     let key1 = calculate_hmac256(&master_secret, b"auth")?;
