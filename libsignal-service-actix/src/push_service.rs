@@ -625,9 +625,9 @@ impl PushService for AwcPushService {
     async fn ws(
         &mut self,
         path: &str,
+        keep_alive_path: &str,
         additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
-        keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError> {
         let (ws, stream) = AwcWebSocket::with_client(
             &mut self.client,
@@ -637,7 +637,11 @@ impl PushService for AwcPushService {
             credentials.as_ref(),
         )
         .await?;
-        let (ws, task) = SignalWebSocket::from_socket(ws, stream, keep_alive);
+        let (ws, task) = SignalWebSocket::from_socket(
+            ws,
+            stream,
+            keep_alive_path.to_owned(),
+        );
         actix_rt::spawn(task);
         Ok(ws)
     }
