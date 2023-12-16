@@ -522,6 +522,9 @@ pub enum ServiceError {
 
     #[error("Not found.")]
     NotFoundError,
+
+    #[error("invalid device name")]
+    InvalidDeviceName,
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]

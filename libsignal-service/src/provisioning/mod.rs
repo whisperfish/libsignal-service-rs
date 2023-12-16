@@ -2,9 +2,11 @@ pub(crate) mod cipher;
 pub(crate) mod manager;
 pub(crate) mod pipe;
 
+use std::array::TryFromSliceError;
+
 pub use cipher::ProvisioningCipher;
 pub use manager::{
-    ConfirmCodeResponse, LinkingManager, ProvisioningManager,
+    ConfirmCodeResponse, LinkingManager, NewDeviceRegistration,
     SecondaryDeviceProvisioning,
 };
 
@@ -30,6 +32,8 @@ pub enum ProvisioningError {
     ProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
     #[error("ProvisioningCipher in encrypt-only mode")]
     EncryptOnlyProvisioningCipher,
+    #[error("invalid profile key bytes")]
+    InvalidProfileKey(TryFromSliceError),
 }
 
 pub fn generate_registration_id<R: rand::Rng + rand::CryptoRng>(
