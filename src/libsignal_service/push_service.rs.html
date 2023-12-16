@@ -1863,9 +1863,9 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">async fn </span>ws(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>str,
+        keepalive_path: <span class="kw-2">&amp;</span>str,
         additional_headers: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)],
         credentials: <span class="prelude-ty">Option</span>&lt;ServiceCredentials&gt;,
-        keep_alive: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignalWebSocket, ServiceError&gt;;
 
     <span class="doccomment">/// Fetches a list of all devices tied to the authenticated account.

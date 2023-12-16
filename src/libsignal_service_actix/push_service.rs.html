@@ -696,6 +696,10 @@
 <a href="#696" id="696">696</a>
 <a href="#697" id="697">697</a>
 <a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{sync::Arc, time::Duration};
 
 <span class="kw">use </span>awc::{
@@ -1323,9 +1327,9 @@
     <span class="kw">async fn </span>ws(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>str,
+        keep_alive_path: <span class="kw-2">&amp;</span>str,
         additional_headers: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)],
         credentials: <span class="prelude-ty">Option</span>&lt;ServiceCredentials&gt;,
-        keep_alive: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignalWebSocket, ServiceError&gt; {
         <span class="kw">let </span>(ws, stream) = AwcWebSocket::with_client(
             <span class="kw-2">&amp;mut </span><span class="self">self</span>.client,
@@ -1335,7 +1339,11 @@
             credentials.as_ref(),
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span>(ws, task) = SignalWebSocket::from_socket(ws, stream, keep_alive);
+        <span class="kw">let </span>(ws, task) = SignalWebSocket::from_socket(
+            ws,
+            stream,
+            keep_alive_path.to_owned(),
+        );
         actix_rt::spawn(task);
         <span class="prelude-val">Ok</span>(ws)
     }

@@ -636,6 +636,7 @@
 <a href="#636" id="636">636</a>
 <a href="#637" id="637">637</a>
 <a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{io::Read, time::Duration};
 
 <span class="kw">use </span>bytes::{Buf, Bytes};
@@ -1220,9 +1221,9 @@
     <span class="kw">async fn </span>ws(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>str,
+        keepalive_path: <span class="kw-2">&amp;</span>str,
         additional_headers: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)],
         credentials: <span class="prelude-ty">Option</span>&lt;ServiceCredentials&gt;,
-        keep_alive: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignalWebSocket, ServiceError&gt; {
         <span class="kw">let </span>(ws, stream) = TungsteniteWebSocket::with_tls_config(
             <span class="self">Self</span>::tls_config(<span class="kw-2">&amp;</span><span class="self">self</span>.cfg),
@@ -1232,7 +1233,8 @@
             credentials.as_ref(),
         )
         .<span class="kw">await</span><span class="question-mark">?</span>;
-        <span class="kw">let </span>(ws, task) = SignalWebSocket::from_socket(ws, stream, keep_alive);
+        <span class="kw">let </span>(ws, task) =
+            SignalWebSocket::from_socket(ws, stream, keepalive_path.to_owned());
         tokio::task::spawn(task);
         <span class="prelude-val">Ok</span>(ws)
     }

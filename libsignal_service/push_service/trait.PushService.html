@@ -129,19 +129,20 @@
              'life3: 'async_trait,
              'life4: 'async_trait,
              'life5: 'async_trait</span>;
-<span class="item-spacer"></span>    fn <a href="#tymethod.ws" class="fn">ws</a>&lt;'life0, 'life1, 'life2, 'life3, 'life4, 'async_trait&gt;(
+<span class="item-spacer"></span>    fn <a href="#tymethod.ws" class="fn">ws</a>&lt;'life0, 'life1, 'life2, 'life3, 'life4, 'life5, 'async_trait&gt;(
         &amp;'life0 mut self,
         path: &amp;'life1 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>,
-        additional_headers: &amp;'life2 [(&amp;'life3 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>, &amp;'life4 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>)],
-        credentials: <a class="enum" href="https://doc.rust-lang.org/1.74.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../configuration/struct.ServiceCredentials.html" title="struct libsignal_service::configuration::ServiceCredentials">ServiceCredentials</a>&gt;,
-        keep_alive: <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.bool.html">bool</a>
+        keepalive_path: &amp;'life2 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>,
+        additional_headers: &amp;'life3 [(&amp;'life4 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>, &amp;'life5 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>)],
+        credentials: <a class="enum" href="https://doc.rust-lang.org/1.74.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../configuration/struct.ServiceCredentials.html" title="struct libsignal_service::configuration::ServiceCredentials">ServiceCredentials</a>&gt;
     ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.74.1/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.74.1/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/1.74.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="https://doc.rust-lang.org/1.74.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../websocket/struct.SignalWebSocket.html" title="struct libsignal_service::websocket::SignalWebSocket">SignalWebSocket</a>, <a class="enum" href="enum.ServiceError.html" title="enum libsignal_service::push_service::ServiceError">ServiceError</a>&gt;&gt; + 'async_trait&gt;&gt;
        <span class="where">where Self: 'async_trait,
              'life0: 'async_trait,
              'life1: 'async_trait,
              'life2: 'async_trait,
              'life3: 'async_trait,
-             'life4: 'async_trait</span>;
+             'life4: 'async_trait,
+             'life5: 'async_trait</span>;
 
     // Provided methods
     fn <a href="#method.devices" class="fn">devices</a>&lt;'life0, 'async_trait&gt;(
@@ -480,19 +481,20 @@
     'life4: 'async_trait,
     'life5: 'async_trait,</span></h4></section></summary><div class="docblock"><p>Upload larger file to CDN0 in legacy fashion, e.g. for attachments.</p>
 <p>Implementations are allowed to <em>panic</em> when the Read instance throws an IO-Error</p>
-</div></details><section id="tymethod.ws" class="method"><a class="src rightside" href="../../src/libsignal_service/push_service.rs.html#625-631">source</a><h4 class="code-header">fn <a href="#tymethod.ws" class="fn">ws</a>&lt;'life0, 'life1, 'life2, 'life3, 'life4, 'async_trait&gt;(
+</div></details><section id="tymethod.ws" class="method"><a class="src rightside" href="../../src/libsignal_service/push_service.rs.html#625-631">source</a><h4 class="code-header">fn <a href="#tymethod.ws" class="fn">ws</a>&lt;'life0, 'life1, 'life2, 'life3, 'life4, 'life5, 'async_trait&gt;(
     &amp;'life0 mut self,
     path: &amp;'life1 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>,
-    additional_headers: &amp;'life2 [(&amp;'life3 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>, &amp;'life4 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>)],
-    credentials: <a class="enum" href="https://doc.rust-lang.org/1.74.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../configuration/struct.ServiceCredentials.html" title="struct libsignal_service::configuration::ServiceCredentials">ServiceCredentials</a>&gt;,
-    keep_alive: <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.bool.html">bool</a>
+    keepalive_path: &amp;'life2 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>,
+    additional_headers: &amp;'life3 [(&amp;'life4 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>, &amp;'life5 <a class="primitive" href="https://doc.rust-lang.org/1.74.1/std/primitive.str.html">str</a>)],
+    credentials: <a class="enum" href="https://doc.rust-lang.org/1.74.1/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../configuration/struct.ServiceCredentials.html" title="struct libsignal_service::configuration::ServiceCredentials">ServiceCredentials</a>&gt;
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.74.1/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.74.1/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/1.74.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="https://doc.rust-lang.org/1.74.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="../websocket/struct.SignalWebSocket.html" title="struct libsignal_service::websocket::SignalWebSocket">SignalWebSocket</a>, <a class="enum" href="enum.ServiceError.html" title="enum libsignal_service::push_service::ServiceError">ServiceError</a>&gt;&gt; + 'async_trait&gt;&gt;<span class="where fmt-newline">where
     Self: 'async_trait,
     'life0: 'async_trait,
     'life1: 'async_trait,
     'life2: 'async_trait,
     'life3: 'async_trait,
-    'life4: 'async_trait,</span></h4></section></div><h2 id="provided-methods" class="small-section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.devices" class="method"><a class="src rightside" href="../../src/libsignal_service/push_service.rs.html#636-652">source</a><h4 class="code-header">fn <a href="#method.devices" class="fn">devices</a>&lt;'life0, 'async_trait&gt;(
+    'life4: 'async_trait,
+    'life5: 'async_trait,</span></h4></section></div><h2 id="provided-methods" class="small-section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.devices" class="method"><a class="src rightside" href="../../src/libsignal_service/push_service.rs.html#636-652">source</a><h4 class="code-header">fn <a href="#method.devices" class="fn">devices</a>&lt;'life0, 'async_trait&gt;(
     &amp;'life0 mut self
 ) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.74.1/core/pin/struct.Pin.html" title="struct core::pin::Pin">Pin</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.74.1/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="https://doc.rust-lang.org/1.74.1/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="https://doc.rust-lang.org/1.74.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.74.1/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="struct" href="struct.DeviceInfo.html" title="struct libsignal_service::push_service::DeviceInfo">DeviceInfo</a>&gt;, <a class="enum" href="enum.ServiceError.html" title="enum libsignal_service::push_service::ServiceError">ServiceError</a>&gt;&gt; + 'async_trait&gt;&gt;<span class="where fmt-newline">where
     Self: 'async_trait,

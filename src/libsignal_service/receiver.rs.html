@@ -152,6 +152,11 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>bytes::{Buf, Bytes};
 
 <span class="kw">use crate</span>::{
@@ -207,7 +212,12 @@
         )];
         <span class="kw">let </span>ws = <span class="self">self
             </span>.service
-            .ws(<span class="string">&quot;/v1/websocket/&quot;</span>, headers, <span class="prelude-val">Some</span>(credentials.clone()), <span class="bool-val">true</span>)
+            .ws(
+                <span class="string">&quot;/v1/websocket/&quot;</span>,
+                <span class="string">&quot;/v1/keepalive&quot;</span>,
+                headers,
+                <span class="prelude-val">Some</span>(credentials.clone()),
+            )
             .<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(MessagePipe::from_socket(ws, credentials))
     }
