@@ -53,7 +53,12 @@ impl<Service: PushService> MessageReceiver<Service> {
         )];
         let ws = self
             .service
-            .ws("/v1/websocket/", headers, Some(credentials.clone()), true)
+            .ws(
+                "/v1/websocket/",
+                "/v1/keepalive",
+                headers,
+                Some(credentials.clone()),
+            )
             .await?;
         Ok(MessagePipe::from_socket(ws, credentials))
     }
