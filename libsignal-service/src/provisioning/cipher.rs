@@ -180,7 +180,7 @@ impl ProvisioningCipher {
             .expect("initalization of CBC/AES/PKCS7");
         let input = cipher.decrypt_vec(cipher_text).map_err(|e| {
             ProvisioningError::InvalidData {
-                reason: format!("CBC/Padding error: {:?}", e),
+                reason: format!("CBC/Padding error: {:?}", e).into(),
             }
         })?;
 

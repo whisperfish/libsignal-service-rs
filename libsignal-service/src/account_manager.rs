@@ -11,11 +11,13 @@ use libsignal_protocol::{
     PreKeyRecord, PrivateKey, ProtocolStore, PublicKey, SignalProtocolError,
     SignedPreKeyRecord,
 };
+use prost::Message;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use zkgroup::profiles::ProfileKey;
 
 use crate::pre_keys::KyberPreKeyEntity;
+use crate::proto::DeviceName;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
 use crate::ServiceAddress;
 use crate::{
@@ -28,7 +30,7 @@ use crate::{
     push_service::{
         AccountAttributes, HttpAuthOverride, PushService, ServiceError,
     },
-    utils::{serde_base64, serde_public_key},
+    utils::serde_base64,
 };
 
 pub struct AccountManager<Service> {
@@ -259,8 +261,6 @@ impl<Service: PushService> AccountManager<Service> {
         destination: &str,
         env: ProvisionEnvelope,
     ) -> Result<(), ServiceError> {
-        use prost::Message;
-
         #[derive(serde::Serialize)]
         struct ProvisioningMessage {
             body: String,
@@ -465,14 +465,11 @@ impl<Service: PushService> AccountManager<Service> {
         device_name: &str,
         public_key: &PublicKey,
     ) -> Result<(), ServiceError> {
-        let encrypted_device_name: DeviceName = encrypt_device_name(
+        let encrypted_device_name = encrypt_device_name(
             &mut rand::thread_rng(),
             device_name,
             public_key,
         )?;
-
-        let encrypted_device_name_proto: crate::proto::DeviceName =
-            encrypted_device_name.clone().into_proto()?;
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -488,9 +485,7 @@ impl<Service: PushService> AccountManager<Service> {
                 &[],
                 HttpAuthOverride::NoOverride,
                 Data {
-                    device_name: prost::Message::encode_to_vec(
-                        &encrypted_device_name_proto,
-                    ),
+                    device_name: encrypted_device_name.encode_to_vec(),
                 },
             )
             .await?;
@@ -523,30 +518,6 @@ impl<Service: PushService> AccountManager<Service> {
                 payload,
             )
             .await
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DeviceName {
-    #[serde(with = "serde_public_key")]
-    ephemeral_public: PublicKey,
-    #[serde(with = "serde_base64")]
-    synthetic_iv: Vec<u8>,
-    #[serde(with = "serde_base64")]
-    ciphertext: Vec<u8>,
-}
-
-impl DeviceName {
-    pub(crate) fn into_proto(
-        self,
-    ) -> Result<crate::proto::DeviceName, SignalProtocolError> {
-        Ok(crate::proto::DeviceName {
-            ephemeral_public: Some(
-                self.ephemeral_public.public_key_bytes()?.to_vec(),
-            ),
-            synthetic_iv: Some(self.synthetic_iv.to_vec()),
-            ciphertext: Some(self.ciphertext.clone()),
-        })
     }
 }
 
@@ -586,11 +557,15 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     );
     cipher.apply_keystream(&mut ciphertext);
 
-    Ok(DeviceName {
-        ephemeral_public: ephemeral_key_pair.public_key,
-        synthetic_iv,
-        ciphertext,
-    })
+    let device_name = DeviceName {
+        ephemeral_public: Some(
+            ephemeral_key_pair.public_key.serialize().to_vec(),
+        ),
+        synthetic_iv: Some(synthetic_iv.to_vec()),
+        ciphertext: Some(ciphertext),
+    };
+
+    Ok(device_name)
 }
 
 pub fn decrypt_device_name(
@@ -598,12 +573,17 @@ pub fn decrypt_device_name(
     device_name: &DeviceName,
 ) -> Result<String, ServiceError> {
     let DeviceName {
-        ephemeral_public,
-        synthetic_iv,
-        ciphertext,
-    } = device_name;
+        ephemeral_public: Some(ephemeral_public),
+        synthetic_iv: Some(synthetic_iv),
+        ciphertext: Some(ciphertext),
+    } = device_name
+    else {
+        return Err(ServiceError::InvalidDeviceName);
+    };
 
-    let master_secret = private_key.calculate_agreement(ephemeral_public)?;
+    let ephemeral_public = PublicKey::deserialize(ephemeral_public)?;
+
+    let master_secret = private_key.calculate_agreement(&ephemeral_public)?;
     let key2 = calculate_hmac256(&master_secret, b"cipher")?;
     let cipher_key = calculate_hmac256(&key2, synthetic_iv)?;
 
@@ -661,11 +641,11 @@ mod tests {
         )?)?;
 
         let device_name = DeviceName {
-            ephemeral_public: ephemeral_public_key,
-            synthetic_iv: base64::decode("86gekHGmltnnZ9QARhiFcg==")?,
-            ciphertext: base64::decode(
+            ephemeral_public: Some(ephemeral_public_key.serialize().to_vec()),
+            synthetic_iv: Some(base64::decode("86gekHGmltnnZ9QARhiFcg==")?),
+            ciphertext: Some(base64::decode(
                 "MtJ9/9KBWLBVAxfZJD4pLKzP4q+iodRJeCc+/A==",
-            )?,
+            )?),
         };
 
         let decrypted_device_name =
