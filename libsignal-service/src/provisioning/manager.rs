@@ -113,173 +113,166 @@ impl<P: PushService> LinkingManager<P> {
         let provisioning_pipe = ProvisioningPipe::from_socket(ws)?;
         let provision_stream = provisioning_pipe.stream();
         pin_mut!(provision_stream);
-        while let Some(step) = provision_stream.next().await {
-            match step {
-                Ok(ProvisioningStep::Url(url)) => {
-                    tx.send(SecondaryDeviceProvisioning::Url(url))
-                        .await
-                        .expect("failed to send provisioning Url in channel");
+
+        if let ProvisioningStep::Url(url) = provision_stream
+            .next()
+            .await
+            .ok_or(ProvisioningError::InvalidData {
+                reason: "no provisioning URL received".into(),
+            })??
+        {
+            tx.send(SecondaryDeviceProvisioning::Url(url))
+                .await
+                .expect("failed to send provisioning Url in channel");
+        } else {
+            return Err(ProvisioningError::InvalidData {
+                reason: "wrong provisioning step received".into(),
+            });
+        }
+
+        if let ProvisioningStep::Message(message) = provision_stream
+            .next()
+            .await
+            .ok_or(ProvisioningError::InvalidData {
+                reason: "no provisioning message received".into(),
+            })??
+        {
+            let aci_public_key = PublicKey::deserialize(
+                &message.aci_identity_key_public.ok_or(
+                    ProvisioningError::InvalidData {
+                        reason: "missing public key".into(),
+                    },
+                )?,
+            )?;
+
+            let aci_private_key = PrivateKey::deserialize(
+                &message.aci_identity_key_private.ok_or(
+                    ProvisioningError::InvalidData {
+                        reason: "missing public key".into(),
+                    },
+                )?,
+            )?;
+
+            let pni_public_key = PublicKey::deserialize(
+                &message.pni_identity_key_public.ok_or(
+                    ProvisioningError::InvalidData {
+                        reason: "missing public key".into(),
+                    },
+                )?,
+            )?;
+
+            let pni_private_key = PrivateKey::deserialize(
+                &message.pni_identity_key_private.ok_or(
+                    ProvisioningError::InvalidData {
+                        reason: "missing public key".into(),
+                    },
+                )?,
+            )?;
+
+            let profile_key =
+                message.profile_key.ok_or(ProvisioningError::InvalidData {
+                    reason: "missing profile key".into(),
+                })?;
+
+            let phone_number =
+                message.number.ok_or(ProvisioningError::InvalidData {
+                    reason: "missing phone number".into(),
+                })?;
+
+            let phone_number =
+                phonenumber::parse(None, phone_number).map_err(|e| {
+                    ProvisioningError::InvalidData {
+                        reason: format!("invalid phone number ({})", e).into(),
+                    }
+                })?;
+
+            let provisioning_code = message.provisioning_code.ok_or(
+                ProvisioningError::InvalidData {
+                    reason: "no provisioning confirmation code".into(),
                 },
-                Ok(ProvisioningStep::Message(message)) => {
-                    let aci_public_key = PublicKey::deserialize(
-                        &message.aci_identity_key_public.ok_or(
-                            ProvisioningError::InvalidData {
-                                reason: "missing public key".into(),
-                            },
-                        )?,
-                    )?;
+            )?;
 
-                    let aci_private_key = PrivateKey::deserialize(
-                        &message.aci_identity_key_private.ok_or(
-                            ProvisioningError::InvalidData {
-                                reason: "missing public key".into(),
-                            },
-                        )?,
-                    )?;
+            let aci_key_pair = KeyPair::new(aci_public_key, aci_private_key);
+            let pni_key_pair = KeyPair::new(pni_public_key, pni_private_key);
 
-                    let pni_public_key = PublicKey::deserialize(
-                        &message.pni_identity_key_public.ok_or(
-                            ProvisioningError::InvalidData {
-                                reason: "missing public key".into(),
-                            },
-                        )?,
-                    )?;
-
-                    let pni_private_key = PrivateKey::deserialize(
-                        &message.pni_identity_key_private.ok_or(
-                            ProvisioningError::InvalidData {
-                                reason: "missing public key".into(),
-                            },
-                        )?,
-                    )?;
-
-                    let profile_key = message.profile_key.ok_or(
-                        ProvisioningError::InvalidData {
-                            reason: "missing profile key".into(),
-                        },
-                    )?;
-
-                    let phone_number = message.number.ok_or(
-                        ProvisioningError::InvalidData {
-                            reason: "missing phone number".into(),
-                        },
-                    )?;
-
-                    let phone_number = phonenumber::parse(None, phone_number)
-                        .map_err(|e| {
-                        ProvisioningError::InvalidData {
-                            reason: format!("invalid phone number ({})", e),
-                        }
-                    })?;
-
-                    let provisioning_code = message.provisioning_code.ok_or(
-                        ProvisioningError::InvalidData {
-                            reason: "no provisioning confirmation code".into(),
-                        },
-                    )?;
-
-                    let aci_key_pair =
-                        KeyPair::new(aci_public_key, aci_private_key);
-                    let pni_key_pair =
-                        KeyPair::new(pni_public_key, pni_private_key);
-
-                    let aci_pq_last_resort_pre_key =
-                        generate_last_resort_kyber_key(
-                            aci_store,
-                            &aci_key_pair,
-                        )
-                        .await?;
-                    let pni_pq_last_resort_pre_key =
-                        generate_last_resort_kyber_key(
-                            pni_store,
-                            &pni_key_pair,
-                        )
-                        .await?;
-
-                    let aci_signed_pre_key = generate_signed_pre_key(
-                        aci_store,
-                        csprng,
-                        &aci_key_pair,
-                    )
+            let aci_pq_last_resort_pre_key =
+                generate_last_resort_kyber_key(aci_store, &aci_key_pair)
                     .await?;
-                    let pni_signed_pre_key = generate_signed_pre_key(
-                        pni_store,
-                        csprng,
-                        &pni_key_pair,
-                    )
+            let pni_pq_last_resort_pre_key =
+                generate_last_resort_kyber_key(pni_store, &pni_key_pair)
                     .await?;
 
-                    let encrypted_device_name = base64::encode(
-                        encrypt_device_name(
-                            csprng,
-                            device_name,
-                            &aci_public_key,
-                        )?
-                        .encode_to_vec(),
-                    );
+            let aci_signed_pre_key =
+                generate_signed_pre_key(aci_store, csprng, &aci_key_pair)
+                    .await?;
+            let pni_signed_pre_key =
+                generate_signed_pre_key(pni_store, csprng, &pni_key_pair)
+                    .await?;
 
-                    let profile_key = ProfileKey::create(
-                        profile_key
-                            .as_slice()
-                            .try_into()
-                            .map_err(ProvisioningError::InvalidProfileKey)?,
-                    );
+            let encrypted_device_name = base64::encode(
+                encrypt_device_name(csprng, device_name, &aci_public_key)?
+                    .encode_to_vec(),
+            );
 
-                    let request = LinkRequest {
-                        verification_code: provisioning_code,
-                        account_attributes: LinkAccountAttributes {
-                            registration_id,
-                            pni_registration_id,
-                            fetches_messages: true,
-                            capabilities: LinkCapabilities { pni: true },
-                            name: encrypted_device_name,
-                        },
-                        aci_signed_pre_key: aci_signed_pre_key.try_into()?,
-                        pni_signed_pre_key: pni_signed_pre_key.try_into()?,
-                        aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
-                            .try_into()?,
-                        pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
-                            .try_into()?,
-                    };
+            let profile_key = ProfileKey::create(
+                profile_key
+                    .as_slice()
+                    .try_into()
+                    .map_err(ProvisioningError::InvalidProfileKey)?,
+            );
 
-                    let LinkResponse {
-                        aci,
-                        pni,
-                        device_id,
-                    } = self
-                        .push_service
-                        .link_device(
-                            &request,
-                            HttpAuth {
-                                username: phone_number.to_string(),
-                                password: self.password.clone(),
-                            },
-                        )
-                        .await?;
-
-                    tx.send(
-                        SecondaryDeviceProvisioning::NewDeviceRegistration(
-                            NewDeviceRegistration {
-                                phone_number,
-                                service_ids: ServiceIds { aci, pni },
-                                device_id: device_id.into(),
-                                registration_id,
-                                pni_registration_id,
-                                aci_private_key,
-                                aci_public_key,
-                                pni_private_key,
-                                pni_public_key,
-                                profile_key,
-                            },
-                        ),
-                    )
-                    .await
-                    .expect(
-                        "failed to send provisioning message in rx channel",
-                    );
+            let request = LinkRequest {
+                verification_code: provisioning_code,
+                account_attributes: LinkAccountAttributes {
+                    registration_id,
+                    pni_registration_id,
+                    fetches_messages: true,
+                    capabilities: LinkCapabilities { pni: true },
+                    name: encrypted_device_name,
                 },
-                Err(e) => return Err(e),
-            }
+                aci_signed_pre_key: aci_signed_pre_key.try_into()?,
+                pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+                aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
+                    .try_into()?,
+                pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
+                    .try_into()?,
+            };
+
+            let LinkResponse {
+                aci,
+                pni,
+                device_id,
+            } = self
+                .push_service
+                .link_device(
+                    &request,
+                    HttpAuth {
+                        username: phone_number.to_string(),
+                        password: self.password.clone(),
+                    },
+                )
+                .await?;
+
+            tx.send(SecondaryDeviceProvisioning::NewDeviceRegistration(
+                NewDeviceRegistration {
+                    phone_number,
+                    service_ids: ServiceIds { aci, pni },
+                    device_id: device_id.into(),
+                    registration_id,
+                    pni_registration_id,
+                    aci_private_key,
+                    aci_public_key,
+                    pni_private_key,
+                    pni_public_key,
+                    profile_key,
+                },
+            ))
+            .await
+            .expect("failed to send provisioning message in rx channel");
+        } else {
+            return Err(ProvisioningError::InvalidData {
+                reason: "wrong provisioning step received".into(),
+            });
         }
 
         Ok(())

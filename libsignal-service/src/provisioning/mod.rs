@@ -2,7 +2,7 @@ pub(crate) mod cipher;
 pub(crate) mod manager;
 pub(crate) mod pipe;
 
-use std::array::TryFromSliceError;
+use std::{array::TryFromSliceError, borrow::Cow};
 
 pub use cipher::ProvisioningCipher;
 pub use manager::{
@@ -19,7 +19,7 @@ pub use crate::proto::{
 #[derive(thiserror::Error, Debug)]
 pub enum ProvisioningError {
     #[error("Invalid provisioning data: {reason}")]
-    InvalidData { reason: String },
+    InvalidData { reason: Cow<'static, str> },
     #[error("Protobuf decoding error: {0}")]
     DecodeError(#[from] prost::DecodeError),
     #[error("Websocket error: {reason}")]
