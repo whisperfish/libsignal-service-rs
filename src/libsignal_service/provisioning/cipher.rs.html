@@ -401,7 +401,7 @@
             .expect(<span class="string">&quot;initalization of CBC/AES/PKCS7&quot;</span>);
         <span class="kw">let </span>input = cipher.decrypt_vec(cipher_text).map_err(|e| {
             ProvisioningError::InvalidData {
-                reason: <span class="macro">format!</span>(<span class="string">&quot;CBC/Padding error: {:?}&quot;</span>, e),
+                reason: <span class="macro">format!</span>(<span class="string">&quot;CBC/Padding error: {:?}&quot;</span>, e).into(),
             }
         })<span class="question-mark">?</span>;
 
