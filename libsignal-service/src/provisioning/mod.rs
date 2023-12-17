@@ -115,8 +115,8 @@ pub async fn link_device<
     pni_store: &mut S,
     csprng: &mut R,
     mut push_service: P,
-    device_name: &str,
     password: String,
+    device_name: &str,
     mut tx: Sender<SecondaryDeviceProvisioning>,
 ) -> Result<(), ProvisioningError> {
     // open a websocket without authentication, to receive a tsurl://
