@@ -115,7 +115,7 @@ pub async fn link_device<
     pni_store: &mut S,
     csprng: &mut R,
     mut push_service: P,
-    password: String,
+    password: &str,
     device_name: &str,
     mut tx: Sender<SecondaryDeviceProvisioning>,
 ) -> Result<(), ProvisioningError> {
@@ -259,7 +259,7 @@ pub async fn link_device<
                 &request,
                 HttpAuth {
                     username: phone_number.to_string(),
-                    password,
+                    password: password.to_owned(),
                 },
             )
             .await?;
