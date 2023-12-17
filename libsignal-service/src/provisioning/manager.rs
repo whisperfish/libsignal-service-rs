@@ -16,12 +16,13 @@ use super::{
 
 use crate::{
     account_manager::encrypt_device_name,
-    configuration::Endpoint,
     pre_keys::{
-        generate_last_resort_kyber_key, generate_signed_pre_key,
-        KyberPreKeyEntity, PreKeysStore, SignedPreKey,
+        generate_last_resort_kyber_key, generate_signed_pre_key, PreKeysStore,
     },
-    push_service::{HttpAuth, HttpAuthOverride, PushService, ServiceIds},
+    push_service::{
+        HttpAuth, LinkAccountAttributes, LinkCapabilities, LinkRequest,
+        LinkResponse, PushService, ServiceIds,
+    },
     utils::serde_base64,
 };
 
@@ -208,33 +209,6 @@ impl<P: PushService> LinkingManager<P> {
                     )
                     .await?;
 
-                    #[derive(Debug, Serialize)]
-                    #[serde(rename_all = "camelCase")]
-                    struct LinkRequest {
-                        verification_code: String,
-                        account_attributes: AccountAttributes,
-                        aci_signed_pre_key: SignedPreKey,
-                        pni_signed_pre_key: SignedPreKey,
-                        aci_pq_last_resort_pre_key: KyberPreKeyEntity,
-                        pni_pq_last_resort_pre_key: KyberPreKeyEntity,
-                    }
-
-                    #[derive(Debug, Serialize)]
-                    #[serde(rename_all = "camelCase")]
-                    struct AccountAttributes {
-                        fetches_messages: bool,
-                        name: String,
-                        registration_id: u32,
-                        pni_registration_id: u32,
-                        capabilities: Capabilities,
-                    }
-
-                    #[derive(Debug, Serialize)]
-                    #[serde(rename_all = "camelCase")]
-                    struct Capabilities {
-                        pni: bool,
-                    }
-
                     let encrypted_device_name = base64::encode(
                         encrypt_device_name(
                             csprng,
@@ -253,11 +227,11 @@ impl<P: PushService> LinkingManager<P> {
 
                     let request = LinkRequest {
                         verification_code: provisioning_code,
-                        account_attributes: AccountAttributes {
+                        account_attributes: LinkAccountAttributes {
                             registration_id,
                             pni_registration_id,
                             fetches_messages: true,
-                            capabilities: Capabilities { pni: true },
+                            capabilities: LinkCapabilities { pni: true },
                             name: encrypted_device_name,
                         },
                         aci_signed_pre_key: aci_signed_pre_key.try_into()?,
@@ -268,30 +242,18 @@ impl<P: PushService> LinkingManager<P> {
                             .try_into()?,
                     };
 
-                    #[derive(Debug, Deserialize)]
-                    #[serde(rename_all = "camelCase")]
-                    struct LinkResponse {
-                        #[serde(rename = "uuid")]
-                        aci: Uuid,
-                        pni: Uuid,
-                        device_id: u32,
-                    }
-
                     let LinkResponse {
                         aci,
                         pni,
                         device_id,
                     } = self
                         .push_service
-                        .put_json(
-                            Endpoint::Service,
-                            "/v1/devices/link",
-                            &[],
-                            HttpAuthOverride::Identified(HttpAuth {
+                        .link_device(
+                            &request,
+                            HttpAuth {
                                 username: phone_number.to_string(),
                                 password: self.password.clone(),
-                            }),
-                            &request,
+                            },
                         )
                         .await?;
 
