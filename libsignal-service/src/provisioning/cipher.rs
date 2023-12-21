@@ -180,7 +180,7 @@ impl ProvisioningCipher {
         let input = cipher
             .decrypt_padded_vec_mut::<Pkcs7>(cipher_text)
             .map_err(|e| ProvisioningError::InvalidData {
-                reason: format!("CBC/Padding error: {:?}", e),
+                reason: format!("CBC/Padding error: {:?}", e).into(),
             })?;
 
         Ok(prost::Message::decode(Bytes::from(input))?)

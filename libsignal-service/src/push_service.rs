@@ -5,7 +5,8 @@ use crate::{
     envelope::*,
     groups_v2::GroupDecodingError,
     pre_keys::{
-        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKey,
+        SignedPreKeyEntity,
     },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
@@ -381,6 +382,42 @@ pub struct StaleDevices {
     pub stale_devices: Vec<u32>,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRequest {
+    pub verification_code: String,
+    pub account_attributes: LinkAccountAttributes,
+    pub aci_signed_pre_key: SignedPreKey,
+    pub pni_signed_pre_key: SignedPreKey,
+    pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
+    pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkAccountAttributes {
+    pub fetches_messages: bool,
+    pub name: String,
+    pub registration_id: u32,
+    pub pni_registration_id: u32,
+    pub capabilities: LinkCapabilities,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkCapabilities {
+    pub pni: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkResponse {
+    #[serde(rename = "uuid")]
+    pub aci: Uuid,
+    pub pni: Uuid,
+    pub device_id: u32,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignalServiceProfile {
@@ -522,6 +559,9 @@ pub enum ServiceError {
 
     #[error("Not found.")]
     NotFoundError,
+
+    #[error("invalid device name")]
+    InvalidDeviceName,
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
@@ -625,9 +665,9 @@ pub trait PushService: MaybeSend {
     async fn ws(
         &mut self,
         path: &str,
+        keepalive_path: &str,
         additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
-        keep_alive: bool,
     ) -> Result<SignalWebSocket, ServiceError>;
 
     /// Fetches a list of all devices tied to the authenticated account.
@@ -949,6 +989,21 @@ pub trait PushService: MaybeSend {
             )
             .await?;
         Ok(SenderCertificate::deserialize(&cert.certificate)?)
+    }
+
+    async fn link_device(
+        &mut self,
+        link_request: &LinkRequest,
+        http_auth: HttpAuth,
+    ) -> Result<LinkResponse, ServiceError> {
+        self.put_json(
+            Endpoint::Service,
+            "/v1/devices/link",
+            &[],
+            HttpAuthOverride::Identified(http_auth),
+            link_request,
+        )
+        .await
     }
 
     async fn set_account_attributes(
