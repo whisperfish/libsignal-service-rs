@@ -313,6 +313,10 @@ impl SignalWebSocket {
         self.request_sink.is_closed()
     }
 
+    pub fn is_used(&self) -> bool {
+        self.inner_locked().stream.is_none()
+    }
+
     pub(crate) fn take_request_stream(
         &mut self,
     ) -> Option<SignalRequestStream> {
