@@ -501,13 +501,9 @@
 <a href="#501" id="501">501</a>
 <a href="#502" id="502">502</a>
 <a href="#503" id="503">503</a>
-<a href="#504" id="504">504</a>
-<a href="#505" id="505">505</a>
-<a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{convert::TryFrom, time::SystemTime};
 
-<span class="kw">use </span>block_modes::block_padding::{Iso7816, Padding};
+<span class="kw">use </span>aes::cipher::block_padding::{Iso7816, RawPadding};
 <span class="kw">use </span>libsignal_protocol::{
     group_decrypt, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, process_sender_key_distribution_message,
@@ -865,11 +861,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>buffer = <span class="macro">vec!</span>[<span class="number">0u8</span>; message_length_with_padding];
         buffer[..message_length].copy_from_slice(contents);
-        Iso7816::pad_block(<span class="kw-2">&amp;mut </span>buffer, message_length).map_err(|e| {
-            ServiceError::InvalidFrameError {
-                reason: <span class="macro">format!</span>(<span class="string">&quot;Invalid message padding: {:?}&quot;</span>, e),
-            }
-        })<span class="question-mark">?</span>;
+        Iso7816::raw_pad(<span class="kw-2">&amp;mut </span>buffer, message_length);
         <span class="prelude-val">Ok</span>(buffer)
     }
 }
@@ -893,7 +885,7 @@
 
 <span class="attr">#[allow(clippy::comparison_chain)]
 </span><span class="kw">fn </span>strip_padding(contents: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt; {
-    <span class="kw">let </span>new_length = Iso7816::unpad(contents)
+    <span class="kw">let </span>new_length = Iso7816::raw_unpad(contents)
         .map_err(|e| ServiceError::InvalidFrameError {
             reason: <span class="macro">format!</span>(<span class="string">&quot;Invalid message padding: {:?}&quot;</span>, e),
         })<span class="question-mark">?

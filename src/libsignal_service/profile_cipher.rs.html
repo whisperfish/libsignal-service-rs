@@ -274,22 +274,9 @@
 <a href="#274" id="274">274</a>
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
-<a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a>
-<a href="#279" id="279">279</a>
-<a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>aes_gcm::{
-    aead::{
-        generic_array::typenum::U32, generic_array::GenericArray, Aead,
-        AeadInPlace,
-    },
-    Aes256Gcm, NewAead,
-};
-<span class="kw">use </span>rand::Rng;
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::convert::TryInto;
+
+<span class="kw">use </span>aes_gcm::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
 <span class="kw">use </span>zkgroup::profiles::ProfileKey;
 
 <span class="kw">use </span><span class="kw">crate</span>::profile_name::ProfileName;
@@ -371,10 +358,6 @@
         <span class="self">self</span>.profile_key
     }
 
-    <span class="kw">fn </span>get_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; GenericArray&lt;u8, U32&gt; {
-        GenericArray::from(<span class="self">self</span>.profile_key.get_bytes())
-    }
-
     <span class="kw">fn </span>pad_and_encrypt(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         <span class="kw-2">mut </span>bytes: Vec&lt;u8&gt;,
@@ -382,16 +365,15 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, ProfileCipherError&gt; {
         <span class="kw">let </span>_len = pad_plaintext(<span class="kw-2">&amp;mut </span>bytes, padding_brackets)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>cipher = Aes256Gcm::new(<span class="kw-2">&amp;</span><span class="self">self</span>.get_key());
-        <span class="kw">let </span>nonce: [u8; <span class="number">12</span>] = rand::thread_rng().gen();
-        <span class="kw">let </span>nonce = GenericArray::from_slice(<span class="kw-2">&amp;</span>nonce);
+        <span class="kw">let </span>cipher = Aes256Gcm::new(<span class="kw-2">&amp;</span><span class="self">self</span>.profile_key.get_bytes().into());
+        <span class="kw">let </span>nonce = Aes256Gcm::generate_nonce(rand::thread_rng());
 
         cipher
-            .encrypt_in_place(nonce, <span class="string">b&quot;&quot;</span>, <span class="kw-2">&amp;mut </span>bytes)
+            .encrypt_in_place(<span class="kw-2">&amp;</span>nonce, <span class="string">b&quot;&quot;</span>, <span class="kw-2">&amp;mut </span>bytes)
             .map_err(|<span class="kw">_</span>| ProfileCipherError::EncryptionError)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>concat = Vec::with_capacity(nonce.len() + bytes.len());
-        concat.extend_from_slice(nonce);
+        concat.extend_from_slice(<span class="kw-2">&amp;</span>nonce);
         concat.extend_from_slice(<span class="kw-2">&amp;</span>bytes);
         <span class="prelude-val">Ok</span>(concat)
     }
@@ -401,11 +383,13 @@
         bytes: <span class="kw">impl </span>AsRef&lt;[u8]&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, ProfileCipherError&gt; {
         <span class="kw">let </span>bytes = bytes.as_ref();
-        <span class="kw">let </span>nonce = GenericArray::from_slice(<span class="kw-2">&amp;</span>bytes[<span class="number">0</span>..<span class="number">12</span>]);
-        <span class="kw">let </span>cipher = Aes256Gcm::new(<span class="kw-2">&amp;</span><span class="self">self</span>.get_key());
+        <span class="kw">let </span>nonce: [u8; <span class="number">12</span>] = bytes[<span class="number">0</span>..<span class="number">12</span>]
+            .try_into()
+            .expect(<span class="string">&quot;fixed length nonce material&quot;</span>);
+        <span class="kw">let </span>cipher = Aes256Gcm::new(<span class="kw-2">&amp;</span><span class="self">self</span>.profile_key.get_bytes().into());
 
         <span class="kw">let </span><span class="kw-2">mut </span>plaintext = cipher
-            .decrypt(nonce, <span class="kw-2">&amp;</span>bytes[<span class="number">12</span>..])
+            .decrypt(<span class="kw-2">&amp;</span>nonce.into(), <span class="kw-2">&amp;</span>bytes[<span class="number">12</span>..])
             .map_err(|<span class="kw">_</span>| ProfileCipherError::EncryptionError)<span class="question-mark">?</span>;
 
         <span class="comment">// Unpad

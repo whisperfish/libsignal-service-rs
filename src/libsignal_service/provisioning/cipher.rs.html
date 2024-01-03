@@ -218,11 +218,11 @@
 <a href="#218" id="218">218</a>
 <a href="#219" id="219">219</a>
 <a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Debug};
 
+<span class="kw">use </span>aes::cipher::block_padding::Pkcs7;
+<span class="kw">use </span>aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 <span class="kw">use </span>aes::Aes256;
-<span class="kw">use </span>block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
 <span class="kw">use </span>bytes::Bytes;
 <span class="kw">use </span>hmac::{Hmac, Mac};
 <span class="kw">use </span>libsignal_protocol::{KeyPair, PublicKey};
@@ -322,9 +322,8 @@
         <span class="kw">let </span>mac_key = <span class="kw-2">&amp;</span>shared_secrets[<span class="number">32</span>..];
         <span class="kw">let </span>iv: [u8; IV_LENGTH] = rng.gen();
 
-        <span class="kw">let </span>cipher = Cbc::&lt;Aes256, Pkcs7&gt;::new_from_slices(aes_key, <span class="kw-2">&amp;</span>iv)
-            .expect(<span class="string">&quot;initalization of CBC/AES/PKCS7&quot;</span>);
-        <span class="kw">let </span>ciphertext = cipher.encrypt_vec(<span class="kw-2">&amp;</span>msg);
+        <span class="kw">let </span>cipher = cbc::Encryptor::&lt;Aes256&gt;::new(aes_key.into(), <span class="kw-2">&amp;</span>iv.into());
+        <span class="kw">let </span>ciphertext = cipher.encrypt_padded_vec_mut::&lt;Pkcs7&gt;(<span class="kw-2">&amp;</span>msg);
         <span class="kw">let </span><span class="kw-2">mut </span>mac = Hmac::&lt;Sha256&gt;::new_from_slice(mac_key)
             .expect(<span class="string">&quot;HMAC can take any size key&quot;</span>);
         mac.update(<span class="kw-2">&amp;</span>[VERSION]);
@@ -397,13 +396,12 @@
         <span class="comment">// libsignal-service-java uses Pkcs5,
         // but that should not matter.
         // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-        </span><span class="kw">let </span>cipher = Cbc::&lt;Aes256, Pkcs7&gt;::new_from_slices(parts1, iv)
-            .expect(<span class="string">&quot;initalization of CBC/AES/PKCS7&quot;</span>);
-        <span class="kw">let </span>input = cipher.decrypt_vec(cipher_text).map_err(|e| {
-            ProvisioningError::InvalidData {
+        </span><span class="kw">let </span>cipher = cbc::Decryptor::&lt;Aes256&gt;::new(parts1.into(), iv.into());
+        <span class="kw">let </span>input = cipher
+            .decrypt_padded_vec_mut::&lt;Pkcs7&gt;(cipher_text)
+            .map_err(|e| ProvisioningError::InvalidData {
                 reason: <span class="macro">format!</span>(<span class="string">&quot;CBC/Padding error: {:?}&quot;</span>, e).into(),
-            }
-        })<span class="question-mark">?</span>;
+            })<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(prost::Message::decode(Bytes::from(input))<span class="question-mark">?</span>)
     }
