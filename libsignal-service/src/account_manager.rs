@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
 
-use aes::cipher::generic_array::GenericArray;
-use aes::cipher::{NewCipher, StreamCipher};
-use aes::Aes256Ctr;
+use aes::cipher::{KeyIvInit, StreamCipher as _};
+use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, GenericSignedPreKey, IdentityKeyStore, KeyPair, KyberPreKeyRecord,
@@ -32,6 +31,8 @@ use crate::{
     },
     utils::serde_base64,
 };
+
+type Aes256Ctr128BE = ctr::Ctr128BE<aes::Aes256>;
 
 pub struct AccountManager<Service> {
     service: Service,
@@ -524,11 +525,11 @@ impl<Service: PushService> AccountManager<Service> {
 fn calculate_hmac256(
     mac_key: &[u8],
     ciphertext: &[u8],
-) -> Result<Vec<u8>, ServiceError> {
+) -> Result<Output<Hmac<Sha256>>, ServiceError> {
     let mut mac = Hmac::<Sha256>::new_from_slice(mac_key)
         .map_err(|_| ServiceError::MacError)?;
     mac.update(ciphertext);
-    Ok(mac.finalize().into_bytes().to_vec())
+    Ok(mac.finalize().into_bytes())
 }
 
 pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
@@ -544,17 +545,16 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
         .calculate_agreement(identity_public)?;
 
     let key1 = calculate_hmac256(&master_secret, b"auth")?;
-    let mut synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
-    synthetic_iv.truncate(16);
+    let synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
+    let synthetic_iv = &synthetic_iv[..16];
 
     let key2 = calculate_hmac256(&master_secret, b"cipher")?;
-    let cipher_key = calculate_hmac256(&key2, &synthetic_iv)?;
+    let cipher_key = calculate_hmac256(&key2, synthetic_iv)?;
 
     let mut ciphertext = plaintext;
-    let mut cipher = Aes256Ctr::new(
-        GenericArray::from_slice(&cipher_key),
-        GenericArray::from_slice(&[0u8; 16]),
-    );
+
+    const IV: [u8; 16] = [0; 16];
+    let mut cipher = Aes256Ctr128BE::new(&cipher_key, &IV.into());
     cipher.apply_keystream(&mut ciphertext);
 
     let device_name = DeviceName {
@@ -581,24 +581,27 @@ pub fn decrypt_device_name(
         return Err(ServiceError::InvalidDeviceName);
     };
 
+    let synthetic_iv: [u8; 16] = synthetic_iv[..synthetic_iv.len().min(16)]
+        .try_into()
+        .map_err(|_| ServiceError::MacError)?;
+
     let ephemeral_public = PublicKey::deserialize(ephemeral_public)?;
 
     let master_secret = private_key.calculate_agreement(&ephemeral_public)?;
     let key2 = calculate_hmac256(&master_secret, b"cipher")?;
-    let cipher_key = calculate_hmac256(&key2, synthetic_iv)?;
+    let cipher_key = calculate_hmac256(&key2, &synthetic_iv)?;
 
     let mut plaintext = ciphertext.to_vec();
-    let mut cipher = Aes256Ctr::new(
-        GenericArray::from_slice(&cipher_key),
-        GenericArray::from_slice(&[0u8; 16]),
-    );
+    const IV: [u8; 16] = [0; 16];
+    let mut cipher =
+        Aes256Ctr128BE::new(cipher_key.as_slice().into(), &IV.into());
     cipher.apply_keystream(&mut plaintext);
 
     let key1 = calculate_hmac256(&master_secret, b"auth")?;
-    let mut our_synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
-    our_synthetic_iv.truncate(16);
+    let our_synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
+    let our_synthetic_iv = &our_synthetic_iv[..16];
 
-    if synthetic_iv != &our_synthetic_iv {
+    if synthetic_iv != our_synthetic_iv {
         Err(ServiceError::MacError)
     } else {
         Ok(String::from_utf8_lossy(&plaintext).to_string())

@@ -1,7 +1,10 @@
-use aes::Aes256;
-use block_modes::{block_padding::Pkcs7, BlockMode, Cbc};
+use aes::cipher::block_padding::Pkcs7;
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
+
+type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
+type Aes256CbcDec = cbc::Decryptor<aes::Aes256>;
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum AttachmentCipherError {
@@ -30,12 +33,11 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
     // Pad with zeroes for padding
     plaintext.extend(&[0u8; 16]);
 
-    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_half, &iv)
-        .expect("fixed length key material");
+    let cipher = Aes256CbcEnc::new(aes_half.into(), &iv.into());
 
     let buffer = plaintext;
     let ciphertext_slice = cipher
-        .encrypt(&mut buffer[16..], plaintext_len)
+        .encrypt_padded_mut::<Pkcs7>(&mut buffer[16..], plaintext_len)
         .expect("encrypted ciphertext");
     let ciphertext_len = ciphertext_slice.len();
     // Correct length for padding
@@ -71,11 +73,10 @@ pub fn decrypt_in_place(
 
     let (iv, buffer) = buffer.split_at_mut(16);
 
-    let cipher = Cbc::<Aes256, Pkcs7>::new_from_slices(aes_half, iv)
-        .expect("fixed length key material");
+    let cipher = Aes256CbcDec::new(aes_half.into(), (&*iv).into());
 
     let plaintext_slice = cipher
-        .decrypt(buffer)
+        .decrypt_padded_mut::<Pkcs7>(buffer)
         .map_err(|_| AttachmentCipherError::PaddingError)?;
 
     let plaintext_len = plaintext_slice.len();

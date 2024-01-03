@@ -1001,7 +1001,7 @@ pub trait PushService: MaybeSend {
             "/v1/devices/link",
             &[],
             HttpAuthOverride::Identified(http_auth),
-            &link_request,
+            link_request,
         )
         .await
     }
