@@ -27,7 +27,7 @@ pub trait PreKeysStore:
     async fn next_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
 
     /// set the ID of the next pre key
-    async fn set_pre_keys_offset_id(
+    async fn set_next_pre_key_id(
         &mut self,
         id: u32,
     ) -> Result<(), SignalProtocolError>;
