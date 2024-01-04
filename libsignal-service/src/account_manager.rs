@@ -7,7 +7,7 @@ use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, GenericSignedPreKey, IdentityKeyStore, KeyPair, KyberPreKeyRecord,
-    PreKeyRecord, PrivateKey, ProtocolStore, PublicKey, SignalProtocolError,
+    PreKeyRecord, PrivateKey, PublicKey, SignalProtocolError,
     SignedPreKeyRecord,
 };
 use prost::Message;
@@ -16,7 +16,7 @@ use sha2::Sha256;
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
-use crate::pre_keys::KyberPreKeyEntity;
+use crate::pre_keys::{KyberPreKeyEntity, PreKeysStore};
 use crate::proto::DeviceName;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
 use crate::ServiceAddress;
@@ -90,22 +90,27 @@ impl<Service: PushService> AccountManager<Service> {
     ///
     /// Returns the next pre-key offset, pq pre-key offset, and next signed pre-key offset as a tuple.
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, protocol_store, csprng))]
+    #[tracing::instrument(skip(self, identity_store, pre_key_store, csprng))]
     pub async fn update_pre_key_bundle<
         R: rand::Rng + rand::CryptoRng,
-        P: ProtocolStore,
+        P: PreKeysStore,
+        I: IdentityKeyStore,
     >(
         &mut self,
-        protocol_store: &mut P,
+        identity_store: &mut I,
+        pre_key_store: &mut P,
+        service_id_type: ServiceIdType,
         csprng: &mut R,
-        pre_keys_offset_id: u32,
-        next_signed_pre_key_id: u32,
-        pq_pre_keys_offset_id: u32,
         use_last_resort_key: bool,
     ) -> Result<(u32, u32, u32), ServiceError> {
+        let pre_keys_offset_id = pre_key_store.pre_keys_offset_id().await?;
+        let next_signed_pre_key_id =
+            pre_key_store.next_signed_pre_key_id().await?;
+        let pq_pre_keys_offset_id = pre_key_store.next_pq_pre_key_id().await?;
+
         let prekey_status = match self
             .service
-            .get_pre_key_status(ServiceIdType::AccountIdentity)
+            .get_pre_key_status(service_id_type)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Fetching pre key status"
@@ -142,7 +147,7 @@ impl<Service: PushService> AccountManager<Service> {
                 tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
 
             let identity_key_pair =
-                protocol_store.get_identity_key_pair().instrument(tracing::trace_span!(parent: &span, "get identity key pair")).await?;
+                identity_store.get_identity_key_pair().instrument(tracing::trace_span!(parent: &span, "get identity key pair")).await?;
 
             let mut pre_key_entities = vec![];
             let mut pq_pre_key_entities = vec![];
@@ -155,7 +160,7 @@ impl<Service: PushService> AccountManager<Service> {
                     + 1)
                 .into();
                 let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-                protocol_store
+                pre_key_store
                     .save_pre_key(pre_key_id, &pre_key_record)
                     .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
                 // TODO: Shouldn't this also remove the previous pre-keys from storage?
@@ -176,7 +181,7 @@ impl<Service: PushService> AccountManager<Service> {
                     pre_key_id,
                     identity_key_pair.private_key(),
                 )?;
-                protocol_store
+                pre_key_store
                     .save_kyber_pre_key(pre_key_id, &pre_key_record)
                     .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
                 // TODO: Shouldn't this also remove the previous pre-keys from storage?
@@ -207,7 +212,7 @@ impl<Service: PushService> AccountManager<Service> {
                 &signed_pre_key_signature,
             );
 
-            protocol_store
+            pre_key_store
                 .save_signed_pre_key(
                     next_signed_pre_key_id.into(),
                     &signed_prekey_record,
@@ -239,7 +244,7 @@ impl<Service: PushService> AccountManager<Service> {
         };
 
         self.service
-            .register_pre_keys(ServiceIdType::AccountIdentity, pre_key_state)
+            .register_pre_keys(service_id_type, pre_key_state)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Uploading pre keys"
