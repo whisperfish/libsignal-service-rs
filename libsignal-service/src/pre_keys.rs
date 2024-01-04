@@ -18,7 +18,7 @@ pub trait PreKeysStore:
     PreKeyStore + SignedPreKeyStore + KyberPreKeyStore
 {
     /// ID of the next pre key
-    async fn pre_keys_offset_id(&self) -> Result<u32, SignalProtocolError>;
+    async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
 
     /// ID of the next signed pre key
     async fn next_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError>;

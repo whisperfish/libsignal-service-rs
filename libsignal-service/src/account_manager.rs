@@ -103,7 +103,7 @@ impl<Service: PushService> AccountManager<Service> {
         csprng: &mut R,
         use_last_resort_key: bool,
     ) -> Result<(u32, u32, u32), ServiceError> {
-        let pre_keys_offset_id = pre_key_store.pre_keys_offset_id().await?;
+        let pre_keys_offset_id = pre_key_store.next_pre_key_id().await?;
         let next_signed_pre_key_id =
             pre_key_store.next_signed_pre_key_id().await?;
         let pq_pre_keys_offset_id = pre_key_store.next_pq_pre_key_id().await?;
