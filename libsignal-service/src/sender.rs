@@ -6,7 +6,7 @@ use libsignal_protocol::{
     SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
-use tracing::{debug, info, trace};
+use tracing::{info, trace};
 use uuid::Uuid;
 
 use crate::{
@@ -61,6 +61,7 @@ pub struct SentMessage {
 /// Attachment specification to be used for uploading.
 ///
 /// Loose equivalent of Java's `SignalServiceAttachmentStream`.
+#[derive(Debug)]
 pub struct AttachmentSpec {
     pub content_type: String,
     pub length: usize,
@@ -150,6 +151,7 @@ where
     /// Encrypts and uploads an attachment
     ///
     /// Contents are accepted as an owned, plain text Vec, because encryption happens in-place.
+    #[tracing::instrument(skip(self, contents))]
     pub async fn upload_attachment(
         &mut self,
         spec: AttachmentSpec,
@@ -188,20 +190,24 @@ where
             contents.resize(padded_len, 0);
         }
 
-        crate::attachment_cipher::encrypt_in_place(iv, key, &mut contents);
+        tracing::trace_span!("encrypting attachment").in_scope(|| {
+            crate::attachment_cipher::encrypt_in_place(iv, key, &mut contents)
+        });
 
         // Request upload attributes
-        tracing::trace!("Requesting upload attributes");
-        let attrs = self
-            .identified_ws
-            .get_attachment_v2_upload_attributes()
-            .await?;
-
-        tracing::trace!("Uploading attachment");
-        let (id, digest) = self
-            .service
-            .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
-            .await?;
+        let attrs = {
+            let _span =
+                tracing::trace_span!("requesting upload attributes").entered();
+            self.identified_ws
+                .get_attachment_v2_upload_attributes()
+                .await?
+        };
+        let (id, digest) = {
+            let _span = tracing::trace_span!("Uploading attachment").entered();
+            self.service
+                .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
+                .await?
+        };
 
         Ok(AttachmentPointer {
             content_type: Some(spec.content_type),
@@ -240,6 +246,7 @@ where
     /// Upload contact details to the CDN
     ///
     /// Returns attachment ID and the attachment digest
+    #[tracing::instrument(skip(self, contacts))]
     async fn upload_contact_details<Contacts>(
         &mut self,
         contacts: Contacts,
@@ -287,6 +294,10 @@ where
     }
 
     /// Send a message `content` to a single `recipient`.
+    #[tracing::instrument(
+        skip(self, unidentified_access, message),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
@@ -358,6 +369,10 @@ where
     }
 
     /// Send a message to the recipients in a group.
+    #[tracing::instrument(
+        skip(self, recipients, message),
+        fields(recipients = recipients.as_ref().len()),
+    )]
     pub async fn send_message_to_group(
         &mut self,
         recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>)]>,
@@ -432,6 +447,11 @@ where
     }
 
     /// Send a message (`content`) to an address (`recipient`).
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content_body),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     async fn try_send_message(
         &mut self,
         recipient: ServiceAddress,
@@ -573,6 +593,10 @@ where
     }
 
     /// Upload contact details to the CDN and send a sync message
+    #[tracing::instrument(
+        skip(self, unidentified_access, contacts),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     pub async fn send_contact_details<Contacts>(
         &mut self,
         recipient: &ServiceAddress,
@@ -610,6 +634,11 @@ where
     }
 
     // Equivalent with `getEncryptedMessages`
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     async fn create_encrypted_messages(
         &mut self,
         recipient: &ServiceAddress,
@@ -635,7 +664,7 @@ where
         }
 
         for device_id in devices {
-            debug!("sending message to device {}", device_id);
+            trace!("sending message to device {}", device_id);
             messages.push(
                 self.create_encrypted_message(
                     recipient,
@@ -653,6 +682,11 @@ where
     /// Equivalent to `getEncryptedMessage`
     ///
     /// When no session with the recipient exists, we need to create one.
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     async fn create_encrypted_message(
         &mut self,
         recipient: &ServiceAddress,
@@ -663,7 +697,7 @@ where
         let recipient_protocol_address =
             recipient.to_protocol_address(device_id);
 
-        tracing::debug!(
+        tracing::trace!(
             "encrypting message for {}",
             recipient_protocol_address
         );
@@ -724,6 +758,7 @@ where
             }
         }
 
+        let _span = tracing::trace_span!("encrypting message").entered();
         let message = self
             .cipher
             .encrypt(&recipient_protocol_address, unidentified_access, content)
