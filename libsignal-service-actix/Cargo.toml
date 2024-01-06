@@ -24,7 +24,6 @@ rustls = "0.21"
 rustls-pemfile = "0.3"
 url = "2.1"
 serde = "1.0"
-log = "0.4"
 rand = "0.8"
 
 thiserror = "1.0"
