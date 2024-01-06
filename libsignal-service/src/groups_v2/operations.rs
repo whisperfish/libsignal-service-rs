@@ -163,7 +163,7 @@ impl GroupOperations {
         if bytes.is_empty() {
             GroupAttributeBlob::default()
         } else if bytes.len() < 29 {
-            log::warn!("bad encrypted blob length");
+            tracing::warn!("bad encrypted blob length");
             GroupAttributeBlob::default()
         } else {
             self.group_secret_params
@@ -174,7 +174,7 @@ impl GroupOperations {
                         .map_err(GroupDecodingError::ProtobufDecodeError)
                 })
                 .unwrap_or_else(|e| {
-                    log::warn!("bad encrypted blob: {}", e);
+                    tracing::warn!("bad encrypted blob: {}", e);
                     GroupAttributeBlob::default()
                 })
         }

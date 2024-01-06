@@ -103,9 +103,9 @@ where
     loop {
         tokio::select! {
             _ = ka_interval.tick() => {
-                log::trace!("Triggering keep-alive");
+                tracing::trace!("Triggering keep-alive");
                 if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
-                    log::info!("Websocket sink has closed: {:?}.", e);
+                    tracing::info!("Websocket sink has closed: {:?}.", e);
                     break;
                 };
             },
@@ -113,31 +113,31 @@ where
                 let frame = if let Some(frame) = frame {
                     frame
                 } else {
-                    log::info!("process: Socket stream ended");
+                    tracing::info!("process: Socket stream ended");
                     break;
                 };
 
                 let frame = match frame? {
                     Message::Binary(s) => s,
                     Message::Ping(msg) => {
-                        log::warn!("Received Ping({:?})", msg);
+                        tracing::warn!("Received Ping({:?})", msg);
 
                         continue;
                     },
                     Message::Pong(msg) => {
-                        log::trace!("Received Pong({:?})", msg);
+                        tracing::trace!("Received Pong({:?})", msg);
 
                         continue;
                     },
                     Message::Text(frame) => {
-                        log::warn!("Message::Text {:?}", frame);
+                        tracing::warn!("Message::Text {:?}", frame);
 
                         // this is a protocol violation, maybe break; is better?
                         continue;
                     },
 
                     Message::Close(c) => {
-                        log::warn!("Websocket closing: {:?}", c);
+                        tracing::warn!("Websocket closing: {:?}", c);
 
                         break;
                     },
@@ -146,7 +146,7 @@ where
 
                 // Match SendError
                 if let Err(e) = incoming_sink.send(WebSocketStreamItem::Message(Bytes::from(frame))).await {
-                    log::info!("Websocket sink has closed: {:?}.", e);
+                    tracing::info!("Websocket sink has closed: {:?}.", e);
                     break;
                 }
             },
@@ -181,7 +181,7 @@ impl TungsteniteWebSocket {
                 );
         }
 
-        log::trace!("Will start websocket at {:?}", url);
+        tracing::trace!("Will start websocket at {:?}", url);
 
         let mut request = url.into_client_request()?;
 
@@ -198,7 +198,7 @@ impl TungsteniteWebSocket {
             connect_async_with_tls_connector(request, Some(tls_connector))
                 .await?;
 
-        log::debug!("WebSocket connected: {:?}", response);
+        tracing::debug!("WebSocket connected: {:?}", response);
 
         let (incoming_sink, incoming_stream) = channel(5);
 
@@ -210,7 +210,7 @@ impl TungsteniteWebSocket {
         tokio::spawn(processing_task.map(|v| match v {
             Ok(()) => (),
             Err(e) => {
-                log::warn!("Processing task terminated with error: {:?}", e)
+                tracing::warn!("Processing task terminated with error: {:?}", e)
             },
         }));
 

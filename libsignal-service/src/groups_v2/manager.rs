@@ -203,7 +203,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
                 credential_response,
             )
             .map_err(|e| {
-                log::error!(
+                tracing::error!(
                     "failed to receive auth credentials with PNI: {:?}",
                     e
                 );

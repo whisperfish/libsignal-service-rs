@@ -108,7 +108,7 @@ impl<Service: PushService> AccountManager<Service> {
         {
             Ok(status) => status,
             Err(ServiceError::Unauthorized) => {
-                log::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
+                tracing::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
                 // Additionally, the second PUT request will fail if this really comes down to an
                 // authorization failure.
                 crate::push_service::PreKeyStatus {
@@ -118,12 +118,12 @@ impl<Service: PushService> AccountManager<Service> {
             },
             Err(e) => return Err(e),
         };
-        log::trace!("Remaining pre-keys on server: {:?}", prekey_status);
+        tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
 
         if prekey_status.count >= PRE_KEY_MINIMUM
             && prekey_status.pq_count >= PRE_KEY_MINIMUM
         {
-            log::info!("Available keys sufficient");
+            tracing::info!("Available keys sufficient");
             return Ok((
                 pre_keys_offset_id,
                 pq_pre_keys_offset_id,
@@ -207,7 +207,7 @@ impl<Service: PushService> AccountManager<Service> {
             identity_key: *identity_key_pair.public_key(),
             pq_pre_keys: pq_pre_key_entities,
             pq_last_resort_key: if use_last_resort_key {
-                log::warn!("Last resort Kyber key unimplemented");
+                tracing::warn!("Last resort Kyber key unimplemented");
                 // Note about the last-resort key:
                 // mark_kyber_pre_key_used() should retain the last-resort key, but can safely
                 // remove the ephemeral pre keys.  This implies that generating the last-resort key
@@ -228,7 +228,7 @@ impl<Service: PushService> AccountManager<Service> {
             .register_pre_keys(ServiceIdType::AccountIdentity, pre_key_state)
             .await?;
 
-        log::trace!("Successfully refreshed prekeys");
+        tracing::trace!("Successfully refreshed prekeys");
         Ok((
             pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
             pq_pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
@@ -313,7 +313,7 @@ impl<Service: PushService> AccountManager<Service> {
         let identity_key_pair = identity_store.get_identity_key_pair().await?;
 
         if credentials.uuid.is_none() {
-            log::warn!("No local UUID set");
+            tracing::warn!("No local UUID set");
         }
 
         let provisioning_code = self.new_device_provisioning_code().await?;

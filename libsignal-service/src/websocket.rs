@@ -95,7 +95,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
         frame: Bytes,
     ) -> Result<(), ServiceError> {
         let msg = WebSocketMessage::decode(frame)?;
-        log::trace!("decoded {:?}", msg);
+        tracing::trace!("decoded {:?}", msg);
 
         use web_socket_message::Type;
         match (msg.r#type(), msg.request, msg.response) {
@@ -104,7 +104,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
             }),
             (Type::Request, Some(request), _) => {
                 let (sink, recv) = oneshot::channel();
-                log::trace!("sending request with body");
+                tracing::trace!("sending request with body");
                 self.request_sink.send((request, sink)).await.map_err(
                     |_| ServiceError::WsError {
                         reason: "request handler failed".into(),
@@ -124,7 +124,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                         self.outgoing_request_map.remove(&id)
                     {
                         if let Err(e) = responder.send(Ok(response)) {
-                            log::warn!(
+                            tracing::warn!(
                                 "Could not deliver response for id {}: {:?}",
                                 id,
                                 e
@@ -134,7 +134,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                         self.outgoing_keep_alive_set.take(&id)
                     {
                         if response.status() != 200 {
-                            log::warn!(
+                            tracing::warn!(
                                 "Response code for keep-alive is not 200: {:?}",
                                 response
                             );
@@ -143,7 +143,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             });
                         }
                     } else {
-                        log::warn!(
+                        tracing::warn!(
                             "Response for non existing request: {:?}",
                             response
                         );
@@ -184,7 +184,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                     .filter(|x| !self.outgoing_request_map.contains_key(x))
                                     .unwrap_or_else(|| self.next_request_id()),
                             );
-                            log::trace!("sending request {:?}", request);
+                            tracing::trace!("sending request {:?}", request);
 
                             self.outgoing_request_map.insert(request.id.unwrap(), responder);
                             let msg = WebSocketMessage {
@@ -210,7 +210,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                         Some(WebSocketStreamItem::KeepAliveRequest) => {
                             // XXX: would be nicer if we could drop this request into the request
                             // queue above.
-                            log::debug!("Sending keep alive upon request");
+                            tracing::debug!("Sending keep alive upon request");
                             let request = WebSocketRequestMessage {
                                 id: Some(self.next_request_id()),
                                 path: Some(self.keep_alive_path.clone()),
@@ -236,7 +236,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                 response = self.outgoing_responses.next() => {
                     match response {
                         Some(Ok(response)) => {
-                            log::trace!("sending response {:?}", response);
+                            tracing::trace!("sending response {:?}", response);
 
                             let msg = WebSocketMessage {
                                 r#type: Some(web_socket_message::Type::Response.into()),
@@ -247,7 +247,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                             self.ws.send_message(buffer.into()).await?;
                         }
                         Some(Err(e)) => {
-                            log::error!("could not generate response to a Signal request; responder was canceled: {}. Continuing.", e);
+                            tracing::error!("could not generate response to a Signal request; responder was canceled: {}. Continuing.", e);
                         }
                         None => {
                             unreachable!("outgoing responses should never fuse")
@@ -292,7 +292,7 @@ impl SignalWebSocket {
         let process = process.run().map(|x| match x {
             Ok(()) => (),
             Err(e) => {
-                log::error!("SignalWebSocket: {}", e);
+                tracing::error!("SignalWebSocket: {}", e);
             },
         });
 
@@ -383,7 +383,7 @@ impl SignalWebSocket {
     {
         let response = self.request(r).await?;
         if response.status() != 200 {
-            log::debug!(
+            tracing::debug!(
                 "request_json with non-200 status code. message: {}",
                 response.message()
             );
@@ -408,7 +408,7 @@ impl SignalWebSocket {
             409 /* CONFLICT */ => {
                 let mismatched_devices: MismatchedDevices =
                     json(response.body()).map_err(|e| {
-                        log::error!(
+                        tracing::error!(
                             "Failed to decode HTTP 409 response: {}",
                             e
                         );
@@ -423,7 +423,7 @@ impl SignalWebSocket {
             410 /* GONE */ => {
                 let stale_devices =
                     json(response.body()).map_err(|e| {
-                        log::error!(
+                        tracing::error!(
                             "Failed to decode HTTP 410 response: {}",
                             e
                         );
@@ -435,7 +435,7 @@ impl SignalWebSocket {
             },
             428 /* PRECONDITION_REQUIRED */ => {
                 let proof_required = json(response.body()).map_err(|e| {
-                    log::error!("Failed to decode HTTP 428 response: {}", e);
+                    tracing::error!("Failed to decode HTTP 428 response: {}", e);
                     ServiceError::UnhandledResponseCode {
                         http_code: 428,
                     }

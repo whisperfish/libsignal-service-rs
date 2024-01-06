@@ -34,7 +34,6 @@ base64 = "0.13"
 phonenumber = "0.3"
 
 [dev-dependencies]
-env_logger = "0.9"
 image = { version = "0.23", default-features = false, features = ["png"] }
 opener = "0.5"
 qrcode = "0.12"

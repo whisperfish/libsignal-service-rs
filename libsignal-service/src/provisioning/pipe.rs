@@ -153,7 +153,7 @@ impl ProvisioningPipe {
 
         let stream = stream.map(Some);
         let runner = self.run(sink).map(|_| {
-            log::info!("Sink closed, provisioning is done!");
+            tracing::info!("Sink closed, provisioning is done!");
             None
         });
 

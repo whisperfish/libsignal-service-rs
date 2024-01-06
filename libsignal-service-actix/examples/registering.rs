@@ -32,7 +32,6 @@ use structopt::StructOpt;
 
 #[actix_rt::main]
 async fn main() -> Result<(), Error> {
-    env_logger::init();
     let client = "libsignal-service-hyper-example";
     let use_voice = false;
 

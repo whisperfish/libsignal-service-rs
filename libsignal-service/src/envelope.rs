@@ -34,10 +34,10 @@ impl Envelope {
         is_signaling_key_encrypted: bool,
     ) -> Result<Self, ServiceError> {
         if !is_signaling_key_encrypted {
-            log::trace!("Envelope::decrypt: not encrypted");
+            tracing::trace!("Envelope::decrypt: not encrypted");
             Ok(Envelope::decode(input)?)
         } else {
-            log::trace!("Envelope::decrypt: decrypting");
+            tracing::trace!("Envelope::decrypt: decrypting");
             if input.len() < VERSION_LENGTH
                 || input[VERSION_OFFSET] != SUPPORTED_VERSION
             {
@@ -78,7 +78,7 @@ impl Envelope {
                 .decrypt_padded_vec_mut::<Pkcs7>(input)
                 .expect("decryption");
 
-            log::trace!("Envelope::decrypt: decrypted, decoding");
+            tracing::trace!("Envelope::decrypt: decrypted, decoding");
 
             Ok(Envelope::decode(&input as &[u8])?)
         }

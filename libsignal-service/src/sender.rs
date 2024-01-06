@@ -5,8 +5,8 @@ use libsignal_protocol::{
     process_prekey_bundle, DeviceId, ProtocolStore, SenderCertificate,
     SenderKeyStore, SignalProtocolError,
 };
-use log::{debug, info, trace};
 use rand::{CryptoRng, Rng};
+use tracing::{debug, info, trace};
 use uuid::Uuid;
 
 use crate::{
@@ -179,7 +179,7 @@ where
             )
         };
         if padded_len < len {
-            log::error!(
+            tracing::error!(
                 "Padded len {} < len {}. Continuing with a privacy risk.",
                 padded_len,
                 len
@@ -191,13 +191,13 @@ where
         crate::attachment_cipher::encrypt_in_place(iv, key, &mut contents);
 
         // Request upload attributes
-        log::trace!("Requesting upload attributes");
+        tracing::trace!("Requesting upload attributes");
         let attrs = self
             .identified_ws
             .get_attachment_v2_upload_attributes()
             .await?;
 
-        log::trace!("Uploading attachment");
+        tracing::trace!("Uploading attachment");
         let (id, digest) = self
             .service
             .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
@@ -329,7 +329,7 @@ where
                 ContentBody::DataMessage(message),
                 Ok(SentMessage { needs_sync, .. }),
             ) if *needs_sync || self.is_multi_device().await => {
-                log::debug!("sending multi-device sync message");
+                tracing::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         Some(recipient),
@@ -351,7 +351,7 @@ where
 
         if end_session {
             let n = self.protocol_store.delete_all_sessions(recipient).await?;
-            log::debug!("ended {} sessions with {}", n, recipient.uuid);
+            tracing::debug!("ended {} sessions with {}", n, recipient.uuid);
         }
 
         results.remove(0)
@@ -398,7 +398,9 @@ where
 
         if needs_sync_in_results && message.is_none() {
             // XXX: does this happen?
-            log::warn!("Server claims need sync, but not sending datamessage.");
+            tracing::warn!(
+                "Server claims need sync, but not sending datamessage."
+            );
         }
 
         // we only need to send a synchronization message once
@@ -461,18 +463,18 @@ where
             };
 
             let send = if let Some(unidentified) = &unidentified_access {
-                log::debug!("sending via unidentified");
+                tracing::debug!("sending via unidentified");
                 self.unidentified_ws
                     .send_messages_unidentified(messages, unidentified)
                     .await
             } else {
-                log::debug!("sending identified");
+                tracing::debug!("sending identified");
                 self.identified_ws.send_messages(messages).await
             };
 
             match send {
                 Ok(SendMessageResponse { needs_sync }) => {
-                    log::debug!("message sent!");
+                    tracing::debug!("message sent!");
                     return Ok(SentMessage {
                         recipient,
                         unidentified: unidentified_access.is_some(),
@@ -482,13 +484,13 @@ where
                 Err(ServiceError::Unauthorized)
                     if unidentified_access.is_some() =>
                 {
-                    log::trace!("unauthorized error using unidentified; retry over identified");
+                    tracing::trace!("unauthorized error using unidentified; retry over identified");
                     unidentified_access = None;
                 },
                 Err(ServiceError::MismatchedDevicesException(ref m)) => {
-                    log::debug!("{:?}", m);
+                    tracing::debug!("{:?}", m);
                     for extra_device_id in &m.extra_devices {
-                        log::debug!(
+                        tracing::debug!(
                             "dropping session with device {}",
                             extra_device_id
                         );
@@ -501,7 +503,7 @@ where
                     }
 
                     for missing_device_id in &m.missing_devices {
-                        log::debug!(
+                        tracing::debug!(
                             "creating session with missing device {}",
                             missing_device_id
                         );
@@ -522,7 +524,7 @@ where
                         )
                         .await
                         .map_err(|e| {
-                            log::error!("failed to create session: {}", e);
+                            tracing::error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
                                 address: recipient,
                             }
@@ -530,9 +532,9 @@ where
                     }
                 },
                 Err(ServiceError::StaleDevices(ref m)) => {
-                    log::debug!("{:?}", m);
+                    tracing::debug!("{:?}", m);
                     for extra_device_id in &m.stale_devices {
-                        log::debug!(
+                        tracing::debug!(
                             "dropping session with device {}",
                             extra_device_id
                         );
@@ -545,20 +547,20 @@ where
                     }
                 },
                 Err(ServiceError::ProofRequiredError(ref p)) => {
-                    log::debug!("{:?}", p);
+                    tracing::debug!("{:?}", p);
                     return Err(MessageSenderError::ProofRequired {
                         token: p.token.clone(),
                         options: p.options.clone(),
                     });
                 },
                 Err(ServiceError::NotFoundError) => {
-                    log::debug!("Not found when sending a message");
+                    tracing::debug!("Not found when sending a message");
                     return Err(MessageSenderError::NotFound {
                         uuid: recipient.uuid,
                     });
                 },
                 Err(e) => {
-                    log::debug!(
+                    tracing::debug!(
                         "Default error handler for ws.send_messages: {}",
                         e
                     );
@@ -661,7 +663,10 @@ where
         let recipient_protocol_address =
             recipient.to_protocol_address(device_id);
 
-        log::debug!("encrypting message for {}", recipient_protocol_address);
+        tracing::debug!(
+            "encrypting message for {}",
+            recipient_protocol_address
+        );
 
         // establish a session with the recipient/device if necessary
         // no need to establish a session with ourselves (and our own current device)
@@ -681,7 +686,7 @@ where
                 .await
             {
                 Ok(ok) => {
-                    log::trace!("Get prekeys OK");
+                    tracing::trace!("Get prekeys OK");
                     ok
                 },
                 Err(ServiceError::NotFoundError) => {

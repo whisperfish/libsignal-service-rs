@@ -81,7 +81,7 @@ impl<Service: PushService> MessageReceiver<Service> {
                 match r {
                     Ok(stream) => break stream,
                     Err(ServiceError::Timeout { .. }) => {
-                        log::warn!("get_attachment timed out, retrying");
+                        tracing::warn!("get_attachment timed out, retrying");
                         retries += 1;
                         if retries >= MAX_DOWNLOAD_RETRIES {
                             return Err(ServiceError::Timeout {

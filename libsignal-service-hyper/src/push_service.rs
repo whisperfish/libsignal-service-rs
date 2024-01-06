@@ -92,7 +92,7 @@ impl HyperPushService {
         body: Option<RequestBody>,
     ) -> Result<Response<Body>, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
-        log::debug!("HTTP request {} {}", method, url);
+        tracing::debug!("HTTP request {} {}", method, url);
         let mut builder = Request::builder()
             .method(method)
             .uri(url.as_str())
@@ -159,7 +159,7 @@ impl HyperPushService {
             StatusCode::CONFLICT => {
                 let mismatched_devices =
                     Self::json(&mut response).await.map_err(|e| {
-                        log::error!(
+                        tracing::error!(
                             "Failed to decode HTTP 409 response: {}",
                             e
                         );
@@ -174,7 +174,7 @@ impl HyperPushService {
             StatusCode::GONE => {
                 let stale_devices =
                     Self::json(&mut response).await.map_err(|e| {
-                        log::error!(
+                        tracing::error!(
                             "Failed to decode HTTP 410 response: {}",
                             e
                         );
@@ -187,7 +187,7 @@ impl HyperPushService {
             StatusCode::PRECONDITION_REQUIRED => {
                 let proof_required =
                     Self::json(&mut response).await.map_err(|e| {
-                        log::error!(
+                        tracing::error!(
                             "Failed to decode HTTP 428 response: {}",
                             e
                         );
@@ -200,7 +200,7 @@ impl HyperPushService {
             },
             // XXX: fill in rest from PushServiceSocket
             code => {
-                log::trace!(
+                tracing::trace!(
                     "Unhandled response {} with body: {}",
                     code.as_u16(),
                     Self::text(&mut response).await?,
@@ -554,7 +554,7 @@ impl PushService for HyperPushService {
             // Unwrap, because no error type was used above
             body_contents.extend(b.unwrap());
         }
-        log::trace!(
+        tracing::trace!(
             "Sending PUT with Content-Type={} and length {}",
             content_type,
             body_contents.len()
@@ -574,7 +574,7 @@ impl PushService for HyperPushService {
             )
             .await?;
 
-        log::debug!("HyperPushService::PUT response: {:?}", response);
+        tracing::debug!("HyperPushService::PUT response: {:?}", response);
 
         Ok(())
     }
