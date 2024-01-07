@@ -136,8 +136,10 @@ impl Envelope {
         let uuid = self
             .source_service_id
             .as_deref()
-            .and_then(|u| Uuid::parse_str(u).ok())
-            .expect("valid uuid checked in constructor");
+            .map(Uuid::parse_str)
+            .transpose()
+            .expect("valid uuid checked in constructor")
+            .expect("source_service_id is set");
 
         ServiceAddress { uuid }
     }
