@@ -46,6 +46,23 @@ impl<S, R> fmt::Debug for ServiceCipher<S, R> {
     }
 }
 
+fn debug_envelope(envelope: &Envelope) -> String {
+    format!(
+        "Envelope {{ \
+         source_address: {:?}, \
+         source_device: {:?}, \
+         server_guid: {:?}, \
+         timestamp: {:?}, \
+         content: {} bytes, \
+         }}",
+        envelope.source_address(),
+        envelope.source_device(),
+        envelope.server_guid(),
+        envelope.timestamp(),
+        envelope.content().len(),
+    )
+}
+
 impl<S, R> ServiceCipher<S, R>
 where
     S: ProtocolStore + KyberPreKeyStore + SenderKeyStore + Clone,
@@ -70,7 +87,7 @@ where
     /// Opens ("decrypts") an envelope.
     ///
     /// Envelopes may be empty, in which case this method returns `Ok(None)`
-    #[tracing::instrument]
+    #[tracing::instrument(skip(envelope), fields(envelope = debug_envelope(&envelope)))]
     pub async fn open_envelope(
         &mut self,
         envelope: Envelope,
@@ -102,7 +119,7 @@ where
     /// Triage of legacy messages happens inside this method, as opposed to the
     /// Java implementation, because it makes the borrow checker and the
     /// author happier.
-    #[tracing::instrument]
+    #[tracing::instrument(skip(envelope), fields(envelope = debug_envelope(envelope)))]
     async fn decrypt(
         &mut self,
         envelope: &Envelope,
