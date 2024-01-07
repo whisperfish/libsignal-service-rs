@@ -47,20 +47,24 @@ impl<S, R> fmt::Debug for ServiceCipher<S, R> {
 }
 
 fn debug_envelope(envelope: &Envelope) -> String {
-    format!(
-        "Envelope {{ \
+    if envelope.content.is_none() {
+        "Envelope { empty }".to_string()
+    } else {
+        format!(
+            "Envelope {{ \
          source_address: {:?}, \
          source_device: {:?}, \
          server_guid: {:?}, \
          timestamp: {:?}, \
          content: {} bytes, \
          }}",
-        envelope.source_address(),
-        envelope.source_device(),
-        envelope.server_guid(),
-        envelope.timestamp(),
-        envelope.content().len(),
-    )
+            envelope.source_address(),
+            envelope.source_device(),
+            envelope.server_guid(),
+            envelope.timestamp(),
+            envelope.content().len(),
+        )
+    }
 }
 
 impl<S, R> ServiceCipher<S, R>
