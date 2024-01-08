@@ -151,7 +151,7 @@ where
     /// Encrypts and uploads an attachment
     ///
     /// Contents are accepted as an owned, plain text Vec, because encryption happens in-place.
-    #[tracing::instrument(skip(self, contents))]
+    #[tracing::instrument(skip(self, contents), fields(size = contents.len()))]
     pub async fn upload_attachment(
         &mut self,
         spec: AttachmentSpec,
