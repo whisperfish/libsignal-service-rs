@@ -160,14 +160,20 @@ impl AwcWebSocket {
                 );
         }
 
-        tracing::trace!("Will start websocket at {:?}", url);
+        tracing::trace!(
+            url.scheme = url.scheme(),
+            url.host = ?url.host(),
+            url.path = url.path(),
+            url.has_query = ?url.query().is_some(),
+            "starting websocket",
+        );
         let mut ws = client.ws(url.as_str());
         for (key, value) in additional_headers {
             ws = ws.header(*key, *value);
         }
         let (response, framed) = ws.connect().await?;
 
-        tracing::debug!("WebSocket connected: {:?}", response);
+        tracing::debug!(?response, "WebSocket connected");
 
         let (incoming_sink, incoming_stream) = channel(5);
 
