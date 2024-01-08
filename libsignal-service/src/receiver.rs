@@ -60,7 +60,7 @@ impl<Service: PushService> MessageReceiver<Service> {
                 Some(credentials.clone()),
             )
             .await?;
-        Ok(MessagePipe::from_socket(ws, credentials))
+        Ok(MessagePipe::from_socket(ws))
     }
 
     pub async fn retrieve_contacts(
