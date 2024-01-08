@@ -105,24 +105,24 @@ where
 
                     Frame::Continuation(_c) => todo!(),
                     Frame::Ping(msg) => {
-                        tracing::warn!("Received Ping({:?})", msg);
+                        tracing::warn!(?msg, "received Ping");
 
                         continue;
                     },
                     Frame::Pong(msg) => {
-                        tracing::trace!("Received Pong({:?})", msg);
+                        tracing::trace!(?msg, "received Pong");
 
                         continue;
                     },
                     Frame::Text(frame) => {
-                        tracing::warn!("Frame::Text {:?}", frame);
+                        tracing::warn!(?frame, "frame::Text",);
 
                         // this is a protocol violation, maybe break; is better?
                         continue;
                     },
 
                     Frame::Close(c) => {
-                        tracing::warn!("Websocket closing: {:?}", c);
+                        tracing::warn!(?c, "Websocket closing");
 
                         break;
                     },
