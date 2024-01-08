@@ -13,6 +13,7 @@ use libsignal_protocol::{
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
 use crate::pre_keys::KyberPreKeyEntity;
@@ -102,29 +103,26 @@ impl<Service: PushService> AccountManager<Service> {
         pq_pre_keys_offset_id: u32,
         use_last_resort_key: bool,
     ) -> Result<(u32, u32, u32), ServiceError> {
-        let prekey_status = {
-            let _span = tracing::span!(
+        let prekey_status = match self
+            .service
+            .get_pre_key_status(ServiceIdType::AccountIdentity)
+            .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Fetching pre key status"
-            )
-            .entered();
-            match self
-                .service
-                .get_pre_key_status(ServiceIdType::AccountIdentity)
-                .await
-            {
-                Ok(status) => status,
-                Err(ServiceError::Unauthorized) => {
-                    tracing::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
-                    // Additionally, the second PUT request will fail if this really comes down to an
-                    // authorization failure.
-                    crate::push_service::PreKeyStatus {
-                        count: 0,
-                        pq_count: 0,
-                    }
-                },
-                Err(e) => return Err(e),
-            }
+            ))
+            .await
+        {
+            Ok(status) => status,
+            Err(ServiceError::Unauthorized) => {
+                tracing::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
+                // Additionally, the second PUT request will fail if this really comes down to an
+                // authorization failure.
+                crate::push_service::PreKeyStatus {
+                    count: 0,
+                    pq_count: 0,
+                }
+            },
+            Err(e) => return Err(e),
         };
         tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
 
@@ -140,11 +138,11 @@ impl<Service: PushService> AccountManager<Service> {
         }
 
         let pre_key_state = {
-            let _span =
-                tracing::span!(tracing::Level::DEBUG, "Generating pre keys")
-                    .entered();
+            let span =
+                tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
+
             let identity_key_pair =
-                protocol_store.get_identity_key_pair().await?;
+                protocol_store.get_identity_key_pair().instrument(tracing::trace_span!(parent: &span, "get identity key pair")).await?;
 
             let mut pre_key_entities = vec![];
             let mut pq_pre_key_entities = vec![];
@@ -159,7 +157,7 @@ impl<Service: PushService> AccountManager<Service> {
                 let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
                 protocol_store
                     .save_pre_key(pre_key_id, &pre_key_record)
-                    .await?;
+                    .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
                 // TODO: Shouldn't this also remove the previous pre-keys from storage?
                 //       I think we might want to update the storage, and then sync the storage to the
                 //       server.
@@ -180,7 +178,7 @@ impl<Service: PushService> AccountManager<Service> {
                 )?;
                 protocol_store
                     .save_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .await?;
+                    .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
                 // TODO: Shouldn't this also remove the previous pre-keys from storage?
                 //       I think we might want to update the storage, and then sync the storage to the
                 //       server.
@@ -214,7 +212,7 @@ impl<Service: PushService> AccountManager<Service> {
                     next_signed_pre_key_id.into(),
                     &signed_prekey_record,
                 )
-                .await?;
+                    .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
 
             PreKeyState {
                 pre_keys: pre_key_entities,
@@ -240,17 +238,13 @@ impl<Service: PushService> AccountManager<Service> {
             }
         };
 
-        {
-            let _span =
-                tracing::span!(tracing::Level::DEBUG, "Uploading pre keys")
-                    .entered();
-            self.service
-                .register_pre_keys(
-                    ServiceIdType::AccountIdentity,
-                    pre_key_state,
-                )
-                .await?;
-        }
+        self.service
+            .register_pre_keys(ServiceIdType::AccountIdentity, pre_key_state)
+            .instrument(tracing::span!(
+                tracing::Level::DEBUG,
+                "Uploading pre keys"
+            ))
+            .await?;
 
         Ok((
             pre_keys_offset_id + PRE_KEY_BATCH_SIZE,

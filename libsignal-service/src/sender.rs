@@ -7,6 +7,7 @@ use libsignal_protocol::{
 };
 use rand::{CryptoRng, Rng};
 use tracing::{info, trace};
+use tracing_futures::Instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -195,19 +196,16 @@ where
         });
 
         // Request upload attributes
-        let attrs = {
-            let _span =
-                tracing::trace_span!("requesting upload attributes").entered();
-            self.identified_ws
-                .get_attachment_v2_upload_attributes()
-                .await?
-        };
-        let (id, digest) = {
-            let _span = tracing::trace_span!("Uploading attachment").entered();
-            self.service
-                .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
-                .await?
-        };
+        let attrs = self
+            .identified_ws
+            .get_attachment_v2_upload_attributes()
+            .instrument(tracing::trace_span!("requesting upload attributes"))
+            .await?;
+        let (id, digest) = self
+            .service
+            .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
+            .instrument(tracing::trace_span!("Uploading attachment"))
+            .await?;
 
         Ok(AttachmentPointer {
             content_type: Some(spec.content_type),
@@ -758,10 +756,10 @@ where
             }
         }
 
-        let _span = tracing::trace_span!("encrypting message").entered();
         let message = self
             .cipher
             .encrypt(&recipient_protocol_address, unidentified_access, content)
+            .instrument(tracing::trace_span!("encrypting message"))
             .await?;
 
         Ok(message)

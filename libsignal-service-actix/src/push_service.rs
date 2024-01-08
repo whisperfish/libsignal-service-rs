@@ -13,6 +13,7 @@ use libsignal_service::{
     websocket::SignalWebSocket,
 };
 use serde::{Deserialize, Serialize};
+use tracing_futures::Instrument;
 
 use crate::websocket::AwcWebSocket;
 
@@ -85,6 +86,7 @@ impl AwcPushService {
         })
     }
 
+    #[tracing::instrument(name = "extracting error", skip(response))]
     async fn from_response<S>(
         response: &mut ClientResponse<S>,
     ) -> Result<(), ServiceError>
@@ -201,8 +203,7 @@ impl PushService for AwcPushService {
                 },
             })?;
 
-        let _span =
-            tracing::debug_span!("processing response", ?response).entered();
+        let _span = tracing::debug_span!("processing response", ?response);
 
         Self::from_response(&mut response).await?;
 
@@ -646,6 +647,7 @@ impl PushService for AwcPushService {
         additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
     ) -> Result<SignalWebSocket, ServiceError> {
+        let span = tracing::debug_span!("websocket");
         let (ws, stream) = AwcWebSocket::with_client(
             &mut self.client,
             self.cfg.base_url(Endpoint::Service),
@@ -653,13 +655,14 @@ impl PushService for AwcPushService {
             additional_headers,
             credentials.as_ref(),
         )
+        .instrument(span.clone())
         .await?;
         let (ws, task) = SignalWebSocket::from_socket(
             ws,
             stream,
             keep_alive_path.to_owned(),
         );
-        actix_rt::spawn(task);
+        actix_rt::spawn(task.instrument(span));
         Ok(ws)
     }
 }
