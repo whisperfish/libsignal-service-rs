@@ -206,7 +206,14 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                     .filter(|x| !self.outgoing_request_map.contains_key(x))
                                     .unwrap_or_else(|| self.next_request_id()),
                             );
-                            tracing::trace!("sending request {:?}", request);
+                            tracing::trace!(
+                                "sending WebSocketRequestMessage {{ verb: {:?}, path: {:?}, body (bytes): {:?}, headers: {:?}, id: {:?} }}",
+                                request.verb,
+                                request.path,
+                                request.body.as_ref().map(|x| x.len()),
+                                request.headers,
+                                request.id,
+                            );
 
                             self.outgoing_request_map.insert(request.id.unwrap(), responder);
                             let msg = WebSocketMessage {
