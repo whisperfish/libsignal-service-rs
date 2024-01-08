@@ -189,40 +189,6 @@ pub mod serde_optional_private_key {
     }
 }
 
-pub mod serde_signaling_key {
-    use std::convert::TryInto;
-
-    use crate::configuration::SignalingKey;
-    use serde::{Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S>(
-        signaling_key: &SignalingKey,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&base64::encode(signaling_key))
-    }
-
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<SignalingKey, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        base64::decode(String::deserialize(deserializer)?)
-            .map_err(serde::de::Error::custom)?
-            .try_into()
-            .map_err(|buf: Vec<u8>| {
-                serde::de::Error::invalid_length(
-                    buf.len(),
-                    &"invalid signaling key length",
-                )
-            })
-    }
-}
-
 pub mod serde_phone_number {
     use phonenumber::PhoneNumber;
     use serde::{Deserialize, Deserializer, Serializer};

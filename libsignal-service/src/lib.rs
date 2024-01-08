@@ -70,9 +70,7 @@ pub mod prelude {
     pub use super::ServiceAddress;
     pub use crate::{
         cipher::ServiceCipher,
-        configuration::{
-            ServiceConfiguration, ServiceCredentials, SignalingKey,
-        },
+        configuration::{ServiceConfiguration, ServiceCredentials},
         content::Content,
         envelope::Envelope,
         groups_v2::{
