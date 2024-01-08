@@ -466,16 +466,21 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 /// is then validated against the `trust_root` baked into the client to ensure that the sender's
 /// identity was not forged.
 #[allow(clippy::too_many_arguments)]
-#[tracing::instrument(skip(
-    ciphertext,
-    trust_root,
-    identity_store,
-    session_store,
-    pre_key_store,
-    signed_pre_key_store,
-    sender_key_store,
-    kyber_pre_key_store
-))]
+#[tracing::instrument(
+    skip(
+        ciphertext,
+        trust_root,
+        identity_store,
+        session_store,
+        pre_key_store,
+        signed_pre_key_store,
+        sender_key_store,
+        kyber_pre_key_store
+    ),
+    fields(
+        ciphertext = ciphertext.len(),
+    )
+)]
 async fn sealed_sender_decrypt(
     ciphertext: &[u8],
     trust_root: &PublicKey,

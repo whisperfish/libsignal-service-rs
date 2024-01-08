@@ -95,7 +95,29 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
         frame: Bytes,
     ) -> Result<(), ServiceError> {
         let msg = WebSocketMessage::decode(frame)?;
-        tracing::trace!("decoded {:?}", msg);
+        if let Some(request) = &msg.request {
+            tracing::trace!(
+                "decoded WebSocketMessage request {{ r#type: {:?}, verb: {:?}, path: {:?}, body: {} bytes, headers: {:?}, id: {:?} }}",
+                msg.r#type(),
+                request.verb,
+                request.path,
+                request.body.as_ref().map(|x| x.len()).unwrap_or(0),
+                request.headers,
+                request.id,
+            );
+        } else if let Some(response) = &msg.response {
+            tracing::trace!(
+                "decoded WebSocketMessage response {{ r#type: {:?}, status: {:?}, message: {:?}, body: {} bytes, headers: {:?}, id: {:?} }}",
+                msg.r#type(),
+                response.status,
+                response.message,
+                response.body.as_ref().map(|x| x.len()).unwrap_or(0),
+                response.headers,
+                response.id,
+            );
+        } else {
+            tracing::debug!("decoded {msg:?}");
+        }
 
         use web_socket_message::Type;
         match (msg.r#type(), msg.request, msg.response) {
