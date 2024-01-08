@@ -47,7 +47,7 @@ impl AwcPushService {
         credentials_override: HttpAuthOverride,
     ) -> Result<ClientRequest, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
-        tracing::debug!("HTTP request {} {}", method, url);
+        tracing::debug!(%url, %method, "HTTP request");
         let mut builder = self.client.request(method, url.as_str());
         for &header in additional_headers {
             builder = builder.insert_header(header);
@@ -109,6 +109,7 @@ impl AwcPushService {
                 let mismatched_devices =
                     response.json().await.map_err(|e| {
                         tracing::error!(
+                            ?response,
                             "Failed to decode HTTP 409 response: {}",
                             e
                         );
@@ -123,6 +124,7 @@ impl AwcPushService {
             StatusCode::GONE => {
                 let stale_devices = response.json().await.map_err(|e| {
                     tracing::error!(
+                        ?response,
                         "Failed to decode HTTP 410 response: {}",
                         e
                     );
@@ -135,6 +137,7 @@ impl AwcPushService {
             StatusCode::PRECONDITION_REQUIRED => {
                 let proof_required = response.json().await.map_err(|e| {
                     tracing::error!(
+                        ?response,
                         "Failed to decode HTTP 428 response: {}",
                         e
                     );
@@ -148,6 +151,7 @@ impl AwcPushService {
             code => {
                 let contents = response.body().await;
                 tracing::trace!(
+                    ?response,
                     "Unhandled response {} with body: {:?}",
                     code.as_u16(),
                     contents,
@@ -197,7 +201,8 @@ impl PushService for AwcPushService {
                 },
             })?;
 
-        tracing::debug!("AwcPushService::get response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -255,7 +260,8 @@ impl PushService for AwcPushService {
                 },
             })?;
 
-        tracing::debug!("AwcPushService::delete response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -309,7 +315,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        tracing::debug!("AwcPushService::put response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -362,7 +369,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        tracing::debug!("AwcPushService::patch response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -415,7 +423,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        tracing::debug!("AwcPushService::post response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -533,7 +542,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        tracing::debug!("AwcPushService::get_stream response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -621,7 +631,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        tracing::debug!("AwcPushService::put response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 

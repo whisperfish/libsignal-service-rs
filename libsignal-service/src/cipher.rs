@@ -146,7 +146,11 @@ where
             envelope.server_guid.as_ref().and_then(|g| match g.parse() {
                 Ok(uuid) => Some(uuid),
                 Err(e) => {
-                    tracing::error!("Unparseable server_guid ({})", e);
+                    tracing::error!(
+                        ?envelope,
+                        "Unparseable server_guid ({})",
+                        e
+                    );
                     None
                 },
             });
@@ -196,7 +200,7 @@ where
                 Plaintext { metadata, data }
             },
             Type::PlaintextContent => {
-                tracing::warn!("Envelope with plaintext content.  This usually indicates a decryption retry.");
+                tracing::warn!(?envelope, "Envelope with plaintext content.  This usually indicates a decryption retry.");
                 let metadata = Metadata {
                     sender: envelope.source_address(),
                     sender_device: envelope.source_device(),
@@ -280,7 +284,7 @@ where
                 };
 
                 let needs_receipt = if envelope.source_service_id.is_some() {
-                    tracing::warn!("Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
+                    tracing::warn!(?envelope, "Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
                     false
                 } else {
                     true
