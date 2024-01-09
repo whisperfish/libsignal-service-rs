@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
@@ -293,7 +294,7 @@ impl<Service: PushService> AccountManager<Service> {
                 &[],
                 HttpAuthOverride::NoOverride,
                 &ProvisioningMessage {
-                    body: base64::encode(body),
+                    body: BASE64_STANDARD.encode(body),
                 },
             )
             .await
@@ -322,7 +323,8 @@ impl<Service: PushService> AccountManager<Service> {
         let ephemeral_id = query.get("uuid").ok_or(LinkError::InvalidUuid)?;
         let pub_key =
             query.get("pub_key").ok_or(LinkError::InvalidPublicKey)?;
-        let pub_key = base64::decode(&**pub_key)
+        let pub_key = BASE64_STANDARD
+            .decode(&**pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
         let pub_key = PublicKey::deserialize(&pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
@@ -627,6 +629,7 @@ pub fn decrypt_device_name(
 
 #[cfg(test)]
 mod tests {
+    use base64::prelude::*;
     use libsignal_protocol::{KeyPair, PrivateKey, PublicKey};
 
     use super::DeviceName;
@@ -653,19 +656,24 @@ mod tests {
 
     #[test]
     fn decrypt_device_name() -> anyhow::Result<()> {
-        let ephemeral_private_key = PrivateKey::deserialize(&base64::decode(
-            "0CgxHjwwblXjvX8sD5wZDWdYToMRf+CZSlgaUrxCGVo=",
-        )?)?;
-        let ephemeral_public_key = PublicKey::deserialize(&base64::decode(
-            "BcZS+Lt6yAKbEpXnRX+I5wHqesuvu93Q2V+fjidwW8R6",
-        )?)?;
+        let ephemeral_private_key = PrivateKey::deserialize(
+            &BASE64_STANDARD
+                .decode("0CgxHjwwblXjvX8sD5wZDWdYToMRf+CZSlgaUrxCGVo=")?,
+        )?;
+        let ephemeral_public_key = PublicKey::deserialize(
+            &BASE64_STANDARD
+                .decode("BcZS+Lt6yAKbEpXnRX+I5wHqesuvu93Q2V+fjidwW8R6")?,
+        )?;
 
         let device_name = DeviceName {
             ephemeral_public: Some(ephemeral_public_key.serialize().to_vec()),
-            synthetic_iv: Some(base64::decode("86gekHGmltnnZ9QARhiFcg==")?),
-            ciphertext: Some(base64::decode(
-                "MtJ9/9KBWLBVAxfZJD4pLKzP4q+iodRJeCc+/A==",
-            )?),
+            synthetic_iv: Some(
+                BASE64_STANDARD.decode("86gekHGmltnnZ9QARhiFcg==")?,
+            ),
+            ciphertext: Some(
+                BASE64_STANDARD
+                    .decode("MtJ9/9KBWLBVAxfZJD4pLKzP4q+iodRJeCc+/A==")?,
+            ),
         };
 
         let decrypted_device_name =
