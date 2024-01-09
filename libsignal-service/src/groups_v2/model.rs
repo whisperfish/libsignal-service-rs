@@ -143,11 +143,11 @@ impl TryFrom<i32> for Role {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         use crate::proto::member::Role::*;
-        match crate::proto::member::Role::from_i32(value) {
-            Some(Unknown) => Ok(Role::Unknown),
-            Some(Default) => Ok(Role::Default),
-            Some(Administrator) => Ok(Role::Administrator),
-            None => Err(GroupDecodingError::WrongEnumValue),
+        match crate::proto::member::Role::try_from(value) {
+            Ok(Unknown) => Ok(Role::Unknown),
+            Ok(Default) => Ok(Role::Default),
+            Ok(Administrator) => Ok(Role::Administrator),
+            Err(_e) => Err(GroupDecodingError::WrongEnumValue),
         }
     }
 }
@@ -169,13 +169,13 @@ impl TryFrom<i32> for AccessRequired {
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         use crate::proto::access_control::AccessRequired::*;
-        match crate::proto::access_control::AccessRequired::from_i32(value) {
-            Some(Unknown) => Ok(AccessRequired::Unknown),
-            Some(Any) => Ok(AccessRequired::Any),
-            Some(Member) => Ok(AccessRequired::Member),
-            Some(Administrator) => Ok(AccessRequired::Administrator),
-            Some(Unsatisfiable) => Ok(AccessRequired::Unsatisfiable),
-            None => Err(GroupDecodingError::WrongEnumValue),
+        match crate::proto::access_control::AccessRequired::try_from(value) {
+            Ok(Unknown) => Ok(AccessRequired::Unknown),
+            Ok(Any) => Ok(AccessRequired::Any),
+            Ok(Member) => Ok(AccessRequired::Member),
+            Ok(Administrator) => Ok(AccessRequired::Administrator),
+            Ok(Unsatisfiable) => Ok(AccessRequired::Unsatisfiable),
+            Err(_e) => Err(GroupDecodingError::WrongEnumValue),
         }
     }
 }
