@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, time::SystemTime};
+use std::{convert::TryFrom, fmt, time::SystemTime};
 
 use aes::cipher::block_padding::{Iso7816, RawPadding};
 use libsignal_protocol::{
@@ -34,6 +34,43 @@ pub struct ServiceCipher<S, R> {
     local_device_id: u32,
 }
 
+impl<S, R> fmt::Debug for ServiceCipher<S, R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ServiceCipher")
+            .field("protocol_store", &"...")
+            .field("csprng", &"...")
+            .field("trust_root", &"...")
+            .field("local_uuid", &self.local_uuid)
+            .field("local_device_id", &self.local_device_id)
+            .finish()
+    }
+}
+
+fn debug_envelope(envelope: &Envelope) -> String {
+    if envelope.content.is_none() {
+        "Envelope { empty }".to_string()
+    } else {
+        format!(
+            "Envelope {{ \
+                 source_address: {}, \
+                 source_device: {:?}, \
+                 server_guid: {:?}, \
+                 timestamp: {:?}, \
+                 content: {} bytes, \
+             }}",
+            if envelope.source_service_id.is_some() {
+                format!("{:?}", envelope.source_address())
+            } else {
+                "unknown".to_string()
+            },
+            envelope.source_device(),
+            envelope.server_guid(),
+            envelope.timestamp(),
+            envelope.content().len(),
+        )
+    }
+}
+
 impl<S, R> ServiceCipher<S, R>
 where
     S: ProtocolStore + KyberPreKeyStore + SenderKeyStore + Clone,
@@ -58,6 +95,7 @@ where
     /// Opens ("decrypts") an envelope.
     ///
     /// Envelopes may be empty, in which case this method returns `Ok(None)`
+    #[tracing::instrument(skip(envelope), fields(envelope = debug_envelope(&envelope)))]
     pub async fn open_envelope(
         &mut self,
         envelope: Envelope,
@@ -89,6 +127,7 @@ where
     /// Triage of legacy messages happens inside this method, as opposed to the
     /// Java implementation, because it makes the borrow checker and the
     /// author happier.
+    #[tracing::instrument(skip(envelope), fields(envelope = debug_envelope(envelope)))]
     async fn decrypt(
         &mut self,
         envelope: &Envelope,
@@ -107,7 +146,11 @@ where
             envelope.server_guid.as_ref().and_then(|g| match g.parse() {
                 Ok(uuid) => Some(uuid),
                 Err(e) => {
-                    log::error!("Unparseable server_guid ({})", e);
+                    tracing::error!(
+                        ?envelope,
+                        "Unparseable server_guid ({})",
+                        e
+                    );
                     None
                 },
             });
@@ -157,7 +200,7 @@ where
                 Plaintext { metadata, data }
             },
             Type::PlaintextContent => {
-                log::warn!("Envelope with plaintext content.  This usually indicates a decryption retry.");
+                tracing::warn!(?envelope, "Envelope with plaintext content.  This usually indicates a decryption retry.");
                 let metadata = Metadata {
                     sender: envelope.source_address(),
                     sender_device: envelope.source_device(),
@@ -241,7 +284,7 @@ where
                 };
 
                 let needs_receipt = if envelope.source_service_id.is_some() {
-                    log::warn!("Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
+                    tracing::warn!(?envelope, "Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
                     false
                 } else {
                     true
@@ -276,6 +319,7 @@ where
         Ok(plaintext)
     }
 
+    #[tracing::instrument]
     pub(crate) async fn encrypt(
         &mut self,
         address: &ProtocolAddress,
@@ -426,6 +470,21 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 /// is then validated against the `trust_root` baked into the client to ensure that the sender's
 /// identity was not forged.
 #[allow(clippy::too_many_arguments)]
+#[tracing::instrument(
+    skip(
+        ciphertext,
+        trust_root,
+        identity_store,
+        session_store,
+        pre_key_store,
+        signed_pre_key_store,
+        sender_key_store,
+        kyber_pre_key_store
+    ),
+    fields(
+        ciphertext = ciphertext.len(),
+    )
+)]
 async fn sealed_sender_decrypt(
     ciphertext: &[u8],
     trust_root: &PublicKey,

@@ -18,6 +18,7 @@ pub enum AttachmentCipherError {
 ///
 /// The Vec will be reused when it has enough space to house the MAC,
 /// otherwise reallocation might happen.
+#[tracing::instrument(skip(iv, key, plaintext))]
 pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
     let aes_half = &key[..32];
     let mac_half = &key[32..];
@@ -53,6 +54,7 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
 /// Decrypts an attachment in place, given the key material.
 ///
 /// On error, ciphertext is not changed.
+#[tracing::instrument(skip(key, ciphertext))]
 pub fn decrypt_in_place(
     key: [u8; 64],
     ciphertext: &mut Vec<u8>,

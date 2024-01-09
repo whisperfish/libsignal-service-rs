@@ -1110,7 +1110,7 @@ pub trait PushService: MaybeSend {
             (Err(e), _) => Err(e),
             (Ok(_resp), AvatarWrite::RetainAvatar)
             | (Ok(_resp), AvatarWrite::NoAvatar) => {
-                log::warn!(
+                tracing::warn!(
                     "No avatar supplied but got avatar upload URL. Ignoring"
                 );
                 Ok(None)

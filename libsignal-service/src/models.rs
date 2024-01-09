@@ -82,7 +82,7 @@ impl Contact {
                         reader: avatar_data,
                     })
                 } else {
-                    log::warn!("missing avatar content-type, skipping.");
+                    tracing::warn!("missing avatar content-type, skipping.");
                     None
                 }
             }),

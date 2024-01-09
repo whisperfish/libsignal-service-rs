@@ -86,9 +86,9 @@ where
         futures::pin_mut!(tick);
         futures::select! {
             _ = tick => {
-                log::trace!("Triggering keep-alive");
+                tracing::trace!("Triggering keep-alive");
                 if let Err(e) = incoming_sink.send(WebSocketStreamItem::KeepAliveRequest).await {
-                    log::info!("Websocket sink has closed: {:?}.", e);
+                    tracing::info!("Websocket sink has closed: {:?}.", e);
                     break;
                 };
             },
@@ -96,7 +96,7 @@ where
                 let frame = if let Some(frame) = frame {
                     frame
                 } else {
-                    log::info!("process: Socket stream ended");
+                    tracing::info!("process: Socket stream ended");
                     break;
                 };
 
@@ -105,24 +105,24 @@ where
 
                     Frame::Continuation(_c) => todo!(),
                     Frame::Ping(msg) => {
-                        log::warn!("Received Ping({:?})", msg);
+                        tracing::warn!(?msg, "received Ping");
 
                         continue;
                     },
                     Frame::Pong(msg) => {
-                        log::trace!("Received Pong({:?})", msg);
+                        tracing::trace!(?msg, "received Pong");
 
                         continue;
                     },
                     Frame::Text(frame) => {
-                        log::warn!("Frame::Text {:?}", frame);
+                        tracing::warn!(?frame, "frame::Text",);
 
                         // this is a protocol violation, maybe break; is better?
                         continue;
                     },
 
                     Frame::Close(c) => {
-                        log::warn!("Websocket closing: {:?}", c);
+                        tracing::warn!(?c, "Websocket closing");
 
                         break;
                     },
@@ -130,7 +130,7 @@ where
 
                 // Match SendError
                 if let Err(e) = incoming_sink.send(WebSocketStreamItem::Message(frame)).await {
-                    log::info!("Websocket sink has closed: {:?}.", e);
+                    tracing::info!("Websocket sink has closed: {:?}.", e);
                     break;
                 }
             },
@@ -160,14 +160,20 @@ impl AwcWebSocket {
                 );
         }
 
-        log::trace!("Will start websocket at {:?}", url);
+        tracing::trace!(
+            url.scheme = url.scheme(),
+            url.host = ?url.host(),
+            url.path = url.path(),
+            url.has_query = ?url.query().is_some(),
+            "starting websocket",
+        );
         let mut ws = client.ws(url.as_str());
         for (key, value) in additional_headers {
             ws = ws.header(*key, *value);
         }
         let (response, framed) = ws.connect().await?;
 
-        log::debug!("WebSocket connected: {:?}", response);
+        tracing::debug!(?response, "WebSocket connected");
 
         let (incoming_sink, incoming_stream) = channel(5);
 
@@ -179,7 +185,7 @@ impl AwcWebSocket {
         actix_rt::spawn(processing_task.map(|v| match v {
             Ok(()) => (),
             Err(e) => {
-                log::warn!("Processing task terminated with error: {:?}", e)
+                tracing::warn!("Processing task terminated with error: {:?}", e)
             },
         }));
 

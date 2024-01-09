@@ -27,7 +27,7 @@ impl WebSocketRequestMessage {
         for header in &self.headers {
             let parts: Vec<_> = header.split(':').collect();
             if parts.len() != 2 {
-                log::warn!(
+                tracing::warn!(
                     "Got a weird header: {:?}, split in {:?}",
                     header,
                     parts

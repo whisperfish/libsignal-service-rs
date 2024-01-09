@@ -24,7 +24,6 @@ futures = "0.3"
 hex = "0.4"
 hkdf = "0.12"
 hmac = "0.12"
-log = "0.4"
 phonenumber = "0.3"
 prost = "0.10"
 rand = "0.8"
@@ -34,6 +33,9 @@ sha2 = "0.10"
 thiserror = "1.0"
 url = { version = "2.1", features = ["serde"] }
 uuid = { version = "1", features = ["serde"] }
+
+tracing = { version = "0.1", features = ["log"] }
+tracing-futures = "0.2"
 
 [build-dependencies]
 prost-build = "0.10"

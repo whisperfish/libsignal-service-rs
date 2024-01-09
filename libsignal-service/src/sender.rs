@@ -5,8 +5,9 @@ use libsignal_protocol::{
     process_prekey_bundle, DeviceId, ProtocolStore, SenderCertificate,
     SenderKeyStore, SignalProtocolError,
 };
-use log::{debug, info, trace};
 use rand::{CryptoRng, Rng};
+use tracing::{info, trace};
+use tracing_futures::Instrument;
 use uuid::Uuid;
 
 use crate::{
@@ -61,6 +62,7 @@ pub struct SentMessage {
 /// Attachment specification to be used for uploading.
 ///
 /// Loose equivalent of Java's `SignalServiceAttachmentStream`.
+#[derive(Debug)]
 pub struct AttachmentSpec {
     pub content_type: String,
     pub length: usize,
@@ -150,6 +152,7 @@ where
     /// Encrypts and uploads an attachment
     ///
     /// Contents are accepted as an owned, plain text Vec, because encryption happens in-place.
+    #[tracing::instrument(skip(self, contents), fields(size = contents.len()))]
     pub async fn upload_attachment(
         &mut self,
         spec: AttachmentSpec,
@@ -179,7 +182,7 @@ where
             )
         };
         if padded_len < len {
-            log::error!(
+            tracing::error!(
                 "Padded len {} < len {}. Continuing with a privacy risk.",
                 padded_len,
                 len
@@ -188,19 +191,20 @@ where
             contents.resize(padded_len, 0);
         }
 
-        crate::attachment_cipher::encrypt_in_place(iv, key, &mut contents);
+        tracing::trace_span!("encrypting attachment").in_scope(|| {
+            crate::attachment_cipher::encrypt_in_place(iv, key, &mut contents)
+        });
 
         // Request upload attributes
-        log::trace!("Requesting upload attributes");
         let attrs = self
             .identified_ws
             .get_attachment_v2_upload_attributes()
+            .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
-
-        log::trace!("Uploading attachment");
         let (id, digest) = self
             .service
             .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
+            .instrument(tracing::trace_span!("Uploading attachment"))
             .await?;
 
         Ok(AttachmentPointer {
@@ -240,6 +244,7 @@ where
     /// Upload contact details to the CDN
     ///
     /// Returns attachment ID and the attachment digest
+    #[tracing::instrument(skip(self, contacts))]
     async fn upload_contact_details<Contacts>(
         &mut self,
         contacts: Contacts,
@@ -287,6 +292,10 @@ where
     }
 
     /// Send a message `content` to a single `recipient`.
+    #[tracing::instrument(
+        skip(self, unidentified_access, message),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     pub async fn send_message(
         &mut self,
         recipient: &ServiceAddress,
@@ -329,7 +338,7 @@ where
                 ContentBody::DataMessage(message),
                 Ok(SentMessage { needs_sync, .. }),
             ) if *needs_sync || self.is_multi_device().await => {
-                log::debug!("sending multi-device sync message");
+                tracing::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         Some(recipient),
@@ -351,13 +360,17 @@ where
 
         if end_session {
             let n = self.protocol_store.delete_all_sessions(recipient).await?;
-            log::debug!("ended {} sessions with {}", n, recipient.uuid);
+            tracing::debug!("ended {} sessions with {}", n, recipient.uuid);
         }
 
         results.remove(0)
     }
 
     /// Send a message to the recipients in a group.
+    #[tracing::instrument(
+        skip(self, recipients, message),
+        fields(recipients = recipients.as_ref().len()),
+    )]
     pub async fn send_message_to_group(
         &mut self,
         recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>)]>,
@@ -398,7 +411,9 @@ where
 
         if needs_sync_in_results && message.is_none() {
             // XXX: does this happen?
-            log::warn!("Server claims need sync, but not sending datamessage.");
+            tracing::warn!(
+                "Server claims need sync, but not sending datamessage."
+            );
         }
 
         // we only need to send a synchronization message once
@@ -430,6 +445,11 @@ where
     }
 
     /// Send a message (`content`) to an address (`recipient`).
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content_body),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     async fn try_send_message(
         &mut self,
         recipient: ServiceAddress,
@@ -461,18 +481,18 @@ where
             };
 
             let send = if let Some(unidentified) = &unidentified_access {
-                log::debug!("sending via unidentified");
+                tracing::debug!("sending via unidentified");
                 self.unidentified_ws
                     .send_messages_unidentified(messages, unidentified)
                     .await
             } else {
-                log::debug!("sending identified");
+                tracing::debug!("sending identified");
                 self.identified_ws.send_messages(messages).await
             };
 
             match send {
                 Ok(SendMessageResponse { needs_sync }) => {
-                    log::debug!("message sent!");
+                    tracing::debug!("message sent!");
                     return Ok(SentMessage {
                         recipient,
                         unidentified: unidentified_access.is_some(),
@@ -482,13 +502,13 @@ where
                 Err(ServiceError::Unauthorized)
                     if unidentified_access.is_some() =>
                 {
-                    log::trace!("unauthorized error using unidentified; retry over identified");
+                    tracing::trace!("unauthorized error using unidentified; retry over identified");
                     unidentified_access = None;
                 },
                 Err(ServiceError::MismatchedDevicesException(ref m)) => {
-                    log::debug!("{:?}", m);
+                    tracing::debug!("{:?}", m);
                     for extra_device_id in &m.extra_devices {
-                        log::debug!(
+                        tracing::debug!(
                             "dropping session with device {}",
                             extra_device_id
                         );
@@ -501,7 +521,7 @@ where
                     }
 
                     for missing_device_id in &m.missing_devices {
-                        log::debug!(
+                        tracing::debug!(
                             "creating session with missing device {}",
                             missing_device_id
                         );
@@ -522,7 +542,7 @@ where
                         )
                         .await
                         .map_err(|e| {
-                            log::error!("failed to create session: {}", e);
+                            tracing::error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
                                 address: recipient,
                             }
@@ -530,9 +550,9 @@ where
                     }
                 },
                 Err(ServiceError::StaleDevices(ref m)) => {
-                    log::debug!("{:?}", m);
+                    tracing::debug!("{:?}", m);
                     for extra_device_id in &m.stale_devices {
-                        log::debug!(
+                        tracing::debug!(
                             "dropping session with device {}",
                             extra_device_id
                         );
@@ -545,20 +565,20 @@ where
                     }
                 },
                 Err(ServiceError::ProofRequiredError(ref p)) => {
-                    log::debug!("{:?}", p);
+                    tracing::debug!("{:?}", p);
                     return Err(MessageSenderError::ProofRequired {
                         token: p.token.clone(),
                         options: p.options.clone(),
                     });
                 },
                 Err(ServiceError::NotFoundError) => {
-                    log::debug!("Not found when sending a message");
+                    tracing::debug!("Not found when sending a message");
                     return Err(MessageSenderError::NotFound {
                         uuid: recipient.uuid,
                     });
                 },
                 Err(e) => {
-                    log::debug!(
+                    tracing::debug!(
                         "Default error handler for ws.send_messages: {}",
                         e
                     );
@@ -571,6 +591,10 @@ where
     }
 
     /// Upload contact details to the CDN and send a sync message
+    #[tracing::instrument(
+        skip(self, unidentified_access, contacts),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     pub async fn send_contact_details<Contacts>(
         &mut self,
         recipient: &ServiceAddress,
@@ -608,6 +632,11 @@ where
     }
 
     // Equivalent with `getEncryptedMessages`
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     async fn create_encrypted_messages(
         &mut self,
         recipient: &ServiceAddress,
@@ -633,7 +662,7 @@ where
         }
 
         for device_id in devices {
-            debug!("sending message to device {}", device_id);
+            trace!("sending message to device {}", device_id);
             messages.push(
                 self.create_encrypted_message(
                     recipient,
@@ -651,6 +680,11 @@ where
     /// Equivalent to `getEncryptedMessage`
     ///
     /// When no session with the recipient exists, we need to create one.
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some()),
+    )]
     async fn create_encrypted_message(
         &mut self,
         recipient: &ServiceAddress,
@@ -661,7 +695,10 @@ where
         let recipient_protocol_address =
             recipient.to_protocol_address(device_id);
 
-        log::debug!("encrypting message for {}", recipient_protocol_address);
+        tracing::trace!(
+            "encrypting message for {}",
+            recipient_protocol_address
+        );
 
         // establish a session with the recipient/device if necessary
         // no need to establish a session with ourselves (and our own current device)
@@ -681,7 +718,7 @@ where
                 .await
             {
                 Ok(ok) => {
-                    log::trace!("Get prekeys OK");
+                    tracing::trace!("Get prekeys OK");
                     ok
                 },
                 Err(ServiceError::NotFoundError) => {
@@ -722,6 +759,7 @@ where
         let message = self
             .cipher
             .encrypt(&recipient_protocol_address, unidentified_access, content)
+            .instrument(tracing::trace_span!("encrypting message"))
             .await?;
 
         Ok(message)

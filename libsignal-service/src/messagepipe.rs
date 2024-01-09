@@ -72,7 +72,7 @@ impl MessagePipe {
             {
                 sink.send(env).await?;
             } else {
-                log::trace!("got empty message in websocket");
+                tracing::trace!("got empty message in websocket");
             }
         }
 
@@ -129,7 +129,7 @@ impl MessagePipe {
 
         let stream = stream.map(Some);
         let runner = self.run(sink).map(|e| {
-            log::info!("sink was closed: {:?}", e);
+            tracing::info!("sink was closed: {:?}", e);
             None
         });
 

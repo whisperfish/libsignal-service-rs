@@ -27,16 +27,17 @@ impl TryFrom<EnvelopeEntity> for Envelope {
 }
 
 impl Envelope {
+    #[tracing::instrument(skip(input, signaling_key), fields(input_size = input.len()))]
     pub fn decrypt(
         input: &[u8],
         signaling_key: &SignalingKey,
         is_signaling_key_encrypted: bool,
     ) -> Result<Self, ServiceError> {
         if !is_signaling_key_encrypted {
-            log::trace!("Envelope::decrypt: not encrypted");
+            tracing::trace!("Envelope::decrypt: not encrypted");
             Ok(Envelope::decode(input)?)
         } else {
-            log::trace!("Envelope::decrypt: decrypting");
+            tracing::trace!("Envelope::decrypt: decrypting");
             if input.len() < VERSION_LENGTH
                 || input[VERSION_OFFSET] != SUPPORTED_VERSION
             {
@@ -77,7 +78,7 @@ impl Envelope {
                 .decrypt_padded_vec_mut::<Pkcs7>(input)
                 .expect("decryption");
 
-            log::trace!("Envelope::decrypt: decrypted, decoding");
+            tracing::trace!("Envelope::decrypt: decrypted, decoding");
 
             Ok(Envelope::decode(&input as &[u8])?)
         }
@@ -135,8 +136,10 @@ impl Envelope {
         let uuid = self
             .source_service_id
             .as_deref()
-            .and_then(|u| Uuid::parse_str(u).ok())
-            .expect("valid uuid checked in constructor");
+            .map(Uuid::parse_str)
+            .transpose()
+            .expect("valid uuid checked in constructor")
+            .expect("source_service_id is set");
 
         ServiceAddress { uuid }
     }

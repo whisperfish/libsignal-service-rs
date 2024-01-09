@@ -13,6 +13,7 @@ use libsignal_service::{
     websocket::SignalWebSocket,
 };
 use serde::{Deserialize, Serialize};
+use tracing_futures::Instrument;
 
 use crate::websocket::AwcWebSocket;
 
@@ -47,7 +48,7 @@ impl AwcPushService {
         credentials_override: HttpAuthOverride,
     ) -> Result<ClientRequest, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
-        log::debug!("HTTP request {} {}", method, url);
+        tracing::debug!(%url, %method, "HTTP request");
         let mut builder = self.client.request(method, url.as_str());
         for &header in additional_headers {
             builder = builder.insert_header(header);
@@ -85,6 +86,7 @@ impl AwcPushService {
         })
     }
 
+    #[tracing::instrument(name = "extracting error", skip(response))]
     async fn from_response<S>(
         response: &mut ClientResponse<S>,
     ) -> Result<(), ServiceError>
@@ -108,7 +110,8 @@ impl AwcPushService {
             StatusCode::CONFLICT => {
                 let mismatched_devices =
                     response.json().await.map_err(|e| {
-                        log::error!(
+                        tracing::error!(
+                            ?response,
                             "Failed to decode HTTP 409 response: {}",
                             e
                         );
@@ -122,7 +125,11 @@ impl AwcPushService {
             },
             StatusCode::GONE => {
                 let stale_devices = response.json().await.map_err(|e| {
-                    log::error!("Failed to decode HTTP 410 response: {}", e);
+                    tracing::error!(
+                        ?response,
+                        "Failed to decode HTTP 410 response: {}",
+                        e
+                    );
                     ServiceError::UnhandledResponseCode {
                         http_code: StatusCode::GONE.as_u16(),
                     }
@@ -131,7 +138,11 @@ impl AwcPushService {
             },
             StatusCode::PRECONDITION_REQUIRED => {
                 let proof_required = response.json().await.map_err(|e| {
-                    log::error!("Failed to decode HTTP 428 response: {}", e);
+                    tracing::error!(
+                        ?response,
+                        "Failed to decode HTTP 428 response: {}",
+                        e
+                    );
                     ServiceError::UnhandledResponseCode {
                         http_code: StatusCode::PRECONDITION_REQUIRED.as_u16(),
                     }
@@ -141,7 +152,8 @@ impl AwcPushService {
             // XXX: fill in rest from PushServiceSocket
             code => {
                 let contents = response.body().await;
-                log::trace!(
+                tracing::trace!(
+                    ?response,
                     "Unhandled response {} with body: {:?}",
                     code.as_u16(),
                     contents,
@@ -191,7 +203,7 @@ impl PushService for AwcPushService {
                 },
             })?;
 
-        log::debug!("AwcPushService::get response: {:?}", response);
+        let _span = tracing::debug_span!("processing response", ?response);
 
         Self::from_response(&mut response).await?;
 
@@ -203,7 +215,7 @@ impl PushService for AwcPushService {
         // actix already imports that anyway.
         let text = match response.body().await {
             Ok(text) => {
-                log::debug!(
+                tracing::debug!(
                     "GET response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
@@ -249,7 +261,8 @@ impl PushService for AwcPushService {
                 },
             })?;
 
-        log::debug!("AwcPushService::delete response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -261,7 +274,7 @@ impl PushService for AwcPushService {
         // actix already imports that anyway.
         let text = match response.body().await {
             Ok(text) => {
-                log::debug!(
+                tracing::debug!(
                     "GET response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
@@ -303,7 +316,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        log::debug!("AwcPushService::put response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -315,7 +329,7 @@ impl PushService for AwcPushService {
         // actix already imports that anyway.
         let text = match response.body().await {
             Ok(text) => {
-                log::debug!(
+                tracing::debug!(
                     "GET response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
@@ -356,7 +370,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        log::debug!("AwcPushService::patch response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -368,7 +383,7 @@ impl PushService for AwcPushService {
         // actix already imports that anyway.
         let text = match response.body().await {
             Ok(text) => {
-                log::debug!(
+                tracing::debug!(
                     "PATCH response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
@@ -409,7 +424,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        log::debug!("AwcPushService::post response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -421,7 +437,7 @@ impl PushService for AwcPushService {
         // actix already imports that anyway.
         let text = match response.body().await {
             Ok(text) => {
-                log::debug!(
+                tracing::debug!(
                     "GET response: {:?}",
                     String::from_utf8_lossy(&text)
                 );
@@ -527,7 +543,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        log::debug!("AwcPushService::get_stream response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -600,7 +617,7 @@ impl PushService for AwcPushService {
             // Unwrap, because no error type was used above
             body_contents.extend(b.unwrap());
         }
-        log::trace!(
+        tracing::trace!(
             "Sending PUT with Content-Type={} and length {}",
             content_type,
             body_contents.len()
@@ -615,7 +632,8 @@ impl PushService for AwcPushService {
                 reason: e.to_string(),
             })?;
 
-        log::debug!("AwcPushService::put response: {:?}", response);
+        let _span =
+            tracing::debug_span!("processing response", ?response).entered();
 
         Self::from_response(&mut response).await?;
 
@@ -629,6 +647,7 @@ impl PushService for AwcPushService {
         additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
     ) -> Result<SignalWebSocket, ServiceError> {
+        let span = tracing::debug_span!("websocket");
         let (ws, stream) = AwcWebSocket::with_client(
             &mut self.client,
             self.cfg.base_url(Endpoint::Service),
@@ -636,13 +655,14 @@ impl PushService for AwcPushService {
             additional_headers,
             credentials.as_ref(),
         )
+        .instrument(span.clone())
         .await?;
         let (ws, task) = SignalWebSocket::from_socket(
             ws,
             stream,
             keep_alive_path.to_owned(),
         );
-        actix_rt::spawn(task);
+        actix_rt::spawn(task.instrument(span));
         Ok(ws)
     }
 }
