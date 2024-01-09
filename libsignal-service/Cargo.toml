@@ -34,7 +34,7 @@ thiserror = "1.0"
 url = { version = "2.1", features = ["serde"] }
 uuid = { version = "1", features = ["serde"] }
 
-tracing = "0.1"
+tracing = { version = "0.1", features = ["log"] }
 tracing-futures = "0.2"
 
 [build-dependencies]
