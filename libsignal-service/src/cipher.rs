@@ -319,11 +319,18 @@ where
         Ok(plaintext)
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        skip(address, unidentified_access, content),
+        fields(
+            address = %address,
+            with_unidentified_access = unidentified_access.is_some(),
+            content_length = content.len(),
+        )
+    )]
     pub(crate) async fn encrypt(
         &mut self,
         address: &ProtocolAddress,
-        unindentified_access: Option<&SenderCertificate>,
+        unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, ServiceError> {
         let session_record = self
@@ -337,7 +344,7 @@ where
         let padded_content =
             add_padding(session_record.session_version()?, content)?;
 
-        if let Some(unindentified_access) = unindentified_access {
+        if let Some(unindentified_access) = unidentified_access {
             let destination_registration_id =
                 session_record.remote_registration_id()?;
 
