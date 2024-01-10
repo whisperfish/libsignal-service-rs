@@ -16,6 +16,7 @@ use libsignal_service::{
 };
 use serde::{Deserialize, Serialize};
 use tokio_rustls::rustls;
+use tracing_futures::Instrument;
 
 use crate::websocket::TungsteniteWebSocket;
 
@@ -82,6 +83,7 @@ impl HyperPushService {
         tls_config
     }
 
+    #[tracing::instrument(skip(self, path, body), fields(path = %path.as_ref()))]
     async fn request(
         &self,
         method: Method,
@@ -92,7 +94,6 @@ impl HyperPushService {
         body: Option<RequestBody>,
     ) -> Result<Response<Body>, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
-        tracing::debug!("HTTP request {} {}", method, url);
         let mut builder = Request::builder()
             .method(method)
             .uri(url.as_str())
@@ -212,6 +213,7 @@ impl HyperPushService {
         }
     }
 
+    #[tracing::instrument(skip(response), fields(status = %response.status()))]
     async fn json<T>(response: &mut Response<Body>) -> Result<T, ServiceError>
     where
         for<'de> T: Deserialize<'de>,
@@ -235,6 +237,7 @@ impl HyperPushService {
         })
     }
 
+    #[tracing::instrument(skip(response), fields(status = %response.status()))]
     async fn protobuf<M>(
         response: &mut Response<Body>,
     ) -> Result<M, ServiceError>
@@ -253,6 +256,7 @@ impl HyperPushService {
         M::decode(body).map_err(ServiceError::ProtobufDecodeError)
     }
 
+    #[tracing::instrument(skip(response), fields(status = %response.status()))]
     async fn text(
         response: &mut Response<Body>,
     ) -> Result<String, ServiceError> {
@@ -280,6 +284,7 @@ impl PushService for HyperPushService {
     // This is in principle known at compile time, but long to write out.
     type ByteStream = Box<dyn futures::io::AsyncRead + Unpin>;
 
+    #[tracing::instrument(skip(self))]
     async fn get_json<T>(
         &mut self,
         service: Endpoint,
@@ -304,6 +309,7 @@ impl PushService for HyperPushService {
         Self::json(&mut response).await
     }
 
+    #[tracing::instrument(skip(self))]
     async fn delete_json<T>(
         &mut self,
         service: Endpoint,
@@ -327,6 +333,7 @@ impl PushService for HyperPushService {
         Self::json(&mut response).await
     }
 
+    #[tracing::instrument(skip(self, value))]
     async fn put_json<D, S>(
         &mut self,
         service: Endpoint,
@@ -362,6 +369,7 @@ impl PushService for HyperPushService {
         Self::json(&mut response).await
     }
 
+    #[tracing::instrument(skip(self, value))]
     async fn patch_json<D, S>(
         &mut self,
         service: Endpoint,
@@ -397,6 +405,7 @@ impl PushService for HyperPushService {
         Self::json(&mut response).await
     }
 
+    #[tracing::instrument(skip(self, value))]
     async fn post_json<D, S>(
         &mut self,
         service: Endpoint,
@@ -432,6 +441,7 @@ impl PushService for HyperPushService {
         Self::json(&mut response).await
     }
 
+    #[tracing::instrument(skip(self))]
     async fn get_protobuf<T>(
         &mut self,
         service: Endpoint,
@@ -456,6 +466,7 @@ impl PushService for HyperPushService {
         Self::protobuf(&mut response).await
     }
 
+    #[tracing::instrument(skip(self, value))]
     async fn put_protobuf<D, S>(
         &mut self,
         service: Endpoint,
@@ -486,6 +497,7 @@ impl PushService for HyperPushService {
         Self::protobuf(&mut response).await
     }
 
+    #[tracing::instrument(skip(self))]
     async fn get_from_cdn(
         &mut self,
         cdn_id: u32,
@@ -510,6 +522,7 @@ impl PushService for HyperPushService {
         ))
     }
 
+    #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
     async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
         &mut self,
         path: &str,
@@ -586,6 +599,7 @@ impl PushService for HyperPushService {
         additional_headers: &[(&str, &str)],
         credentials: Option<ServiceCredentials>,
     ) -> Result<SignalWebSocket, ServiceError> {
+        let span = tracing::debug_span!("websocket");
         let (ws, stream) = TungsteniteWebSocket::with_tls_config(
             Self::tls_config(&self.cfg),
             self.cfg.base_url(Endpoint::Service),
@@ -593,10 +607,11 @@ impl PushService for HyperPushService {
             additional_headers,
             credentials.as_ref(),
         )
+        .instrument(span.clone())
         .await?;
         let (ws, task) =
             SignalWebSocket::from_socket(ws, stream, keepalive_path.to_owned());
-        tokio::task::spawn(task);
+        tokio::task::spawn(task.instrument(span));
         Ok(ws)
     }
 }
