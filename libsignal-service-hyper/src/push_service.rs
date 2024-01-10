@@ -43,9 +43,11 @@ impl HyperPushService {
         let cfg = cfg.into();
         let tls_config = Self::tls_config(&cfg);
 
-        let mut http = HttpConnector::new();
-        http.enforce_http(false);
-        let https = HttpsConnector::from((http, tls_config));
+        let https = hyper_rustls::HttpsConnectorBuilder::new()
+            .with_tls_config(tls_config)
+            .https_only()
+            .enable_http1()
+            .build();
 
         // as in Signal-Android
         let mut timeout_connector = TimeoutConnector::new(https);
@@ -66,17 +68,14 @@ impl HyperPushService {
 
     fn tls_config(cfg: &ServiceConfiguration) -> rustls::ClientConfig {
         let mut cert_bytes = std::io::Cursor::new(&cfg.certificate_authority);
-        let roots = rustls_pemfile::certs(&mut cert_bytes)
-            .expect("parseable PEM files");
-        let roots = roots.iter().map(|v| rustls::Certificate(v.clone()));
+        let roots = rustls_pemfile::certs(&mut cert_bytes);
 
         let mut root_certs = rustls::RootCertStore::empty();
-        for root in roots {
-            root_certs.add(&root).unwrap();
-        }
+        root_certs.add_parsable_certificates(
+            roots.map(|c| c.expect("parsable PEM files")),
+        );
 
         let mut tls_config = rustls::ClientConfig::builder()
-            .with_safe_defaults()
             .with_root_certificates(root_certs)
             .with_no_client_auth();
         tls_config.alpn_protocols = vec![b"http/1.1".to_vec()];

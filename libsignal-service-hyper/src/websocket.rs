@@ -3,13 +3,13 @@ use std::sync::Arc;
 use async_tungstenite::{
     tokio::connect_async_with_tls_connector,
     tungstenite::{
-        client::IntoClientRequest, http::HeaderName, Error as TungsteniteError,
-        Message,
+        client::IntoClientRequest,
+        http::{HeaderName, StatusCode},
+        Error as TungsteniteError, Message,
     },
 };
 use bytes::Bytes;
 use futures::{channel::mpsc::*, prelude::*};
-use hyper::StatusCode;
 use tokio::time::Instant;
 use tokio_rustls::rustls;
 use url::Url;

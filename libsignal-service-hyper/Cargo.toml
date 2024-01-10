@@ -20,18 +20,20 @@ serde_json = "1.0"
 thiserror = "1.0"
 url = "2.1"
 
+# hyper rustls 0.25 is not compatible with hyper 1 yet
+# https://github.com/rustls/hyper-rustls/issues/234
 hyper = { version = "0.14", features = ["client", "stream"] }
-hyper-rustls = "0.24"
+hyper-rustls = { version = "0.25", features=["http1", "http2"] }
 hyper-timeout = "0.4"
 headers = "0.3"
 
 # for websocket support
-async-tungstenite = { version = "0.23", features = ["tokio-rustls-native-certs"] }
+async-tungstenite = { version = "0.24", features = ["tokio-rustls-native-certs"] }
 
 tokio = { version = "1.0", features = ["macros"] }
-tokio-rustls = "0.24"
+tokio-rustls = "0.25"
 
-rustls-pemfile = "0.3"
+rustls-pemfile = "2.0"
 
 [dev-dependencies]
 rand = "0.8"
