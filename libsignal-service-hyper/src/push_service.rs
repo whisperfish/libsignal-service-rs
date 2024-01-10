@@ -75,11 +75,9 @@ impl HyperPushService {
             roots.map(|c| c.expect("parsable PEM files")),
         );
 
-        let mut tls_config = rustls::ClientConfig::builder()
+        rustls::ClientConfig::builder()
             .with_root_certificates(root_certs)
-            .with_no_client_auth();
-        tls_config.alpn_protocols = vec![b"http/1.1".to_vec()];
-        tls_config
+            .with_no_client_auth()
     }
 
     #[tracing::instrument(skip(self, path, body), fields(path = %path.as_ref()))]
