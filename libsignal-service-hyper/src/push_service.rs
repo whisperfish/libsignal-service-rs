@@ -611,7 +611,11 @@ impl PushService for HyperPushService {
         .await?;
         let (ws, task) =
             SignalWebSocket::from_socket(ws, stream, keepalive_path.to_owned());
-        tokio::task::spawn(task.instrument(span));
+        let task = task.instrument(span);
+        #[cfg(feature = "unsend-futures")]
+        tokio::task::spawn_local(task);
+        #[cfg(not(feature = "unsend-futures"))]
+        tokio::task::spawn(task);
         Ok(ws)
     }
 }
