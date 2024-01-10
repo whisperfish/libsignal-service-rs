@@ -8,9 +8,7 @@ use futures::{
 };
 use url::Url;
 
-pub use crate::proto::{
-    ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
-};
+pub use crate::proto::{ProvisionEnvelope, ProvisionMessage};
 
 use crate::{
     proto::{
