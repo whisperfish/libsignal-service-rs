@@ -149,6 +149,7 @@ fn create_push_service(
         SignalServers::Staging, // You might want to switch to Production servers
         Some(ServiceCredentials {
             aci: None,
+            pni: None,
             phonenumber,
             password: Some(password),
             signaling_key: None,

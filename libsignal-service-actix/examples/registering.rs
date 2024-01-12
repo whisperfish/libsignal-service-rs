@@ -59,6 +59,7 @@ async fn main() -> Result<(), Error> {
         servers,
         Some(ServiceCredentials {
             aci: None,
+            pni: None,
             phonenumber: phonenumber.clone(),
             password,
             signaling_key: None,
