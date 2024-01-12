@@ -339,6 +339,9 @@ impl<Service: PushService> AccountManager<Service> {
         if credentials.aci.is_none() {
             tracing::warn!("No local ACI set");
         }
+        if credentials.pni.is_none() {
+            tracing::warn!("No local PNI set");
+        }
 
         let provisioning_code = self.new_device_provisioning_code().await?;
 
