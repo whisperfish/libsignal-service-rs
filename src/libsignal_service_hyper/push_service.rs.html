@@ -652,6 +652,10 @@
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{io::Read, time::Duration};
 
 <span class="kw">use </span>bytes::{Buf, Bytes};
@@ -1265,7 +1269,11 @@
         .<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>(ws, task) =
             SignalWebSocket::from_socket(ws, stream, keepalive_path.to_owned());
-        tokio::task::spawn(task.instrument(span));
+        <span class="kw">let </span>task = task.instrument(span);
+        <span class="attr">#[cfg(feature = <span class="string">&quot;unsend-futures&quot;</span>)]
+        </span>tokio::task::spawn_local(task);
+        <span class="attr">#[cfg(not(feature = <span class="string">&quot;unsend-futures&quot;</span>))]
+        </span>tokio::task::spawn(task);
         <span class="prelude-val">Ok</span>(ws)
     }
 }
