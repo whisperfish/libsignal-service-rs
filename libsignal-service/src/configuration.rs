@@ -26,6 +26,7 @@ pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 #[derive(Clone)]
 pub struct ServiceCredentials {
     pub uuid: Option<uuid::Uuid>,
+    pub pni: Option<uuid::Uuid>,
     pub phonenumber: phonenumber::PhoneNumber,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
