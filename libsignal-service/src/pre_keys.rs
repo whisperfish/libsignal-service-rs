@@ -3,9 +3,9 @@ use std::{convert::TryFrom, time::SystemTime};
 use crate::utils::{serde_base64, serde_public_key};
 use async_trait::async_trait;
 use libsignal_protocol::{
-    error::SignalProtocolError, kem, GenericSignedPreKey, KeyPair,
-    KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore, PublicKey,
-    SignedPreKeyRecord, SignedPreKeyStore,
+    error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKeyStore,
+    KeyPair, KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore,
+    PublicKey, SignedPreKeyRecord, SignedPreKeyStore,
 };
 
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// <https://signal.org/docs/specifications/x3dh/>
 #[async_trait(?Send)]
 pub trait PreKeysStore:
-    PreKeyStore + SignedPreKeyStore + KyberPreKeyStore
+    PreKeyStore + IdentityKeyStore + SignedPreKeyStore + KyberPreKeyStore
 {
     /// ID of the next pre key
     async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
