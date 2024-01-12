@@ -336,14 +336,14 @@ impl<Service: PushService> AccountManager<Service> {
         let pni_identity_key_pair =
             pni_identity_store.get_identity_key_pair().await?;
 
-        if credentials.uuid.is_none() {
-            tracing::warn!("No local UUID set");
+        if credentials.aci.is_none() {
+            tracing::warn!("No local ACI set");
         }
 
         let provisioning_code = self.new_device_provisioning_code().await?;
 
         let msg = ProvisionMessage {
-            aci: credentials.uuid.as_ref().map(|u| u.to_string()),
+            aci: credentials.aci.as_ref().map(|u| u.to_string()),
             aci_identity_key_public: Some(
                 aci_identity_key_pair.public_key().serialize().into_vec(),
             ),

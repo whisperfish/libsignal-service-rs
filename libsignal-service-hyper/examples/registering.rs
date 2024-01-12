@@ -148,7 +148,7 @@ fn create_push_service(
     HyperPushService::new(
         SignalServers::Staging, // You might want to switch to Production servers
         Some(ServiceCredentials {
-            uuid: None,
+            aci: None,
             phonenumber,
             password: Some(password),
             signaling_key: None,

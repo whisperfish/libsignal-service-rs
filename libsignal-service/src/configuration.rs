@@ -25,7 +25,7 @@ pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 
 #[derive(Clone)]
 pub struct ServiceCredentials {
-    pub uuid: Option<uuid::Uuid>,
+    pub aci: Option<uuid::Uuid>,
     pub pni: Option<uuid::Uuid>,
     pub phonenumber: phonenumber::PhoneNumber,
     pub password: Option<String>,
@@ -50,7 +50,7 @@ impl ServiceCredentials {
 
     pub fn login(&self) -> String {
         let identifier = {
-            if let Some(uuid) = self.uuid.as_ref() {
+            if let Some(uuid) = self.aci.as_ref() {
                 uuid.to_string()
             } else {
                 self.e164()
