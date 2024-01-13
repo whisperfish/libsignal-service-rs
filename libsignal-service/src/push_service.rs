@@ -198,9 +198,19 @@ pub struct PreKeyStatus {
     pub pq_count: u32,
 }
 
-#[derive(Derivative, Clone)]
+#[derive(Derivative, Clone, Serialize, Deserialize)]
 #[derivative(Debug)]
 pub struct HttpAuth {
+    pub username: String,
+    #[derivative(Debug = "ignore")]
+    pub password: String,
+}
+
+/// This type is used in registration lock handling.
+/// It's identical with HttpAuth, but used to avoid type confusion.
+#[derive(Derivative, Clone, Serialize, Deserialize)]
+#[derivative(Debug)]
+pub struct AuthCredentials {
     pub username: String,
     #[derivative(Debug = "ignore")]
     pub password: String,
@@ -275,6 +285,16 @@ impl RegistrationSessionMetadataResponse {
             .iter()
             .any(|x| x.as_str() == "captcha")
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrationLockFailure {
+    pub length: u32,
+    pub time_remaining: u64,
+    #[serde(rename = "backup_credentials")]
+    pub svr1_credentials: Option<AuthCredentials>,
+    pub svr2_credentials: Option<AuthCredentials>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -516,6 +536,8 @@ pub enum ServiceError {
     RateLimitExceeded,
     #[error("Authorization failed")]
     Unauthorized,
+    #[error("Registration lock is set: {0:?}")]
+    Locked(RegistrationLockFailure),
     #[error("Unexpected response: HTTP {http_code}")]
     UnhandledResponseCode { http_code: u16 },
 

@@ -10,9 +10,7 @@ use prost::Message;
 use rand::Rng;
 use sha2::Sha256;
 
-pub use crate::proto::{
-    ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
-};
+pub use crate::proto::{ProvisionEnvelope, ProvisionMessage};
 
 use crate::{
     envelope::{CIPHER_KEY_SIZE, IV_LENGTH, IV_OFFSET},

@@ -462,6 +462,15 @@ impl SignalWebSocket {
                     })?;
                 Err(ServiceError::StaleDevices(stale_devices))
             },
+            423 /* LOCKED */ => {
+                let locked = json(response.body()).map_err(|e| {
+                    tracing::error!("Failed to decode HTTP 423 response: {}", e);
+                    ServiceError::UnhandledResponseCode {
+                        http_code: 423,
+                    }
+                })?;
+                Err(ServiceError::Locked(locked))
+            },
             428 /* PRECONDITION_REQUIRED */ => {
                 let proof_required = json(response.body()).map_err(|e| {
                     tracing::error!("Failed to decode HTTP 428 response: {}", e);
