@@ -529,6 +529,15 @@
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
 <a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 <span class="kw">use </span>std::sync::{Arc, Mutex, MutexGuard};
 
@@ -992,6 +1001,15 @@
                         }
                     })<span class="question-mark">?</span>;
                 <span class="prelude-val">Err</span>(ServiceError::StaleDevices(stale_devices))
+            },
+            <span class="number">423 </span><span class="comment">/* LOCKED */ </span>=&gt; {
+                <span class="kw">let </span>locked = json(response.body()).map_err(|e| {
+                    <span class="macro">tracing::error!</span>(<span class="string">&quot;Failed to decode HTTP 423 response: {}&quot;</span>, e);
+                    ServiceError::UnhandledResponseCode {
+                        http_code: <span class="number">423</span>,
+                    }
+                })<span class="question-mark">?</span>;
+                <span class="prelude-val">Err</span>(ServiceError::Locked(locked))
             },
             <span class="number">428 </span><span class="comment">/* PRECONDITION_REQUIRED */ </span>=&gt; {
                 <span class="kw">let </span>proof_required = json(response.body()).map_err(|e| {

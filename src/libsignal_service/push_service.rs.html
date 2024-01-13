@@ -1291,6 +1291,28 @@
 <a href="#1291" id="1291">1291</a>
 <a href="#1292" id="1292">1292</a>
 <a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{fmt, time::Duration};
 
 <span class="kw">use crate</span>::{
@@ -1491,9 +1513,19 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     <span class="kw">pub </span>pq_count: u32,
 }
 
-<span class="attr">#[derive(Derivative, Clone)]
+<span class="attr">#[derive(Derivative, Clone, Serialize, Deserialize)]
 #[derivative(Debug)]
 </span><span class="kw">pub struct </span>HttpAuth {
+    <span class="kw">pub </span>username: String,
+    <span class="attr">#[derivative(Debug = <span class="string">&quot;ignore&quot;</span>)]
+    </span><span class="kw">pub </span>password: String,
+}
+
+<span class="doccomment">/// This type is used in registration lock handling.
+/// It&#39;s identical with HttpAuth, but used to avoid type confusion.
+</span><span class="attr">#[derive(Derivative, Clone, Serialize, Deserialize)]
+#[derivative(Debug)]
+</span><span class="kw">pub struct </span>AuthCredentials {
     <span class="kw">pub </span>username: String,
     <span class="attr">#[derivative(Debug = <span class="string">&quot;ignore&quot;</span>)]
     </span><span class="kw">pub </span>password: String,
@@ -1568,6 +1600,16 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
             .iter()
             .any(|x| x.as_str() == <span class="string">&quot;captcha&quot;</span>)
     }
+}
+
+<span class="attr">#[derive(Debug, Deserialize)]
+#[serde(rename_all = <span class="string">&quot;camelCase&quot;</span>)]
+</span><span class="kw">pub struct </span>RegistrationLockFailure {
+    <span class="kw">pub </span>length: u32,
+    <span class="kw">pub </span>time_remaining: u64,
+    <span class="attr">#[serde(rename = <span class="string">&quot;backup_credentials&quot;</span>)]
+    </span><span class="kw">pub </span>svr1_credentials: <span class="prelude-ty">Option</span>&lt;AuthCredentials&gt;,
+    <span class="kw">pub </span>svr2_credentials: <span class="prelude-ty">Option</span>&lt;AuthCredentials&gt;,
 }
 
 <span class="attr">#[derive(Debug, Deserialize)]
@@ -1809,6 +1851,8 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
     </span>RateLimitExceeded,
     <span class="attr">#[error(<span class="string">&quot;Authorization failed&quot;</span>)]
     </span>Unauthorized,
+    <span class="attr">#[error(<span class="string">&quot;Registration lock is set: {0:?}&quot;</span>)]
+    </span>Locked(RegistrationLockFailure),
     <span class="attr">#[error(<span class="string">&quot;Unexpected response: HTTP {http_code}&quot;</span>)]
     </span>UnhandledResponseCode { http_code: u16 },
 
