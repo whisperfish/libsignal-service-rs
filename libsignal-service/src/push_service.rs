@@ -206,6 +206,16 @@ pub struct HttpAuth {
     pub password: String,
 }
 
+/// This type is used in registration lock handling.
+/// It's identical with HttpAuth, but used to avoid type confusion.
+#[derive(Derivative, Clone, Serialize, Deserialize)]
+#[derivative(Debug)]
+pub struct AuthCredentials {
+    pub username: String,
+    #[derivative(Debug = "ignore")]
+    pub password: String,
+}
+
 #[derive(Debug, Clone)]
 pub enum HttpAuthOverride {
     NoOverride,
@@ -282,8 +292,9 @@ impl RegistrationSessionMetadataResponse {
 pub struct RegistrationLockFailure {
     pub length: u32,
     pub time_remaining: u64,
-    pub svr1_credentials: HttpAuth,
-    pub svr2_credentials: HttpAuth,
+    #[serde(rename = "backup_credentials")]
+    pub svr1_credentials: Option<AuthCredentials>,
+    pub svr2_credentials: Option<AuthCredentials>,
 }
 
 #[derive(Debug, Deserialize)]
