@@ -198,7 +198,7 @@ pub struct PreKeyStatus {
     pub pq_count: u32,
 }
 
-#[derive(Derivative, Clone)]
+#[derive(Derivative, Clone, Serialize, Deserialize)]
 #[derivative(Debug)]
 pub struct HttpAuth {
     pub username: String,
@@ -275,6 +275,15 @@ impl RegistrationSessionMetadataResponse {
             .iter()
             .any(|x| x.as_str() == "captcha")
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrationLockFailure {
+    pub length: u32,
+    pub time_remaining: u64,
+    pub svr1_credentials: HttpAuth,
+    pub svr2_credentials: HttpAuth,
 }
 
 #[derive(Debug, Deserialize)]
@@ -516,6 +525,8 @@ pub enum ServiceError {
     RateLimitExceeded,
     #[error("Authorization failed")]
     Unauthorized,
+    #[error("Registration lock is set: {0:?}")]
+    Locked(RegistrationLockFailure),
     #[error("Unexpected response: HTTP {http_code}")]
     UnhandledResponseCode { http_code: u16 },
 
