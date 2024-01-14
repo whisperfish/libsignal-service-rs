@@ -73,7 +73,7 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ServiceIdType {
     /// Account Identity (ACI)
     ///

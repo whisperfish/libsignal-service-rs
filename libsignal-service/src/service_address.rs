@@ -29,6 +29,10 @@ impl ServiceAddress {
     pub fn aci(&self) -> libsignal_protocol::Aci {
         libsignal_protocol::Aci::from_uuid_bytes(self.uuid.into_bytes())
     }
+
+    pub fn pni(&self) -> libsignal_protocol::Pni {
+        libsignal_protocol::Pni::from_uuid_bytes(self.uuid.into_bytes())
+    }
 }
 
 impl From<Uuid> for ServiceAddress {

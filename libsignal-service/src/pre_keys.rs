@@ -1,10 +1,11 @@
 use std::{convert::TryFrom, time::SystemTime};
 
 use crate::utils::{serde_base64, serde_public_key};
+use async_trait::async_trait;
 use libsignal_protocol::{
-    error::SignalProtocolError, kem, GenericSignedPreKey, KeyPair,
-    KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore, PublicKey,
-    SignedPreKeyRecord, SignedPreKeyStore,
+    error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKeyStore,
+    KeyPair, KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore,
+    PublicKey, SignedPreKeyRecord, SignedPreKeyStore,
 };
 
 use serde::{Deserialize, Serialize};
@@ -12,32 +13,33 @@ use serde::{Deserialize, Serialize};
 /// Stores the ID of keys published ahead of time
 ///
 /// <https://signal.org/docs/specifications/x3dh/>
+#[async_trait(?Send)]
 pub trait PreKeysStore:
-    PreKeyStore + SignedPreKeyStore + KyberPreKeyStore
+    PreKeyStore + IdentityKeyStore + SignedPreKeyStore + KyberPreKeyStore
 {
     /// ID of the next pre key
-    fn pre_keys_offset_id(&self) -> Result<u32, SignalProtocolError>;
+    async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
 
     /// ID of the next signed pre key
-    fn next_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
+    async fn next_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
 
     /// ID of the next PQ pre key
-    fn next_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
+    async fn next_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
 
     /// set the ID of the next pre key
-    fn set_pre_keys_offset_id(
+    async fn set_next_pre_key_id(
         &mut self,
         id: u32,
     ) -> Result<(), SignalProtocolError>;
 
     /// set the ID of the next signed pre key
-    fn set_next_signed_pre_key_id(
+    async fn set_next_signed_pre_key_id(
         &mut self,
         id: u32,
     ) -> Result<(), SignalProtocolError>;
 
     /// set the ID of the next PQ pre key
-    fn set_next_pq_pre_key_id(
+    async fn set_next_pq_pre_key_id(
         &mut self,
         id: u32,
     ) -> Result<(), SignalProtocolError>;
@@ -132,7 +134,7 @@ pub(crate) async fn generate_last_resort_kyber_key<S: PreKeysStore>(
     store: &mut S,
     identity_key: &KeyPair,
 ) -> Result<KyberPreKeyRecord, SignalProtocolError> {
-    let id = store.next_pq_pre_key_id()?;
+    let id = store.next_pq_pre_key_id().await?;
     let id = id.max(1); // TODO: Hack, keys start with 1
 
     let record = KyberPreKeyRecord::generate(
@@ -142,7 +144,7 @@ pub(crate) async fn generate_last_resort_kyber_key<S: PreKeysStore>(
     )?;
 
     store.save_kyber_pre_key(id.into(), &record).await?;
-    store.set_next_pq_pre_key_id(id + 1)?;
+    store.set_next_pq_pre_key_id(id + 1).await?;
 
     Ok(record)
 }
@@ -155,7 +157,7 @@ pub(crate) async fn generate_signed_pre_key<
     csprng: &mut R,
     identity_key: &KeyPair,
 ) -> Result<SignedPreKeyRecord, SignalProtocolError> {
-    let id = store.next_signed_pre_key_id()?;
+    let id = store.next_signed_pre_key_id().await?;
     let id = id.max(1); // TODO: Hack, keys start with 1
 
     let key_pair = KeyPair::generate(csprng);
@@ -171,7 +173,7 @@ pub(crate) async fn generate_signed_pre_key<
         SignedPreKeyRecord::new(id.into(), unix_time, &key_pair, &signature);
 
     store.save_signed_pre_key(id.into(), &record).await?;
-    store.set_next_signed_pre_key_id(id + 1)?;
+    store.set_next_signed_pre_key_id(id + 1).await?;
 
     Ok(record)
 }

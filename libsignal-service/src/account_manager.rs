@@ -7,7 +7,7 @@ use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, GenericSignedPreKey, IdentityKeyStore, KeyPair, KyberPreKeyRecord,
-    PreKeyRecord, PrivateKey, ProtocolStore, PublicKey, SignalProtocolError,
+    PreKeyRecord, PrivateKey, PublicKey, SignalProtocolError,
     SignedPreKeyRecord,
 };
 use prost::Message;
@@ -16,7 +16,7 @@ use sha2::Sha256;
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
-use crate::pre_keys::KyberPreKeyEntity;
+use crate::pre_keys::{KyberPreKeyEntity, PreKeysStore};
 use crate::proto::DeviceName;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
 use crate::ServiceAddress;
@@ -93,19 +93,22 @@ impl<Service: PushService> AccountManager<Service> {
     #[tracing::instrument(skip(self, protocol_store, csprng))]
     pub async fn update_pre_key_bundle<
         R: rand::Rng + rand::CryptoRng,
-        P: ProtocolStore,
+        P: PreKeysStore,
     >(
         &mut self,
         protocol_store: &mut P,
+        service_id_type: ServiceIdType,
         csprng: &mut R,
-        pre_keys_offset_id: u32,
-        next_signed_pre_key_id: u32,
-        pq_pre_keys_offset_id: u32,
         use_last_resort_key: bool,
     ) -> Result<(u32, u32, u32), ServiceError> {
+        let pre_keys_offset_id = protocol_store.next_pre_key_id().await?;
+        let next_signed_pre_key_id =
+            protocol_store.next_signed_pre_key_id().await?;
+        let pq_pre_keys_offset_id = protocol_store.next_pq_pre_key_id().await?;
+
         let prekey_status = match self
             .service
-            .get_pre_key_status(ServiceIdType::AccountIdentity)
+            .get_pre_key_status(service_id_type)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Fetching pre key status"
@@ -239,7 +242,7 @@ impl<Service: PushService> AccountManager<Service> {
         };
 
         self.service
-            .register_pre_keys(ServiceIdType::AccountIdentity, pre_key_state)
+            .register_pre_keys(service_id_type, pre_key_state)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Uploading pre keys"
@@ -315,7 +318,8 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn link_device(
         &mut self,
         url: url::Url,
-        identity_store: &dyn IdentityKeyStore,
+        aci_identity_store: &dyn IdentityKeyStore,
+        pni_identity_store: &dyn IdentityKeyStore,
         credentials: ServiceCredentials,
     ) -> Result<(), LinkError> {
         let query: HashMap<_, _> = url.query_pairs().collect();
@@ -327,27 +331,36 @@ impl<Service: PushService> AccountManager<Service> {
         let pub_key = PublicKey::deserialize(&pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
 
-        let identity_key_pair = identity_store.get_identity_key_pair().await?;
+        let aci_identity_key_pair =
+            aci_identity_store.get_identity_key_pair().await?;
+        let pni_identity_key_pair =
+            pni_identity_store.get_identity_key_pair().await?;
 
-        if credentials.uuid.is_none() {
-            tracing::warn!("No local UUID set");
+        if credentials.aci.is_none() {
+            tracing::warn!("No local ACI set");
+        }
+        if credentials.pni.is_none() {
+            tracing::warn!("No local PNI set");
         }
 
         let provisioning_code = self.new_device_provisioning_code().await?;
 
         let msg = ProvisionMessage {
-            aci: credentials.uuid.as_ref().map(|u| u.to_string()),
+            aci: credentials.aci.as_ref().map(|u| u.to_string()),
             aci_identity_key_public: Some(
-                identity_key_pair.public_key().serialize().into_vec(),
+                aci_identity_key_pair.public_key().serialize().into_vec(),
             ),
             aci_identity_key_private: Some(
-                identity_key_pair.private_key().serialize(),
+                aci_identity_key_pair.private_key().serialize(),
             ),
             number: Some(credentials.e164()),
-            // TODO: implement pni fields
-            pni_identity_key_public: None,
-            pni_identity_key_private: None,
-            pni: None,
+            pni_identity_key_public: Some(
+                pni_identity_key_pair.public_key().serialize().into_vec(),
+            ),
+            pni_identity_key_private: Some(
+                pni_identity_key_pair.private_key().serialize(),
+            ),
+            pni: credentials.pni.as_ref().map(uuid::Uuid::to_string),
             profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(

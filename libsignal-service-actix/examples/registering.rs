@@ -58,7 +58,8 @@ async fn main() -> Result<(), Error> {
     let mut push_service = AwcPushService::new(
         servers,
         Some(ServiceCredentials {
-            uuid: None,
+            aci: None,
+            pni: None,
             phonenumber: phonenumber.clone(),
             password,
             signaling_key: None,

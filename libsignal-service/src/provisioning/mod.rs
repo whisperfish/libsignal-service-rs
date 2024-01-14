@@ -108,11 +108,12 @@ pub struct NewDeviceRegistration {
 
 pub async fn link_device<
     R: rand::Rng + rand::CryptoRng,
-    S: PreKeysStore,
+    Aci: PreKeysStore,
+    Pni: PreKeysStore,
     P: PushService,
 >(
-    aci_store: &mut S,
-    pni_store: &mut S,
+    aci_store: &mut Aci,
+    pni_store: &mut Pni,
     csprng: &mut R,
     mut push_service: P,
     password: &str,
