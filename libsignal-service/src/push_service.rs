@@ -1317,22 +1317,25 @@ pub trait PushService: MaybeSend {
         &mut self,
         pni_identity_key: &IdentityKey,
         device_messages: Vec<OutgoingPushMessage>,
-        device_pni_signed_prekeys: HashMap<&str, SignedPreKeyEntity>,
-        device_pni_last_resort_kyber_prekeys: HashMap<&str, KyberPreKeyEntity>,
-        pni_registration_ids: HashMap<&str, u32>,
+        device_pni_signed_prekeys: HashMap<String, SignedPreKeyEntity>,
+        device_pni_last_resort_kyber_prekeys: HashMap<
+            String,
+            KyberPreKeyEntity,
+        >,
+        pni_registration_ids: HashMap<String, u32>,
         signature_valid_on_each_signed_pre_key: bool,
     ) -> Result<VerifyAccountResponse, ServiceError> {
         #[derive(serde::Serialize, Debug)]
         #[serde(rename_all = "camelCase")]
-        struct PniKeyDistributionRequest<'a> {
+        struct PniKeyDistributionRequest {
             #[serde(with = "serde_base64")]
             pni_identity_key: Vec<u8>,
             device_messages: Vec<OutgoingPushMessage>,
-            device_pni_signed_prekeys: HashMap<&'a str, SignedPreKeyEntity>,
+            device_pni_signed_prekeys: HashMap<String, SignedPreKeyEntity>,
             #[serde(rename = "devicePniPqLastResortPrekeys")]
             device_pni_last_resort_kyber_prekeys:
-                HashMap<&'a str, KyberPreKeyEntity>,
-            pni_registration_ids: HashMap<&'a str, u32>,
+                HashMap<String, KyberPreKeyEntity>,
+            pni_registration_ids: HashMap<String, u32>,
             signature_valid_on_each_signed_pre_key: bool,
         }
 

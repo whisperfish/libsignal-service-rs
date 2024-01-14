@@ -19,8 +19,10 @@ use zkgroup::profiles::ProfileKey;
 
 use crate::pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity};
 use crate::proto::DeviceName;
+use crate::provisioning::generate_registration_id;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
 use crate::sender::OutgoingPushMessage;
+use crate::session_store::SessionStoreExt;
 use crate::utils::BASE64_RELAXED;
 use crate::ServiceAddress;
 use crate::{
@@ -600,12 +602,17 @@ impl<Service: PushService> AccountManager<Service> {
     /// Initialize PNI on linked devices.
     ///
     /// Should be called as the primary device to migrate from pre-PNI to PNI.
+    ///
+    /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
     pub async fn pnp_initialize_devices<
         R: rand::Rng + rand::CryptoRng,
-        P: PreKeysStore,
+        Aci: PreKeysStore + SessionStoreExt,
+        Pni: PreKeysStore,
     >(
         &mut self,
-        pni_protocol_store: &mut P,
+        aci_protocol_store: &mut Aci,
+        pni_protocol_store: &mut Pni,
+        local_aci: ServiceAddress,
         csprng: &mut R,
         use_last_resort_key: bool,
     ) -> Result<(), ServiceError> {
@@ -613,32 +620,77 @@ impl<Service: PushService> AccountManager<Service> {
             pni_protocol_store.get_identity_key_pair().await?;
 
         let pni_identity_key = pni_identity_key_pair.identity_key();
-        let device_messages: Vec<OutgoingPushMessage>; // XXX TODO
-        let device_pni_signed_prekeys: HashMap<&str, SignedPreKeyEntity>;
-        let device_pni_last_resort_kyber_prekeys: HashMap<
-            &str,
-            KyberPreKeyEntity,
-        >;
-        let pni_registration_ids: HashMap<&str, u32>;
-        let signature_valid_on_each_signed_pre_key: bool;
 
-        // This needs to be repeated for every device that we have linked.
-        let (
-            _pre_keys,
-            signed_pre_key_entity,
-            kyber_pre_key_entities,
-            last_resort_kyber_prekey,
-        ) = self
-            .generate_pre_keys(
-                pni_protocol_store,
-                ServiceIdType::PhoneNumberIdentity,
-                csprng,
-                use_last_resort_key,
-                0,
-                PRE_KEY_BATCH_SIZE,
-            )
+        // For every linked device, we generate a new set of pre-keys, and send them to the device.
+        let local_device_ids = aci_protocol_store
+            .get_sub_device_sessions(&local_aci)
             .await?;
-        assert_eq!(_pre_keys.len(), 0);
+
+        let mut device_messages =
+            Vec::<OutgoingPushMessage>::with_capacity(local_device_ids.len());
+        let mut device_pni_signed_prekeys =
+            HashMap::<String, SignedPreKeyEntity>::with_capacity(
+                local_device_ids.len(),
+            );
+        let mut device_pni_last_resort_kyber_prekeys =
+            HashMap::<String, KyberPreKeyEntity>::with_capacity(
+                local_device_ids.len(),
+            );
+        let mut pni_registration_ids =
+            HashMap::<String, u32>::with_capacity(local_device_ids.len());
+
+        let signature_valid_on_each_signed_pre_key = true;
+        for local_device_id in
+            std::iter::once(DEFAULT_DEVICE_ID).chain(local_device_ids)
+        {
+            let local_protocol_address =
+                local_aci.to_protocol_address(local_device_id);
+            let span = tracing::trace_span!(
+                "filtering devices",
+                address = %local_protocol_address
+            );
+            // Skip if we don't have a session with the device
+            if (local_device_id != DEFAULT_DEVICE_ID)
+                && aci_protocol_store
+                    .load_session(&local_protocol_address)
+                    .instrument(span)
+                    .await?
+                    .is_none()
+            {
+                tracing::warn!(
+                    "No session with device {}, skipping PNI provisioning",
+                    local_device_id
+                );
+                continue;
+            }
+
+            let (
+                _pre_keys,
+                signed_pre_key_entity,
+                kyber_pre_key_entities,
+                last_resort_kyber_prekey,
+            ) = self
+                .generate_pre_keys(
+                    pni_protocol_store,
+                    ServiceIdType::PhoneNumberIdentity,
+                    csprng,
+                    use_last_resort_key,
+                    0,
+                    PRE_KEY_BATCH_SIZE,
+                )
+                .await?;
+            let registration_id = generate_registration_id(csprng);
+
+            let local_device_id_s = local_device_id.to_string();
+            device_pni_signed_prekeys
+                .insert(local_device_id_s.clone(), signed_pre_key_entity);
+            device_pni_last_resort_kyber_prekeys
+                .insert(local_device_id_s.clone(), last_resort_kyber_prekey);
+            pni_registration_ids
+                .insert(local_device_id_s.clone(), registration_id);
+
+            assert_eq!(_pre_keys.len(), 0);
+        }
 
         self.service
             .distribute_pni_keys(
