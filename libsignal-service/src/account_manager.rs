@@ -17,9 +17,10 @@ use sha2::Sha256;
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
-use crate::pre_keys::{KyberPreKeyEntity, PreKeysStore};
+use crate::pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity};
 use crate::proto::DeviceName;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
+use crate::sender::OutgoingPushMessage;
 use crate::utils::BASE64_RELAXED;
 use crate::ServiceAddress;
 use crate::{
@@ -84,6 +85,132 @@ impl<Service: PushService> AccountManager<Service> {
         }
     }
 
+    #[tracing::instrument(skip(self, protocol_store, csprng))]
+    async fn generate_pre_keys<
+        R: rand::Rng + rand::CryptoRng,
+        P: PreKeysStore,
+    >(
+        &mut self,
+        protocol_store: &mut P,
+        service_id_type: ServiceIdType,
+        csprng: &mut R,
+        use_last_resort_key: bool,
+    ) -> Result<
+        (
+            Vec<PreKeyEntity>,
+            SignedPreKeyRecord,
+            Vec<KyberPreKeyEntity>,
+            Option<KyberPreKeyEntity>,
+        ),
+        ServiceError,
+    > {
+        let pre_keys_offset_id = protocol_store.next_pre_key_id().await?;
+        let next_signed_pre_key_id =
+            protocol_store.next_signed_pre_key_id().await?;
+        let pq_pre_keys_offset_id = protocol_store.next_pq_pre_key_id().await?;
+
+        let span = tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
+
+        let identity_key_pair = protocol_store
+            .get_identity_key_pair()
+            .instrument(
+                tracing::trace_span!(parent: &span, "get identity key pair"),
+            )
+            .await?;
+
+        let mut pre_key_entities = vec![];
+        let mut pq_pre_key_entities = vec![];
+
+        // EC keys
+        for i in 0..PRE_KEY_BATCH_SIZE {
+            let key_pair = KeyPair::generate(csprng);
+            let pre_key_id = (((pre_keys_offset_id + i)
+                % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
+                + 1)
+            .into();
+            let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
+            protocol_store
+                    .save_pre_key(pre_key_id, &pre_key_record)
+                    .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
+            // TODO: Shouldn't this also remove the previous pre-keys from storage?
+            //       I think we might want to update the storage, and then sync the storage to the
+            //       server.
+
+            pre_key_entities.push(PreKeyEntity::try_from(pre_key_record)?);
+        }
+
+        // Kyber keys
+        for i in 0..PRE_KEY_BATCH_SIZE {
+            let pre_key_id = (((pq_pre_keys_offset_id + i)
+                % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
+                + 1)
+            .into();
+            let pre_key_record = KyberPreKeyRecord::generate(
+                kem::KeyType::Kyber1024,
+                pre_key_id,
+                identity_key_pair.private_key(),
+            )?;
+            protocol_store
+                    .save_kyber_pre_key(pre_key_id, &pre_key_record)
+                    .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
+            // TODO: Shouldn't this also remove the previous pre-keys from storage?
+            //       I think we might want to update the storage, and then sync the storage to the
+            //       server.
+
+            pq_pre_key_entities
+                .push(KyberPreKeyEntity::try_from(pre_key_record)?);
+        }
+
+        // Generate and store the next signed prekey
+        let signed_pre_key_pair = KeyPair::generate(csprng);
+        let signed_pre_key_public = signed_pre_key_pair.public_key;
+        let signed_pre_key_signature = identity_key_pair
+            .private_key()
+            .calculate_signature(&signed_pre_key_public.serialize(), csprng)?;
+
+        let unix_time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+
+        let signed_prekey_record = SignedPreKeyRecord::new(
+            next_signed_pre_key_id.into(),
+            unix_time.as_millis() as u64,
+            &signed_pre_key_pair,
+            &signed_pre_key_signature,
+        );
+
+        protocol_store
+                .save_signed_pre_key(
+                    next_signed_pre_key_id.into(),
+                    &signed_prekey_record,
+                )
+                    .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
+
+        let pq_last_resort_key = if use_last_resort_key {
+            tracing::warn!("Last resort Kyber key unimplemented");
+            // Note about the last-resort key:
+            // mark_kyber_pre_key_used() should retain the last-resort key, but can safely
+            // remove the ephemeral pre keys.  This implies that generating the last-resort key
+            // should notify the pre-key store, when saving the key, that it concerns a
+            // last-resort key.  I don't see how this can be communicated to the store, and I
+            // fear that we need to reengineer the whole prekeystore system as a whole.
+            None
+            // Some(KyberPreKeyEntity {
+            //     key_id: 0x7fffffff,
+            //     public_key: "NDI=".into(),
+            // })
+        } else {
+            None
+        };
+
+        Ok((
+            pre_key_entities,
+            signed_prekey_record,
+            pq_pre_key_entities,
+            pq_last_resort_key,
+        ))
+    }
+
     /// Checks the availability of pre-keys, and updates them as necessary.
     ///
     /// Parameters are the protocol's `StoreContext`, and the offsets for the next pre-key and
@@ -102,11 +229,6 @@ impl<Service: PushService> AccountManager<Service> {
         csprng: &mut R,
         use_last_resort_key: bool,
     ) -> Result<(), ServiceError> {
-        let pre_keys_offset_id = protocol_store.next_pre_key_id().await?;
-        let next_signed_pre_key_id =
-            protocol_store.next_signed_pre_key_id().await?;
-        let pq_pre_keys_offset_id = protocol_store.next_pq_pre_key_id().await?;
-
         let prekey_status = match self
             .service
             .get_pre_key_status(service_id_type)
@@ -137,105 +259,29 @@ impl<Service: PushService> AccountManager<Service> {
             return Ok(());
         }
 
-        let pre_key_state = {
-            let span =
-                tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
+        let (pre_keys, signed_pre_key_record, pq_pre_keys, pq_last_resort_key) =
+            self.generate_pre_keys(
+                protocol_store,
+                service_id_type,
+                csprng,
+                use_last_resort_key,
+            )
+            .await?;
 
-            let identity_key_pair =
-                protocol_store.get_identity_key_pair().instrument(tracing::trace_span!(parent: &span, "get identity key pair")).await?;
+        let identity_key = protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get identity key pair"))
+            .await?
+            .identity_key()
+            .public_key()
+            .clone();
 
-            let mut pre_key_entities = vec![];
-            let mut pq_pre_key_entities = vec![];
-
-            // EC keys
-            for i in 0..PRE_KEY_BATCH_SIZE {
-                let key_pair = KeyPair::generate(csprng);
-                let pre_key_id = (((pre_keys_offset_id + i)
-                    % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
-                    + 1)
-                .into();
-                let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-                protocol_store
-                    .save_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
-                // TODO: Shouldn't this also remove the previous pre-keys from storage?
-                //       I think we might want to update the storage, and then sync the storage to the
-                //       server.
-
-                pre_key_entities.push(PreKeyEntity::try_from(pre_key_record)?);
-            }
-
-            // Kyber keys
-            for i in 0..PRE_KEY_BATCH_SIZE {
-                let pre_key_id = (((pq_pre_keys_offset_id + i)
-                    % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
-                    + 1)
-                .into();
-                let pre_key_record = KyberPreKeyRecord::generate(
-                    kem::KeyType::Kyber1024,
-                    pre_key_id,
-                    identity_key_pair.private_key(),
-                )?;
-                protocol_store
-                    .save_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
-                // TODO: Shouldn't this also remove the previous pre-keys from storage?
-                //       I think we might want to update the storage, and then sync the storage to the
-                //       server.
-
-                pq_pre_key_entities
-                    .push(KyberPreKeyEntity::try_from(pre_key_record)?);
-            }
-
-            // Generate and store the next signed prekey
-            let signed_pre_key_pair = KeyPair::generate(csprng);
-            let signed_pre_key_public = signed_pre_key_pair.public_key;
-            let signed_pre_key_signature =
-                identity_key_pair.private_key().calculate_signature(
-                    &signed_pre_key_public.serialize(),
-                    csprng,
-                )?;
-
-            let unix_time = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap();
-
-            let signed_prekey_record = SignedPreKeyRecord::new(
-                next_signed_pre_key_id.into(),
-                unix_time.as_millis() as u64,
-                &signed_pre_key_pair,
-                &signed_pre_key_signature,
-            );
-
-            protocol_store
-                .save_signed_pre_key(
-                    next_signed_pre_key_id.into(),
-                    &signed_prekey_record,
-                )
-                    .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
-
-            PreKeyState {
-                pre_keys: pre_key_entities,
-                signed_pre_key: signed_prekey_record.try_into()?,
-                identity_key: *identity_key_pair.public_key(),
-                pq_pre_keys: pq_pre_key_entities,
-                pq_last_resort_key: if use_last_resort_key {
-                    tracing::warn!("Last resort Kyber key unimplemented");
-                    // Note about the last-resort key:
-                    // mark_kyber_pre_key_used() should retain the last-resort key, but can safely
-                    // remove the ephemeral pre keys.  This implies that generating the last-resort key
-                    // should notify the pre-key store, when saving the key, that it concerns a
-                    // last-resort key.  I don't see how this can be communicated to the store, and I
-                    // fear that we need to reengineer the whole prekeystore system as a whole.
-                    None
-                    // Some(KyberPreKeyEntity {
-                    //     key_id: 0x7fffffff,
-                    //     public_key: "NDI=".into(),
-                    // })
-                } else {
-                    None
-                },
-            }
+        let pre_key_state = PreKeyState {
+            pre_keys,
+            signed_pre_key: signed_pre_key_record.try_into()?,
+            identity_key,
+            pq_pre_keys,
+            pq_last_resort_key,
         };
 
         self.service
