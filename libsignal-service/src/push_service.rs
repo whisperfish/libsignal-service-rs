@@ -1,4 +1,4 @@
-use std::{fmt, time::Duration};
+use std::{collections::HashMap, fmt, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -10,7 +10,7 @@ use crate::{
     },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
-    sender::{OutgoingPushMessages, SendMessageResponse},
+    sender::{OutgoingPushMessage, OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64, serde_phone_number},
     websocket::SignalWebSocket,
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
@@ -1309,6 +1309,48 @@ pub trait PushService: MaybeSend {
                 &[],
                 HttpAuthOverride::NoOverride,
                 req,
+            )
+            .await?;
+        Ok(res)
+    }
+
+    async fn distribute_pni_keys(
+        &mut self,
+        pni_identity_key: IdentityKey,
+        device_messages: Vec<OutgoingPushMessage>,
+        device_pni_signed_prekeys: HashMap<&str, SignedPreKeyEntity>,
+        device_pni_last_resort_kyber_prekeys: HashMap<&str, KyberPreKeyEntity>,
+        pni_registration_ids: HashMap<&str, u32>,
+        signature_valid_on_each_signed_pre_key: bool,
+    ) -> Result<VerifyAccountResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct PniKeyDistributionRequest<'a> {
+            #[serde(with = "serde_base64")]
+            pni_identity_key: Vec<u8>,
+            device_messages: Vec<OutgoingPushMessage>,
+            device_pni_signed_prekeys: HashMap<&'a str, SignedPreKeyEntity>,
+            #[serde(rename = "devicePniPqLastResortPrekeys")]
+            device_pni_last_resort_kyber_prekeys:
+                HashMap<&'a str, KyberPreKeyEntity>,
+            pni_registration_ids: HashMap<&'a str, u32>,
+            signature_valid_on_each_signed_pre_key: bool,
+        }
+
+        let res: VerifyAccountResponse = self
+            .put_json(
+                Endpoint::Service,
+                "/v2/accounts/phone_number_identity_key_distribution",
+                &[],
+                HttpAuthOverride::NoOverride,
+                PniKeyDistributionRequest {
+                    pni_identity_key: pni_identity_key.serialize().into(),
+                    device_messages,
+                    device_pni_signed_prekeys,
+                    device_pni_last_resort_kyber_prekeys,
+                    pni_registration_ids,
+                    signature_valid_on_each_signed_pre_key,
+                },
             )
             .await?;
         Ok(res)

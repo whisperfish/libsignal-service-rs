@@ -64,7 +64,7 @@ impl TryFrom<PreKeyRecord> for PreKeyEntity {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignedPreKeyEntity {
     pub key_id: u32,
