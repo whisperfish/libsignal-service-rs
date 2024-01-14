@@ -303,7 +303,7 @@ where
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
-    ) -> SendMessageResult {
+    ) -> Vec<SendMessageResult> {
         let content_body = message.into();
 
         use crate::proto::data_message::Flags;
@@ -346,24 +346,48 @@ where
                         timestamp,
                         &results,
                     );
-                self.try_send_message(
-                    self.local_address,
-                    unidentified_access.as_ref(),
-                    &sync_message,
-                    timestamp,
-                    false,
-                )
-                .await?;
+                results.push(
+                    self.try_send_message(
+                        self.local_address,
+                        unidentified_access.as_ref(),
+                        &sync_message,
+                        timestamp,
+                        false,
+                    )
+                    .await,
+                );
             },
             _ => (),
         }
 
         if end_session {
-            let n = self.protocol_store.delete_all_sessions(recipient).await?;
-            tracing::debug!("ended {} sessions with {}", n, recipient.uuid);
+            let ended =
+                self.protocol_store.delete_all_sessions(recipient).await;
+            match &ended {
+                Ok(n) if *n > 0 => {
+                    tracing::debug!(
+                        "ended {} sessions with {}",
+                        n,
+                        recipient.uuid
+                    );
+                },
+                Ok(_) => {
+                    tracing::debug!(
+                        "no sessions to end with {}",
+                        recipient.uuid
+                    );
+                },
+                Err(e) => {
+                    tracing::error!(
+                        "failed to end sessions with {}: {}",
+                        recipient.uuid,
+                        e
+                    );
+                },
+            }
         }
 
-        results.remove(0)
+        results
     }
 
     /// Send a message to the recipients in a group.
@@ -402,29 +426,32 @@ where
             results.push(result);
         }
 
-        // we only need to send a synchronization message once
-        if let Some(message) = message {
-            if self.is_multi_device().await {
+        match (&content_body, &results[0]) {
+            // if we sent a data message and we have linked devices, we need to send a sync message
+            (
+                ContentBody::DataMessage(message),
+                Ok(SentMessage { needs_sync, .. }),
+            ) if *needs_sync || self.is_multi_device().await => {
+                tracing::debug!("sending multi-device sync message");
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         None,
-                        Some(message),
+                        Some(message.clone()),
                         timestamp,
                         &results,
                     );
-
-                let result = self
-                    .try_send_message(
+                results.push(
+                    self.try_send_message(
                         self.local_address,
                         self_unidentified_access,
                         &sync_message,
                         timestamp,
                         false,
                     )
-                    .await;
-
-                results.push(result);
-            }
+                    .await,
+                );
+            },
+            _ => (),
         }
 
         results
@@ -621,7 +648,7 @@ where
             Utc::now().timestamp_millis() as u64,
             online,
         )
-        .await?;
+        .await;
 
         Ok(())
     }
