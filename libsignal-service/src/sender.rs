@@ -315,8 +315,8 @@ where
             _ => false,
         };
 
-        // don't send anything to self nor session enders to others as sealed sender
-        if recipient == &self.local_address || end_session {
+        // don't send session enders as sealed sender
+        if end_session {
             unidentified_access.take();
         }
 
@@ -348,7 +348,7 @@ where
                     );
                 self.try_send_message(
                     self.local_address,
-                    None,
+                    unidentified_access.as_ref(),
                     &sync_message,
                     timestamp,
                     false,
@@ -368,12 +368,13 @@ where
 
     /// Send a message to the recipients in a group.
     #[tracing::instrument(
-        skip(self, recipients, message),
+        skip(self, recipients, self_unidentified_access, message),
         fields(recipients = recipients.as_ref().len()),
     )]
     pub async fn send_message_to_group(
         &mut self,
         recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>)]>,
+        self_unidentified_access: Option<&UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -430,7 +431,7 @@ where
                 let result = self
                     .try_send_message(
                         self.local_address,
-                        None,
+                        self_unidentified_access,
                         &sync_message,
                         timestamp,
                         false,
