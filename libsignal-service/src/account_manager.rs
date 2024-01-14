@@ -90,8 +90,6 @@ impl<Service: PushService> AccountManager<Service> {
     /// signed pre-keys.
     ///
     /// Equivalent to Java's RefreshPreKeysJob
-    ///
-    /// Returns the next pre-key offset, pq pre-key offset, and next signed pre-key offset as a tuple.
     #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self, protocol_store, csprng))]
     pub async fn update_pre_key_bundle<
@@ -103,7 +101,7 @@ impl<Service: PushService> AccountManager<Service> {
         service_id_type: ServiceIdType,
         csprng: &mut R,
         use_last_resort_key: bool,
-    ) -> Result<(u32, u32, u32), ServiceError> {
+    ) -> Result<(), ServiceError> {
         let pre_keys_offset_id = protocol_store.next_pre_key_id().await?;
         let next_signed_pre_key_id =
             protocol_store.next_signed_pre_key_id().await?;
@@ -136,11 +134,7 @@ impl<Service: PushService> AccountManager<Service> {
             && prekey_status.pq_count >= PRE_KEY_MINIMUM
         {
             tracing::info!("Available keys sufficient");
-            return Ok((
-                pre_keys_offset_id,
-                pq_pre_keys_offset_id,
-                next_signed_pre_key_id,
-            ));
+            return Ok(());
         }
 
         let pre_key_state = {
@@ -252,11 +246,7 @@ impl<Service: PushService> AccountManager<Service> {
             ))
             .await?;
 
-        Ok((
-            pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
-            pq_pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
-            next_signed_pre_key_id + 1,
-        ))
+        Ok(())
     }
 
     async fn new_device_provisioning_code(
