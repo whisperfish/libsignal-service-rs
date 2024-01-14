@@ -388,7 +388,6 @@ where
         };
 
         let recipients = recipients.as_ref();
-        let mut needs_sync_in_results = false;
         for (recipient, unidentified_access) in recipients.iter() {
             let result = self
                 .try_send_message(
@@ -400,26 +399,12 @@ where
                 )
                 .await;
 
-            match result {
-                Ok(SentMessage { needs_sync, .. }) if needs_sync => {
-                    needs_sync_in_results = true;
-                },
-                _ => (),
-            };
-
             results.push(result);
-        }
-
-        if needs_sync_in_results && message.is_none() {
-            // XXX: does this happen?
-            tracing::warn!(
-                "Server claims need sync, but not sending datamessage."
-            );
         }
 
         // we only need to send a synchronization message once
         if let Some(message) = message {
-            if needs_sync_in_results || self.is_multi_device().await {
+            if self.is_multi_device().await {
                 let sync_message = self
                     .create_multi_device_sent_transcript_content(
                         None,
