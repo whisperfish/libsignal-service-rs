@@ -100,7 +100,7 @@ impl<Service: PushService> AccountManager<Service> {
     ) -> Result<
         (
             Vec<PreKeyEntity>,
-            SignedPreKeyRecord,
+            SignedPreKeyEntity,
             Vec<KyberPreKeyEntity>,
             Option<KyberPreKeyEntity>,
         ),
@@ -187,6 +187,8 @@ impl<Service: PushService> AccountManager<Service> {
                     &signed_prekey_record,
                 )
                     .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
+        let signed_prekey_entity =
+            SignedPreKeyEntity::try_from(signed_prekey_record)?;
 
         let pq_last_resort_key = if use_last_resort_key {
             tracing::warn!("Last resort Kyber key unimplemented");
@@ -207,7 +209,7 @@ impl<Service: PushService> AccountManager<Service> {
 
         Ok((
             pre_key_entities,
-            signed_prekey_record,
+            signed_prekey_entity,
             pq_pre_key_entities,
             pq_last_resort_key,
         ))
@@ -261,8 +263,8 @@ impl<Service: PushService> AccountManager<Service> {
             return Ok(());
         }
 
-        let (pre_keys, signed_pre_key_record, pq_pre_keys, pq_last_resort_key) =
-            self.generate_pre_keys(
+        let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) = self
+            .generate_pre_keys(
                 protocol_store,
                 service_id_type,
                 csprng,
@@ -282,7 +284,7 @@ impl<Service: PushService> AccountManager<Service> {
 
         let pre_key_state = PreKeyState {
             pre_keys,
-            signed_pre_key: signed_pre_key_record.try_into()?,
+            signed_pre_key,
             identity_key,
             pq_pre_keys,
             pq_last_resort_key,

@@ -5,8 +5,7 @@ use crate::{
     envelope::*,
     groups_v2::GroupDecodingError,
     pre_keys::{
-        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKey,
-        SignedPreKeyEntity,
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
     },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
@@ -407,8 +406,8 @@ pub struct StaleDevices {
 pub struct LinkRequest {
     pub verification_code: String,
     pub account_attributes: LinkAccountAttributes,
-    pub aci_signed_pre_key: SignedPreKey,
-    pub pni_signed_pre_key: SignedPreKey,
+    pub aci_signed_pre_key: SignedPreKeyEntity,
+    pub pni_signed_pre_key: SignedPreKeyEntity,
     pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
     pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
 }

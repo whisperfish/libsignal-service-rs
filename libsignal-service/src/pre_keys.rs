@@ -74,24 +74,14 @@ pub struct SignedPreKeyEntity {
     pub signature: Vec<u8>,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SignedPreKey {
-    key_id: u32,
-    #[serde(with = "serde_public_key")]
-    public_key: PublicKey,
-    #[serde(with = "serde_base64")]
-    signature: Vec<u8>,
-}
-
-impl TryFrom<SignedPreKeyRecord> for SignedPreKey {
+impl TryFrom<SignedPreKeyRecord> for SignedPreKeyEntity {
     type Error = SignalProtocolError;
 
     fn try_from(key: SignedPreKeyRecord) -> Result<Self, Self::Error> {
-        Ok(SignedPreKey {
+        Ok(SignedPreKeyEntity {
             key_id: key.id()?.into(),
-            public_key: key.key_pair()?.public_key,
-            signature: key.signature()?,
+            public_key: key.key_pair()?.public_key.serialize().to_vec(),
+            signature: key.signature()?.to_vec(),
         })
     }
 }
@@ -122,7 +112,7 @@ impl TryFrom<KyberPreKeyRecord> for KyberPreKeyEntity {
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyState {
     pub pre_keys: Vec<PreKeyEntity>,
-    pub signed_pre_key: SignedPreKey,
+    pub signed_pre_key: SignedPreKeyEntity,
     #[serde(with = "serde_public_key")]
     pub identity_key: PublicKey,
     #[serde(skip_serializing_if = "Option::is_none")]
