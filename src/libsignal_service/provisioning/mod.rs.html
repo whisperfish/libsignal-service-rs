@@ -288,6 +288,7 @@
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
 <a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
 </pre></div><pre class="rust"><code><span class="kw">mod </span>cipher;
 <span class="kw">mod </span>pipe;
 
@@ -398,11 +399,12 @@
 
 <span class="kw">pub async fn </span>link_device&lt;
     R: rand::Rng + rand::CryptoRng,
-    S: PreKeysStore,
+    Aci: PreKeysStore,
+    Pni: PreKeysStore,
     P: PushService,
 &gt;(
-    aci_store: <span class="kw-2">&amp;mut </span>S,
-    pni_store: <span class="kw-2">&amp;mut </span>S,
+    aci_store: <span class="kw-2">&amp;mut </span>Aci,
+    pni_store: <span class="kw-2">&amp;mut </span>Pni,
     csprng: <span class="kw-2">&amp;mut </span>R,
     <span class="kw-2">mut </span>push_service: P,
     password: <span class="kw-2">&amp;</span>str,

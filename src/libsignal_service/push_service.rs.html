@@ -1388,7 +1388,7 @@ pub const STICKER_PATH: &amp;str = &quot;stickers/%s/full/%d&quot;;
 </span><span class="kw">pub const </span>KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(<span class="number">55</span>);
 <span class="kw">pub const </span>DEFAULT_DEVICE_ID: u32 = <span class="number">1</span>;
 
-<span class="attr">#[derive(Debug, Clone, Copy)]
+<span class="attr">#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 </span><span class="kw">pub enum </span>ServiceIdType {
     <span class="doccomment">/// Account Identity (ACI)
     ///

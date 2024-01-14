@@ -175,13 +175,16 @@
 <a href="#175" id="175">175</a>
 <a href="#176" id="176">176</a>
 <a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{convert::TryFrom, time::SystemTime};
 
 <span class="kw">use </span><span class="kw">crate</span>::utils::{serde_base64, serde_public_key};
+<span class="kw">use </span>async_trait::async_trait;
 <span class="kw">use </span>libsignal_protocol::{
-    error::SignalProtocolError, kem, GenericSignedPreKey, KeyPair,
-    KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore, PublicKey,
-    SignedPreKeyRecord, SignedPreKeyStore,
+    error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKeyStore,
+    KeyPair, KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore,
+    PublicKey, SignedPreKeyRecord, SignedPreKeyStore,
 };
 
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -189,32 +192,33 @@
 <span class="doccomment">/// Stores the ID of keys published ahead of time
 ///
 /// &lt;https://signal.org/docs/specifications/x3dh/&gt;
+</span><span class="attr">#[async_trait(<span class="question-mark">?</span>Send)]
 </span><span class="kw">pub trait </span>PreKeysStore:
-    PreKeyStore + SignedPreKeyStore + KyberPreKeyStore
+    PreKeyStore + IdentityKeyStore + SignedPreKeyStore + KyberPreKeyStore
 {
     <span class="doccomment">/// ID of the next pre key
-    </span><span class="kw">fn </span>pre_keys_offset_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32, SignalProtocolError&gt;;
+    </span><span class="kw">async fn </span>next_pre_key_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32, SignalProtocolError&gt;;
 
     <span class="doccomment">/// ID of the next signed pre key
-    </span><span class="kw">fn </span>next_signed_pre_key_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32, SignalProtocolError&gt;;
+    </span><span class="kw">async fn </span>next_signed_pre_key_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32, SignalProtocolError&gt;;
 
     <span class="doccomment">/// ID of the next PQ pre key
-    </span><span class="kw">fn </span>next_pq_pre_key_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32, SignalProtocolError&gt;;
+    </span><span class="kw">async fn </span>next_pq_pre_key_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32, SignalProtocolError&gt;;
 
     <span class="doccomment">/// set the ID of the next pre key
-    </span><span class="kw">fn </span>set_pre_keys_offset_id(
+    </span><span class="kw">async fn </span>set_next_pre_key_id(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), SignalProtocolError&gt;;
 
     <span class="doccomment">/// set the ID of the next signed pre key
-    </span><span class="kw">fn </span>set_next_signed_pre_key_id(
+    </span><span class="kw">async fn </span>set_next_signed_pre_key_id(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), SignalProtocolError&gt;;
 
     <span class="doccomment">/// set the ID of the next PQ pre key
-    </span><span class="kw">fn </span>set_next_pq_pre_key_id(
+    </span><span class="kw">async fn </span>set_next_pq_pre_key_id(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: u32,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), SignalProtocolError&gt;;
@@ -309,7 +313,7 @@
     store: <span class="kw-2">&amp;mut </span>S,
     identity_key: <span class="kw-2">&amp;</span>KeyPair,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;KyberPreKeyRecord, SignalProtocolError&gt; {
-    <span class="kw">let </span>id = store.next_pq_pre_key_id()<span class="question-mark">?</span>;
+    <span class="kw">let </span>id = store.next_pq_pre_key_id().<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>id = id.max(<span class="number">1</span>); <span class="comment">// TODO: Hack, keys start with 1
 
     </span><span class="kw">let </span>record = KyberPreKeyRecord::generate(
@@ -319,7 +323,7 @@
     )<span class="question-mark">?</span>;
 
     store.save_kyber_pre_key(id.into(), <span class="kw-2">&amp;</span>record).<span class="kw">await</span><span class="question-mark">?</span>;
-    store.set_next_pq_pre_key_id(id + <span class="number">1</span>)<span class="question-mark">?</span>;
+    store.set_next_pq_pre_key_id(id + <span class="number">1</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(record)
 }
@@ -332,7 +336,7 @@
     csprng: <span class="kw-2">&amp;mut </span>R,
     identity_key: <span class="kw-2">&amp;</span>KeyPair,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;SignedPreKeyRecord, SignalProtocolError&gt; {
-    <span class="kw">let </span>id = store.next_signed_pre_key_id()<span class="question-mark">?</span>;
+    <span class="kw">let </span>id = store.next_signed_pre_key_id().<span class="kw">await</span><span class="question-mark">?</span>;
     <span class="kw">let </span>id = id.max(<span class="number">1</span>); <span class="comment">// TODO: Hack, keys start with 1
 
     </span><span class="kw">let </span>key_pair = KeyPair::generate(csprng);
@@ -348,7 +352,7 @@
         SignedPreKeyRecord::new(id.into(), unix_time, <span class="kw-2">&amp;</span>key_pair, <span class="kw-2">&amp;</span>signature);
 
     store.save_signed_pre_key(id.into(), <span class="kw-2">&amp;</span>record).<span class="kw">await</span><span class="question-mark">?</span>;
-    store.set_next_signed_pre_key_id(id + <span class="number">1</span>)<span class="question-mark">?</span>;
+    store.set_next_signed_pre_key_id(id + <span class="number">1</span>).<span class="kw">await</span><span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(record)
 }
