@@ -95,6 +95,8 @@ impl<Service: PushService> AccountManager<Service> {
         service_id_type: ServiceIdType,
         csprng: &mut R,
         use_last_resort_key: bool,
+        pre_key_count: u32,
+        kyber_pre_key_count: u32,
     ) -> Result<
         (
             Vec<PreKeyEntity>,
@@ -122,7 +124,7 @@ impl<Service: PushService> AccountManager<Service> {
         let mut pq_pre_key_entities = vec![];
 
         // EC keys
-        for i in 0..PRE_KEY_BATCH_SIZE {
+        for i in 0..pre_key_count {
             let key_pair = KeyPair::generate(csprng);
             let pre_key_id = (((pre_keys_offset_id + i)
                 % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
@@ -140,7 +142,7 @@ impl<Service: PushService> AccountManager<Service> {
         }
 
         // Kyber keys
-        for i in 0..PRE_KEY_BATCH_SIZE {
+        for i in 0..kyber_pre_key_count {
             let pre_key_id = (((pq_pre_keys_offset_id + i)
                 % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
                 + 1)
@@ -265,6 +267,8 @@ impl<Service: PushService> AccountManager<Service> {
                 service_id_type,
                 csprng,
                 use_last_resort_key,
+                PRE_KEY_BATCH_SIZE,
+                PRE_KEY_BATCH_SIZE,
             )
             .await?;
 
@@ -589,6 +593,63 @@ impl<Service: PushService> AccountManager<Service> {
                 payload,
             )
             .await
+    }
+
+    /// Initialize PNI on linked devices.
+    ///
+    /// Should be called as the primary device to migrate from pre-PNI to PNI.
+    pub async fn pnp_initialize_devices<
+        R: rand::Rng + rand::CryptoRng,
+        P: PreKeysStore,
+    >(
+        &mut self,
+        pni_protocol_store: &mut P,
+        csprng: &mut R,
+        use_last_resort_key: bool,
+    ) -> Result<(), ServiceError> {
+        let pni_identity_key_pair =
+            pni_protocol_store.get_identity_key_pair().await?;
+
+        let pni_identity_key = pni_identity_key_pair.identity_key();
+        let device_messages: Vec<OutgoingPushMessage>; // XXX TODO
+        let device_pni_signed_prekeys: HashMap<&str, SignedPreKeyEntity>;
+        let device_pni_last_resort_kyber_prekeys: HashMap<
+            &str,
+            KyberPreKeyEntity,
+        >;
+        let pni_registration_ids: HashMap<&str, u32>;
+        let signature_valid_on_each_signed_pre_key: bool;
+
+        // This needs to be repeated for every device that we have linked.
+        let (
+            _pre_keys,
+            signed_pre_key_entity,
+            kyber_pre_key_entities,
+            last_resort_kyber_prekey,
+        ) = self
+            .generate_pre_keys(
+                pni_protocol_store,
+                ServiceIdType::PhoneNumberIdentity,
+                csprng,
+                use_last_resort_key,
+                0,
+                PRE_KEY_BATCH_SIZE,
+            )
+            .await?;
+        assert_eq!(_pre_keys.len(), 0);
+
+        self.service
+            .distribute_pni_keys(
+                pni_identity_key,
+                device_messages,
+                device_pni_signed_prekeys,
+                device_pni_last_resort_kyber_prekeys,
+                pni_registration_ids,
+                signature_valid_on_each_signed_pre_key,
+            )
+            .await?;
+
+        Ok(())
     }
 }
 
