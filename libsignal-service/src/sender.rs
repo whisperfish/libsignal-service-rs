@@ -461,6 +461,15 @@ where
     ) -> SendMessageResult {
         use prost::Message;
 
+        // don't send messages to self but let the SyncMessage handle it instead
+        if recipient == self.local_address {
+            return Ok(SentMessage {
+                recipient,
+                unidentified: true,
+                needs_sync: true,
+            });
+        }
+
         let content = content_body.clone().into_proto();
 
         let content_bytes = content.encode_to_vec();
