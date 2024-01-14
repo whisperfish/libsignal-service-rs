@@ -1316,7 +1316,7 @@ pub trait PushService: MaybeSend {
 
     async fn distribute_pni_keys(
         &mut self,
-        pni_identity_key: IdentityKey,
+        pni_identity_key: &IdentityKey,
         device_messages: Vec<OutgoingPushMessage>,
         device_pni_signed_prekeys: HashMap<&str, SignedPreKeyEntity>,
         device_pni_last_resort_kyber_prekeys: HashMap<&str, KyberPreKeyEntity>,
