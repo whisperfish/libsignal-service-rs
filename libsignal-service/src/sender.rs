@@ -663,15 +663,55 @@ where
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
-            messages.push(
-                self.create_encrypted_message(
-                    recipient,
-                    unidentified_access,
-                    device_id,
-                    content,
-                )
-                .await?,
-            )
+            // `create_encrypted_message` may fail with `SessionNotFound` if the session is corrupted;
+            // see https://github.com/whisperfish/libsignal-client/commit/601454d20.
+            // If this happens, delete the session and retry.
+            for _attempt in 0..2 {
+                match self
+                    .create_encrypted_message(
+                        recipient,
+                        unidentified_access,
+                        device_id,
+                        content,
+                    )
+                    .await
+                {
+                    Ok(message) => {
+                        messages.push(message);
+                        break;
+                    },
+                    Err(
+                        e @ MessageSenderError::ServiceError(
+                            ServiceError::SignalProtocolError(
+                                SignalProtocolError::SessionNotFound(_),
+                            ),
+                        ),
+                    ) => {
+                        let MessageSenderError::ServiceError(
+                            ServiceError::SignalProtocolError(
+                                SignalProtocolError::SessionNotFound(addr),
+                            ),
+                        ) = &e
+                        else {
+                            // We can't bind to addr above, because we move into `e`.
+                            unreachable!()
+                        };
+                        // SessionNotFound is returned on certain session corruption.
+                        // Since delete_session *creates* a session if it doesn't exist,
+                        // the NotFound error is an indicator of session corruption.
+                        // Try to delete this session, if it gets succesfully deleted, retry.  Otherwise, fail.
+                        tracing::warn!("Potential session corruption for {}, deleting session", addr);
+                        match self.protocol_store.delete_session(addr).await {
+                            Ok(()) => continue,
+                            Err(_e) => {
+                                tracing::warn!("Failed to delete session for {}, failing message. {}", addr, _e);
+                                return Err(e);
+                            },
+                        }
+                    },
+                    Err(e) => return Err(e),
+                }
+            }
         }
 
         Ok(messages)
