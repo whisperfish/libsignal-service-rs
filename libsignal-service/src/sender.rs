@@ -663,6 +663,9 @@ where
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
+            // `create_encrypted_message` may fail with `SessionNotFound` if the session is corrupted;
+            // see https://github.com/whisperfish/libsignal-client/commit/601454d20.
+            // If this happens, delete the session and retry.
             for _attempt in 0..2 {
                 match self
                     .create_encrypted_message(
