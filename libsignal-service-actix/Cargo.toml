@@ -29,7 +29,6 @@ rand = "0.8"
 
 thiserror = "1.0"
 async-trait = "0.1"
-base64 = "0.13"
 
 phonenumber = "0.3"
 

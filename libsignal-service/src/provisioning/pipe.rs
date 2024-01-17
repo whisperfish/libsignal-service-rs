@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use bytes::Bytes;
 use futures::{
     channel::{
@@ -97,7 +98,7 @@ impl ProvisioningPipe {
                     .append_pair("uuid", &uuid.uuid.unwrap())
                     .append_pair(
                         "pub_key",
-                        &base64::encode(
+                        &BASE64_STANDARD.encode(
                             self.provisioning_cipher.public_key().serialize(),
                         ),
                     );

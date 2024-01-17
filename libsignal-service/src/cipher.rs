@@ -1,6 +1,7 @@
 use std::{convert::TryFrom, fmt, time::SystemTime};
 
 use aes::cipher::block_padding::{Iso7816, RawPadding};
+use base64::prelude::*;
 use libsignal_protocol::{
     group_decrypt, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, process_sender_key_distribution_message,
@@ -364,7 +365,7 @@ where
                 r#type: Type::UnidentifiedSender as u32,
                 destination_device_id: address.device_id().into(),
                 destination_registration_id,
-                content: base64::encode(message),
+                content: BASE64_STANDARD.encode(message),
             })
         } else {
             let message = message_encrypt(
@@ -379,7 +380,7 @@ where
             let destination_registration_id =
                 session_record.remote_registration_id()?;
 
-            let body = base64::encode(message.serialize());
+            let body = BASE64_STANDARD.encode(message.serialize());
 
             use crate::proto::envelope::Type;
             let message_type = match message.message_type() {

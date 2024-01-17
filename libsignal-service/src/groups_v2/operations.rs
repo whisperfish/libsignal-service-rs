@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use base64::prelude::*;
 use bytes::Bytes;
 use libsignal_protocol::{Aci, ServiceId};
 use prost::Message;
@@ -402,9 +403,9 @@ impl GroupOperations {
 
         let modify_invite_link_password =
             actions.modify_invite_link_password.into_iter().map(|m| {
-                Ok(GroupChange::InviteLinkPassword(base64::encode(
-                    m.invite_link_password,
-                )))
+                Ok(GroupChange::InviteLinkPassword(
+                    BASE64_STANDARD.encode(m.invite_link_password),
+                ))
             });
 
         let modify_announcements_only = actions

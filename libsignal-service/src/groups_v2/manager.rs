@@ -9,6 +9,7 @@ use crate::{
     push_service::{HttpAuth, HttpAuthOverride, ServiceIds},
 };
 
+use base64::prelude::*;
 use bytes::Bytes;
 use chrono::{Days, NaiveDate, NaiveTime, Utc};
 use futures::AsyncReadExt;
@@ -40,7 +41,7 @@ impl CredentialResponse {
         self.credentials
             .into_iter()
             .map(|c| {
-                let bytes = base64::decode(c.credential)?;
+                let bytes = BASE64_STANDARD.decode(c.credential)?;
                 let data = bincode::deserialize(&bytes)?;
                 Ok((c.redemption_time, data))
             })

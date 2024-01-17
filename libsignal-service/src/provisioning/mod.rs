@@ -6,6 +6,7 @@ use std::{array::TryFromSliceError, borrow::Cow};
 
 pub use cipher::ProvisioningCipher;
 
+use base64::prelude::*;
 use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
@@ -222,7 +223,7 @@ pub async fn link_device<
         let pni_signed_pre_key =
             generate_signed_pre_key(pni_store, csprng, &pni_key_pair).await?;
 
-        let encrypted_device_name = base64::encode(
+        let encrypted_device_name = BASE64_STANDARD.encode(
             encrypt_device_name(csprng, device_name, &aci_public_key)?
                 .encode_to_vec(),
         );

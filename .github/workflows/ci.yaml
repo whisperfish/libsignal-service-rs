@@ -30,6 +30,10 @@ jobs:
             features: "unsend-futures"
     steps:
       - uses: actions/checkout@v3
+      - name: Install protobuf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -65,10 +69,14 @@ jobs:
             toolchain: "nightly"
         include:
           - project: "libsignal-service-actix"
-            toolchain: "1.70"
+            toolchain: "1.75"
             coverage: false
     steps:
       - uses: actions/checkout@v3
+      - name: Install protobuf
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
