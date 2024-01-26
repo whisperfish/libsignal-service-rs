@@ -264,6 +264,10 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
         self.push_service.get_group(authorization).await
     }
 
+    #[tracing::instrument(
+        skip(self, group_secret_params),
+        fields(path = %path[..4]),
+    )]
     pub async fn retrieve_avatar(
         &mut self,
         path: &str,
