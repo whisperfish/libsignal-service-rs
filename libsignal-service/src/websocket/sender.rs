@@ -1,10 +1,11 @@
 use crate::{
     sender::{OutgoingPushMessages, SendMessageResponse},
     unidentified_access::UnidentifiedAccess,
+    utils::BASE64_RELAXED,
 };
-use base64::prelude::*;
 
 use super::*;
+use base64::Engine;
 
 impl SignalWebSocket {
     pub async fn send_messages(
@@ -23,7 +24,7 @@ impl SignalWebSocket {
         let path = format!("/v1/messages/{}", messages.recipient.uuid);
         let header = format!(
             "Unidentified-Access-Key:{}",
-            BASE64_STANDARD.encode(&access.key)
+            BASE64_RELAXED.encode(&access.key)
         );
         self.put_json_with_headers(&path, messages, vec![header])
             .await
