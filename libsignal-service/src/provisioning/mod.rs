@@ -11,7 +11,7 @@ use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
 use libsignal_protocol::{
-    DeviceId, KeyPair, PrivateKey, PublicKey, SessionStore,
+    DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey, SessionStore,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -22,9 +22,7 @@ use zkgroup::profiles::ProfileKey;
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
 use crate::prelude::ServiceError;
-use crate::push_service::ServiceIdType;
 use crate::utils::BASE64_RELAXED;
-use crate::AccountManager;
 use crate::{
     account_manager::encrypt_device_name,
     pre_keys::PreKeysStore,
@@ -213,23 +211,29 @@ pub async fn link_device<
             },
         )?;
 
-        let mut am = AccountManager::new(push_service.clone(), None);
+        let aci_key_pair = IdentityKeyPair::new(
+            IdentityKey::new(aci_public_key),
+            aci_private_key,
+        );
+        let pni_key_pair = IdentityKeyPair::new(
+            IdentityKey::new(pni_public_key),
+            pni_private_key,
+        );
 
         let (
             _aci_pre_keys,
             aci_signed_pre_key,
             _aci_pq_pre_keys,
             aci_pq_last_resort_pre_key,
-        ) = am
-            .generate_pre_keys(
-                aci_store,
-                ServiceIdType::AccountIdentity,
-                csprng,
-                true,
-                0,
-                0,
-            )
-            .await?;
+        ) = crate::pre_keys::generate_pre_keys(
+            aci_store,
+            &aci_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
         let aci_pq_last_resort_pre_key =
             aci_pq_last_resort_pre_key.expect("requested last resort key");
 
@@ -238,16 +242,15 @@ pub async fn link_device<
             pni_signed_pre_key,
             _pni_pq_pre_keys,
             pni_pq_last_resort_pre_key,
-        ) = am
-            .generate_pre_keys(
-                pni_store,
-                ServiceIdType::PhoneNumberIdentity,
-                csprng,
-                true,
-                0,
-                0,
-            )
-            .await?;
+        ) = crate::pre_keys::generate_pre_keys(
+            pni_store,
+            &pni_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
         let pni_pq_last_resort_pre_key =
             pni_pq_last_resort_pre_key.expect("requested last resort key");
 
