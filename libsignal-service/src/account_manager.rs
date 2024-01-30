@@ -193,18 +193,31 @@ impl<Service: PushService> AccountManager<Service> {
             SignedPreKeyEntity::try_from(signed_prekey_record)?;
 
         let pq_last_resort_key = if use_last_resort_key {
-            tracing::warn!("Last resort Kyber key unimplemented");
-            // Note about the last-resort key:
-            // mark_kyber_pre_key_used() should retain the last-resort key, but can safely
-            // remove the ephemeral pre keys.  This implies that generating the last-resort key
-            // should notify the pre-key store, when saving the key, that it concerns a
-            // last-resort key.  I don't see how this can be communicated to the store, and I
-            // fear that we need to reengineer the whole prekeystore system as a whole.
-            None
-            // Some(KyberPreKeyEntity {
-            //     key_id: 0x7fffffff,
-            //     public_key: "NDI=".into(),
-            // })
+            let pre_key_id = (((pq_pre_keys_offset_id + kyber_pre_key_count)
+                % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
+                + 1)
+            .into();
+
+            if !pq_pre_key_entities.is_empty() {
+                assert_eq!(
+                    pq_pre_key_entities.last().unwrap().key_id + 1,
+                    u32::from(pre_key_id)
+                );
+            }
+
+            let pre_key_record = KyberPreKeyRecord::generate(
+                kem::KeyType::Kyber1024,
+                pre_key_id,
+                identity_key_pair.private_key(),
+            )?;
+            protocol_store
+                    .store_last_resort_kyber_pre_key(pre_key_id, &pre_key_record)
+                    .instrument(tracing::trace_span!(parent: &span, "save last resort kyber pre key", ?pre_key_id)).await?;
+            // TODO: Shouldn't this also remove the previous pre-keys from storage?
+            //       I think we might want to update the storage, and then sync the storage to the
+            //       server.
+
+            Some(KyberPreKeyEntity::try_from(pre_key_record)?)
         } else {
             None
         };
@@ -614,7 +627,6 @@ impl<Service: PushService> AccountManager<Service> {
         pni_protocol_store: &mut Pni,
         local_aci: ServiceAddress,
         csprng: &mut R,
-        use_last_resort_key: bool,
     ) -> Result<(), ServiceError> {
         let pni_identity_key_pair =
             pni_protocol_store.get_identity_key_pair().await?;
@@ -663,20 +675,19 @@ impl<Service: PushService> AccountManager<Service> {
                 );
                 continue;
             }
-
             let (
                 _pre_keys,
                 signed_pre_key_entity,
-                kyber_pre_key_entities,
+                _kyber_pre_key_entities,
                 last_resort_kyber_prekey,
             ) = self
                 .generate_pre_keys(
                     pni_protocol_store,
                     ServiceIdType::PhoneNumberIdentity,
                     csprng,
-                    use_last_resort_key,
+                    true,
                     0,
-                    PRE_KEY_BATCH_SIZE,
+                    0,
                 )
                 .await?;
             let registration_id = generate_registration_id(csprng);
@@ -684,12 +695,15 @@ impl<Service: PushService> AccountManager<Service> {
             let local_device_id_s = local_device_id.to_string();
             device_pni_signed_prekeys
                 .insert(local_device_id_s.clone(), signed_pre_key_entity);
-            device_pni_last_resort_kyber_prekeys
-                .insert(local_device_id_s.clone(), last_resort_kyber_prekey);
+            device_pni_last_resort_kyber_prekeys.insert(
+                local_device_id_s.clone(),
+                last_resort_kyber_prekey.expect("requested last resort key"),
+            );
             pni_registration_ids
                 .insert(local_device_id_s.clone(), registration_id);
 
-            assert_eq!(_pre_keys.len(), 0);
+            assert!(_pre_keys.is_empty());
+            assert!(_kyber_pre_key_entities.is_empty());
         }
 
         self.service

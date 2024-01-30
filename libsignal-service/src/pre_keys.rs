@@ -4,18 +4,56 @@ use crate::utils::{serde_base64, serde_public_key};
 use async_trait::async_trait;
 use libsignal_protocol::{
     error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKeyStore,
-    KeyPair, KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore,
-    PublicKey, SignedPreKeyRecord, SignedPreKeyStore,
+    KeyPair, KyberPreKeyId, KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord,
+    PreKeyStore, PublicKey, SignedPreKeyRecord, SignedPreKeyStore,
 };
 
 use serde::{Deserialize, Serialize};
+
+#[async_trait(?Send)]
+/// Additional methods for the Kyber pre key store
+///
+/// Analogue of Android's ServiceKyberPreKeyStore
+pub trait ServiceKyberPreKeyStore: KyberPreKeyStore {
+    async fn store_last_resort_kyber_pre_key(
+        &mut self,
+        kyber_prekey_id: KyberPreKeyId,
+        record: &KyberPreKeyRecord,
+    ) -> Result<(), SignalProtocolError>;
+
+    async fn load_last_resort_kyber_pre_keys(
+        &self,
+    ) -> Result<Vec<KyberPreKeyRecord>, SignalProtocolError>;
+
+    async fn remove_kyber_pre_key(
+        &mut self,
+        kyber_prekey_id: KyberPreKeyId,
+    ) -> Result<(), SignalProtocolError>;
+
+    /// Analogous to markAllOneTimeKyberPreKeysStaleIfNecessary
+    async fn mark_all_one_time_kyber_pre_keys_stale_if_necessary(
+        &mut self,
+        stale_time: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), SignalProtocolError>;
+
+    /// Analogue of deleteAllStaleOneTimeKyberPreKeys
+    async fn delete_all_stale_one_time_kyber_pre_keys(
+        &mut self,
+        threshold: chrono::DateTime<chrono::Utc>,
+        min_count: usize,
+    ) -> Result<(), SignalProtocolError>;
+}
 
 /// Stores the ID of keys published ahead of time
 ///
 /// <https://signal.org/docs/specifications/x3dh/>
 #[async_trait(?Send)]
 pub trait PreKeysStore:
-    PreKeyStore + IdentityKeyStore + SignedPreKeyStore + KyberPreKeyStore
+    PreKeyStore
+    + IdentityKeyStore
+    + SignedPreKeyStore
+    + KyberPreKeyStore
+    + ServiceKyberPreKeyStore
 {
     /// ID of the next pre key
     async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
