@@ -6,7 +6,7 @@ use std::{array::TryFromSliceError, borrow::Cow};
 
 pub use cipher::ProvisioningCipher;
 
-use base64::prelude::*;
+use base64::Engine;
 use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
@@ -20,6 +20,7 @@ use zkgroup::profiles::ProfileKey;
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
 use crate::prelude::ServiceError;
+use crate::utils::BASE64_RELAXED;
 use crate::{
     account_manager::encrypt_device_name,
     pre_keys::{
@@ -223,7 +224,7 @@ pub async fn link_device<
         let pni_signed_pre_key =
             generate_signed_pre_key(pni_store, csprng, &pni_key_pair).await?;
 
-        let encrypted_device_name = BASE64_STANDARD.encode(
+        let encrypted_device_name = BASE64_RELAXED.encode(
             encrypt_device_name(csprng, device_name, &aci_public_key)?
                 .encode_to_vec(),
         );

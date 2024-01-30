@@ -20,6 +20,7 @@ use zkgroup::profiles::ProfileKey;
 use crate::pre_keys::{KyberPreKeyEntity, PreKeysStore};
 use crate::proto::DeviceName;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
+use crate::utils::BASE64_RELAXED;
 use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -297,7 +298,7 @@ impl<Service: PushService> AccountManager<Service> {
                 &[],
                 HttpAuthOverride::NoOverride,
                 &ProvisioningMessage {
-                    body: BASE64_STANDARD.encode(body),
+                    body: BASE64_RELAXED.encode(body),
                 },
             )
             .await
@@ -327,7 +328,7 @@ impl<Service: PushService> AccountManager<Service> {
         let ephemeral_id = query.get("uuid").ok_or(LinkError::InvalidUuid)?;
         let pub_key =
             query.get("pub_key").ok_or(LinkError::InvalidPublicKey)?;
-        let pub_key = BASE64_STANDARD
+        let pub_key = BASE64_RELAXED
             .decode(&**pub_key)
             .map_err(|_e| LinkError::InvalidPublicKey)?;
         let pub_key = PublicKey::deserialize(&pub_key)
@@ -642,7 +643,8 @@ pub fn decrypt_device_name(
 
 #[cfg(test)]
 mod tests {
-    use base64::prelude::*;
+    use crate::utils::BASE64_RELAXED;
+    use base64::Engine;
     use libsignal_protocol::{KeyPair, PrivateKey, PublicKey};
 
     use super::DeviceName;
@@ -670,21 +672,21 @@ mod tests {
     #[test]
     fn decrypt_device_name() -> anyhow::Result<()> {
         let ephemeral_private_key = PrivateKey::deserialize(
-            &BASE64_STANDARD
+            &BASE64_RELAXED
                 .decode("0CgxHjwwblXjvX8sD5wZDWdYToMRf+CZSlgaUrxCGVo=")?,
         )?;
         let ephemeral_public_key = PublicKey::deserialize(
-            &BASE64_STANDARD
+            &BASE64_RELAXED
                 .decode("BcZS+Lt6yAKbEpXnRX+I5wHqesuvu93Q2V+fjidwW8R6")?,
         )?;
 
         let device_name = DeviceName {
             ephemeral_public: Some(ephemeral_public_key.serialize().to_vec()),
             synthetic_iv: Some(
-                BASE64_STANDARD.decode("86gekHGmltnnZ9QARhiFcg==")?,
+                BASE64_RELAXED.decode("86gekHGmltnnZ9QARhiFcg==")?,
             ),
             ciphertext: Some(
-                BASE64_STANDARD
+                BASE64_RELAXED
                     .decode("MtJ9/9KBWLBVAxfZJD4pLKzP4q+iodRJeCc+/A==")?,
             ),
         };

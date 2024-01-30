@@ -15,6 +15,7 @@ use crate::{
         self, group_attribute_blob, GroupAttributeBlob,
         Member as EncryptedMember,
     },
+    utils::BASE64_RELAXED,
 };
 
 use super::{
@@ -404,7 +405,7 @@ impl GroupOperations {
         let modify_invite_link_password =
             actions.modify_invite_link_password.into_iter().map(|m| {
                 Ok(GroupChange::InviteLinkPassword(
-                    BASE64_STANDARD.encode(m.invite_link_password),
+                    BASE64_RELAXED.encode(m.invite_link_password),
                 ))
             });
 

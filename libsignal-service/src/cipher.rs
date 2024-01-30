@@ -21,6 +21,7 @@ use crate::{
     envelope::Envelope,
     push_service::ServiceError,
     sender::OutgoingPushMessage,
+    utils::BASE64_RELAXED,
     ServiceAddress,
 };
 /// Decrypts incoming messages and encrypts outgoing messages.
@@ -365,7 +366,7 @@ where
                 r#type: Type::UnidentifiedSender as u32,
                 destination_device_id: address.device_id().into(),
                 destination_registration_id,
-                content: BASE64_STANDARD.encode(message),
+                content: BASE64_RELAXED.encode(message),
             })
         } else {
             let message = message_encrypt(
@@ -380,7 +381,7 @@ where
             let destination_registration_id =
                 session_record.remote_registration_id()?;
 
-            let body = BASE64_STANDARD.encode(message.serialize());
+            let body = BASE64_RELAXED.encode(message.serialize());
 
             use crate::proto::envelope::Type;
             let message_type = match message.message_type() {

@@ -1,4 +1,4 @@
-use base64::prelude::*;
+use base64::Engine;
 use bytes::Bytes;
 use futures::{
     channel::{
@@ -16,6 +16,7 @@ use crate::{
         ProvisioningUuid, WebSocketRequestMessage, WebSocketResponseMessage,
     },
     provisioning::ProvisioningError,
+    utils::BASE64_RELAXED,
     websocket::SignalWebSocket,
 };
 
@@ -98,7 +99,7 @@ impl ProvisioningPipe {
                     .append_pair("uuid", &uuid.uuid.unwrap())
                     .append_pair(
                         "pub_key",
-                        &BASE64_STANDARD.encode(
+                        &BASE64_RELAXED.encode(
                             self.provisioning_cipher.public_key().serialize(),
                         ),
                     );

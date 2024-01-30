@@ -1,4 +1,18 @@
+// Signal sometimes adds padding, sometimes it does not.
+// This requires a custom decoding engine.
+// This engine is as general as possible.
+pub const BASE64_RELAXED: base64::engine::GeneralPurpose =
+    base64::engine::GeneralPurpose::new(
+        &base64::alphabet::STANDARD,
+        base64::engine::GeneralPurposeConfig::new()
+            .with_encode_padding(true)
+            .with_decode_padding_mode(
+                base64::engine::DecodePaddingMode::Indifferent,
+            ),
+    );
+
 pub mod serde_base64 {
+    use super::BASE64_RELAXED;
     use base64::prelude::*;
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -7,7 +21,7 @@ pub mod serde_base64 {
         T: AsRef<[u8]>,
         S: Serializer,
     {
-        serializer.serialize_str(&BASE64_STANDARD.encode(bytes.as_ref()))
+        serializer.serialize_str(&BASE64_RELAXED.encode(bytes.as_ref()))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
@@ -16,7 +30,7 @@ pub mod serde_base64 {
     {
         use serde::de::Error;
         String::deserialize(deserializer).and_then(|string| {
-            BASE64_STANDARD
+            BASE64_RELAXED
                 .decode(string)
                 .map_err(|err| Error::custom(err.to_string()))
         })
@@ -24,6 +38,7 @@ pub mod serde_base64 {
 }
 
 pub mod serde_optional_base64 {
+    use super::BASE64_RELAXED;
     use base64::prelude::*;
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -51,7 +66,7 @@ pub mod serde_optional_base64 {
     {
         use serde::de::Error;
         match Option::<String>::deserialize(deserializer)? {
-            Some(s) => BASE64_STANDARD
+            Some(s) => BASE64_RELAXED
                 .decode(s)
                 .map_err(|err| Error::custom(err.to_string()))
                 .map(Some),
@@ -61,6 +76,7 @@ pub mod serde_optional_base64 {
 }
 
 pub mod serde_public_key {
+    use super::BASE64_RELAXED;
     use base64::prelude::*;
     use libsignal_protocol::PublicKey;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -73,7 +89,7 @@ pub mod serde_public_key {
         S: Serializer,
     {
         let public_key = public_key.serialize();
-        serializer.serialize_str(&BASE64_STANDARD.encode(&public_key))
+        serializer.serialize_str(&BASE64_RELAXED.encode(&public_key))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<PublicKey, D::Error>
@@ -81,7 +97,7 @@ pub mod serde_public_key {
         D: Deserializer<'de>,
     {
         PublicKey::deserialize(
-            &BASE64_STANDARD
+            &BASE64_RELAXED
                 .decode(String::deserialize(deserializer)?)
                 .map_err(serde::de::Error::custom)?,
         )
@@ -90,6 +106,7 @@ pub mod serde_public_key {
 }
 
 pub mod serde_optional_public_key {
+    use super::BASE64_RELAXED;
     use base64::prelude::*;
     use libsignal_protocol::PublicKey;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -120,7 +137,7 @@ pub mod serde_optional_public_key {
         match Option::<String>::deserialize(deserializer)? {
             Some(public_key) => Ok(Some(
                 PublicKey::deserialize(
-                    &BASE64_STANDARD
+                    &BASE64_RELAXED
                         .decode(public_key)
                         .map_err(serde::de::Error::custom)?,
                 )
@@ -132,6 +149,7 @@ pub mod serde_optional_public_key {
 }
 
 pub mod serde_private_key {
+    use super::BASE64_RELAXED;
     use base64::prelude::*;
     use libsignal_protocol::PrivateKey;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -144,7 +162,7 @@ pub mod serde_private_key {
         S: Serializer,
     {
         let public_key = public_key.serialize();
-        serializer.serialize_str(&BASE64_STANDARD.encode(public_key))
+        serializer.serialize_str(&BASE64_RELAXED.encode(public_key))
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<PrivateKey, D::Error>
@@ -152,7 +170,7 @@ pub mod serde_private_key {
         D: Deserializer<'de>,
     {
         PrivateKey::deserialize(
-            &BASE64_STANDARD
+            &BASE64_RELAXED
                 .decode(String::deserialize(deserializer)?)
                 .map_err(serde::de::Error::custom)?,
         )
@@ -161,6 +179,7 @@ pub mod serde_private_key {
 }
 
 pub mod serde_optional_private_key {
+    use super::BASE64_RELAXED;
     use base64::prelude::*;
     use libsignal_protocol::PrivateKey;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -191,7 +210,7 @@ pub mod serde_optional_private_key {
         match Option::<String>::deserialize(deserializer)? {
             Some(private_key) => Ok(Some(
                 PrivateKey::deserialize(
-                    &BASE64_STANDARD
+                    &BASE64_RELAXED
                         .decode(private_key)
                         .map_err(serde::de::Error::custom)?,
                 )
@@ -205,6 +224,7 @@ pub mod serde_optional_private_key {
 pub mod serde_signaling_key {
     use std::convert::TryInto;
 
+    use super::BASE64_RELAXED;
     use crate::configuration::SignalingKey;
     use base64::prelude::*;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -216,7 +236,7 @@ pub mod serde_signaling_key {
     where
         S: Serializer,
     {
-        serializer.serialize_str(&BASE64_STANDARD.encode(signaling_key))
+        serializer.serialize_str(&BASE64_RELAXED.encode(signaling_key))
     }
 
     pub fn deserialize<'de, D>(
@@ -225,7 +245,7 @@ pub mod serde_signaling_key {
     where
         D: Deserializer<'de>,
     {
-        BASE64_STANDARD
+        BASE64_RELAXED
             .decode(String::deserialize(deserializer)?)
             .map_err(serde::de::Error::custom)?
             .try_into()

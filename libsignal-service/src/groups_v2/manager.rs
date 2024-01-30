@@ -7,6 +7,7 @@ use crate::{
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride, ServiceIds},
+    utils::BASE64_RELAXED,
 };
 
 use base64::prelude::*;
@@ -41,7 +42,7 @@ impl CredentialResponse {
         self.credentials
             .into_iter()
             .map(|c| {
-                let bytes = BASE64_STANDARD.decode(c.credential)?;
+                let bytes = BASE64_RELAXED.decode(c.credential)?;
                 let data = bincode::deserialize(&bytes)?;
                 Ok((c.redemption_time, data))
             })
