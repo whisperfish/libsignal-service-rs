@@ -10,7 +10,9 @@ use base64::Engine;
 use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
-use libsignal_protocol::{DeviceId, KeyPair, PrivateKey, PublicKey};
+use libsignal_protocol::{
+    DeviceId, KeyPair, PrivateKey, PublicKey, SessionStore,
+};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -20,12 +22,12 @@ use zkgroup::profiles::ProfileKey;
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
 use crate::prelude::ServiceError;
+use crate::push_service::ServiceIdType;
 use crate::utils::BASE64_RELAXED;
+use crate::AccountManager;
 use crate::{
     account_manager::encrypt_device_name,
-    pre_keys::{
-        generate_last_resort_kyber_key, generate_signed_pre_key, PreKeysStore,
-    },
+    pre_keys::PreKeysStore,
     push_service::{
         HttpAuth, LinkAccountAttributes, LinkCapabilities, LinkRequest,
         LinkResponse, PushService, ServiceIds,
@@ -110,9 +112,9 @@ pub struct NewDeviceRegistration {
 
 pub async fn link_device<
     R: rand::Rng + rand::CryptoRng,
-    Aci: PreKeysStore,
+    Aci: PreKeysStore + SessionStore,
     Pni: PreKeysStore,
-    P: PushService,
+    P: PushService + Clone,
 >(
     aci_store: &mut Aci,
     pni_store: &mut Pni,
@@ -211,18 +213,43 @@ pub async fn link_device<
             },
         )?;
 
-        let aci_key_pair = KeyPair::new(aci_public_key, aci_private_key);
-        let pni_key_pair = KeyPair::new(pni_public_key, pni_private_key);
+        let mut am = AccountManager::new(push_service.clone(), None);
 
+        let (
+            _aci_pre_keys,
+            aci_signed_pre_key,
+            _aci_pq_pre_keys,
+            aci_pq_last_resort_pre_key,
+        ) = am
+            .generate_pre_keys(
+                aci_store,
+                ServiceIdType::AccountIdentity,
+                csprng,
+                true,
+                0,
+                0,
+            )
+            .await?;
         let aci_pq_last_resort_pre_key =
-            generate_last_resort_kyber_key(aci_store, &aci_key_pair).await?;
-        let pni_pq_last_resort_pre_key =
-            generate_last_resort_kyber_key(pni_store, &pni_key_pair).await?;
+            aci_pq_last_resort_pre_key.expect("requested last resort key");
 
-        let aci_signed_pre_key =
-            generate_signed_pre_key(aci_store, csprng, &aci_key_pair).await?;
-        let pni_signed_pre_key =
-            generate_signed_pre_key(pni_store, csprng, &pni_key_pair).await?;
+        let (
+            _pni_pre_keys,
+            pni_signed_pre_key,
+            _pni_pq_pre_keys,
+            pni_pq_last_resort_pre_key,
+        ) = am
+            .generate_pre_keys(
+                pni_store,
+                ServiceIdType::PhoneNumberIdentity,
+                csprng,
+                true,
+                0,
+                0,
+            )
+            .await?;
+        let pni_pq_last_resort_pre_key =
+            pni_pq_last_resort_pre_key.expect("requested last resort key");
 
         let encrypted_device_name = BASE64_RELAXED.encode(
             encrypt_device_name(csprng, device_name, &aci_public_key)?
@@ -245,12 +272,10 @@ pub async fn link_device<
                 capabilities: LinkCapabilities { pni: true },
                 name: encrypted_device_name,
             },
-            aci_signed_pre_key: aci_signed_pre_key.try_into()?,
-            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
-            aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
-                .try_into()?,
-            pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
-                .try_into()?,
+            aci_signed_pre_key,
+            pni_signed_pre_key,
+            aci_pq_last_resort_pre_key,
+            pni_pq_last_resort_pre_key,
         };
 
         let LinkResponse {

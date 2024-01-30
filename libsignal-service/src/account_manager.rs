@@ -88,7 +88,8 @@ impl<Service: PushService> AccountManager<Service> {
     }
 
     #[tracing::instrument(skip(self, protocol_store, csprng))]
-    async fn generate_pre_keys<
+    // XXX: Maybe refactor this and move into pre_keys.rs
+    pub(crate) async fn generate_pre_keys<
         R: rand::Rng + rand::CryptoRng,
         P: PreKeysStore,
     >(
