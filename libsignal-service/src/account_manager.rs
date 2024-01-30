@@ -6,7 +6,8 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    IdentityKeyStore, KeyPair, PrivateKey, PublicKey, SignalProtocolError,
+    IdentityKey, IdentityKeyStore, KeyPair, PrivateKey, PublicKey,
+    SignalProtocolError,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -408,7 +409,7 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn update_device_name(
         &mut self,
         device_name: &str,
-        public_key: &PublicKey,
+        public_key: &IdentityKey,
     ) -> Result<(), ServiceError> {
         let encrypted_device_name = encrypt_device_name(
             &mut rand::thread_rng(),
@@ -586,14 +587,14 @@ fn calculate_hmac256(
 pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
     device_name: &str,
-    identity_public: &PublicKey,
+    identity_public: &IdentityKey,
 ) -> Result<DeviceName, ServiceError> {
     let plaintext = device_name.as_bytes().to_vec();
     let ephemeral_key_pair = KeyPair::generate(csprng);
 
     let master_secret = ephemeral_key_pair
         .private_key
-        .calculate_agreement(identity_public)?;
+        .calculate_agreement(identity_public.public_key())?;
 
     let key1 = calculate_hmac256(&master_secret, b"auth")?;
     let synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
@@ -663,7 +664,7 @@ pub fn decrypt_device_name(
 mod tests {
     use crate::utils::BASE64_RELAXED;
     use base64::Engine;
-    use libsignal_protocol::{KeyPair, PrivateKey, PublicKey};
+    use libsignal_protocol::{IdentityKeyPair, PrivateKey, PublicKey};
 
     use super::DeviceName;
 
@@ -671,16 +672,16 @@ mod tests {
     fn encrypt_device_name() -> anyhow::Result<()> {
         let input_device_name = "Nokia 3310 Millenial Edition";
         let mut csprng = rand::thread_rng();
-        let identity = KeyPair::generate(&mut csprng);
+        let identity = IdentityKeyPair::generate(&mut csprng);
 
         let device_name = super::encrypt_device_name(
             &mut csprng,
             input_device_name,
-            &identity.public_key,
+            &identity.identity_key(),
         )?;
 
         let decrypted_device_name =
-            super::decrypt_device_name(&identity.private_key, &device_name)?;
+            super::decrypt_device_name(&identity.private_key(), &device_name)?;
 
         assert_eq!(input_device_name, decrypted_device_name);
 

@@ -100,10 +100,10 @@ pub struct NewDeviceRegistration {
     pub service_ids: ServiceIds,
     #[derivative(Debug = "ignore")]
     pub aci_private_key: PrivateKey,
-    pub aci_public_key: PublicKey,
+    pub aci_public_key: IdentityKey,
     #[derivative(Debug = "ignore")]
     pub pni_private_key: PrivateKey,
-    pub pni_public_key: PublicKey,
+    pub pni_public_key: IdentityKey,
     #[derivative(Debug = "ignore")]
     pub profile_key: ProfileKey,
 }
@@ -166,6 +166,7 @@ pub async fn link_device<
                     reason: "missing public key".into(),
                 },
             )?)?;
+        let aci_public_key = IdentityKey::new(aci_public_key);
 
         let aci_private_key =
             PrivateKey::deserialize(&message.aci_identity_key_private.ok_or(
@@ -180,6 +181,7 @@ pub async fn link_device<
                     reason: "missing public key".into(),
                 },
             )?)?;
+        let pni_public_key = IdentityKey::new(pni_public_key);
 
         let pni_private_key =
             PrivateKey::deserialize(&message.pni_identity_key_private.ok_or(
@@ -211,14 +213,10 @@ pub async fn link_device<
             },
         )?;
 
-        let aci_key_pair = IdentityKeyPair::new(
-            IdentityKey::new(aci_public_key),
-            aci_private_key,
-        );
-        let pni_key_pair = IdentityKeyPair::new(
-            IdentityKey::new(pni_public_key),
-            pni_private_key,
-        );
+        let aci_key_pair =
+            IdentityKeyPair::new(aci_public_key, aci_private_key);
+        let pni_key_pair =
+            IdentityKeyPair::new(pni_public_key, pni_private_key);
 
         let (
             _aci_pre_keys,
