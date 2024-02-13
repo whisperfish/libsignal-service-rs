@@ -69,6 +69,7 @@ pub struct Profile {
     pub name: Option<ProfileName<String>>,
     pub about: Option<String>,
     pub about_emoji: Option<String>,
+    pub avatar: Option<String>,
 }
 
 const PRE_KEY_MINIMUM: u32 = 10;
