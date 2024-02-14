@@ -489,6 +489,7 @@ impl SignalServiceProfile {
             name,
             about,
             about_emoji,
+            avatar: self.avatar.clone(),
         })
     }
 }
