@@ -267,7 +267,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
 
     #[tracing::instrument(
         skip(self, group_secret_params),
-        fields(path = %path[..4]),
+        fields(path = %path[..4.min(path.len())]),
     )]
     pub async fn retrieve_avatar(
         &mut self,
