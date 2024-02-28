@@ -590,7 +590,7 @@ pub enum ServiceError {
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 pub trait PushService: MaybeSend {
-    type ByteStream: futures::io::AsyncRead + Unpin;
+    type ByteStream: futures::io::AsyncRead + MaybeSend + Unpin;
 
     async fn get_json<T>(
         &mut self,
