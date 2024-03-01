@@ -3,4 +3,4 @@ members = ["libsignal-service", "libsignal-service-actix", "libsignal-service-hy
 default-members = ["libsignal-service", "libsignal-service-hyper"]
 
 [patch.crates-io]
-curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', tag = 'signal-curve25519-4.0.0' }
+curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', tag = 'signal-curve25519-4.1.1' }
