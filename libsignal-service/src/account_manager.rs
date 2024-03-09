@@ -1,6 +1,7 @@
 use base64::prelude::*;
 use std::collections::HashMap;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
+use std::time::SystemTime;
 
 use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
@@ -137,19 +138,36 @@ impl<Service: PushService> AccountManager<Service> {
             .instrument(tracing::trace_span!("get identity key pair"))
             .await?;
 
+        let last_resort_keys = protocol_store
+            .load_last_resort_kyber_pre_keys()
+            .instrument(tracing::trace_span!("fetch resort key"))
+            .await?;
+        // XXX: Maybe this check should be done in the generate_pre_keys function?
+        let has_last_resort_key = !last_resort_keys.is_empty();
+
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
             crate::pre_keys::generate_pre_keys(
                 protocol_store,
                 &identity_key_pair,
                 csprng,
-                use_last_resort_key,
+                use_last_resort_key && !has_last_resort_key,
                 PRE_KEY_BATCH_SIZE,
                 PRE_KEY_BATCH_SIZE,
             )
             .await?;
 
-        let identity_key =
-            identity_key_pair.identity_key().public_key().clone();
+        let pq_last_resort_key = if has_last_resort_key {
+            if last_resort_keys.len() > 1 {
+                tracing::warn!(
+                    "More than one last resort key found; only uploading first"
+                );
+            }
+            Some(KyberPreKeyEntity::try_from(last_resort_keys[0].clone())?)
+        } else {
+            pq_last_resort_key
+        };
+
+        let identity_key = *identity_key_pair.identity_key().public_key();
 
         let pre_key_state = PreKeyState {
             pre_keys,
