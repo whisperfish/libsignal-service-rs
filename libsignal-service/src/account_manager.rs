@@ -30,7 +30,7 @@ use crate::provisioning::generate_registration_id;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
 use crate::sender::OutgoingPushMessage;
 use crate::session_store::SessionStoreExt;
-use crate::utils::BASE64_RELAXED;
+use crate::utils::{random_length_padding, BASE64_RELAXED};
 use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -628,7 +628,7 @@ impl<Service: PushService> AccountManager<Service> {
                         e164.format().mode(phonenumber::Mode::E164).to_string(),
                     ),
                 }),
-                padding: Some(vec![/* TODO random-length max 512 bytes */]),
+                padding: Some(random_length_padding(csprng, 512)),
                 ..SyncMessage::default()
             };
             let content: ContentBody = msg.into();

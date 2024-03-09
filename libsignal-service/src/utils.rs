@@ -11,6 +11,16 @@ pub const BASE64_RELAXED: base64::engine::GeneralPurpose =
             ),
     );
 
+pub fn random_length_padding<R: rand::Rng + rand::CryptoRng>(
+    csprng: &mut R,
+    max_len: usize,
+) -> Vec<u8> {
+    let length = csprng.gen_range(0..max_len);
+    let mut padding = vec![0u8; length];
+    csprng.fill_bytes(&mut padding);
+    padding
+}
+
 pub mod serde_base64 {
     use super::BASE64_RELAXED;
     use base64::prelude::*;
