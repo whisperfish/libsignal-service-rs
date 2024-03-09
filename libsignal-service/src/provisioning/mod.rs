@@ -234,6 +234,8 @@ pub async fn link_device<
         .await?;
         let aci_pq_last_resort_pre_key =
             aci_pq_last_resort_pre_key.expect("requested last resort key");
+        assert!(_aci_pre_keys.is_empty());
+        assert!(_aci_pq_pre_keys.is_empty());
 
         let (
             _pni_pre_keys,
@@ -251,6 +253,8 @@ pub async fn link_device<
         .await?;
         let pni_pq_last_resort_pre_key =
             pni_pq_last_resort_pre_key.expect("requested last resort key");
+        assert!(_pni_pre_keys.is_empty());
+        assert!(_pni_pq_pre_keys.is_empty());
 
         let encrypted_device_name = BASE64_RELAXED.encode(
             encrypt_device_name(csprng, device_name, &aci_public_key)?
