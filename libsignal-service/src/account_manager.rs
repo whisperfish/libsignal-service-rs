@@ -508,18 +508,14 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn pnp_initialize_devices<
         // XXX So many constraints here, all imposed by the MessageSender
         R: rand::Rng + rand::CryptoRng,
-        Aci: PreKeysStore
-            + ProtocolStore
-            + SenderKeyStore
-            + SessionStoreExt
-            + Sync
-            + Clone,
+        Aci: PreKeysStore + SessionStoreExt,
         Pni: PreKeysStore,
+        AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
     >(
         &mut self,
         aci_protocol_store: &mut Aci,
         pni_protocol_store: &mut Pni,
-        mut sender: MessageSender<Service, Aci, R>,
+        mut sender: MessageSender<Service, AciOrPni, R>,
         local_aci: ServiceAddress,
         e164: PhoneNumber,
         csprng: &mut R,
