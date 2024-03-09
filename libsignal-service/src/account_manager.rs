@@ -494,7 +494,7 @@ impl<Service: PushService> AccountManager<Service> {
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
     pub async fn pnp_initialize_devices<
         // XXX So many constraints here, all imposed by the MessageSender
-        R: rand::Rng + rand::CryptoRng + Clone,
+        R: rand::Rng + rand::CryptoRng,
         Aci: PreKeysStore
             + ProtocolStore
             + SenderKeyStore
@@ -509,10 +509,7 @@ impl<Service: PushService> AccountManager<Service> {
         sender: MessageSender<Service, Aci, R>,
         local_aci: ServiceAddress,
         csprng: &mut R,
-    ) -> Result<(), MessageSenderError>
-    where
-        Service: Clone,
-    {
+    ) -> Result<(), MessageSenderError> {
         let pni_identity_key_pair =
             pni_protocol_store.get_identity_key_pair().await?;
 

@@ -76,7 +76,7 @@ fn debug_envelope(envelope: &Envelope) -> String {
 impl<S, R> ServiceCipher<S, R>
 where
     S: ProtocolStore + KyberPreKeyStore + SenderKeyStore + Clone,
-    R: Rng + CryptoRng + Clone,
+    R: Rng + CryptoRng,
 {
     pub fn new(
         protocol_store: S,

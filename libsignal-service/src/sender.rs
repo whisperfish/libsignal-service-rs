@@ -122,9 +122,9 @@ pub enum MessageSenderError {
 
 impl<Service, S, R> MessageSender<Service, S, R>
 where
-    Service: PushService + Clone,
+    Service: PushService,
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
-    R: Rng + CryptoRng + Clone,
+    R: Rng + CryptoRng,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
