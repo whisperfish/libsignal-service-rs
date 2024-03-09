@@ -114,15 +114,23 @@ pub struct SignedPreKeyEntity {
     pub signature: Vec<u8>,
 }
 
-impl TryFrom<SignedPreKeyRecord> for SignedPreKeyEntity {
+impl TryFrom<&'_ SignedPreKeyRecord> for SignedPreKeyEntity {
     type Error = SignalProtocolError;
 
-    fn try_from(key: SignedPreKeyRecord) -> Result<Self, Self::Error> {
+    fn try_from(key: &'_ SignedPreKeyRecord) -> Result<Self, Self::Error> {
         Ok(SignedPreKeyEntity {
             key_id: key.id()?.into(),
             public_key: key.key_pair()?.public_key.serialize().to_vec(),
             signature: key.signature()?.to_vec(),
         })
+    }
+}
+
+impl TryFrom<SignedPreKeyRecord> for SignedPreKeyEntity {
+    type Error = SignalProtocolError;
+
+    fn try_from(key: SignedPreKeyRecord) -> Result<Self, Self::Error> {
+        SignedPreKeyEntity::try_from(&key)
     }
 }
 
@@ -136,15 +144,23 @@ pub struct KyberPreKeyEntity {
     pub signature: Vec<u8>,
 }
 
-impl TryFrom<KyberPreKeyRecord> for KyberPreKeyEntity {
+impl TryFrom<&'_ KyberPreKeyRecord> for KyberPreKeyEntity {
     type Error = SignalProtocolError;
 
-    fn try_from(key: KyberPreKeyRecord) -> Result<Self, Self::Error> {
+    fn try_from(key: &'_ KyberPreKeyRecord) -> Result<Self, Self::Error> {
         Ok(KyberPreKeyEntity {
             key_id: key.id()?.into(),
             public_key: key.key_pair()?.public_key.serialize().to_vec(),
             signature: key.signature()?,
         })
+    }
+}
+
+impl TryFrom<KyberPreKeyRecord> for KyberPreKeyEntity {
+    type Error = SignalProtocolError;
+
+    fn try_from(key: KyberPreKeyRecord) -> Result<Self, Self::Error> {
+        KyberPreKeyEntity::try_from(&key)
     }
 }
 
