@@ -176,10 +176,10 @@ pub(crate) async fn generate_pre_keys<
     kyber_pre_key_count: u32,
 ) -> Result<
     (
-        Vec<PreKeyEntity>,
-        SignedPreKeyEntity,
-        Vec<KyberPreKeyEntity>,
-        Option<KyberPreKeyEntity>,
+        Vec<PreKeyRecord>,
+        SignedPreKeyRecord,
+        Vec<KyberPreKeyRecord>,
+        Option<KyberPreKeyRecord>,
     ),
     SignalProtocolError,
 > {
@@ -190,8 +190,8 @@ pub(crate) async fn generate_pre_keys<
 
     let span = tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
 
-    let mut pre_key_entities = vec![];
-    let mut pq_pre_key_entities = vec![];
+    let mut pre_keys = vec![];
+    let mut pq_pre_keys = vec![];
 
     // EC keys
     for i in 0..pre_key_count {
@@ -207,7 +207,7 @@ pub(crate) async fn generate_pre_keys<
         //       I think we might want to update the storage, and then sync the storage to the
         //       server.
 
-        pre_key_entities.push(PreKeyEntity::try_from(pre_key_record)?);
+        pre_keys.push(pre_key_record);
     }
 
     // Kyber keys
@@ -228,7 +228,7 @@ pub(crate) async fn generate_pre_keys<
         //       I think we might want to update the storage, and then sync the storage to the
         //       server.
 
-        pq_pre_key_entities.push(KyberPreKeyEntity::try_from(pre_key_record)?);
+        pq_pre_keys.push(pre_key_record);
     }
 
     // Generate and store the next signed prekey
@@ -255,8 +255,6 @@ pub(crate) async fn generate_pre_keys<
                     &signed_prekey_record,
                 )
                     .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
-    let signed_prekey_entity =
-        SignedPreKeyEntity::try_from(signed_prekey_record)?;
 
     let pq_last_resort_key = if use_last_resort_key {
         let pre_key_id = (((pq_pre_keys_offset_id + kyber_pre_key_count)
@@ -264,9 +262,9 @@ pub(crate) async fn generate_pre_keys<
             + 1)
         .into();
 
-        if !pq_pre_key_entities.is_empty() {
+        if !pq_pre_keys.is_empty() {
             assert_eq!(
-                pq_pre_key_entities.last().unwrap().key_id + 1,
+                u32::from(pq_pre_keys.last().unwrap().id()?) + 1,
                 u32::from(pre_key_id)
             );
         }
@@ -283,15 +281,15 @@ pub(crate) async fn generate_pre_keys<
         //       I think we might want to update the storage, and then sync the storage to the
         //       server.
 
-        Some(KyberPreKeyEntity::try_from(pre_key_record)?)
+        Some(pre_key_record)
     } else {
         None
     };
 
     Ok((
-        pre_key_entities,
-        signed_prekey_entity,
-        pq_pre_key_entities,
+        pre_keys,
+        signed_prekey_record,
+        pq_pre_keys,
         pq_last_resort_key,
     ))
 }

@@ -18,8 +18,8 @@ use zkgroup::profiles::ProfileKey;
 
 use crate::content::ContentBody;
 use crate::pre_keys::{
-    KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity, PRE_KEY_BATCH_SIZE,
-    PRE_KEY_MINIMUM,
+    KyberPreKeyEntity, PreKeyEntity, PreKeysStore, SignedPreKeyEntity,
+    PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
 };
 use crate::prelude::{MessageSender, MessageSenderError};
 use crate::proto::sync_message::PniChangeNumber;
@@ -168,10 +168,21 @@ impl<Service: PushService> AccountManager<Service> {
             Some(KyberPreKeyEntity::try_from(last_resort_keys[0].clone())?)
         } else {
             pq_last_resort_key
+                .map(KyberPreKeyEntity::try_from)
+                .transpose()?
         };
 
         let identity_key = *identity_key_pair.identity_key().public_key();
 
+        let pre_keys = pre_keys
+            .into_iter()
+            .map(PreKeyEntity::try_from)
+            .collect::<Result<_, _>>()?;
+        let signed_pre_key = signed_pre_key.try_into()?;
+        let pq_pre_keys = pq_pre_keys
+            .into_iter()
+            .map(KyberPreKeyEntity::try_from)
+            .collect::<Result<_, _>>()?;
         let pre_key_state = PreKeyState {
             pre_keys,
             signed_pre_key,
@@ -559,8 +570,8 @@ impl<Service: PushService> AccountManager<Service> {
             }
             let (
                 _pre_keys,
-                signed_pre_key_entity,
-                _kyber_pre_key_entities,
+                signed_pre_key,
+                _kyber_pre_keys,
                 last_resort_kyber_prekey,
             ) = crate::pre_keys::generate_pre_keys(
                 pni_protocol_store,
@@ -574,17 +585,22 @@ impl<Service: PushService> AccountManager<Service> {
             let registration_id = generate_registration_id(csprng);
 
             let local_device_id_s = local_device_id.to_string();
-            device_pni_signed_prekeys
-                .insert(local_device_id_s.clone(), signed_pre_key_entity);
+            device_pni_signed_prekeys.insert(
+                local_device_id_s.clone(),
+                SignedPreKeyEntity::try_from(signed_pre_key)?,
+            );
             device_pni_last_resort_kyber_prekeys.insert(
                 local_device_id_s.clone(),
-                last_resort_kyber_prekey.expect("requested last resort key"),
+                KyberPreKeyEntity::try_from(
+                    last_resort_kyber_prekey
+                        .expect("requested last resort key"),
+                )?,
             );
             pni_registration_ids
                 .insert(local_device_id_s.clone(), registration_id);
 
             assert!(_pre_keys.is_empty());
-            assert!(_kyber_pre_key_entities.is_empty());
+            assert!(_kyber_pre_keys.is_empty());
 
             if local_device_id == DEFAULT_DEVICE_ID {
                 // This is the primary device

@@ -273,10 +273,12 @@ pub async fn link_device<
                 capabilities: LinkCapabilities { pni: true },
                 name: encrypted_device_name,
             },
-            aci_signed_pre_key,
-            pni_signed_pre_key,
-            aci_pq_last_resort_pre_key,
-            pni_pq_last_resort_pre_key,
+            aci_signed_pre_key: aci_signed_pre_key.try_into()?,
+            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+            aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
+                .try_into()?,
+            pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
+                .try_into()?,
         };
 
         let LinkResponse {
