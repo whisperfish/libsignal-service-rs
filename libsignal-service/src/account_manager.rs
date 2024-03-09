@@ -7,8 +7,8 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    IdentityKey, IdentityKeyStore, KeyPair, PrivateKey, PublicKey,
-    SignalProtocolError,
+    IdentityKey, IdentityKeyStore, KeyPair, PrivateKey, ProtocolStore,
+    PublicKey, SenderKeyStore, SignalProtocolError,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -16,11 +16,14 @@ use sha2::Sha256;
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
+use crate::content::ContentBody;
 use crate::pre_keys::{
     KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity, PRE_KEY_BATCH_SIZE,
     PRE_KEY_MINIMUM,
 };
-use crate::proto::DeviceName;
+use crate::prelude::{MessageSender, MessageSenderError};
+use crate::proto::sync_message::PniChangeNumber;
+use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
 use crate::sender::OutgoingPushMessage;
@@ -490,16 +493,26 @@ impl<Service: PushService> AccountManager<Service> {
     ///
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
     pub async fn pnp_initialize_devices<
-        R: rand::Rng + rand::CryptoRng,
-        Aci: PreKeysStore + SessionStoreExt,
+        // XXX So many constraints here, all imposed by the MessageSender
+        R: rand::Rng + rand::CryptoRng + Clone,
+        Aci: PreKeysStore
+            + ProtocolStore
+            + SenderKeyStore
+            + SessionStoreExt
+            + Sync
+            + Clone,
         Pni: PreKeysStore,
     >(
         &mut self,
         aci_protocol_store: &mut Aci,
         pni_protocol_store: &mut Pni,
+        sender: MessageSender<Service, Aci, R>,
         local_aci: ServiceAddress,
         csprng: &mut R,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<(), MessageSenderError>
+    where
+        Service: Clone,
+    {
         let pni_identity_key_pair =
             pni_protocol_store.get_identity_key_pair().await?;
 
@@ -575,6 +588,35 @@ impl<Service: PushService> AccountManager<Service> {
 
             assert!(_pre_keys.is_empty());
             assert!(_kyber_pre_key_entities.is_empty());
+
+            if local_device_id == DEFAULT_DEVICE_ID {
+                // This is the primary device
+                // We don't need to send a message to the primary device
+                continue;
+            }
+            // cfr. SignalServiceMessageSender::getEncryptedSyncPniInitializeDeviceMessage
+            let msg = SyncMessage {
+                pni_change_number: Some(PniChangeNumber {
+                    identity_key_pair: Some(
+                        pni_identity_key_pair.serialize().to_vec(),
+                    ),
+                    signed_pre_key: todo!(),
+                    last_resort_kyber_pre_key: todo!(),
+                    registration_id: todo!(),
+                    new_e164: todo!(),
+                }),
+                ..SyncMessage::default()
+            };
+            let content: ContentBody = msg.into();
+            let msg = sender
+                .create_encrypted_message(
+                    &local_aci,
+                    None,
+                    local_device_id.into(),
+                    &content.into_proto().encode_to_vec(),
+                )
+                .await?;
+            device_messages.push(msg);
         }
 
         self.service

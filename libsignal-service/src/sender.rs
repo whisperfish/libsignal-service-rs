@@ -725,7 +725,7 @@ where
         skip(self, unidentified_access, content),
         fields(unidentified_access = unidentified_access.is_some()),
     )]
-    async fn create_encrypted_message(
+    pub(crate) async fn create_encrypted_message(
         &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&SenderCertificate>,
