@@ -1,4 +1,5 @@
 use base64::prelude::*;
+use phonenumber::PhoneNumber;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
@@ -7,8 +8,9 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    IdentityKey, IdentityKeyStore, KeyPair, PrivateKey, ProtocolStore,
-    PublicKey, SenderKeyStore, SignalProtocolError,
+    kem, GenericSignedPreKey, IdentityKey, IdentityKeyStore, KeyPair,
+    KyberPreKeyRecord, PrivateKey, ProtocolStore, PublicKey, SenderKeyStore,
+    SignalProtocolError, SignedPreKeyRecord,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -517,8 +519,9 @@ impl<Service: PushService> AccountManager<Service> {
         &mut self,
         aci_protocol_store: &mut Aci,
         pni_protocol_store: &mut Pni,
-        sender: MessageSender<Service, Aci, R>,
+        mut sender: MessageSender<Service, Aci, R>,
         local_aci: ServiceAddress,
+        e164: PhoneNumber,
         csprng: &mut R,
     ) -> Result<(), MessageSenderError> {
         let pni_identity_key_pair =
@@ -587,12 +590,13 @@ impl<Service: PushService> AccountManager<Service> {
             let local_device_id_s = local_device_id.to_string();
             device_pni_signed_prekeys.insert(
                 local_device_id_s.clone(),
-                SignedPreKeyEntity::try_from(signed_pre_key)?,
+                SignedPreKeyEntity::try_from(&signed_pre_key)?,
             );
             device_pni_last_resort_kyber_prekeys.insert(
                 local_device_id_s.clone(),
                 KyberPreKeyEntity::try_from(
                     last_resort_kyber_prekey
+                        .as_ref()
                         .expect("requested last resort key"),
                 )?,
             );
@@ -613,11 +617,18 @@ impl<Service: PushService> AccountManager<Service> {
                     identity_key_pair: Some(
                         pni_identity_key_pair.serialize().to_vec(),
                     ),
-                    signed_pre_key: todo!(),
-                    last_resort_kyber_pre_key: todo!(),
-                    registration_id: todo!(),
-                    new_e164: todo!(),
+                    signed_pre_key: Some(signed_pre_key.serialize()?),
+                    last_resort_kyber_pre_key: Some(
+                        last_resort_kyber_prekey
+                            .expect("requested last resort key")
+                            .serialize()?,
+                    ),
+                    registration_id: Some(registration_id),
+                    new_e164: Some(
+                        e164.format().mode(phonenumber::Mode::E164).to_string(),
+                    ),
                 }),
+                padding: Some(vec![/* TODO random-length max 512 bytes */]),
                 ..SyncMessage::default()
             };
             let content: ContentBody = msg.into();
