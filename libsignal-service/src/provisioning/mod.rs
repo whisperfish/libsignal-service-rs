@@ -223,7 +223,7 @@ pub async fn link_device<
             aci_signed_pre_key,
             _aci_pq_pre_keys,
             aci_pq_last_resort_pre_key,
-        ) = crate::pre_keys::generate_pre_keys(
+        ) = crate::pre_keys::replenish_pre_keys(
             aci_store,
             &aci_key_pair,
             csprng,
@@ -242,7 +242,7 @@ pub async fn link_device<
             pni_signed_pre_key,
             _pni_pq_pre_keys,
             pni_pq_last_resort_pre_key,
-        ) = crate::pre_keys::generate_pre_keys(
+        ) = crate::pre_keys::replenish_pre_keys(
             pni_store,
             &pni_key_pair,
             csprng,

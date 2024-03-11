@@ -151,7 +151,7 @@ impl<Service: PushService> AccountManager<Service> {
         let has_last_resort_key = !last_resort_keys.is_empty();
 
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
-            crate::pre_keys::generate_pre_keys(
+            crate::pre_keys::replenish_pre_keys(
                 protocol_store,
                 &identity_key_pair,
                 csprng,
@@ -572,16 +572,65 @@ impl<Service: PushService> AccountManager<Service> {
                 signed_pre_key,
                 _kyber_pre_keys,
                 last_resort_kyber_prekey,
-            ) = crate::pre_keys::generate_pre_keys(
-                pni_protocol_store,
-                &pni_identity_key_pair,
-                csprng,
-                true,
-                0,
-                0,
-            )
-            .await?;
-            let registration_id = generate_registration_id(csprng);
+            ) = if local_device_id == DEFAULT_DEVICE_ID {
+                crate::pre_keys::replenish_pre_keys(
+                    pni_protocol_store,
+                    &pni_identity_key_pair,
+                    csprng,
+                    true,
+                    0,
+                    0,
+                )
+                .await?
+            } else {
+                // Generate a signed prekey
+                let signed_pre_key_pair = KeyPair::generate(csprng);
+                let signed_pre_key_public = signed_pre_key_pair.public_key;
+                let signed_pre_key_signature =
+                    pni_identity_key_pair.private_key().calculate_signature(
+                        &signed_pre_key_public.serialize(),
+                        csprng,
+                    )?;
+
+                let unix_time = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap();
+
+                let signed_prekey_record = SignedPreKeyRecord::new(
+                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    unix_time.as_millis() as u64,
+                    &signed_pre_key_pair,
+                    &signed_pre_key_signature,
+                );
+
+                // Generate a last-resort Kyber prekey
+                let kyber_pre_key_record = KyberPreKeyRecord::generate(
+                    kem::KeyType::Kyber1024,
+                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    pni_identity_key_pair.private_key(),
+                )?;
+                (
+                    vec![],
+                    signed_prekey_record,
+                    vec![],
+                    Some(kyber_pre_key_record),
+                )
+            };
+
+            let registration_id = if local_device_id == DEFAULT_DEVICE_ID {
+                pni_protocol_store.get_local_registration_id().await?
+            } else {
+                loop {
+                    let regid = generate_registration_id(csprng);
+                    if pni_registration_ids
+                        .iter()
+                        .find(|(_k, v)| **v == regid)
+                        .is_none()
+                    {
+                        break regid;
+                    }
+                }
+            };
 
             let local_device_id_s = local_device_id.to_string();
             device_pni_signed_prekeys.insert(
