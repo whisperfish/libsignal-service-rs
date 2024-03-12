@@ -290,8 +290,8 @@ impl RegistrationSessionMetadataResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RegistrationLockFailure {
-    pub length: u32,
-    pub time_remaining: u64,
+    pub length: Option<u32>,
+    pub time_remaining: Option<u64>,
     #[serde(rename = "backup_credentials")]
     pub svr1_credentials: Option<AuthCredentials>,
     pub svr2_credentials: Option<AuthCredentials>,
