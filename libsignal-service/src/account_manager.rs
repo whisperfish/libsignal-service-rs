@@ -27,7 +27,11 @@ use crate::prelude::{MessageSender, MessageSenderError};
 use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
-use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
+use crate::push_service::{
+    AvatarWrite, DeviceActivationRequest, RecaptchaAttributes,
+    RegistrationMethod, ServiceIdType, VerifyAccountResponse,
+    DEFAULT_DEVICE_ID,
+};
 use crate::sender::OutgoingPushMessage;
 use crate::session_store::SessionStoreExt;
 use crate::utils::{random_length_padding, BASE64_RELAXED};
@@ -326,6 +330,87 @@ impl<Service: PushService> AccountManager<Service> {
         self.send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
+    }
+
+    pub async fn register_account<
+        R: rand::Rng + rand::CryptoRng,
+        Aci: PreKeysStore + IdentityKeyStore,
+        Pni: PreKeysStore + IdentityKeyStore,
+    >(
+        &mut self,
+        csprng: &mut R,
+        registration_method: RegistrationMethod<'_>,
+        account_attributes: AccountAttributes,
+        aci_protocol_store: &mut Aci,
+        pni_protocol_store: &mut Pni,
+        skip_device_transfer: bool,
+    ) -> Result<VerifyAccountResponse, LinkError> {
+        let aci_identity_key_pair = aci_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get ACI identity key pair"))
+            .await?;
+        let pni_identity_key_pair = pni_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get PNI identity key pair"))
+            .await?;
+
+        let (
+            _aci_pre_keys,
+            aci_signed_pre_key,
+            _aci_kyber_pre_keys,
+            aci_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            aci_protocol_store,
+            &aci_identity_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let (
+            _pni_pre_keys,
+            pni_signed_pre_key,
+            _pni_kyber_pre_keys,
+            pni_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            pni_protocol_store,
+            &pni_identity_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let aci_identity_key = aci_identity_key_pair.identity_key();
+        let pni_identity_key = pni_identity_key_pair.identity_key();
+
+        let dar = DeviceActivationRequest {
+            aci_signed_pre_key: aci_signed_pre_key.try_into()?,
+            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+            aci_pq_last_resort_pre_key: aci_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+            pni_pq_last_resort_pre_key: pni_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+        };
+
+        let result = self
+            .service
+            .submit_registration_request(
+                registration_method,
+                account_attributes,
+                skip_device_transfer,
+                *aci_identity_key,
+                *pni_identity_key,
+                dar,
+            )
+            .await?;
+
+        Ok(result)
     }
 
     /// Upload a profile
