@@ -406,6 +406,13 @@ pub struct StaleDevices {
 pub struct LinkRequest {
     pub verification_code: String,
     pub account_attributes: LinkAccountAttributes,
+    #[serde(flatten)]
+    pub device_activation_request: DeviceActivationRequest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceActivationRequest {
     pub aci_signed_pre_key: SignedPreKeyEntity,
     pub pni_signed_pre_key: SignedPreKeyEntity,
     pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
@@ -1282,16 +1289,30 @@ pub trait PushService: MaybeSend {
         registration_method: RegistrationMethod<'a>,
         account_attributes: AccountAttributes,
         skip_device_transfer: bool,
+        aci_identity_key: IdentityKey,
+        pni_identity_key: IdentityKey,
+        device_activation_request: DeviceActivationRequest,
     ) -> Result<VerifyAccountResponse, ServiceError> {
         #[derive(serde::Serialize, Debug)]
         #[serde(rename_all = "camelCase")]
         struct RegistrationSessionRequestBody<'a> {
-            // TODO: This is an "old" version of the request. The new one includes atomic
-            // registration of prekeys and identities, but I'm to lazy to implement them today.
+            // Unhandled response 422 with body:
+            // {"errors":["deviceActivationRequest.pniSignedPreKey must not be
+            // null","deviceActivationRequest.pniPqLastResortPreKey must not be
+            // null","everySignedKeyValid must be true","aciIdentityKey must not be
+            // null","pniIdentityKey must not be null","deviceActivationRequest.aciSignedPreKey
+            // must not be null","deviceActivationRequest.aciPqLastResortPreKey must not be null"]}
             session_id: Option<&'a str>,
             recovery_password: Option<&'a str>,
             account_attributes: AccountAttributes,
             skip_device_transfer: bool,
+            every_signed_key_valid: bool,
+            #[serde(default, with = "serde_base64")]
+            pni_identity_key: Vec<u8>,
+            #[serde(default, with = "serde_base64")]
+            aci_identity_key: Vec<u8>,
+            #[serde(flatten)]
+            device_activation_request: DeviceActivationRequest,
         }
 
         let req = RegistrationSessionRequestBody {
@@ -1299,6 +1320,10 @@ pub trait PushService: MaybeSend {
             recovery_password: registration_method.recovery_password(),
             account_attributes,
             skip_device_transfer,
+            aci_identity_key: aci_identity_key.serialize().into(),
+            pni_identity_key: pni_identity_key.serialize().into(),
+            device_activation_request,
+            every_signed_key_valid: true,
         };
 
         let res: VerifyAccountResponse = self

@@ -22,6 +22,7 @@ use zkgroup::profiles::ProfileKey;
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
 use crate::prelude::ServiceError;
+use crate::push_service::DeviceActivationRequest;
 use crate::utils::BASE64_RELAXED;
 use crate::{
     account_manager::encrypt_device_name,
@@ -277,12 +278,14 @@ pub async fn link_device<
                 capabilities: LinkCapabilities { pni: true },
                 name: encrypted_device_name,
             },
-            aci_signed_pre_key: aci_signed_pre_key.try_into()?,
-            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
-            aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
-                .try_into()?,
-            pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
-                .try_into()?,
+            device_activation_request: DeviceActivationRequest {
+                aci_signed_pre_key: aci_signed_pre_key.try_into()?,
+                pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+                aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
+                    .try_into()?,
+                pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
+                    .try_into()?,
+            },
         };
 
         let LinkResponse {
