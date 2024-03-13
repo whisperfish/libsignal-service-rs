@@ -149,7 +149,7 @@ impl<Service: PushService> AccountManager<Service> {
 
         let last_resort_keys = protocol_store
             .load_last_resort_kyber_pre_keys()
-            .instrument(tracing::trace_span!("fetch resort key"))
+            .instrument(tracing::trace_span!("fetch last resort key"))
             .await?;
         // XXX: Maybe this check should be done in the generate_pre_keys function?
         let has_last_resort_key = !last_resort_keys.is_empty();
@@ -180,15 +180,23 @@ impl<Service: PushService> AccountManager<Service> {
 
         let identity_key = *identity_key_pair.identity_key().public_key();
 
-        let pre_keys = pre_keys
+        let pre_keys: Vec<_> = pre_keys
             .into_iter()
             .map(PreKeyEntity::try_from)
             .collect::<Result<_, _>>()?;
         let signed_pre_key = signed_pre_key.try_into()?;
-        let pq_pre_keys = pq_pre_keys
+        let pq_pre_keys: Vec<_> = pq_pre_keys
             .into_iter()
             .map(KyberPreKeyEntity::try_from)
             .collect::<Result<_, _>>()?;
+
+        tracing::info!(
+            "Uploading pre-keys: {} one-time, {} PQ, {} PQ last resort",
+            pre_keys.len(),
+            pq_pre_keys.len(),
+            if pq_last_resort_key.is_some() { 1 } else { 0 }
+        );
+
         let pre_key_state = PreKeyState {
             pre_keys,
             signed_pre_key,
