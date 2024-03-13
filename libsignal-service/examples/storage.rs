@@ -228,3 +228,8 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 }
+
+#[allow(dead_code)]
+fn main() {
+    let _ = ExampleStore::new();
+}
