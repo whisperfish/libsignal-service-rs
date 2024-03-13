@@ -182,6 +182,19 @@ impl HyperPushService {
                     })?;
                 Err(ServiceError::StaleDevices(stale_devices))
             },
+            StatusCode::LOCKED => {
+                let locked = Self::json(&mut response).await.map_err(|e| {
+                    tracing::error!(
+                        ?response,
+                        "Failed to decode HTTP 423 response: {}",
+                        e
+                    );
+                    ServiceError::UnhandledResponseCode {
+                        http_code: StatusCode::LOCKED.as_u16(),
+                    }
+                })?;
+                Err(ServiceError::Locked(locked))
+            },
             StatusCode::PRECONDITION_REQUIRED => {
                 let proof_required =
                     Self::json(&mut response).await.map_err(|e| {
