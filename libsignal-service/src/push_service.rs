@@ -174,7 +174,7 @@ pub struct DeviceCapabilities {
     #[serde(default)]
     pub gift_badges: bool,
     #[serde(default)]
-    pub pnp: bool,
+    pub pni: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
