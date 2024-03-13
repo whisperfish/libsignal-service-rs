@@ -330,6 +330,7 @@ impl<Service: PushService> AccountManager<Service> {
             provisioning_code: Some(provisioning_code),
             read_receipts: None,
             user_agent: None,
+            master_key: None, // XXX
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);
