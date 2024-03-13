@@ -158,15 +158,11 @@ pub struct AccountAttributes {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
     #[serde(default)]
-    pub announcement_group: bool,
-    #[serde(rename(serialize = "gv2-3"), alias = "gv2-3", default)]
-    pub gv2: bool,
-    #[serde(default)]
     pub storage: bool,
-    #[serde(rename = "gv1-migration", default)]
-    pub gv1_migration: bool,
     #[serde(default)]
     pub sender_key: bool,
+    #[serde(default)]
+    pub announcement_group: bool,
     #[serde(default)]
     pub change_number: bool,
     #[serde(default)]
@@ -175,6 +171,8 @@ pub struct DeviceCapabilities {
     pub gift_badges: bool,
     #[serde(default)]
     pub pni: bool,
+    #[serde(default)]
+    pub payment_activation: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
