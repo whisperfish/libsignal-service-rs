@@ -111,6 +111,7 @@ impl<Service: PushService> AccountManager<Service> {
         service_id_type: ServiceIdType,
         csprng: &mut R,
         use_last_resort_key: bool,
+        force: bool,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .service
@@ -135,11 +136,18 @@ impl<Service: PushService> AccountManager<Service> {
         };
         tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
 
+        // XXX We should honestly compare the pre-key count with the number of pre-keys we have
+        // locally. If we have more than the server, we should upload them.
+        // Currently the trait doesn't allow us to do that, so we just upload the batch size and
+        // pray.
         if prekey_status.count >= PRE_KEY_MINIMUM
             && prekey_status.pq_count >= PRE_KEY_MINIMUM
         {
-            tracing::info!("Available keys sufficient");
-            return Ok(());
+            if !force {
+                tracing::debug!("Available keys sufficient");
+                return Ok(());
+            }
+            tracing::info!("Available keys sufficient; forcing refresh.");
         }
 
         let identity_key_pair = protocol_store
