@@ -161,7 +161,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
             auth_credential_response
         } else {
             let path =
-            format!("/v1/certificate/auth/group?redemptionStartSeconds={}&redemptionEndSeconds={}", today, today_plus_7_days);
+            format!("/v1/certificate/auth/group?redemptionStartSeconds={}&redemptionEndSeconds={}&pniAsServiceId=true", today, today_plus_7_days);
 
             let credentials_response: CredentialResponse = self
                 .push_service
@@ -198,7 +198,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
     ) -> Result<HttpAuth, ServiceError> {
         let auth_credential = self
             .server_public_params
-            .receive_auth_credential_with_pni_as_aci(
+            .receive_auth_credential_with_pni_as_service_id(
                 self.service_ids.aci(),
                 self.service_ids.pni(),
                 today,
