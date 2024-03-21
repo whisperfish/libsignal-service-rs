@@ -25,10 +25,13 @@ use libsignal_service::push_service::{
     AccountAttributes, DeviceCapabilities, PushService, RegistrationMethod,
     VerificationTransport,
 };
-use libsignal_service::USER_AGENT;
+use libsignal_service::{AccountManager, USER_AGENT};
 use libsignal_service_actix::prelude::AwcPushService;
 use rand::RngCore;
 use structopt::StructOpt;
+
+#[path = "../../libsignal-service/examples/storage.rs"]
+mod storage;
 
 #[actix_rt::main]
 async fn main() -> Result<(), Error> {
@@ -136,8 +139,15 @@ async fn main() -> Result<(), Error> {
     rand::thread_rng().fill_bytes(&mut profile_key);
     let profile_key = ProfileKey::create(profile_key);
     let skip_device_transfer = false;
-    let _registration_data = push_service
-        .submit_registration_request(
+
+    // Create the prekeys storage
+    let mut aci_store = storage::ExampleStore::new();
+    let mut pni_store = storage::ExampleStore::new();
+
+    let mut account_manager = AccountManager::new(push_service, None);
+    let _registration_data = account_manager
+        .register_account(
+            &mut rand::thread_rng(),
             RegistrationMethod::SessionId(&session.id),
             AccountAttributes {
                 signaling_key: Some(signaling_key.to_vec()),
@@ -156,6 +166,8 @@ async fn main() -> Result<(), Error> {
                 name: Some("libsignal-service-hyper test".into()),
                 capabilities: DeviceCapabilities::default(),
             },
+            &mut aci_store,
+            &mut pni_store,
             skip_device_transfer,
         )
         .await;

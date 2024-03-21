@@ -1,16 +1,15 @@
-use std::{fmt, time::Duration};
+use std::{collections::HashMap, fmt, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     envelope::*,
     groups_v2::GroupDecodingError,
     pre_keys::{
-        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKey,
-        SignedPreKeyEntity,
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
     },
     profile_cipher::ProfileCipherError,
     proto::{attachment_pointer::AttachmentIdentifier, AttachmentPointer},
-    sender::{OutgoingPushMessages, SendMessageResponse},
+    sender::{OutgoingPushMessage, OutgoingPushMessages, SendMessageResponse},
     utils::{serde_base64, serde_optional_base64, serde_phone_number},
     websocket::SignalWebSocket,
     MaybeSend, ParseServiceAddressError, Profile, ServiceAddress,
@@ -159,15 +158,11 @@ pub struct AccountAttributes {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
     #[serde(default)]
-    pub announcement_group: bool,
-    #[serde(rename(serialize = "gv2-3"), alias = "gv2-3", default)]
-    pub gv2: bool,
-    #[serde(default)]
     pub storage: bool,
-    #[serde(rename = "gv1-migration", default)]
-    pub gv1_migration: bool,
     #[serde(default)]
     pub sender_key: bool,
+    #[serde(default)]
+    pub announcement_group: bool,
     #[serde(default)]
     pub change_number: bool,
     #[serde(default)]
@@ -175,7 +170,9 @@ pub struct DeviceCapabilities {
     #[serde(default)]
     pub gift_badges: bool,
     #[serde(default)]
-    pub pnp: bool,
+    pub pni: bool,
+    #[serde(default)]
+    pub payment_activation: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -407,8 +404,15 @@ pub struct StaleDevices {
 pub struct LinkRequest {
     pub verification_code: String,
     pub account_attributes: LinkAccountAttributes,
-    pub aci_signed_pre_key: SignedPreKey,
-    pub pni_signed_pre_key: SignedPreKey,
+    #[serde(flatten)]
+    pub device_activation_request: DeviceActivationRequest,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceActivationRequest {
+    pub aci_signed_pre_key: SignedPreKeyEntity,
+    pub pni_signed_pre_key: SignedPreKeyEntity,
     pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
     pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
 }
@@ -1283,16 +1287,30 @@ pub trait PushService: MaybeSend {
         registration_method: RegistrationMethod<'a>,
         account_attributes: AccountAttributes,
         skip_device_transfer: bool,
+        aci_identity_key: IdentityKey,
+        pni_identity_key: IdentityKey,
+        device_activation_request: DeviceActivationRequest,
     ) -> Result<VerifyAccountResponse, ServiceError> {
         #[derive(serde::Serialize, Debug)]
         #[serde(rename_all = "camelCase")]
         struct RegistrationSessionRequestBody<'a> {
-            // TODO: This is an "old" version of the request. The new one includes atomic
-            // registration of prekeys and identities, but I'm to lazy to implement them today.
+            // Unhandled response 422 with body:
+            // {"errors":["deviceActivationRequest.pniSignedPreKey must not be
+            // null","deviceActivationRequest.pniPqLastResortPreKey must not be
+            // null","everySignedKeyValid must be true","aciIdentityKey must not be
+            // null","pniIdentityKey must not be null","deviceActivationRequest.aciSignedPreKey
+            // must not be null","deviceActivationRequest.aciPqLastResortPreKey must not be null"]}
             session_id: Option<&'a str>,
             recovery_password: Option<&'a str>,
             account_attributes: AccountAttributes,
             skip_device_transfer: bool,
+            every_signed_key_valid: bool,
+            #[serde(default, with = "serde_base64")]
+            pni_identity_key: Vec<u8>,
+            #[serde(default, with = "serde_base64")]
+            aci_identity_key: Vec<u8>,
+            #[serde(flatten)]
+            device_activation_request: DeviceActivationRequest,
         }
 
         let req = RegistrationSessionRequestBody {
@@ -1300,6 +1318,10 @@ pub trait PushService: MaybeSend {
             recovery_password: registration_method.recovery_password(),
             account_attributes,
             skip_device_transfer,
+            aci_identity_key: aci_identity_key.serialize().into(),
+            pni_identity_key: pni_identity_key.serialize().into(),
+            device_activation_request,
+            every_signed_key_valid: true,
         };
 
         let res: VerifyAccountResponse = self
@@ -1309,6 +1331,51 @@ pub trait PushService: MaybeSend {
                 &[],
                 HttpAuthOverride::NoOverride,
                 req,
+            )
+            .await?;
+        Ok(res)
+    }
+
+    async fn distribute_pni_keys(
+        &mut self,
+        pni_identity_key: &IdentityKey,
+        device_messages: Vec<OutgoingPushMessage>,
+        device_pni_signed_prekeys: HashMap<String, SignedPreKeyEntity>,
+        device_pni_last_resort_kyber_prekeys: HashMap<
+            String,
+            KyberPreKeyEntity,
+        >,
+        pni_registration_ids: HashMap<String, u32>,
+        signature_valid_on_each_signed_pre_key: bool,
+    ) -> Result<VerifyAccountResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct PniKeyDistributionRequest {
+            #[serde(with = "serde_base64")]
+            pni_identity_key: Vec<u8>,
+            device_messages: Vec<OutgoingPushMessage>,
+            device_pni_signed_prekeys: HashMap<String, SignedPreKeyEntity>,
+            #[serde(rename = "devicePniPqLastResortPrekeys")]
+            device_pni_last_resort_kyber_prekeys:
+                HashMap<String, KyberPreKeyEntity>,
+            pni_registration_ids: HashMap<String, u32>,
+            signature_valid_on_each_signed_pre_key: bool,
+        }
+
+        let res: VerifyAccountResponse = self
+            .put_json(
+                Endpoint::Service,
+                "/v2/accounts/phone_number_identity_key_distribution",
+                &[],
+                HttpAuthOverride::NoOverride,
+                PniKeyDistributionRequest {
+                    pni_identity_key: pni_identity_key.serialize().into(),
+                    device_messages,
+                    device_pni_signed_prekeys,
+                    device_pni_last_resort_kyber_prekeys,
+                    pni_registration_ids,
+                    signature_valid_on_each_signed_pre_key,
+                },
             )
             .await?;
         Ok(res)

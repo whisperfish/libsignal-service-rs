@@ -10,7 +10,9 @@ use base64::Engine;
 use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
-use libsignal_protocol::{DeviceId, KeyPair, PrivateKey, PublicKey};
+use libsignal_protocol::{
+    DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey, SessionStore,
+};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -20,12 +22,11 @@ use zkgroup::profiles::ProfileKey;
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
 use crate::prelude::ServiceError;
+use crate::push_service::DeviceActivationRequest;
 use crate::utils::BASE64_RELAXED;
 use crate::{
     account_manager::encrypt_device_name,
-    pre_keys::{
-        generate_last_resort_kyber_key, generate_signed_pre_key, PreKeysStore,
-    },
+    pre_keys::PreKeysStore,
     push_service::{
         HttpAuth, LinkAccountAttributes, LinkCapabilities, LinkRequest,
         LinkResponse, PushService, ServiceIds,
@@ -100,19 +101,19 @@ pub struct NewDeviceRegistration {
     pub service_ids: ServiceIds,
     #[derivative(Debug = "ignore")]
     pub aci_private_key: PrivateKey,
-    pub aci_public_key: PublicKey,
+    pub aci_public_key: IdentityKey,
     #[derivative(Debug = "ignore")]
     pub pni_private_key: PrivateKey,
-    pub pni_public_key: PublicKey,
+    pub pni_public_key: IdentityKey,
     #[derivative(Debug = "ignore")]
     pub profile_key: ProfileKey,
 }
 
 pub async fn link_device<
     R: rand::Rng + rand::CryptoRng,
-    Aci: PreKeysStore,
+    Aci: PreKeysStore + SessionStore,
     Pni: PreKeysStore,
-    P: PushService,
+    P: PushService + Clone,
 >(
     aci_store: &mut Aci,
     pni_store: &mut Pni,
@@ -166,6 +167,7 @@ pub async fn link_device<
                     reason: "missing public key".into(),
                 },
             )?)?;
+        let aci_public_key = IdentityKey::new(aci_public_key);
 
         let aci_private_key =
             PrivateKey::deserialize(&message.aci_identity_key_private.ok_or(
@@ -180,6 +182,7 @@ pub async fn link_device<
                     reason: "missing public key".into(),
                 },
             )?)?;
+        let pni_public_key = IdentityKey::new(pni_public_key);
 
         let pni_private_key =
             PrivateKey::deserialize(&message.pni_identity_key_private.ok_or(
@@ -211,18 +214,48 @@ pub async fn link_device<
             },
         )?;
 
-        let aci_key_pair = KeyPair::new(aci_public_key, aci_private_key);
-        let pni_key_pair = KeyPair::new(pni_public_key, pni_private_key);
+        let aci_key_pair =
+            IdentityKeyPair::new(aci_public_key, aci_private_key);
+        let pni_key_pair =
+            IdentityKeyPair::new(pni_public_key, pni_private_key);
 
+        let (
+            _aci_pre_keys,
+            aci_signed_pre_key,
+            _aci_pq_pre_keys,
+            aci_pq_last_resort_pre_key,
+        ) = crate::pre_keys::replenish_pre_keys(
+            aci_store,
+            &aci_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
         let aci_pq_last_resort_pre_key =
-            generate_last_resort_kyber_key(aci_store, &aci_key_pair).await?;
-        let pni_pq_last_resort_pre_key =
-            generate_last_resort_kyber_key(pni_store, &pni_key_pair).await?;
+            aci_pq_last_resort_pre_key.expect("requested last resort key");
+        assert!(_aci_pre_keys.is_empty());
+        assert!(_aci_pq_pre_keys.is_empty());
 
-        let aci_signed_pre_key =
-            generate_signed_pre_key(aci_store, csprng, &aci_key_pair).await?;
-        let pni_signed_pre_key =
-            generate_signed_pre_key(pni_store, csprng, &pni_key_pair).await?;
+        let (
+            _pni_pre_keys,
+            pni_signed_pre_key,
+            _pni_pq_pre_keys,
+            pni_pq_last_resort_pre_key,
+        ) = crate::pre_keys::replenish_pre_keys(
+            pni_store,
+            &pni_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
+        let pni_pq_last_resort_pre_key =
+            pni_pq_last_resort_pre_key.expect("requested last resort key");
+        assert!(_pni_pre_keys.is_empty());
+        assert!(_pni_pq_pre_keys.is_empty());
 
         let encrypted_device_name = BASE64_RELAXED.encode(
             encrypt_device_name(csprng, device_name, &aci_public_key)?
@@ -245,12 +278,14 @@ pub async fn link_device<
                 capabilities: LinkCapabilities { pni: true },
                 name: encrypted_device_name,
             },
-            aci_signed_pre_key: aci_signed_pre_key.try_into()?,
-            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
-            aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
-                .try_into()?,
-            pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
-                .try_into()?,
+            device_activation_request: DeviceActivationRequest {
+                aci_signed_pre_key: aci_signed_pre_key.try_into()?,
+                pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+                aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
+                    .try_into()?,
+                pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
+                    .try_into()?,
+            },
         };
 
         let LinkResponse {
