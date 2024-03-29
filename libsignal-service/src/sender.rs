@@ -2,8 +2,8 @@ use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, DeviceId, ProtocolStore, SenderCertificate,
-    SenderKeyStore, SignalProtocolError,
+    process_prekey_bundle, DeviceId, IdentityKeyPair, ProtocolStore,
+    SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
 use tracing::{info, trace};
@@ -85,7 +85,10 @@ pub struct MessageSender<Service, S, R> {
     cipher: ServiceCipher<S, R>,
     csprng: R,
     protocol_store: S,
-    local_address: ServiceAddress,
+    local_aci: ServiceAddress,
+    local_pni: ServiceAddress,
+    aci_identity: IdentityKeyPair,
+    pni_identity: Option<IdentityKeyPair>,
     device_id: DeviceId,
 }
 
@@ -122,9 +125,9 @@ pub enum MessageSenderError {
 
 impl<Service, S, R> MessageSender<Service, S, R>
 where
-    Service: PushService + Clone,
+    Service: PushService,
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
-    R: Rng + CryptoRng + Clone,
+    R: Rng + CryptoRng,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -134,7 +137,10 @@ where
         cipher: ServiceCipher<S, R>,
         csprng: R,
         protocol_store: S,
-        local_address: ServiceAddress,
+        local_aci: ServiceAddress,
+        local_pni: ServiceAddress,
+        aci_identity: IdentityKeyPair,
+        pni_identity: Option<IdentityKeyPair>,
         device_id: DeviceId,
     ) -> Self {
         MessageSender {
@@ -144,7 +150,10 @@ where
             cipher,
             csprng,
             protocol_store,
-            local_address,
+            local_aci,
+            local_pni,
+            aci_identity,
+            pni_identity,
             device_id,
         }
     }
@@ -283,7 +292,7 @@ where
     async fn is_multi_device(&self) -> bool {
         if self.device_id == DEFAULT_DEVICE_ID.into() {
             self.protocol_store
-                .get_sub_device_sessions(&self.local_address)
+                .get_sub_device_sessions(&self.local_aci)
                 .await
                 .map_or(false, |s| !s.is_empty())
         } else {
@@ -302,6 +311,7 @@ where
         mut unidentified_access: Option<UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
+        include_pni_signature: bool,
         online: bool,
     ) -> SendMessageResult {
         let content_body = message.into();
@@ -316,7 +326,7 @@ where
         };
 
         // don't send anything to self nor session enders to others as sealed sender
-        if recipient == &self.local_address || end_session {
+        if recipient == &self.local_aci || end_session {
             unidentified_access.take();
         }
 
@@ -327,6 +337,7 @@ where
                 unidentified_access.as_ref(),
                 &content_body,
                 timestamp,
+                include_pni_signature,
                 online,
             )
             .await,
@@ -347,10 +358,11 @@ where
                         &results,
                     );
                 self.try_send_message(
-                    self.local_address,
+                    self.local_aci,
                     None,
                     &sync_message,
                     timestamp,
+                    false,
                     false,
                 )
                 .await?;
@@ -367,13 +379,18 @@ where
     }
 
     /// Send a message to the recipients in a group.
+    ///
+    /// Recipients are a list of tuples, each containing:
+    /// - The recipient's address
+    /// - The recipient's unidentified access
+    /// - Whether the recipient requires a PNI signature
     #[tracing::instrument(
         skip(self, recipients, message),
         fields(recipients = recipients.as_ref().len()),
     )]
     pub async fn send_message_to_group(
         &mut self,
-        recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>)]>,
+        recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>, bool)]>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -388,13 +405,16 @@ where
 
         let recipients = recipients.as_ref();
         let mut needs_sync_in_results = false;
-        for (recipient, unidentified_access) in recipients.iter() {
+        for (recipient, unidentified_access, include_pni_signature) in
+            recipients.iter()
+        {
             let result = self
                 .try_send_message(
                     *recipient,
                     unidentified_access.as_ref(),
                     &content_body,
                     timestamp,
+                    *include_pni_signature,
                     online,
                 )
                 .await;
@@ -429,10 +449,11 @@ where
 
                 let result = self
                     .try_send_message(
-                        self.local_address,
+                        self.local_aci,
                         None,
                         &sync_message,
                         timestamp,
+                        false, // XXX: maybe the sync device does want a PNI signature?
                         false,
                     )
                     .await;
@@ -456,11 +477,15 @@ where
         mut unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
         timestamp: u64,
+        include_pni_signature: bool,
         online: bool,
     ) -> SendMessageResult {
         use prost::Message;
 
-        let content = content_body.clone().into_proto();
+        let mut content = content_body.clone().into_proto();
+        if include_pni_signature {
+            content.pni_signature_message = Some(self.create_pni_signature()?);
+        }
 
         let content_bytes = content.encode_to_vec();
 
@@ -624,11 +649,29 @@ where
             unidentified_access,
             msg,
             Utc::now().timestamp_millis() as u64,
+            false,
             online,
         )
         .await?;
 
         Ok(())
+    }
+
+    #[tracing::instrument(level = "trace", skip(self))]
+    fn create_pni_signature(
+        &mut self,
+    ) -> Result<crate::proto::PniSignatureMessage, MessageSenderError> {
+        let signature = self
+            .pni_identity
+            .expect("PNI key set when PNI signature requested")
+            .sign_alternate_identity(
+                self.aci_identity.identity_key(),
+                &mut self.csprng,
+            )?;
+        Ok(crate::proto::PniSignatureMessage {
+            pni: Some(self.local_pni.uuid.as_bytes().to_vec()),
+            signature: Some(signature.into()),
+        })
     }
 
     // Equivalent with `getEncryptedMessages`
@@ -657,7 +700,7 @@ where
         devices.insert(DEFAULT_DEVICE_ID.into());
 
         // never try to send messages to the sender device
-        if recipient.aci() == self.local_address.aci() {
+        if recipient.aci() == self.local_aci.aci() {
             devices.remove(&self.device_id);
         }
 
@@ -725,7 +768,7 @@ where
         skip(self, unidentified_access, content),
         fields(unidentified_access = unidentified_access.is_some()),
     )]
-    async fn create_encrypted_message(
+    pub(crate) async fn create_encrypted_message(
         &mut self,
         recipient: &ServiceAddress,
         unidentified_access: Option<&SenderCertificate>,
@@ -770,7 +813,7 @@ where
             };
 
             for pre_key_bundle in pre_keys {
-                if recipient == &self.local_address
+                if recipient == &self.local_aci
                     && self.device_id == pre_key_bundle.device_id()?
                 {
                     trace!("not establishing a session with myself!");

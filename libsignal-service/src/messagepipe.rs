@@ -100,10 +100,7 @@ impl MessagePipe {
             };
             Some(Incoming::Envelope(Envelope::decrypt(
                 body,
-                self.credentials
-                    .signaling_key
-                    .as_ref()
-                    .expect("signaling_key required to decrypt envelopes"),
+                self.credentials.signaling_key.as_ref(),
                 request.is_signal_key_encrypted(),
             )?))
         } else if request.is_queue_empty() {

@@ -30,13 +30,15 @@ impl Envelope {
     #[tracing::instrument(skip(input, signaling_key), fields(input_size = input.len()))]
     pub fn decrypt(
         input: &[u8],
-        signaling_key: &SignalingKey,
+        signaling_key: Option<&SignalingKey>,
         is_signaling_key_encrypted: bool,
     ) -> Result<Self, ServiceError> {
         if !is_signaling_key_encrypted {
             tracing::trace!("Envelope::decrypt: not encrypted");
             Ok(Envelope::decode(input)?)
         } else {
+            let signaling_key = signaling_key
+                .expect("signaling_key required to decrypt envelopes");
             tracing::trace!("Envelope::decrypt: decrypting");
             if input.len() < VERSION_LENGTH
                 || input[VERSION_OFFSET] != SUPPORTED_VERSION
@@ -218,7 +220,8 @@ mod tests {
         ];
 
         let signaling_key = [0u8; 52];
-        let envelope = Envelope::decrypt(&body, &signaling_key, true).unwrap();
+        let envelope =
+            Envelope::decrypt(&body, Some(&signaling_key), true).unwrap();
         assert_eq!(envelope.server_timestamp(), 1594373582421);
         assert_eq!(envelope.timestamp(), 1594373580977);
         assert_eq!(

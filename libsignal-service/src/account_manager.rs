@@ -1,4 +1,5 @@
 use base64::prelude::*;
+use phonenumber::PhoneNumber;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::time::SystemTime;
@@ -7,9 +8,9 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    kem, GenericSignedPreKey, IdentityKeyStore, KeyPair, KyberPreKeyRecord,
-    PreKeyRecord, PrivateKey, PublicKey, SignalProtocolError,
-    SignedPreKeyRecord,
+    kem, GenericSignedPreKey, IdentityKey, IdentityKeyStore, KeyPair,
+    KyberPreKeyRecord, PrivateKey, ProtocolStore, PublicKey, SenderKeyStore,
+    SignalProtocolError, SignedPreKeyRecord,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -17,14 +18,27 @@ use sha2::Sha256;
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
-use crate::pre_keys::{KyberPreKeyEntity, PreKeysStore};
-use crate::proto::DeviceName;
-use crate::push_service::{AvatarWrite, RecaptchaAttributes, ServiceIdType};
-use crate::utils::BASE64_RELAXED;
+use crate::content::ContentBody;
+use crate::pre_keys::{
+    KyberPreKeyEntity, PreKeyEntity, PreKeysStore, SignedPreKeyEntity,
+    PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
+};
+use crate::prelude::{MessageSender, MessageSenderError};
+use crate::proto::sync_message::PniChangeNumber;
+use crate::proto::{DeviceName, SyncMessage};
+use crate::provisioning::generate_registration_id;
+use crate::push_service::{
+    AvatarWrite, DeviceActivationRequest, RecaptchaAttributes,
+    RegistrationMethod, ServiceIdType, VerifyAccountResponse,
+    DEFAULT_DEVICE_ID,
+};
+use crate::sender::OutgoingPushMessage;
+use crate::session_store::SessionStoreExt;
+use crate::utils::{random_length_padding, BASE64_RELAXED};
 use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
-    pre_keys::{PreKeyEntity, PreKeyState},
+    pre_keys::PreKeyState,
     profile_cipher::{ProfileCipher, ProfileCipherError},
     profile_name::ProfileName,
     proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
@@ -72,10 +86,6 @@ pub struct Profile {
     pub avatar: Option<String>,
 }
 
-const PRE_KEY_MINIMUM: u32 = 10;
-const PRE_KEY_BATCH_SIZE: u32 = 100;
-const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
-
 impl<Service: PushService> AccountManager<Service> {
     pub fn new(service: Service, profile_key: Option<ProfileKey>) -> Self {
         Self {
@@ -90,8 +100,6 @@ impl<Service: PushService> AccountManager<Service> {
     /// signed pre-keys.
     ///
     /// Equivalent to Java's RefreshPreKeysJob
-    ///
-    /// Returns the next pre-key offset, pq pre-key offset, and next signed pre-key offset as a tuple.
     #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self, protocol_store, csprng))]
     pub async fn update_pre_key_bundle<
@@ -103,12 +111,8 @@ impl<Service: PushService> AccountManager<Service> {
         service_id_type: ServiceIdType,
         csprng: &mut R,
         use_last_resort_key: bool,
-    ) -> Result<(u32, u32, u32), ServiceError> {
-        let pre_keys_offset_id = protocol_store.next_pre_key_id().await?;
-        let next_signed_pre_key_id =
-            protocol_store.next_signed_pre_key_id().await?;
-        let pq_pre_keys_offset_id = protocol_store.next_pq_pre_key_id().await?;
-
+        force: bool,
+    ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .service
             .get_pre_key_status(service_id_type)
@@ -132,116 +136,81 @@ impl<Service: PushService> AccountManager<Service> {
         };
         tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
 
+        // XXX We should honestly compare the pre-key count with the number of pre-keys we have
+        // locally. If we have more than the server, we should upload them.
+        // Currently the trait doesn't allow us to do that, so we just upload the batch size and
+        // pray.
         if prekey_status.count >= PRE_KEY_MINIMUM
             && prekey_status.pq_count >= PRE_KEY_MINIMUM
         {
-            tracing::info!("Available keys sufficient");
-            return Ok((
-                pre_keys_offset_id,
-                pq_pre_keys_offset_id,
-                next_signed_pre_key_id,
-            ));
+            if !force {
+                tracing::debug!("Available keys sufficient");
+                return Ok(());
+            }
+            tracing::info!("Available keys sufficient; forcing refresh.");
         }
 
-        let pre_key_state = {
-            let span =
-                tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
+        let identity_key_pair = protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get identity key pair"))
+            .await?;
 
-            let identity_key_pair =
-                protocol_store.get_identity_key_pair().instrument(tracing::trace_span!(parent: &span, "get identity key pair")).await?;
+        let last_resort_keys = protocol_store
+            .load_last_resort_kyber_pre_keys()
+            .instrument(tracing::trace_span!("fetch last resort key"))
+            .await?;
+        // XXX: Maybe this check should be done in the generate_pre_keys function?
+        let has_last_resort_key = !last_resort_keys.is_empty();
 
-            let mut pre_key_entities = vec![];
-            let mut pq_pre_key_entities = vec![];
+        let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
+            crate::pre_keys::replenish_pre_keys(
+                protocol_store,
+                &identity_key_pair,
+                csprng,
+                use_last_resort_key && !has_last_resort_key,
+                PRE_KEY_BATCH_SIZE,
+                PRE_KEY_BATCH_SIZE,
+            )
+            .await?;
 
-            // EC keys
-            for i in 0..PRE_KEY_BATCH_SIZE {
-                let key_pair = KeyPair::generate(csprng);
-                let pre_key_id = (((pre_keys_offset_id + i)
-                    % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
-                    + 1)
-                .into();
-                let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-                protocol_store
-                    .save_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
-                // TODO: Shouldn't this also remove the previous pre-keys from storage?
-                //       I think we might want to update the storage, and then sync the storage to the
-                //       server.
-
-                pre_key_entities.push(PreKeyEntity::try_from(pre_key_record)?);
+        let pq_last_resort_key = if has_last_resort_key {
+            if last_resort_keys.len() > 1 {
+                tracing::warn!(
+                    "More than one last resort key found; only uploading first"
+                );
             }
+            Some(KyberPreKeyEntity::try_from(last_resort_keys[0].clone())?)
+        } else {
+            pq_last_resort_key
+                .map(KyberPreKeyEntity::try_from)
+                .transpose()?
+        };
 
-            // Kyber keys
-            for i in 0..PRE_KEY_BATCH_SIZE {
-                let pre_key_id = (((pq_pre_keys_offset_id + i)
-                    % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
-                    + 1)
-                .into();
-                let pre_key_record = KyberPreKeyRecord::generate(
-                    kem::KeyType::Kyber1024,
-                    pre_key_id,
-                    identity_key_pair.private_key(),
-                )?;
-                protocol_store
-                    .save_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
-                // TODO: Shouldn't this also remove the previous pre-keys from storage?
-                //       I think we might want to update the storage, and then sync the storage to the
-                //       server.
+        let identity_key = *identity_key_pair.identity_key().public_key();
 
-                pq_pre_key_entities
-                    .push(KyberPreKeyEntity::try_from(pre_key_record)?);
-            }
+        let pre_keys: Vec<_> = pre_keys
+            .into_iter()
+            .map(PreKeyEntity::try_from)
+            .collect::<Result<_, _>>()?;
+        let signed_pre_key = signed_pre_key.try_into()?;
+        let pq_pre_keys: Vec<_> = pq_pre_keys
+            .into_iter()
+            .map(KyberPreKeyEntity::try_from)
+            .collect::<Result<_, _>>()?;
 
-            // Generate and store the next signed prekey
-            let signed_pre_key_pair = KeyPair::generate(csprng);
-            let signed_pre_key_public = signed_pre_key_pair.public_key;
-            let signed_pre_key_signature =
-                identity_key_pair.private_key().calculate_signature(
-                    &signed_pre_key_public.serialize(),
-                    csprng,
-                )?;
+        tracing::info!(
+            "Uploading pre-keys: {} one-time, {} PQ, {} PQ last resort",
+            pre_keys.len(),
+            pq_pre_keys.len(),
+            if pq_last_resort_key.is_some() { 1 } else { 0 }
+        );
 
-            let unix_time = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap();
-
-            let signed_prekey_record = SignedPreKeyRecord::new(
-                next_signed_pre_key_id.into(),
-                unix_time.as_millis() as u64,
-                &signed_pre_key_pair,
-                &signed_pre_key_signature,
-            );
-
-            protocol_store
-                .save_signed_pre_key(
-                    next_signed_pre_key_id.into(),
-                    &signed_prekey_record,
-                )
-                    .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
-
-            PreKeyState {
-                pre_keys: pre_key_entities,
-                signed_pre_key: signed_prekey_record.try_into()?,
-                identity_key: *identity_key_pair.public_key(),
-                pq_pre_keys: pq_pre_key_entities,
-                pq_last_resort_key: if use_last_resort_key {
-                    tracing::warn!("Last resort Kyber key unimplemented");
-                    // Note about the last-resort key:
-                    // mark_kyber_pre_key_used() should retain the last-resort key, but can safely
-                    // remove the ephemeral pre keys.  This implies that generating the last-resort key
-                    // should notify the pre-key store, when saving the key, that it concerns a
-                    // last-resort key.  I don't see how this can be communicated to the store, and I
-                    // fear that we need to reengineer the whole prekeystore system as a whole.
-                    None
-                    // Some(KyberPreKeyEntity {
-                    //     key_id: 0x7fffffff,
-                    //     public_key: "NDI=".into(),
-                    // })
-                } else {
-                    None
-                },
-            }
+        let pre_key_state = PreKeyState {
+            pre_keys,
+            signed_pre_key,
+            identity_key,
+            pq_pre_keys,
+            pq_last_resort_key,
         };
 
         self.service
@@ -252,11 +221,7 @@ impl<Service: PushService> AccountManager<Service> {
             ))
             .await?;
 
-        Ok((
-            pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
-            pq_pre_keys_offset_id + PRE_KEY_BATCH_SIZE,
-            next_signed_pre_key_id + 1,
-        ))
+        Ok(())
     }
 
     async fn new_device_provisioning_code(
@@ -373,6 +338,7 @@ impl<Service: PushService> AccountManager<Service> {
             provisioning_code: Some(provisioning_code),
             read_receipts: None,
             user_agent: None,
+            master_key: None, // XXX
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);
@@ -381,6 +347,87 @@ impl<Service: PushService> AccountManager<Service> {
         self.send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
+    }
+
+    pub async fn register_account<
+        R: rand::Rng + rand::CryptoRng,
+        Aci: PreKeysStore + IdentityKeyStore,
+        Pni: PreKeysStore + IdentityKeyStore,
+    >(
+        &mut self,
+        csprng: &mut R,
+        registration_method: RegistrationMethod<'_>,
+        account_attributes: AccountAttributes,
+        aci_protocol_store: &mut Aci,
+        pni_protocol_store: &mut Pni,
+        skip_device_transfer: bool,
+    ) -> Result<VerifyAccountResponse, LinkError> {
+        let aci_identity_key_pair = aci_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get ACI identity key pair"))
+            .await?;
+        let pni_identity_key_pair = pni_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get PNI identity key pair"))
+            .await?;
+
+        let (
+            _aci_pre_keys,
+            aci_signed_pre_key,
+            _aci_kyber_pre_keys,
+            aci_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            aci_protocol_store,
+            &aci_identity_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let (
+            _pni_pre_keys,
+            pni_signed_pre_key,
+            _pni_kyber_pre_keys,
+            pni_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            pni_protocol_store,
+            &pni_identity_key_pair,
+            csprng,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let aci_identity_key = aci_identity_key_pair.identity_key();
+        let pni_identity_key = pni_identity_key_pair.identity_key();
+
+        let dar = DeviceActivationRequest {
+            aci_signed_pre_key: aci_signed_pre_key.try_into()?,
+            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+            aci_pq_last_resort_pre_key: aci_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+            pni_pq_last_resort_pre_key: pni_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+        };
+
+        let result = self
+            .service
+            .submit_registration_request(
+                registration_method,
+                account_attributes,
+                skip_device_transfer,
+                *aci_identity_key,
+                *pni_identity_key,
+                dar,
+            )
+            .await?;
+
+        Ok(result)
     }
 
     /// Upload a profile
@@ -498,7 +545,7 @@ impl<Service: PushService> AccountManager<Service> {
     pub async fn update_device_name(
         &mut self,
         device_name: &str,
-        public_key: &PublicKey,
+        public_key: &IdentityKey,
     ) -> Result<(), ServiceError> {
         let encrypted_device_name = encrypt_device_name(
             &mut rand::thread_rng(),
@@ -554,6 +601,208 @@ impl<Service: PushService> AccountManager<Service> {
             )
             .await
     }
+
+    /// Initialize PNI on linked devices.
+    ///
+    /// Should be called as the primary device to migrate from pre-PNI to PNI.
+    ///
+    /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
+    pub async fn pnp_initialize_devices<
+        // XXX So many constraints here, all imposed by the MessageSender
+        R: rand::Rng + rand::CryptoRng,
+        Aci: PreKeysStore + SessionStoreExt,
+        Pni: PreKeysStore,
+        AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
+    >(
+        &mut self,
+        aci_protocol_store: &mut Aci,
+        pni_protocol_store: &mut Pni,
+        mut sender: MessageSender<Service, AciOrPni, R>,
+        local_aci: ServiceAddress,
+        e164: PhoneNumber,
+        csprng: &mut R,
+    ) -> Result<(), MessageSenderError> {
+        let pni_identity_key_pair =
+            pni_protocol_store.get_identity_key_pair().await?;
+
+        let pni_identity_key = pni_identity_key_pair.identity_key();
+
+        // For every linked device, we generate a new set of pre-keys, and send them to the device.
+        let local_device_ids = aci_protocol_store
+            .get_sub_device_sessions(&local_aci)
+            .await?;
+
+        let mut device_messages =
+            Vec::<OutgoingPushMessage>::with_capacity(local_device_ids.len());
+        let mut device_pni_signed_prekeys =
+            HashMap::<String, SignedPreKeyEntity>::with_capacity(
+                local_device_ids.len(),
+            );
+        let mut device_pni_last_resort_kyber_prekeys =
+            HashMap::<String, KyberPreKeyEntity>::with_capacity(
+                local_device_ids.len(),
+            );
+        let mut pni_registration_ids =
+            HashMap::<String, u32>::with_capacity(local_device_ids.len());
+
+        let signature_valid_on_each_signed_pre_key = true;
+        for local_device_id in
+            std::iter::once(DEFAULT_DEVICE_ID).chain(local_device_ids)
+        {
+            let local_protocol_address =
+                local_aci.to_protocol_address(local_device_id);
+            let span = tracing::trace_span!(
+                "filtering devices",
+                address = %local_protocol_address
+            );
+            // Skip if we don't have a session with the device
+            if (local_device_id != DEFAULT_DEVICE_ID)
+                && aci_protocol_store
+                    .load_session(&local_protocol_address)
+                    .instrument(span)
+                    .await?
+                    .is_none()
+            {
+                tracing::warn!(
+                    "No session with device {}, skipping PNI provisioning",
+                    local_device_id
+                );
+                continue;
+            }
+            let (
+                _pre_keys,
+                signed_pre_key,
+                _kyber_pre_keys,
+                last_resort_kyber_prekey,
+            ) = if local_device_id == DEFAULT_DEVICE_ID {
+                crate::pre_keys::replenish_pre_keys(
+                    pni_protocol_store,
+                    &pni_identity_key_pair,
+                    csprng,
+                    true,
+                    0,
+                    0,
+                )
+                .await?
+            } else {
+                // Generate a signed prekey
+                let signed_pre_key_pair = KeyPair::generate(csprng);
+                let signed_pre_key_public = signed_pre_key_pair.public_key;
+                let signed_pre_key_signature =
+                    pni_identity_key_pair.private_key().calculate_signature(
+                        &signed_pre_key_public.serialize(),
+                        csprng,
+                    )?;
+
+                let unix_time = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap();
+
+                let signed_prekey_record = SignedPreKeyRecord::new(
+                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    unix_time.as_millis() as u64,
+                    &signed_pre_key_pair,
+                    &signed_pre_key_signature,
+                );
+
+                // Generate a last-resort Kyber prekey
+                let kyber_pre_key_record = KyberPreKeyRecord::generate(
+                    kem::KeyType::Kyber1024,
+                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    pni_identity_key_pair.private_key(),
+                )?;
+                (
+                    vec![],
+                    signed_prekey_record,
+                    vec![],
+                    Some(kyber_pre_key_record),
+                )
+            };
+
+            let registration_id = if local_device_id == DEFAULT_DEVICE_ID {
+                pni_protocol_store.get_local_registration_id().await?
+            } else {
+                loop {
+                    let regid = generate_registration_id(csprng);
+                    if pni_registration_ids
+                        .iter()
+                        .find(|(_k, v)| **v == regid)
+                        .is_none()
+                    {
+                        break regid;
+                    }
+                }
+            };
+
+            let local_device_id_s = local_device_id.to_string();
+            device_pni_signed_prekeys.insert(
+                local_device_id_s.clone(),
+                SignedPreKeyEntity::try_from(&signed_pre_key)?,
+            );
+            device_pni_last_resort_kyber_prekeys.insert(
+                local_device_id_s.clone(),
+                KyberPreKeyEntity::try_from(
+                    last_resort_kyber_prekey
+                        .as_ref()
+                        .expect("requested last resort key"),
+                )?,
+            );
+            pni_registration_ids
+                .insert(local_device_id_s.clone(), registration_id);
+
+            assert!(_pre_keys.is_empty());
+            assert!(_kyber_pre_keys.is_empty());
+
+            if local_device_id == DEFAULT_DEVICE_ID {
+                // This is the primary device
+                // We don't need to send a message to the primary device
+                continue;
+            }
+            // cfr. SignalServiceMessageSender::getEncryptedSyncPniInitializeDeviceMessage
+            let msg = SyncMessage {
+                pni_change_number: Some(PniChangeNumber {
+                    identity_key_pair: Some(
+                        pni_identity_key_pair.serialize().to_vec(),
+                    ),
+                    signed_pre_key: Some(signed_pre_key.serialize()?),
+                    last_resort_kyber_pre_key: Some(
+                        last_resort_kyber_prekey
+                            .expect("requested last resort key")
+                            .serialize()?,
+                    ),
+                    registration_id: Some(registration_id),
+                    new_e164: Some(
+                        e164.format().mode(phonenumber::Mode::E164).to_string(),
+                    ),
+                }),
+                padding: Some(random_length_padding(csprng, 512)),
+                ..SyncMessage::default()
+            };
+            let content: ContentBody = msg.into();
+            let msg = sender
+                .create_encrypted_message(
+                    &local_aci,
+                    None,
+                    local_device_id.into(),
+                    &content.into_proto().encode_to_vec(),
+                )
+                .await?;
+            device_messages.push(msg);
+        }
+
+        self.service
+            .distribute_pni_keys(
+                pni_identity_key,
+                device_messages,
+                device_pni_signed_prekeys,
+                device_pni_last_resort_kyber_prekeys,
+                pni_registration_ids,
+                signature_valid_on_each_signed_pre_key,
+            )
+            .await?;
+
+        Ok(())
+    }
 }
 
 fn calculate_hmac256(
@@ -569,14 +818,14 @@ fn calculate_hmac256(
 pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
     device_name: &str,
-    identity_public: &PublicKey,
+    identity_public: &IdentityKey,
 ) -> Result<DeviceName, ServiceError> {
     let plaintext = device_name.as_bytes().to_vec();
     let ephemeral_key_pair = KeyPair::generate(csprng);
 
     let master_secret = ephemeral_key_pair
         .private_key
-        .calculate_agreement(identity_public)?;
+        .calculate_agreement(identity_public.public_key())?;
 
     let key1 = calculate_hmac256(&master_secret, b"auth")?;
     let synthetic_iv = calculate_hmac256(&key1, &plaintext)?;
@@ -646,7 +895,7 @@ pub fn decrypt_device_name(
 mod tests {
     use crate::utils::BASE64_RELAXED;
     use base64::Engine;
-    use libsignal_protocol::{KeyPair, PrivateKey, PublicKey};
+    use libsignal_protocol::{IdentityKeyPair, PrivateKey, PublicKey};
 
     use super::DeviceName;
 
@@ -654,16 +903,16 @@ mod tests {
     fn encrypt_device_name() -> anyhow::Result<()> {
         let input_device_name = "Nokia 3310 Millenial Edition";
         let mut csprng = rand::thread_rng();
-        let identity = KeyPair::generate(&mut csprng);
+        let identity = IdentityKeyPair::generate(&mut csprng);
 
         let device_name = super::encrypt_device_name(
             &mut csprng,
             input_device_name,
-            &identity.public_key,
+            &identity.identity_key(),
         )?;
 
         let decrypted_device_name =
-            super::decrypt_device_name(&identity.private_key, &device_name)?;
+            super::decrypt_device_name(&identity.private_key(), &device_name)?;
 
         assert_eq!(input_device_name, decrypted_device_name);
 
