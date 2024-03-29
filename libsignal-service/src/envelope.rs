@@ -220,7 +220,8 @@ mod tests {
         ];
 
         let signaling_key = [0u8; 52];
-        let envelope = Envelope::decrypt(&body, &signaling_key, true).unwrap();
+        let envelope =
+            Envelope::decrypt(&body, Some(&signaling_key), true).unwrap();
         assert_eq!(envelope.server_timestamp(), 1594373582421);
         assert_eq!(envelope.timestamp(), 1594373580977);
         assert_eq!(
