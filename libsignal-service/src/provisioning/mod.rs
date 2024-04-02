@@ -1,8 +1,8 @@
 mod cipher;
 mod pipe;
 
+use std::array::TryFromSliceError;
 use std::convert::TryInto;
-use std::{array::TryFromSliceError, borrow::Cow};
 
 pub use cipher::ProvisioningCipher;
 
@@ -11,7 +11,7 @@ use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
 use libsignal_protocol::{
-    DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey, SessionStore,
+    DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -40,8 +40,38 @@ pub use crate::proto::{
 
 #[derive(thiserror::Error, Debug)]
 pub enum ProvisioningError {
-    #[error("Invalid provisioning data: {reason}")]
-    InvalidData { reason: Cow<'static, str> },
+    #[error("no provisioning URL received")]
+    MissingUrl,
+    #[error("bad version number (unsupported)")]
+    BadVersionNumber,
+    #[error("missing public key")]
+    MissingPublicKey,
+    #[error("missing private key")]
+    MissingPrivateKey,
+    #[error("invalid public key")]
+    InvalidPublicKey(InvalidKeyError),
+    #[error("invalid privat key")]
+    InvalidPrivateKey(InvalidKeyError),
+    #[error("missing UUID")]
+    MissingUuid,
+    #[error("no provisioning message received")]
+    MissingMessage,
+    #[error("missing profile key")]
+    MissingProfileKey,
+    #[error("missing phone number")]
+    MissingPhoneNumber,
+    #[error("invalid phone number: {0}")]
+    InvalidPhoneNumber(phonenumber::ParseError),
+    #[error("missing provisioning code")]
+    MissingProvisioningCode,
+    #[error("mismatched MAC")]
+    MismatchedMac,
+    #[error("AES CBC padding error: {0}")]
+    AesPaddingError(aes::cipher::block_padding::UnpadError),
+
+    #[error("invalid provisioning step received")]
+    InvalidStep,
+
     #[error("Protobuf decoding error: {0}")]
     DecodeError(#[from] prost::DecodeError),
     #[error("Websocket error: {reason}")]
@@ -51,11 +81,19 @@ pub enum ProvisioningError {
     #[error("Service error: {0}")]
     ServiceError(#[from] ServiceError),
     #[error("libsignal-protocol error: {0}")]
-    ProtocolError(#[from] libsignal_protocol::error::SignalProtocolError),
+    ProtocolError(#[from] libsignal_protocol::SignalProtocolError),
     #[error("ProvisioningCipher in encrypt-only mode")]
     EncryptOnlyProvisioningCipher,
     #[error("invalid profile key bytes")]
     InvalidProfileKey(TryFromSliceError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum InvalidKeyError {
+    #[error("base64 decoding error: {0}")]
+    Base64(#[from] base64::DecodeError),
+    #[error("protocol error: {0}")]
+    Protocol(#[from] libsignal_protocol::SignalProtocolError),
 }
 
 pub fn generate_registration_id<R: rand::Rng + rand::CryptoRng>(
@@ -111,7 +149,7 @@ pub struct NewDeviceRegistration {
 
 pub async fn link_device<
     R: rand::Rng + rand::CryptoRng,
-    Aci: PreKeysStore + SessionStore,
+    Aci: PreKeysStore,
     Pni: PreKeysStore,
     P: PushService + Clone,
 >(
@@ -140,79 +178,68 @@ pub async fn link_device<
     let provision_stream = provisioning_pipe.stream();
     pin_mut!(provision_stream);
 
-    if let ProvisioningStep::Url(url) = provision_stream.next().await.ok_or(
-        ProvisioningError::InvalidData {
-            reason: "no provisioning URL received".into(),
-        },
-    )?? {
+    if let ProvisioningStep::Url(url) = provision_stream
+        .next()
+        .await
+        .ok_or(ProvisioningError::MissingUrl)??
+    {
         tx.send(SecondaryDeviceProvisioning::Url(url))
             .await
             .expect("failed to send provisioning Url in channel");
     } else {
-        return Err(ProvisioningError::InvalidData {
-            reason: "wrong provisioning step received".into(),
-        });
+        return Err(ProvisioningError::InvalidStep);
     }
 
     if let ProvisioningStep::Message(message) =
-        provision_stream.next().await.ok_or(
-            ProvisioningError::InvalidData {
-                reason: "no provisioning message received".into(),
-            },
-        )??
+        provision_stream
+            .next()
+            .await
+            .ok_or(ProvisioningError::MissingMessage)??
     {
-        let aci_public_key =
-            PublicKey::deserialize(&message.aci_identity_key_public.ok_or(
-                ProvisioningError::InvalidData {
-                    reason: "missing public key".into(),
-                },
-            )?)?;
+        let aci_public_key = PublicKey::deserialize(
+            &message
+                .aci_identity_key_public
+                .ok_or(ProvisioningError::MissingPublicKey)?,
+        )
+        .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
         let aci_public_key = IdentityKey::new(aci_public_key);
 
-        let aci_private_key =
-            PrivateKey::deserialize(&message.aci_identity_key_private.ok_or(
-                ProvisioningError::InvalidData {
-                    reason: "missing public key".into(),
-                },
-            )?)?;
+        let aci_private_key = PrivateKey::deserialize(
+            &message
+                .aci_identity_key_private
+                .ok_or(ProvisioningError::MissingPrivateKey)?,
+        )
+        .map_err(|e| ProvisioningError::InvalidPrivateKey(e.into()))?;
 
-        let pni_public_key =
-            PublicKey::deserialize(&message.pni_identity_key_public.ok_or(
-                ProvisioningError::InvalidData {
-                    reason: "missing public key".into(),
-                },
-            )?)?;
+        let pni_public_key = PublicKey::deserialize(
+            &message
+                .pni_identity_key_public
+                .ok_or(ProvisioningError::MissingPublicKey)?,
+        )
+        .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
         let pni_public_key = IdentityKey::new(pni_public_key);
 
-        let pni_private_key =
-            PrivateKey::deserialize(&message.pni_identity_key_private.ok_or(
-                ProvisioningError::InvalidData {
-                    reason: "missing public key".into(),
-                },
-            )?)?;
+        let pni_private_key = PrivateKey::deserialize(
+            &message
+                .pni_identity_key_private
+                .ok_or(ProvisioningError::MissingPrivateKey)?,
+        )
+        .map_err(|e| ProvisioningError::InvalidPrivateKey(e.into()))?;
 
-        let profile_key =
-            message.profile_key.ok_or(ProvisioningError::InvalidData {
-                reason: "missing profile key".into(),
-            })?;
+        let profile_key = message
+            .profile_key
+            .ok_or(ProvisioningError::MissingProfileKey)?;
 
-        let phone_number =
-            message.number.ok_or(ProvisioningError::InvalidData {
-                reason: "missing phone number".into(),
-            })?;
+        let phone_number = message
+            .number
+            .ok_or(ProvisioningError::MissingPhoneNumber)?;
 
-        let phone_number =
-            phonenumber::parse(None, phone_number).map_err(|e| {
-                ProvisioningError::InvalidData {
-                    reason: format!("invalid phone number ({})", e).into(),
-                }
-            })?;
+        let phone_number = phonenumber::parse(None, phone_number)
+            .map_err(ProvisioningError::InvalidPhoneNumber)?;
 
-        let provisioning_code = message.provisioning_code.ok_or(
-            ProvisioningError::InvalidData {
-                reason: "no provisioning confirmation code".into(),
-            },
-        )?;
+        let provisioning_code = message
+            .provisioning_code
+            .ok_or(ProvisioningError::MissingProvisioningCode)?;
 
         let aci_key_pair =
             IdentityKeyPair::new(aci_public_key, aci_private_key);
@@ -233,6 +260,7 @@ pub async fn link_device<
             0,
         )
         .await?;
+
         let aci_pq_last_resort_pre_key =
             aci_pq_last_resort_pre_key.expect("requested last resort key");
         assert!(_aci_pre_keys.is_empty());
@@ -252,6 +280,7 @@ pub async fn link_device<
             0,
         )
         .await?;
+
         let pni_pq_last_resort_pre_key =
             pni_pq_last_resort_pre_key.expect("requested last resort key");
         assert!(_pni_pre_keys.is_empty());
@@ -319,9 +348,7 @@ pub async fn link_device<
         .await
         .expect("failed to send provisioning message in rx channel");
     } else {
-        return Err(ProvisioningError::InvalidData {
-            reason: "wrong provisioning step received".into(),
-        });
+        return Err(ProvisioningError::InvalidStep);
     }
 
     Ok(())

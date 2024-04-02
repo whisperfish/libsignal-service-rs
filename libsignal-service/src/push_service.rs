@@ -297,7 +297,8 @@ pub struct RegistrationLockFailure {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VerifyAccountResponse {
-    pub uuid: Uuid,
+    #[serde(rename = "uuid")]
+    pub aci: Uuid,
     pub pni: Uuid,
     pub storage_capable: bool,
     #[serde(default)]
@@ -1287,8 +1288,8 @@ pub trait PushService: MaybeSend {
         registration_method: RegistrationMethod<'a>,
         account_attributes: AccountAttributes,
         skip_device_transfer: bool,
-        aci_identity_key: IdentityKey,
-        pni_identity_key: IdentityKey,
+        aci_identity_key: &IdentityKey,
+        pni_identity_key: &IdentityKey,
         device_activation_request: DeviceActivationRequest,
     ) -> Result<VerifyAccountResponse, ServiceError> {
         #[derive(serde::Serialize, Debug)]

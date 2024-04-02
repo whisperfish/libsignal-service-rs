@@ -32,8 +32,7 @@ pub mod utils;
 pub mod websocket;
 
 pub use crate::account_manager::{
-    decrypt_device_name, AccountManager, LinkError, Profile,
-    ProfileManagerError,
+    decrypt_device_name, AccountManager, Profile, ProfileManagerError,
 };
 pub use crate::service_address::*;
 
@@ -96,7 +95,7 @@ pub mod prelude {
         profiles::ProfileKey,
     };
 
-    pub use libsignal_protocol::DeviceId;
+    pub use libsignal_protocol::{IdentityKeyStore, DeviceId};
 }
 
 pub use libsignal_protocol as protocol;

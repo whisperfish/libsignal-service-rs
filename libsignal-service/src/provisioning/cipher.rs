@@ -138,9 +138,7 @@ impl ProvisioningCipher {
             .body
             .expect("no body in ProvisionMessage");
         if body[0] != VERSION {
-            return Err(ProvisioningError::InvalidData {
-                reason: "Bad version number".into(),
-            });
+            return Err(ProvisioningError::BadVersionNumber);
         }
 
         let iv = &body[IV_OFFSET..(IV_LENGTH + IV_OFFSET)];
@@ -166,9 +164,7 @@ impl ProvisioningCipher {
         let our_mac = verifier.finalize().into_bytes();
         debug_assert_eq!(our_mac.len(), mac.len());
         if &our_mac[..32] != mac {
-            return Err(ProvisioningError::InvalidData {
-                reason: "wrong MAC".into(),
-            });
+            return Err(ProvisioningError::MismatchedMac);
         }
 
         // libsignal-service-java uses Pkcs5,
@@ -177,9 +173,7 @@ impl ProvisioningCipher {
         let cipher = cbc::Decryptor::<Aes256>::new(parts1.into(), iv.into());
         let input = cipher
             .decrypt_padded_vec_mut::<Pkcs7>(cipher_text)
-            .map_err(|e| ProvisioningError::InvalidData {
-                reason: format!("CBC/Padding error: {:?}", e).into(),
-            })?;
+            .map_err(ProvisioningError::AesPaddingError)?;
 
         Ok(prost::Message::decode(Bytes::from(input))?)
     }

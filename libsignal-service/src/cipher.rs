@@ -17,12 +17,7 @@ use rand::{CryptoRng, Rng};
 use uuid::Uuid;
 
 use crate::{
-    content::{Content, Metadata},
-    envelope::Envelope,
-    push_service::ServiceError,
-    sender::OutgoingPushMessage,
-    utils::BASE64_RELAXED,
-    ServiceAddress,
+    content::{Content, Metadata}, envelope::Envelope, push_service::ServiceError, sender::OutgoingPushMessage, session_store::SessionStoreExt, utils::BASE64_RELAXED, ServiceAddress
 };
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
@@ -75,7 +70,7 @@ fn debug_envelope(envelope: &Envelope) -> String {
 
 impl<S, R> ServiceCipher<S, R>
 where
-    S: ProtocolStore + KyberPreKeyStore + SenderKeyStore + Clone,
+    S:  ProtocolStore + SenderKeyStore + SessionStoreExt + Clone,
     R: Rng + CryptoRng,
 {
     pub fn new(

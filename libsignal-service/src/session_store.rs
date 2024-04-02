@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use libsignal_protocol::{ProtocolAddress, SessionStore, SignalProtocolError};
 
 use crate::{push_service::DEFAULT_DEVICE_ID, ServiceAddress};
@@ -5,8 +6,7 @@ use crate::{push_service::DEFAULT_DEVICE_ID, ServiceAddress};
 /// This is additional functions required to handle
 /// session deletion. It might be a candidate for inclusion into
 /// the bigger `SessionStore` trait.
-#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
-#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
+#[async_trait(?Send)]
 pub trait SessionStoreExt: SessionStore {
     /// Get the IDs of all known sub devices with active sessions for a recipient.
     ///
@@ -50,44 +50,36 @@ pub trait SessionStoreExt: SessionStore {
 
     // #[async_trait] sadly doesn't work here,
     // because calls to libsignal_protocol are unsend.
-    fn compute_safety_number<'s>(
+    async fn compute_safety_number<'s>(
         &'s self,
         local_address: &'s ServiceAddress,
         address: &'s ServiceAddress,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<String, SignalProtocolError>,
-                > + 's,
-        >,
-    >
+    ) -> Result<String, SignalProtocolError>
     where
         Self: Sized + libsignal_protocol::IdentityKeyStore,
     {
-        Box::pin(async move {
-            let addr = crate::cipher::get_preferred_protocol_address(
-                self,
-                address,
-                DEFAULT_DEVICE_ID.into(),
-            )
-            .await?;
-            let ident = self
-                .get_identity(&addr)
-                .await?
-                .ok_or(SignalProtocolError::UntrustedIdentity(addr))?;
-            let local = self
-                .get_identity_key_pair()
-                .await
-                .expect("valid local identity");
-            let fp = libsignal_protocol::Fingerprint::new(
-                2,
-                5200,
-                local_address.uuid.as_bytes(),
-                local.identity_key(),
-                address.uuid.as_bytes(),
-                &ident,
-            )?;
-            fp.display_string()
-        })
+        let addr = crate::cipher::get_preferred_protocol_address(
+            self,
+            address,
+            DEFAULT_DEVICE_ID.into(),
+        )
+        .await?;
+        let ident = self
+            .get_identity(&addr)
+            .await?
+            .ok_or(SignalProtocolError::UntrustedIdentity(addr))?;
+        let local = self
+            .get_identity_key_pair()
+            .await
+            .expect("valid local identity");
+        let fp = libsignal_protocol::Fingerprint::new(
+            2,
+            5200,
+            local_address.uuid.as_bytes(),
+            local.identity_key(),
+            address.uuid.as_bytes(),
+            &ident,
+        )?;
+        fp.display_string()
     }
 }
