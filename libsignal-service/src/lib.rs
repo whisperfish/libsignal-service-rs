@@ -95,7 +95,7 @@ pub mod prelude {
         profiles::ProfileKey,
     };
 
-    pub use libsignal_protocol::{IdentityKeyStore, DeviceId};
+    pub use libsignal_protocol::{DeviceId, IdentityKeyStore};
 }
 
 pub use libsignal_protocol as protocol;
