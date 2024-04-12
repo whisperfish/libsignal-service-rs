@@ -97,7 +97,6 @@ impl<Service: PushService> AccountManager<Service> {
         service_id_type: ServiceIdType,
         csprng: &mut R,
         use_last_resort_key: bool,
-        force: bool,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .service
@@ -129,7 +128,9 @@ impl<Service: PushService> AccountManager<Service> {
         if prekey_status.count >= PRE_KEY_MINIMUM
             && prekey_status.pq_count >= PRE_KEY_MINIMUM
         {
-            if !force {
+            if protocol_store.signed_pre_keys_count().await? > 0
+                && protocol_store.kyber_pre_keys_count(true).await? > 0
+            {
                 tracing::debug!("Available keys sufficient");
                 return Ok(());
             }
@@ -145,6 +146,7 @@ impl<Service: PushService> AccountManager<Service> {
             .load_last_resort_kyber_pre_keys()
             .instrument(tracing::trace_span!("fetch last resort key"))
             .await?;
+
         // XXX: Maybe this check should be done in the generate_pre_keys function?
         let has_last_resort_key = !last_resort_keys.is_empty();
 

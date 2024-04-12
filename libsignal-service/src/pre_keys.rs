@@ -83,6 +83,16 @@ pub trait PreKeysStore:
         &mut self,
         id: u32,
     ) -> Result<(), SignalProtocolError>;
+
+    /// number of signed pre-keys we currently have in store
+    async fn signed_pre_keys_count(&self)
+        -> Result<usize, SignalProtocolError>;
+
+    /// number of kyber pre-keys we currently have in store
+    async fn kyber_pre_keys_count(
+        &self,
+        last_resort: bool,
+    ) -> Result<usize, SignalProtocolError>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
