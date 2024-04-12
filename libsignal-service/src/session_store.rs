@@ -48,8 +48,6 @@ pub trait SessionStoreExt: SessionStore {
         Ok(count)
     }
 
-    // #[async_trait] sadly doesn't work here,
-    // because calls to libsignal_protocol are unsend.
     async fn compute_safety_number<'s>(
         &'s self,
         local_address: &'s ServiceAddress,

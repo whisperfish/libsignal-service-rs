@@ -1,4 +1,4 @@
-use libsignal_service::pre_keys::{PreKeysStore, ServiceKyberPreKeyStore};
+use libsignal_service::pre_keys::{KyberPreKeyStoreExt, PreKeysStore};
 use libsignal_service::protocol::{
     Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore, KyberPreKeyId,
     KyberPreKeyRecord, KyberPreKeyStore, PreKeyId, PreKeyRecord, PreKeyStore,
@@ -92,7 +92,7 @@ impl SignedPreKeyStore for ExampleStore {
 }
 
 #[async_trait::async_trait(?Send)]
-impl ServiceKyberPreKeyStore for ExampleStore {
+impl KyberPreKeyStoreExt for ExampleStore {
     async fn store_last_resort_kyber_pre_key(
         &mut self,
         _kyber_prekey_id: KyberPreKeyId,
@@ -225,6 +225,19 @@ impl PreKeysStore for ExampleStore {
         &mut self,
         _id: u32,
     ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn signed_pre_keys_count(
+        &self,
+    ) -> Result<usize, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn kyber_pre_keys_count(
+        &self,
+        _last_resort: bool,
+    ) -> Result<usize, SignalProtocolError> {
         todo!()
     }
 }
