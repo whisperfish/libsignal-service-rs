@@ -190,7 +190,7 @@ pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
 pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
-pub async fn replenish_pre_keys<
+pub(crate) async fn replenish_pre_keys<
     R: rand::Rng + rand::CryptoRng,
     P: PreKeysStore,
 >(
