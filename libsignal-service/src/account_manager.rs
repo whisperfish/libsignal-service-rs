@@ -10,7 +10,7 @@ use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, GenericSignedPreKey, IdentityKey, IdentityKeyStore, KeyPair,
     KyberPreKeyRecord, PrivateKey, ProtocolStore, PublicKey, SenderKeyStore,
-    SignalProtocolError, SignedPreKeyRecord,
+    SignedPreKeyRecord,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -64,20 +64,6 @@ pub enum ProfileManagerError {
     ProfileCipherError(#[from] ProfileCipherError),
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum LinkError {
-    #[error(transparent)]
-    ServiceError(#[from] ServiceError),
-    #[error("TsUrl has an invalid UUID field")]
-    InvalidUuid,
-    #[error("TsUrl has an invalid pub_key field")]
-    InvalidPublicKey,
-    #[error("Protocol error {0}")]
-    ProtocolError(#[from] SignalProtocolError),
-    #[error(transparent)]
-    ProvisioningError(#[from] ProvisioningError),
-}
-
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Profile {
     pub name: Option<ProfileName<String>>,
@@ -111,7 +97,6 @@ impl<Service: PushService> AccountManager<Service> {
         service_id_type: ServiceIdType,
         csprng: &mut R,
         use_last_resort_key: bool,
-        force: bool,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .service
@@ -143,7 +128,9 @@ impl<Service: PushService> AccountManager<Service> {
         if prekey_status.count >= PRE_KEY_MINIMUM
             && prekey_status.pq_count >= PRE_KEY_MINIMUM
         {
-            if !force {
+            if protocol_store.signed_pre_keys_count().await? > 0
+                && protocol_store.kyber_pre_keys_count(true).await? > 0
+            {
                 tracing::debug!("Available keys sufficient");
                 return Ok(());
             }
@@ -159,6 +146,7 @@ impl<Service: PushService> AccountManager<Service> {
             .load_last_resort_kyber_pre_keys()
             .instrument(tracing::trace_span!("fetch last resort key"))
             .await?;
+
         // XXX: Maybe this check should be done in the generate_pre_keys function?
         let has_last_resort_key = !last_resort_keys.is_empty();
 
@@ -186,7 +174,7 @@ impl<Service: PushService> AccountManager<Service> {
                 .transpose()?
         };
 
-        let identity_key = *identity_key_pair.identity_key().public_key();
+        let identity_key = *identity_key_pair.identity_key();
 
         let pre_keys: Vec<_> = pre_keys
             .into_iter()
@@ -289,16 +277,18 @@ impl<Service: PushService> AccountManager<Service> {
         aci_identity_store: &dyn IdentityKeyStore,
         pni_identity_store: &dyn IdentityKeyStore,
         credentials: ServiceCredentials,
-    ) -> Result<(), LinkError> {
+    ) -> Result<(), ProvisioningError> {
         let query: HashMap<_, _> = url.query_pairs().collect();
-        let ephemeral_id = query.get("uuid").ok_or(LinkError::InvalidUuid)?;
-        let pub_key =
-            query.get("pub_key").ok_or(LinkError::InvalidPublicKey)?;
+        let ephemeral_id =
+            query.get("uuid").ok_or(ProvisioningError::MissingUuid)?;
+        let pub_key = query
+            .get("pub_key")
+            .ok_or(ProvisioningError::MissingPublicKey)?;
         let pub_key = BASE64_RELAXED
             .decode(&**pub_key)
-            .map_err(|_e| LinkError::InvalidPublicKey)?;
+            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
         let pub_key = PublicKey::deserialize(&pub_key)
-            .map_err(|_e| LinkError::InvalidPublicKey)?;
+            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
 
         let aci_identity_key_pair =
             aci_identity_store.get_identity_key_pair().await?;
@@ -361,7 +351,7 @@ impl<Service: PushService> AccountManager<Service> {
         aci_protocol_store: &mut Aci,
         pni_protocol_store: &mut Pni,
         skip_device_transfer: bool,
-    ) -> Result<VerifyAccountResponse, LinkError> {
+    ) -> Result<VerifyAccountResponse, ProvisioningError> {
         let aci_identity_key_pair = aci_protocol_store
             .get_identity_key_pair()
             .instrument(tracing::trace_span!("get ACI identity key pair"))
@@ -421,8 +411,8 @@ impl<Service: PushService> AccountManager<Service> {
                 registration_method,
                 account_attributes,
                 skip_device_transfer,
-                *aci_identity_key,
-                *pni_identity_key,
+                aci_identity_key,
+                pni_identity_key,
                 dar,
             )
             .await?;

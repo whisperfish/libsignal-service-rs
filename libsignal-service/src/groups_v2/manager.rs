@@ -330,6 +330,7 @@ pub fn decrypt_group(
 fn current_days_seconds() -> (u64, u64) {
     let days_seconds = |date: NaiveDate| {
         date.and_time(NaiveTime::from_hms_opt(0, 0, 0).unwrap())
+            .and_utc()
             .timestamp() as u64
     };
 

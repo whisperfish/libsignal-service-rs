@@ -1,12 +1,12 @@
 use std::{convert::TryFrom, time::SystemTime};
 
-use crate::utils::{serde_base64, serde_public_key};
+use crate::utils::{serde_base64, serde_identity_key};
 use async_trait::async_trait;
 use libsignal_protocol::{
-    error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKeyPair,
-    IdentityKeyStore, KeyPair, KyberPreKeyId, KyberPreKeyRecord,
-    KyberPreKeyStore, PreKeyRecord, PreKeyStore, PublicKey, SignedPreKeyRecord,
-    SignedPreKeyStore,
+    error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKey,
+    IdentityKeyPair, IdentityKeyStore, KeyPair, KyberPreKeyId,
+    KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore,
+    SignedPreKeyRecord, SignedPreKeyStore,
 };
 
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ use tracing::Instrument;
 /// Additional methods for the Kyber pre key store
 ///
 /// Analogue of Android's ServiceKyberPreKeyStore
-pub trait ServiceKyberPreKeyStore: KyberPreKeyStore {
+pub trait KyberPreKeyStoreExt: KyberPreKeyStore {
     async fn store_last_resort_kyber_pre_key(
         &mut self,
         kyber_prekey_id: KyberPreKeyId,
@@ -55,7 +55,7 @@ pub trait PreKeysStore:
     + IdentityKeyStore
     + SignedPreKeyStore
     + KyberPreKeyStore
-    + ServiceKyberPreKeyStore
+    + KyberPreKeyStoreExt
 {
     /// ID of the next pre key
     async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
@@ -83,6 +83,16 @@ pub trait PreKeysStore:
         &mut self,
         id: u32,
     ) -> Result<(), SignalProtocolError>;
+
+    /// number of signed pre-keys we currently have in store
+    async fn signed_pre_keys_count(&self)
+        -> Result<usize, SignalProtocolError>;
+
+    /// number of kyber pre-keys we currently have in store
+    async fn kyber_pre_keys_count(
+        &self,
+        last_resort: bool,
+    ) -> Result<usize, SignalProtocolError>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -169,8 +179,8 @@ impl TryFrom<KyberPreKeyRecord> for KyberPreKeyEntity {
 pub struct PreKeyState {
     pub pre_keys: Vec<PreKeyEntity>,
     pub signed_pre_key: SignedPreKeyEntity,
-    #[serde(with = "serde_public_key")]
-    pub identity_key: PublicKey,
+    #[serde(with = "serde_identity_key")]
+    pub identity_key: IdentityKey,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pq_last_resort_key: Option<KyberPreKeyEntity>,
     pub pq_pre_keys: Vec<KyberPreKeyEntity>,

@@ -85,14 +85,14 @@ pub mod serde_optional_base64 {
     }
 }
 
-pub mod serde_public_key {
+pub mod serde_identity_key {
     use super::BASE64_RELAXED;
     use base64::prelude::*;
-    use libsignal_protocol::PublicKey;
+    use libsignal_protocol::IdentityKey;
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S>(
-        public_key: &PublicKey,
+        public_key: &IdentityKey,
         serializer: S,
     ) -> Result<S::Ok, S::Error>
     where
@@ -102,11 +102,11 @@ pub mod serde_public_key {
         serializer.serialize_str(&BASE64_RELAXED.encode(&public_key))
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<PublicKey, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<IdentityKey, D::Error>
     where
         D: Deserializer<'de>,
     {
-        PublicKey::deserialize(
+        IdentityKey::decode(
             &BASE64_RELAXED
                 .decode(String::deserialize(deserializer)?)
                 .map_err(serde::de::Error::custom)?,
@@ -115,16 +115,16 @@ pub mod serde_public_key {
     }
 }
 
-pub mod serde_optional_public_key {
+pub mod serde_optional_identity_key {
     use super::BASE64_RELAXED;
     use base64::prelude::*;
-    use libsignal_protocol::PublicKey;
+    use libsignal_protocol::IdentityKey;
     use serde::{Deserialize, Deserializer, Serializer};
 
-    use super::serde_public_key;
+    use super::serde_identity_key;
 
     pub fn serialize<S>(
-        public_key: &Option<PublicKey>,
+        public_key: &Option<IdentityKey>,
         serializer: S,
     ) -> Result<S::Ok, S::Error>
     where
@@ -132,7 +132,7 @@ pub mod serde_optional_public_key {
     {
         match public_key {
             Some(public_key) => {
-                serde_public_key::serialize(public_key, serializer)
+                serde_identity_key::serialize(public_key, serializer)
             },
             None => serializer.serialize_none(),
         }
@@ -140,13 +140,13 @@ pub mod serde_optional_public_key {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> Result<Option<PublicKey>, D::Error>
+    ) -> Result<Option<IdentityKey>, D::Error>
     where
         D: Deserializer<'de>,
     {
         match Option::<String>::deserialize(deserializer)? {
             Some(public_key) => Ok(Some(
-                PublicKey::deserialize(
+                IdentityKey::decode(
                     &BASE64_RELAXED
                         .decode(public_key)
                         .map_err(serde::de::Error::custom)?,

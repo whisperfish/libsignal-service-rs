@@ -21,6 +21,7 @@ use crate::{
     envelope::Envelope,
     push_service::ServiceError,
     sender::OutgoingPushMessage,
+    session_store::SessionStoreExt,
     utils::BASE64_RELAXED,
     ServiceAddress,
 };
@@ -75,7 +76,7 @@ fn debug_envelope(envelope: &Envelope) -> String {
 
 impl<S, R> ServiceCipher<S, R>
 where
-    S: ProtocolStore + KyberPreKeyStore + SenderKeyStore + Clone,
+    S: ProtocolStore + SenderKeyStore + SessionStoreExt + Clone,
     R: Rng + CryptoRng,
 {
     pub fn new(
