@@ -140,7 +140,12 @@ impl Envelope {
             .as_deref()
             .map(Uuid::parse_str)
             .transpose()
-            .expect("valid uuid checked in constructor")
+            .unwrap_or_else(|e| {
+                panic!(
+                    "valid uuid checked in constructor: {:?} -- {:?}",
+                    self.source_service_id, e
+                )
+            })
             .expect("source_service_id is set");
 
         ServiceAddress { uuid }
