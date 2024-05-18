@@ -4,6 +4,8 @@ use libsignal_protocol::{DeviceId, ProtocolAddress};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub use crate::push_service::ServiceIdType;
+
 #[derive(thiserror::Error, Debug, Clone)]
 pub enum ParseServiceAddressError {
     #[error("Supplied UUID could not be parsed")]
@@ -16,6 +18,7 @@ pub enum ParseServiceAddressError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ServiceAddress {
     pub uuid: Uuid,
+    pub identity: ServiceIdType,
 }
 
 impl ServiceAddress {
@@ -37,7 +40,10 @@ impl ServiceAddress {
 
 impl From<Uuid> for ServiceAddress {
     fn from(uuid: Uuid) -> Self {
-        Self { uuid }
+        Self {
+            uuid,
+            identity: ServiceIdType::AccountIdentity,
+        }
     }
 }
 
@@ -45,9 +51,35 @@ impl TryFrom<&str> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(ServiceAddress {
-            uuid: Uuid::parse_str(value)?,
-        })
+        if value.starts_with("PNI:") {
+            Ok(ServiceAddress {
+                uuid: Uuid::parse_str(value.strip_prefix("PNI:").unwrap())?,
+                identity: ServiceIdType::PhoneNumberIdentity,
+            })
+        } else {
+            Ok(ServiceAddress {
+                uuid: Uuid::parse_str(value)?,
+                identity: ServiceIdType::AccountIdentity,
+            })
+        }
+    }
+}
+
+impl TryFrom<&[u8]> for ServiceAddress {
+    type Error = ParseServiceAddressError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        if value.starts_with(b"PNI:") {
+            Ok(ServiceAddress {
+                uuid: Uuid::from_slice(value.strip_prefix(b"PNI:").unwrap())?,
+                identity: ServiceIdType::PhoneNumberIdentity,
+            })
+        } else {
+            Ok(ServiceAddress {
+                uuid: Uuid::from_slice(value)?,
+                identity: ServiceIdType::AccountIdentity,
+            })
+        }
     }
 }
 
@@ -55,9 +87,8 @@ impl TryFrom<Option<&str>> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
     fn try_from(value: Option<&str>) -> Result<Self, Self::Error> {
-        match value.map(Uuid::parse_str) {
-            Some(Ok(uuid)) => Ok(ServiceAddress { uuid }),
-            Some(Err(e)) => Err(ParseServiceAddressError::InvalidUuid(e)),
+        match value {
+            Some(uuid) => ServiceAddress::try_from(uuid),
             None => Err(ParseServiceAddressError::NoUuid),
         }
     }
@@ -67,9 +98,8 @@ impl TryFrom<Option<&[u8]>> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
     fn try_from(value: Option<&[u8]>) -> Result<Self, Self::Error> {
-        match value.map(Uuid::from_slice) {
-            Some(Ok(uuid)) => Ok(ServiceAddress { uuid }),
-            Some(Err(e)) => Err(ParseServiceAddressError::InvalidUuid(e)),
+        match value {
+            Some(uuid) => ServiceAddress::try_from(uuid),
             None => Err(ParseServiceAddressError::NoUuid),
         }
     }
