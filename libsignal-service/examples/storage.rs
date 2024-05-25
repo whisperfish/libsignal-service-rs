@@ -9,6 +9,12 @@ use libsignal_service::protocol::{
 #[derive(Default)]
 pub struct ExampleStore {}
 
+impl Default for ExampleStore {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExampleStore {
     pub fn new() -> Self {
         Self::default()
