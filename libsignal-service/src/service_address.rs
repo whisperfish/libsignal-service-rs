@@ -47,6 +47,31 @@ impl From<Uuid> for ServiceAddress {
     }
 }
 
+impl TryFrom<&ProtocolAddress> for ServiceAddress {
+    type Error = ParseServiceAddressError;
+
+    fn try_from(addr: &ProtocolAddress) -> Result<Self, Self::Error> {
+        let value = addr.name();
+        if value.starts_with("PNI:") {
+            Ok(ServiceAddress {
+                uuid: Uuid::parse_str(value.strip_prefix("PNI:").unwrap())?,
+                identity: ServiceIdType::PhoneNumberIdentity,
+            })
+        } else {
+            match Uuid::parse_str(value) {
+                Ok(uuid) => Ok(ServiceAddress {
+                    uuid,
+                    identity: ServiceIdType::AccountIdentity,
+                }),
+                Err(e) => {
+                    tracing::error!("Unknown identity format: {}", value);
+                    Err(ParseServiceAddressError::InvalidUuid(e))
+                },
+            }
+        }
+    }
+}
+
 impl TryFrom<&str> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
