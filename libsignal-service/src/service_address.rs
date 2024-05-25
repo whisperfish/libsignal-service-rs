@@ -69,9 +69,9 @@ impl TryFrom<&[u8]> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if value.starts_with(b"PNI:") {
+        if let Some(pni) = value.strip_prefix(b"PNI:") {
             Ok(ServiceAddress {
-                uuid: Uuid::from_slice(value.strip_prefix(b"PNI:").unwrap())?,
+                uuid: Uuid::from_slice(pni)?,
                 identity: ServiceIdType::PhoneNumberIdentity,
             })
         } else {
