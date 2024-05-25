@@ -52,9 +52,9 @@ impl TryFrom<&ProtocolAddress> for ServiceAddress {
 
     fn try_from(addr: &ProtocolAddress) -> Result<Self, Self::Error> {
         let value = addr.name();
-        if value.starts_with("PNI:") {
+        if let Some(pni) = value.strip_prefix("PNI:") {
             Ok(ServiceAddress {
-                uuid: Uuid::parse_str(value.strip_prefix("PNI:").unwrap())?,
+                uuid: Uuid::parse_str(pni)?,
                 identity: ServiceIdType::PhoneNumberIdentity,
             })
         } else {
