@@ -8,7 +8,6 @@ use libsignal_protocol::{
 use rand::{CryptoRng, Rng};
 use tracing::{info, trace};
 use tracing_futures::Instrument;
-use uuid::Uuid;
 
 use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
@@ -119,8 +118,8 @@ pub enum MessageSenderError {
     #[error("Proof of type {options:?} required using token {token}")]
     ProofRequired { token: String, options: Vec<String> },
 
-    #[error("Recipient not found: {uuid}")]
-    NotFound { uuid: Uuid },
+    #[error("Recipient not found: {addr:?}")]
+    NotFound { addr: ServiceAddress },
 }
 
 impl<Service, S, R> MessageSender<Service, S, R>
@@ -599,7 +598,7 @@ where
                 Err(ServiceError::NotFoundError) => {
                     tracing::debug!("Not found when sending a message");
                     return Err(MessageSenderError::NotFound {
-                        uuid: recipient.uuid,
+                        addr: recipient,
                     });
                 },
                 Err(e) => {
@@ -806,7 +805,7 @@ where
                 },
                 Err(ServiceError::NotFoundError) => {
                     return Err(MessageSenderError::NotFound {
-                        uuid: recipient.uuid,
+                        addr: *recipient,
                     });
                 },
                 Err(e) => Err(e)?,
