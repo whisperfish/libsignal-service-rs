@@ -36,6 +36,15 @@ impl ServiceAddress {
     pub fn pni(&self) -> libsignal_protocol::Pni {
         libsignal_protocol::Pni::from_uuid_bytes(self.uuid.into_bytes())
     }
+
+    pub fn to_service_id(&self) -> String {
+        match self.identity {
+            ServiceIdType::AccountIdentity => self.uuid.to_string(),
+            ServiceIdType::PhoneNumberIdentity => {
+                format!("PNI:{}", self.uuid)
+            },
+        }
+    }
 }
 
 impl From<Uuid> for ServiceAddress {
