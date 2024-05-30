@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, hash::Hash, hash::Hasher};
 
 use libsignal_protocol::{DeviceId, ProtocolAddress};
 use serde::{Deserialize, Serialize};
@@ -136,5 +136,11 @@ impl TryFrom<Option<&[u8]>> for ServiceAddress {
             Some(uuid) => ServiceAddress::try_from(uuid),
             None => Err(ParseServiceAddressError::NoUuid),
         }
+    }
+}
+
+impl Hash for ServiceAddress {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_service_id().hash(state);
     }
 }
