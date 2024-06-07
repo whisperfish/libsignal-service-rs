@@ -8,9 +8,9 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    kem, GenericSignedPreKey, IdentityKey, IdentityKeyStore, KeyPair,
-    KyberPreKeyRecord, PrivateKey, ProtocolStore, PublicKey, SenderKeyStore,
-    SignedPreKeyRecord,
+    kem, GenericSignedPreKey, IdentityKey, IdentityKeyPair, IdentityKeyStore,
+    KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore, PublicKey,
+    SenderKeyStore, SignedPreKeyRecord,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{
-    AvatarWrite, DeviceActivationRequest, RecaptchaAttributes,
+    AvatarWrite, DeviceActivationRequest, DeviceInfo, RecaptchaAttributes,
     RegistrationMethod, ServiceIdType, VerifyAccountResponse,
     DEFAULT_DEVICE_ID,
 };
@@ -337,6 +337,35 @@ impl<Service: PushService> AccountManager<Service> {
         self.send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
+    }
+
+    pub async fn linked_devices(
+        &mut self,
+        aci_identity_store: &dyn IdentityKeyStore,
+    ) -> Result<Vec<DeviceInfo>, ServiceError> {
+        let device_infos = self.service.devices().await?;
+        let aci_identity_keypair =
+            aci_identity_store.get_identity_key_pair().await?;
+
+        device_infos
+            .into_iter()
+            .map(|i| {
+                Ok(DeviceInfo {
+                    id: i.id,
+                    name: i
+                        .name
+                        .map(|s| {
+                            decrypt_device_name_from_device_info(
+                                &s,
+                                &aci_identity_keypair,
+                            )
+                        })
+                        .transpose()?,
+                    created: i.created,
+                    last_seen: i.last_seen,
+                })
+            })
+            .collect()
     }
 
     pub async fn register_account<
@@ -839,6 +868,15 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     };
 
     Ok(device_name)
+}
+
+fn decrypt_device_name_from_device_info(
+    string: &str,
+    aci: &IdentityKeyPair,
+) -> Result<String, ServiceError> {
+    let data = BASE64_RELAXED.decode(string)?;
+    let name = DeviceName::decode(&*data)?;
+    Ok(crate::decrypt_device_name(&aci.private_key(), &name)?)
 }
 
 pub fn decrypt_device_name(
