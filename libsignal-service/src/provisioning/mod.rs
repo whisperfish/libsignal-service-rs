@@ -14,7 +14,7 @@ use libsignal_protocol::{
     DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey,
 };
 use prost::Message;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use url::Url;
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
@@ -31,7 +31,6 @@ use crate::{
         HttpAuth, LinkAccountAttributes, LinkCapabilities, LinkRequest,
         LinkResponse, PushService, ServiceIds,
     },
-    utils::serde_base64,
 };
 
 pub use crate::proto::{
@@ -100,20 +99,6 @@ pub fn generate_registration_id<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
 ) -> u32 {
     csprng.gen_range(1..16380)
-}
-
-/// Message received when linking a new secondary device.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct ConfirmDeviceMessage {
-    #[serde(with = "serde_base64")]
-    pub signaling_key: Vec<u8>,
-    pub supports_sms: bool,
-    pub fetches_messages: bool,
-    pub registration_id: u32,
-    pub pni_registration_id: u32,
-    #[serde(with = "serde_base64", skip_serializing_if = "Vec::is_empty")]
-    pub name: Vec<u8>,
 }
 
 #[derive(Debug, Deserialize)]

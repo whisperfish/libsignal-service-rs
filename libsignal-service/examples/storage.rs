@@ -6,11 +6,12 @@ use libsignal_service::protocol::{
     SignedPreKeyStore,
 };
 
+#[derive(Default)]
 pub struct ExampleStore {}
 
 impl ExampleStore {
     pub fn new() -> Self {
-        Self {}
+        Self::default()
     }
 }
 

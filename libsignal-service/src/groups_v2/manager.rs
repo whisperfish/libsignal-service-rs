@@ -43,7 +43,7 @@ impl CredentialResponse {
             .into_iter()
             .map(|c| {
                 let bytes = BASE64_RELAXED.decode(c.credential)?;
-                let data = bincode::deserialize(&bytes)?;
+                let data = AuthCredentialWithPniResponse::new(&bytes)?;
                 Ok((c.redemption_time, data))
             })
             .collect::<Result<_, ServiceError>>()
@@ -185,7 +185,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
 
         self.get_authorization_string(
             group_secret_params,
-            auth_credential_response,
+            auth_credential_response.clone(),
             today,
         )
     }
@@ -193,7 +193,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
     fn get_authorization_string(
         &self,
         group_secret_params: GroupSecretParams,
-        credential_response: &AuthCredentialWithPniResponse,
+        credential_response: AuthCredentialWithPniResponse,
         today: u64,
     ) -> Result<HttpAuth, ServiceError> {
         let auth_credential = self
@@ -201,7 +201,7 @@ impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
             .receive_auth_credential_with_pni_as_service_id(
                 self.service_ids.aci(),
                 self.service_ids.pni(),
-                today,
+                zkgroup::Timestamp::from_epoch_seconds(today),
                 credential_response,
             )
             .map_err(|e| {

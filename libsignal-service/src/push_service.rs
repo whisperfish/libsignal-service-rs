@@ -26,7 +26,10 @@ use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
+use zkgroup::{
+    profiles::{ProfileKeyCommitment, ProfileKeyVersion},
+    ZkGroupDeserializationFailure,
+};
 
 /**
 Since we can't use format!() with constants, the URLs here are just for reference purposes
@@ -578,6 +581,9 @@ pub enum ServiceError {
 
     #[error(transparent)]
     GroupsV2DecryptionError(#[from] GroupDecodingError),
+
+    #[error(transparent)]
+    ZkGroupDeserializationFailure(#[from] ZkGroupDeserializationFailure),
 
     #[error("unsupported content")]
     UnsupportedContent,
