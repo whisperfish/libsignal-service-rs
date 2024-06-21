@@ -85,13 +85,12 @@ impl From<TungsteniteWebSocketError> for ServiceError {
 // }
 
 // Process the WebSocket, until it times out.
-async fn process<S: Stream>(
+async fn process<S>(
     socket_stream: S,
     mut incoming_sink: Sender<WebSocketStreamItem>,
 ) -> Result<(), TungsteniteWebSocketError>
 where
-    S: Unpin,
-    S: Stream<Item = Result<Message, TungsteniteError>>,
+    S: Stream<Item = Result<Message, TungsteniteError>> + Unpin,
 {
     let mut socket_stream = socket_stream.fuse();
 

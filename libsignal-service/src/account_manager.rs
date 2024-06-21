@@ -2,7 +2,6 @@ use base64::prelude::*;
 use phonenumber::PhoneNumber;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
-use std::time::SystemTime;
 
 use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
@@ -10,7 +9,7 @@ use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, GenericSignedPreKey, IdentityKey, IdentityKeyPair, IdentityKeyStore,
     KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore, PublicKey,
-    SenderKeyStore, SignedPreKeyRecord,
+    SenderKeyStore, SignedPreKeyRecord, Timestamp,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -34,6 +33,7 @@ use crate::push_service::{
 };
 use crate::sender::OutgoingPushMessage;
 use crate::session_store::SessionStoreExt;
+use crate::timestamp::TimestampExt as _;
 use crate::utils::{random_length_padding, BASE64_RELAXED};
 use crate::ServiceAddress;
 use crate::{
@@ -713,13 +713,9 @@ impl<Service: PushService> AccountManager<Service> {
                         csprng,
                     )?;
 
-                let unix_time = SystemTime::now()
-                    .duration_since(SystemTime::UNIX_EPOCH)
-                    .unwrap();
-
                 let signed_prekey_record = SignedPreKeyRecord::new(
                     csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
-                    unix_time.as_millis() as u64,
+                    Timestamp::now(),
                     &signed_pre_key_pair,
                     &signed_pre_key_signature,
                 );
@@ -743,11 +739,7 @@ impl<Service: PushService> AccountManager<Service> {
             } else {
                 loop {
                     let regid = generate_registration_id(csprng);
-                    if pni_registration_ids
-                        .iter()
-                        .find(|(_k, v)| **v == regid)
-                        .is_none()
-                    {
+                    if !pni_registration_ids.iter().any(|(_k, v)| *v == regid) {
                         break regid;
                     }
                 }
@@ -876,7 +868,7 @@ fn decrypt_device_name_from_device_info(
 ) -> Result<String, ServiceError> {
     let data = BASE64_RELAXED.decode(string)?;
     let name = DeviceName::decode(&*data)?;
-    Ok(crate::decrypt_device_name(&aci.private_key(), &name)?)
+    crate::decrypt_device_name(aci.private_key(), &name)
 }
 
 pub fn decrypt_device_name(
@@ -936,11 +928,11 @@ mod tests {
         let device_name = super::encrypt_device_name(
             &mut csprng,
             input_device_name,
-            &identity.identity_key(),
+            identity.identity_key(),
         )?;
 
         let decrypted_device_name =
-            super::decrypt_device_name(&identity.private_key(), &device_name)?;
+            super::decrypt_device_name(identity.private_key(), &device_name)?;
 
         assert_eq!(input_device_name, decrypted_device_name);
 

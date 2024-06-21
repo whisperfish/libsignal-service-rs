@@ -1,12 +1,15 @@
-use std::{convert::TryFrom, time::SystemTime};
+use std::convert::TryFrom;
 
-use crate::utils::{serde_base64, serde_identity_key};
+use crate::{
+    timestamp::TimestampExt as _,
+    utils::{serde_base64, serde_identity_key},
+};
 use async_trait::async_trait;
 use libsignal_protocol::{
     error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKey,
     IdentityKeyPair, IdentityKeyStore, KeyPair, KyberPreKeyId,
     KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore,
-    SignedPreKeyRecord, SignedPreKeyStore,
+    SignedPreKeyRecord, SignedPreKeyStore, Timestamp,
 };
 
 use serde::{Deserialize, Serialize};
@@ -264,13 +267,9 @@ pub(crate) async fn replenish_pre_keys<
         .private_key()
         .calculate_signature(&signed_pre_key_public.serialize(), csprng)?;
 
-    let unix_time = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap();
-
     let signed_prekey_record = SignedPreKeyRecord::new(
         next_signed_pre_key_id.into(),
-        unix_time.as_millis() as u64,
+        Timestamp::now(),
         &signed_pre_key_pair,
         &signed_pre_key_signature,
     );

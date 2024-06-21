@@ -10,7 +10,7 @@ use libsignal_protocol::{
     PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
     PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, SessionStore, SignalMessage,
-    SignalProtocolError, SignedPreKeyStore,
+    SignalProtocolError, SignedPreKeyStore, Timestamp,
 };
 use prost::Message;
 use rand::{CryptoRng, Rng};
@@ -182,7 +182,7 @@ where
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
-                    &mut self.protocol_store.clone(),
+                    &self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.csprng,
                 )
@@ -265,7 +265,7 @@ where
                 } = sealed_sender_decrypt(
                     ciphertext,
                     &self.trust_root,
-                    envelope.timestamp(),
+                    Timestamp::from_epoch_millis(envelope.timestamp()),
                     None,
                     self.local_uuid.to_string(),
                     self.local_device_id.into(),
@@ -498,7 +498,7 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 async fn sealed_sender_decrypt(
     ciphertext: &[u8],
     trust_root: &PublicKey,
-    timestamp: u64,
+    timestamp: Timestamp,
     local_e164: Option<String>,
     local_uuid: String,
     local_device_id: DeviceId,
