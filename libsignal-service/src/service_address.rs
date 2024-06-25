@@ -137,28 +137,6 @@ impl TryFrom<&[u8]> for ServiceAddress {
     }
 }
 
-impl TryFrom<Option<&str>> for ServiceAddress {
-    type Error = ParseServiceAddressError;
-
-    fn try_from(value: Option<&str>) -> Result<Self, Self::Error> {
-        match value {
-            Some(uuid) => ServiceAddress::try_from(uuid),
-            None => Err(ParseServiceAddressError::NoUuid),
-        }
-    }
-}
-
-impl TryFrom<Option<&[u8]>> for ServiceAddress {
-    type Error = ParseServiceAddressError;
-
-    fn try_from(value: Option<&[u8]>) -> Result<Self, Self::Error> {
-        match value {
-            Some(uuid) => ServiceAddress::try_from(uuid),
-            None => Err(ParseServiceAddressError::NoUuid),
-        }
-    }
-}
-
 impl Hash for ServiceAddress {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.to_service_id().hash(state);
