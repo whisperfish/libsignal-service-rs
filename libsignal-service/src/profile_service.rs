@@ -22,7 +22,7 @@ impl ProfileService {
         let endpoint = match profile_key {
             Some(key) => {
                 let version = bincode::serialize(
-                    &key.get_profile_key_version(address.aci()),
+                    &key.get_profile_key_version(address.aci().unwrap()),
                 )?;
                 let version = std::str::from_utf8(&version)
                     .expect("hex encoded profile key version");

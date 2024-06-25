@@ -29,12 +29,24 @@ impl ServiceAddress {
         ProtocolAddress::new(self.uuid.to_string(), device_id.into())
     }
 
-    pub fn aci(&self) -> libsignal_protocol::Aci {
-        libsignal_protocol::Aci::from_uuid_bytes(self.uuid.into_bytes())
+    pub fn aci(&self) -> Option<libsignal_protocol::Aci> {
+        use libsignal_protocol::Aci;
+        match self.identity {
+            ServiceIdType::AccountIdentity => {
+                Some(Aci::from_uuid_bytes(self.uuid.into_bytes()))
+            },
+            ServiceIdType::PhoneNumberIdentity => None,
+        }
     }
 
-    pub fn pni(&self) -> libsignal_protocol::Pni {
-        libsignal_protocol::Pni::from_uuid_bytes(self.uuid.into_bytes())
+    pub fn pni(&self) -> Option<libsignal_protocol::Pni> {
+        use libsignal_protocol::Pni;
+        match self.identity {
+            ServiceIdType::AccountIdentity => None,
+            ServiceIdType::PhoneNumberIdentity => {
+                Some(Pni::from_uuid_bytes(self.uuid.into_bytes()))
+            },
+        }
     }
 
     pub fn to_service_id(&self) -> String {
