@@ -699,9 +699,22 @@ where
         devices.insert(DEFAULT_DEVICE_ID.into());
 
         // never try to send messages to the sender device
-        if recipient.aci() == self.local_aci.aci() {
-            devices.remove(&self.device_id);
-        }
+        match recipient.identity {
+            ServiceIdType::AccountIdentity => {
+                if recipient.aci().is_some()
+                    && recipient.aci() == self.local_aci.aci()
+                {
+                    devices.remove(&self.device_id);
+                }
+            },
+            ServiceIdType::PhoneNumberIdentity => {
+                if recipient.pni().is_some()
+                    && recipient.pni() == self.local_aci.pni()
+                {
+                    devices.remove(&self.device_id);
+                }
+            },
+        };
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
