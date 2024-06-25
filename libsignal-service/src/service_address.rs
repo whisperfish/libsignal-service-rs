@@ -26,7 +26,15 @@ impl ServiceAddress {
         &self,
         device_id: impl Into<DeviceId>,
     ) -> ProtocolAddress {
-        ProtocolAddress::new(self.uuid.to_string(), device_id.into())
+        match self.identity {
+            ServiceIdType::AccountIdentity => {
+                ProtocolAddress::new(self.uuid.to_string(), device_id.into())
+            },
+            ServiceIdType::PhoneNumberIdentity => ProtocolAddress::new(
+                format!("PNI:{}", self.uuid),
+                device_id.into(),
+            ),
+        }
     }
 
     pub fn aci(&self) -> Option<libsignal_protocol::Aci> {
