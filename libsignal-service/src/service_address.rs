@@ -1,4 +1,4 @@
-use std::{convert::TryFrom, hash::Hash, hash::Hasher};
+use std::convert::TryFrom;
 
 use libsignal_protocol::{DeviceId, ProtocolAddress};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ pub enum ParseServiceAddressError {
     NoUuid,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub struct ServiceAddress {
     pub uuid: Uuid,
     pub identity: ServiceIdType,
@@ -134,11 +134,5 @@ impl TryFrom<&[u8]> for ServiceAddress {
                 identity: ServiceIdType::AccountIdentity,
             })
         }
-    }
-}
-
-impl Hash for ServiceAddress {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.to_service_id().hash(state);
     }
 }
