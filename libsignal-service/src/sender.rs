@@ -656,6 +656,25 @@ where
         Ok(())
     }
 
+    /// Send `Configuration` synchronization message
+    #[tracing::instrument(skip(self))]
+    pub async fn send_configuration(
+        &mut self,
+        recipient: &ServiceAddress,
+        configuration: sync_message::Configuration,
+    ) -> Result<(), MessageSenderError> {
+        let msg = SyncMessage {
+            configuration: Some(configuration),
+            ..SyncMessage::with_padding()
+        };
+
+        let ts = Utc::now().timestamp_millis() as u64;
+        self.send_message(recipient, None, msg, ts, false, false)
+            .await?;
+
+        Ok(())
+    }
+
     #[tracing::instrument(level = "trace", skip(self))]
     fn create_pni_signature(
         &mut self,
