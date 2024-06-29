@@ -86,22 +86,14 @@ impl TryFrom<&ProtocolAddress> for ServiceAddress {
     fn try_from(addr: &ProtocolAddress) -> Result<Self, Self::Error> {
         let value = addr.name();
         if let Some(pni) = value.strip_prefix("PNI:") {
-            Ok(ServiceAddress {
-                uuid: Uuid::parse_str(pni)?,
-                identity: ServiceIdType::PhoneNumberIdentity,
-            })
+            Ok(ServiceAddress::new_pni(Uuid::parse_str(pni)?))
         } else {
-            match Uuid::parse_str(value) {
-                Ok(uuid) => Ok(ServiceAddress {
-                    uuid,
-                    identity: ServiceIdType::AccountIdentity,
-                }),
-                Err(e) => {
-                    tracing::error!("Unknown identity format: {}", value);
-                    Err(ParseServiceAddressError::InvalidUuid(e))
-                },
-            }
+            Ok(ServiceAddress::new_aci(Uuid::parse_str(value)?))
         }
+        .map_err(|e| {
+            tracing::error!("Parsing ServiceAddress from {:?}", addr);
+            ParseServiceAddressError::InvalidUuid(e)
+        })
     }
 }
 
@@ -109,17 +101,15 @@ impl TryFrom<&str> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if value.starts_with("PNI:") {
-            Ok(ServiceAddress {
-                uuid: Uuid::parse_str(value.strip_prefix("PNI:").expect("invalid UUID in PNI ProtocolAddress"))?,
-                identity: ServiceIdType::PhoneNumberIdentity,
-            })
+        if let Some(pni) = value.strip_prefix("PNI:") {
+            Ok(ServiceAddress::new_pni(Uuid::parse_str(pni)?))
         } else {
-            Ok(ServiceAddress {
-                uuid: Uuid::parse_str(value)?,
-                identity: ServiceIdType::AccountIdentity,
-            })
+            Ok(ServiceAddress::new_aci(Uuid::parse_str(value)?))
         }
+        .map_err(|e| {
+            tracing::error!("Parsing ServiceAddress from '{}'", value);
+            ParseServiceAddressError::InvalidUuid(e)
+        })
     }
 }
 
@@ -128,15 +118,13 @@ impl TryFrom<&[u8]> for ServiceAddress {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if let Some(pni) = value.strip_prefix(b"PNI:") {
-            Ok(ServiceAddress {
-                uuid: Uuid::from_slice(pni)?,
-                identity: ServiceIdType::PhoneNumberIdentity,
-            })
+            Ok(ServiceAddress::new_pni(Uuid::from_slice(pni)?))
         } else {
-            Ok(ServiceAddress {
-                uuid: Uuid::from_slice(value)?,
-                identity: ServiceIdType::AccountIdentity,
-            })
+            Ok(ServiceAddress::new_aci(Uuid::from_slice(value)?))
         }
+        .map_err(|e| {
+            tracing::error!("Parsing ServiceAddress from {:?}", value);
+            ParseServiceAddressError::InvalidUuid(e)
+        })
     }
 }
