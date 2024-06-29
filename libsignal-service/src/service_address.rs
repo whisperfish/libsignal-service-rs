@@ -36,6 +36,20 @@ impl ServiceAddress {
         }
     }
 
+    pub fn new_aci(uuid: Uuid) -> Self {
+        Self {
+            uuid,
+            identity: ServiceIdType::AccountIdentity,
+        }
+    }
+
+    pub fn new_pni(uuid: Uuid) -> Self {
+        Self {
+            uuid,
+            identity: ServiceIdType::PhoneNumberIdentity,
+        }
+    }
+
     pub fn aci(&self) -> Option<libsignal_protocol::Aci> {
         use libsignal_protocol::Aci;
         match self.identity {
@@ -62,15 +76,6 @@ impl ServiceAddress {
             ServiceIdType::PhoneNumberIdentity => {
                 format!("PNI:{}", self.uuid)
             },
-        }
-    }
-}
-
-impl From<Uuid> for ServiceAddress {
-    fn from(uuid: Uuid) -> Self {
-        Self {
-            uuid,
-            identity: ServiceIdType::AccountIdentity,
         }
     }
 }
