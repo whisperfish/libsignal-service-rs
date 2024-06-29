@@ -1,7 +1,6 @@
 use std::convert::TryFrom;
 
 use libsignal_protocol::{DeviceId, ProtocolAddress};
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub use crate::push_service::ServiceIdType;
@@ -15,7 +14,7 @@ pub enum ParseServiceAddressError {
     NoUuid,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct ServiceAddress {
     pub uuid: Uuid,
     pub identity: ServiceIdType,

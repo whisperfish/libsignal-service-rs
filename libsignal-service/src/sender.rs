@@ -37,7 +37,7 @@ pub struct OutgoingPushMessage {
 
 #[derive(serde::Serialize, Debug)]
 pub struct OutgoingPushMessages {
-    pub recipient: ServiceAddress,
+    pub destination: uuid::Uuid,
     pub timestamp: u64,
     pub messages: Vec<OutgoingPushMessage>,
     pub online: bool,
@@ -498,7 +498,7 @@ where
                 .await?;
 
             let messages = OutgoingPushMessages {
-                recipient,
+                destination: recipient.uuid,
                 timestamp,
                 messages,
                 online,
