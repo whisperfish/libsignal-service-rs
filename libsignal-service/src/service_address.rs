@@ -106,7 +106,7 @@ impl TryFrom<&str> for ServiceAddress {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if value.starts_with("PNI:") {
             Ok(ServiceAddress {
-                uuid: Uuid::parse_str(value.strip_prefix("PNI:").unwrap())?,
+                uuid: Uuid::parse_str(value.strip_prefix("PNI:").expect("invalid UUID in PNI ProtocolAddress"))?,
                 identity: ServiceIdType::PhoneNumberIdentity,
             })
         } else {

@@ -21,9 +21,10 @@ impl ProfileService {
     ) -> Result<SignalServiceProfile, ServiceError> {
         let endpoint = match profile_key {
             Some(key) => {
-                let version = bincode::serialize(
-                    &key.get_profile_key_version(address.aci().unwrap()),
-                )?;
+                let version =
+                    bincode::serialize(&key.get_profile_key_version(
+                        address.aci().expect("profile by ACI ProtocolAddress"),
+                    ))?;
                 let version = std::str::from_utf8(&version)
                     .expect("hex encoded profile key version");
                 format!("/v1/profile/{}/{}", address.uuid, version)
