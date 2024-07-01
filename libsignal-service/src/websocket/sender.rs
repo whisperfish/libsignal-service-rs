@@ -12,7 +12,7 @@ impl SignalWebSocket {
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.recipient.uuid);
+        let path = format!("/v1/messages/{}", messages.destination);
         self.put_json(&path, messages).await
     }
 
@@ -21,7 +21,7 @@ impl SignalWebSocket {
         messages: OutgoingPushMessages,
         access: &UnidentifiedAccess,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.recipient.uuid);
+        let path = format!("/v1/messages/{}", messages.destination);
         let header = format!(
             "Unidentified-Access-Key:{}",
             BASE64_RELAXED.encode(&access.key)

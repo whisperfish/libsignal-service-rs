@@ -55,17 +55,13 @@ fn debug_envelope(envelope: &Envelope) -> String {
     } else {
         format!(
             "Envelope {{ \
-                 source_address: {}, \
+                 source_address: {:?}, \
                  source_device: {:?}, \
                  server_guid: {:?}, \
                  timestamp: {:?}, \
                  content: {} bytes, \
              }}",
-            if envelope.source_service_id.is_some() {
-                format!("{:?}", envelope.source_address())
-            } else {
-                "unknown".to_string()
-            },
+            envelope.source_service_id,
             envelope.source_device(),
             envelope.server_guid(),
             envelope.timestamp(),
@@ -278,13 +274,13 @@ where
                 )
                 .await?;
 
-                let sender = ServiceAddress {
-                    uuid: Uuid::parse_str(&sender_uuid).map_err(|_| {
+                let sender = ServiceAddress::try_from(sender_uuid.as_str())
+                    .map_err(|e| {
+                        tracing::error!("{:?}", e);
                         SignalProtocolError::InvalidSealedSenderMessage(
                             "invalid sender UUID".to_string(),
                         )
-                    })?,
-                };
+                    })?;
 
                 let needs_receipt = if envelope.source_service_id.is_some() {
                     tracing::warn!(?envelope, "Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
