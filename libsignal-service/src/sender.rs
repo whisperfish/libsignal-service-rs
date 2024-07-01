@@ -890,6 +890,8 @@ where
                             recipient.uuid.to_string(),
                         ),
                         unidentified: Some(*unidentified),
+                        // XXX: actually set this.
+                        destination_identity_key: None,
                     }
                 })
                 .collect();
