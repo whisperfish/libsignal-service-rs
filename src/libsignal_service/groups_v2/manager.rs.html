@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service/src/groups_v2/manager.rs`."><title>manager.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service/src/groups_v2/manager.rs`."><title>manager.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0 (129f3b996 2024-06-10)" data-channel="1.79.0" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../libsignal_service/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -332,6 +332,13 @@
 <a href="#332" id="332">332</a>
 <a href="#333" id="333">333</a>
 <a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, convert::TryInto};
 
 <span class="kw">use crate</span>::{
@@ -341,8 +348,10 @@
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride, ServiceIds},
+    utils::BASE64_RELAXED,
 };
 
+<span class="kw">use </span>base64::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>bytes::Bytes;
 <span class="kw">use </span>chrono::{Days, NaiveDate, NaiveTime, Utc};
 <span class="kw">use </span>futures::AsyncReadExt;
@@ -355,14 +364,14 @@
 };
 
 <span class="attr">#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = <span class="string">&quot;camelCase&quot;</span>)]
+#[serde(rename_all = <span class="string">"camelCase"</span>)]
 </span><span class="kw">pub struct </span>TemporalCredential {
     credential: String,
     redemption_time: u64,
 }
 
 <span class="attr">#[derive(Deserialize)]
-#[serde(rename_all = <span class="string">&quot;camelCase&quot;</span>)]
+#[serde(rename_all = <span class="string">"camelCase"</span>)]
 </span><span class="kw">pub struct </span>CredentialResponse {
     credentials: Vec&lt;TemporalCredential&gt;,
 }
@@ -374,8 +383,8 @@
         <span class="self">self</span>.credentials
             .into_iter()
             .map(|c| {
-                <span class="kw">let </span>bytes = base64::decode(c.credential)<span class="question-mark">?</span>;
-                <span class="kw">let </span>data = bincode::deserialize(<span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>;
+                <span class="kw">let </span>bytes = BASE64_RELAXED.decode(c.credential)<span class="question-mark">?</span>;
+                <span class="kw">let </span>data = AuthCredentialWithPniResponse::new(<span class="kw-2">&amp;</span>bytes)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>((c.redemption_time, data))
             })
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, ServiceError&gt;&gt;()
@@ -384,9 +393,9 @@
 
 <span class="attr">#[derive(Debug, thiserror::Error)]
 </span><span class="kw">pub enum </span>CredentialsCacheError {
-    <span class="attr">#[error(<span class="string">&quot;failed to read values from cache: {0}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">"failed to read values from cache: {0}"</span>)]
     </span>ReadError(String),
-    <span class="attr">#[error(<span class="string">&quot;failed to write values from cache: {0}&quot;</span>)]
+    <span class="attr">#[error(<span class="string">"failed to write values from cache: {0}"</span>)]
     </span>WriteError(String),
 }
 
@@ -493,7 +502,7 @@
             auth_credential_response
         } <span class="kw">else </span>{
             <span class="kw">let </span>path =
-            <span class="macro">format!</span>(<span class="string">&quot;/v1/certificate/auth/group?redemptionStartSeconds={}&amp;redemptionEndSeconds={}&quot;</span>, today, today_plus_7_days);
+            <span class="macro">format!</span>(<span class="string">"/v1/certificate/auth/group?redemptionStartSeconds={}&amp;redemptionEndSeconds={}&amp;pniAsServiceId=true"</span>, today, today_plus_7_days);
 
             <span class="kw">let </span>credentials_response: CredentialResponse = <span class="self">self
                 </span>.push_service
@@ -509,7 +518,7 @@
             <span class="self">self</span>.credentials_cache.get(<span class="kw-2">&amp;</span>today)<span class="question-mark">?</span>.ok_or_else(|| {
                 ServiceError::ResponseError {
                     reason:
-                        <span class="string">&quot;credentials received did not contain requested day&quot;
+                        <span class="string">"credentials received did not contain requested day"
                             </span>.into(),
                 }
             })<span class="question-mark">?
@@ -517,7 +526,7 @@
 
         <span class="self">self</span>.get_authorization_string(
             group_secret_params,
-            auth_credential_response,
+            auth_credential_response.clone(),
             today,
         )
     }
@@ -525,20 +534,20 @@
     <span class="kw">fn </span>get_authorization_string(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         group_secret_params: GroupSecretParams,
-        credential_response: <span class="kw-2">&amp;</span>AuthCredentialWithPniResponse,
+        credential_response: AuthCredentialWithPniResponse,
         today: u64,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;HttpAuth, ServiceError&gt; {
         <span class="kw">let </span>auth_credential = <span class="self">self
             </span>.server_public_params
-            .receive_auth_credential_with_pni_as_aci(
+            .receive_auth_credential_with_pni_as_service_id(
                 <span class="self">self</span>.service_ids.aci(),
                 <span class="self">self</span>.service_ids.pni(),
-                today,
+                zkgroup::Timestamp::from_epoch_seconds(today),
                 credential_response,
             )
             .map_err(|e| {
                 <span class="macro">tracing::error!</span>(
-                    <span class="string">&quot;failed to receive auth credentials with PNI: {:?}&quot;</span>,
+                    <span class="string">"failed to receive auth credentials with PNI: {:?}"</span>,
                     e
                 );
                 ServiceError::GroupsV2Error
@@ -567,7 +576,7 @@
         <span class="prelude-val">Ok</span>(HttpAuth { username, password })
     }
 
-    <span class="attr">#[deprecated = <span class="string">&quot;please use fetch_encrypted_group and decrypt_group separately, which hide more of the implementation details&quot;</span>]
+    <span class="attr">#[deprecated = <span class="string">"please use fetch_encrypted_group and decrypt_group separately, which hide more of the implementation details"</span>]
     </span><span class="kw">pub async fn </span>get_group(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         group_secret_params: GroupSecretParams,
@@ -597,6 +606,10 @@
         <span class="self">self</span>.push_service.get_group(authorization).<span class="kw">await
     </span>}
 
+    <span class="attr">#[tracing::instrument(
+        skip(<span class="self">self</span>, group_secret_params),
+        fields(path = %path[..<span class="number">4</span>.min(path.len())]</span>),
+    )]
     <span class="kw">pub async fn </span>retrieve_avatar(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>str,
@@ -611,7 +624,7 @@
             .read_to_end(<span class="kw-2">&amp;mut </span>result)
             .<span class="kw">await
             </span>.map_err(|e| ServiceError::ResponseError {
-                reason: <span class="macro">format!</span>(<span class="string">&quot;reading avatar data: {}&quot;</span>, e),
+                reason: <span class="macro">format!</span>(<span class="string">"reading avatar data: {}"</span>, e),
             })<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(GroupOperations::new(group_secret_params).decrypt_avatar(<span class="kw-2">&amp;</span>result))
     }
@@ -646,7 +659,7 @@
     <span class="kw">let </span>group_master_key = GroupMasterKey::new(
         master_key_bytes
             .try_into()
-            .expect(<span class="string">&quot;wrong master key bytes length&quot;</span>),
+            .expect(<span class="string">"wrong master key bytes length"</span>),
     );
     <span class="kw">let </span>group_secret_params =
         GroupSecretParams::derive_from_master_key(group_master_key);
@@ -658,6 +671,7 @@
 <span class="kw">fn </span>current_days_seconds() -&gt; (u64, u64) {
     <span class="kw">let </span>days_seconds = |date: NaiveDate| {
         date.and_time(NaiveTime::from_hms_opt(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>).unwrap())
+            .and_utc()
             .timestamp() <span class="kw">as </span>u64
     };
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service-actix/src/push_service.rs`."><title>push_service.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-9ee3a5e31a2afa3e.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service_actix" data-themes="" data-resource-suffix="" data-rustdoc-version="1.75.0 (82e1608df 2023-12-21)" data-channel="1.75.0" data-search-js="search-8fbf244ebcf71464.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-9dd44ab47b99a0fb.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `libsignal-service-actix/src/push_service.rs`."><title>push_service.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-081576b923113409.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_service_actix" data-themes="" data-resource-suffix="" data-rustdoc-version="1.79.0 (129f3b996 2024-06-10)" data-channel="1.79.0" data-search-js="search-bf21c90c8c1d92b1.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-e32f0c247825364d.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-09095024cf37855e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../libsignal_service_actix/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Type ‘S’ or ‘/’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings">Settings</a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -783,7 +783,7 @@
         credentials_override: HttpAuthOverride,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ClientRequest, ServiceError&gt; {
         <span class="kw">let </span>url = <span class="self">self</span>.cfg.base_url(endpoint).join(path.as_ref())<span class="question-mark">?</span>;
-        <span class="macro">tracing::debug!</span>(%url, %method, <span class="string">&quot;HTTP request&quot;</span>);
+        <span class="macro">tracing::debug!</span>(%url, %method, <span class="string">"HTTP request"</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>builder = <span class="self">self</span>.client.request(method, url.as_str());
         <span class="kw">for </span><span class="kw-2">&amp;</span>header <span class="kw">in </span>additional_headers {
             builder = builder.insert_header(header);
@@ -809,7 +809,7 @@
 
     <span class="kw">fn </span>json&lt;T&gt;(text: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;T, ServiceError&gt;
     <span class="kw">where
-        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; T: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+        for</span>&lt;<span class="lifetime">'de</span>&gt; T: Deserialize&lt;<span class="lifetime">'de</span>&gt;,
     {
         <span class="kw">let </span>value = <span class="kw">if </span>text.is_empty() {
             serde_json::from_value(serde_json::Value::Null)
@@ -821,7 +821,7 @@
         })
     }
 
-    <span class="attr">#[tracing::instrument(name = <span class="string">&quot;extracting error&quot;</span>, skip(response))]
+    <span class="attr">#[tracing::instrument(name = <span class="string">"extracting error"</span>, skip(response))]
     </span><span class="kw">async fn </span>from_response&lt;S&gt;(
         response: <span class="kw-2">&amp;mut </span>ClientResponse&lt;S&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt;
@@ -847,7 +847,7 @@
                     response.json().<span class="kw">await</span>.map_err(|e| {
                         <span class="macro">tracing::error!</span>(
                             <span class="question-mark">?</span>response,
-                            <span class="string">&quot;Failed to decode HTTP 409 response: {}&quot;</span>,
+                            <span class="string">"Failed to decode HTTP 409 response: {}"</span>,
                             e
                         );
                         ServiceError::UnhandledResponseCode {
@@ -862,7 +862,7 @@
                 <span class="kw">let </span>stale_devices = response.json().<span class="kw">await</span>.map_err(|e| {
                     <span class="macro">tracing::error!</span>(
                         <span class="question-mark">?</span>response,
-                        <span class="string">&quot;Failed to decode HTTP 410 response: {}&quot;</span>,
+                        <span class="string">"Failed to decode HTTP 410 response: {}"</span>,
                         e
                     );
                     ServiceError::UnhandledResponseCode {
@@ -875,7 +875,7 @@
                 <span class="kw">let </span>locked = response.json().<span class="kw">await</span>.map_err(|e| {
                     <span class="macro">tracing::error!</span>(
                         <span class="question-mark">?</span>response,
-                        <span class="string">&quot;Failed to decode HTTP 423 response: {}&quot;</span>,
+                        <span class="string">"Failed to decode HTTP 423 response: {}"</span>,
                         e
                     );
                     ServiceError::UnhandledResponseCode {
@@ -888,7 +888,7 @@
                 <span class="kw">let </span>proof_required = response.json().<span class="kw">await</span>.map_err(|e| {
                     <span class="macro">tracing::error!</span>(
                         <span class="question-mark">?</span>response,
-                        <span class="string">&quot;Failed to decode HTTP 428 response: {}&quot;</span>,
+                        <span class="string">"Failed to decode HTTP 428 response: {}"</span>,
                         e
                     );
                     ServiceError::UnhandledResponseCode {
@@ -902,7 +902,7 @@
                 <span class="kw">let </span>contents = response.body().<span class="kw">await</span>;
                 <span class="macro">tracing::trace!</span>(
                     <span class="question-mark">?</span>response,
-                    <span class="string">&quot;Unhandled response {} with body: {:?}&quot;</span>,
+                    <span class="string">"Unhandled response {} with body: {:?}"</span>,
                     code.as_u16(),
                     contents,
                 );
@@ -927,7 +927,7 @@
         credentials_override: HttpAuthOverride,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;T, ServiceError&gt;
     <span class="kw">where
-        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; T: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+        for</span>&lt;<span class="lifetime">'de</span>&gt; T: Deserialize&lt;<span class="lifetime">'de</span>&gt;,
     {
         <span class="kw">use </span>awc::error::{ConnectError, SendRequestError};
         <span class="kw">let </span><span class="kw-2">mut </span>response = <span class="self">self
@@ -951,7 +951,7 @@
                 },
             })<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>_span = <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;processing response&quot;</span>, <span class="question-mark">?</span>response);
+        <span class="kw">let </span>_span = <span class="macro">tracing::debug_span!</span>(<span class="string">"processing response"</span>, <span class="question-mark">?</span>response);
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -964,7 +964,7 @@
         </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
             <span class="prelude-val">Ok</span>(text) =&gt; {
                 <span class="macro">tracing::debug!</span>(
-                    <span class="string">&quot;GET response: {:?}&quot;</span>,
+                    <span class="string">"GET response: {:?}"</span>,
                     String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
                 );
                 text
@@ -986,7 +986,7 @@
         additional_headers: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;T, ServiceError&gt;
     <span class="kw">where
-        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; T: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+        for</span>&lt;<span class="lifetime">'de</span>&gt; T: Deserialize&lt;<span class="lifetime">'de</span>&gt;,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>response = <span class="self">self
             </span>.request(
@@ -1010,7 +1010,7 @@
             })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>_span =
-            <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;processing response&quot;</span>, <span class="question-mark">?</span>response).entered();
+            <span class="macro">tracing::debug_span!</span>(<span class="string">"processing response"</span>, <span class="question-mark">?</span>response).entered();
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -1023,7 +1023,7 @@
         </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
             <span class="prelude-val">Ok</span>(text) =&gt; {
                 <span class="macro">tracing::debug!</span>(
-                    <span class="string">&quot;GET response: {:?}&quot;</span>,
+                    <span class="string">"GET response: {:?}"</span>,
                     String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
                 );
                 text
@@ -1047,7 +1047,7 @@
         value: S,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;D, ServiceError&gt;
     <span class="kw">where
-        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; D: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+        for</span>&lt;<span class="lifetime">'de</span>&gt; D: Deserialize&lt;<span class="lifetime">'de</span>&gt;,
         S: Serialize,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>response = <span class="self">self
@@ -1065,7 +1065,7 @@
             })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>_span =
-            <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;processing response&quot;</span>, <span class="question-mark">?</span>response).entered();
+            <span class="macro">tracing::debug_span!</span>(<span class="string">"processing response"</span>, <span class="question-mark">?</span>response).entered();
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -1078,7 +1078,7 @@
         </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
             <span class="prelude-val">Ok</span>(text) =&gt; {
                 <span class="macro">tracing::debug!</span>(
-                    <span class="string">&quot;GET response: {:?}&quot;</span>,
+                    <span class="string">"GET response: {:?}"</span>,
                     String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
                 );
                 text
@@ -1101,7 +1101,7 @@
         value: S,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;D, ServiceError&gt;
     <span class="kw">where
-        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; D: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+        for</span>&lt;<span class="lifetime">'de</span>&gt; D: Deserialize&lt;<span class="lifetime">'de</span>&gt;,
         S: Serialize,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>response = <span class="self">self
@@ -1119,7 +1119,7 @@
             })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>_span =
-            <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;processing response&quot;</span>, <span class="question-mark">?</span>response).entered();
+            <span class="macro">tracing::debug_span!</span>(<span class="string">"processing response"</span>, <span class="question-mark">?</span>response).entered();
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -1132,7 +1132,7 @@
         </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
             <span class="prelude-val">Ok</span>(text) =&gt; {
                 <span class="macro">tracing::debug!</span>(
-                    <span class="string">&quot;PATCH response: {:?}&quot;</span>,
+                    <span class="string">"PATCH response: {:?}"</span>,
                     String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
                 );
                 text
@@ -1155,7 +1155,7 @@
         value: S,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;D, ServiceError&gt;
     <span class="kw">where
-        for</span>&lt;<span class="lifetime">&#39;de</span>&gt; D: Deserialize&lt;<span class="lifetime">&#39;de</span>&gt;,
+        for</span>&lt;<span class="lifetime">'de</span>&gt; D: Deserialize&lt;<span class="lifetime">'de</span>&gt;,
         S: Serialize,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>response = <span class="self">self
@@ -1173,7 +1173,7 @@
             })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>_span =
-            <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;processing response&quot;</span>, <span class="question-mark">?</span>response).entered();
+            <span class="macro">tracing::debug_span!</span>(<span class="string">"processing response"</span>, <span class="question-mark">?</span>response).entered();
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -1186,7 +1186,7 @@
         </span><span class="kw">let </span>text = <span class="kw">match </span>response.body().<span class="kw">await </span>{
             <span class="prelude-val">Ok</span>(text) =&gt; {
                 <span class="macro">tracing::debug!</span>(
-                    <span class="string">&quot;GET response: {:?}&quot;</span>,
+                    <span class="string">"GET response: {:?}"</span>,
                     String::from_utf8_lossy(<span class="kw-2">&amp;</span>text)
                 );
                 text
@@ -1255,7 +1255,7 @@
                 additional_headers,
                 HttpAuthOverride::NoOverride,
             )<span class="question-mark">?
-            </span>.content_type(HeaderValue::from_static(<span class="string">&quot;application/x-protobuf&quot;</span>))
+            </span>.content_type(HeaderValue::from_static(<span class="string">"application/x-protobuf"</span>))
             .send_body(buf)
             .<span class="kw">await
             </span>.map_err(|e| ServiceError::SendError {
@@ -1292,7 +1292,7 @@
             })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>_span =
-            <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;processing response&quot;</span>, <span class="question-mark">?</span>response).entered();
+            <span class="macro">tracing::debug_span!</span>(<span class="string">"processing response"</span>, <span class="question-mark">?</span>response).entered();
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -1312,11 +1312,11 @@
         ))
     }
 
-    <span class="kw">async fn </span>post_to_cdn0&lt;<span class="lifetime">&#39;s</span>, C: std::io::Read + Send + <span class="lifetime">&#39;s</span>&gt;(
+    <span class="kw">async fn </span>post_to_cdn0&lt;<span class="lifetime">'s</span>, C: std::io::Read + Send + <span class="lifetime">'s</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>str,
         value: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)],
-        file: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span><span class="lifetime">&#39;s </span><span class="kw-2">mut </span>C)&gt;,
+        file: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span><span class="lifetime">'s </span><span class="kw-2">mut </span>C)&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt; {
         <span class="kw">let </span>request = <span class="self">self</span>.request(
             Method::POST,
@@ -1341,23 +1341,23 @@
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>((filename, file)) = file {
-            <span class="comment">// XXX Actix doesn&#39;t cope with none-&#39;static lifetimes
+            <span class="comment">// XXX Actix doesn't cope with none-'static lifetimes
             // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
             </span><span class="kw">let </span><span class="kw-2">mut </span>buf = Vec::new();
             file.read_to_end(<span class="kw-2">&amp;mut </span>buf)
-                .expect(<span class="string">&quot;infallible Read instance&quot;</span>);
+                .expect(<span class="string">"infallible Read instance"</span>);
             form.add_stream(
-                <span class="string">&quot;file&quot;</span>,
+                <span class="string">"file"</span>,
                 filename,
-                <span class="string">&quot;application/octet-stream&quot;</span>,
+                <span class="string">"application/octet-stream"</span>,
                 futures::future::ok::&lt;<span class="kw">_</span>, ()&gt;(Bytes::from(buf)).into_stream(),
             );
         }
 
         <span class="kw">let </span>content_type =
-            <span class="macro">format!</span>(<span class="string">&quot;multipart/form-data; boundary={}&quot;</span>, form.get_boundary());
+            <span class="macro">format!</span>(<span class="string">"multipart/form-data; boundary={}"</span>, form.get_boundary());
 
-        <span class="comment">// XXX Amazon S3 needs the Content-Length, but we don&#39;t know it without depleting the whole
+        <span class="comment">// XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
         // stream.  Sadly, Content-Length != contents.len(), but should include the whole form.
         </span><span class="kw">let </span><span class="kw-2">mut </span>body_contents = <span class="macro">vec!</span>[];
         <span class="kw">use </span>futures::stream::StreamExt;
@@ -1366,7 +1366,7 @@
             </span>body_contents.extend(b.unwrap());
         }
         <span class="macro">tracing::trace!</span>(
-            <span class="string">&quot;Sending PUT with Content-Type={} and length {}&quot;</span>,
+            <span class="string">"Sending PUT with Content-Type={} and length {}"</span>,
             content_type,
             body_contents.len()
         );
@@ -1381,7 +1381,7 @@
             })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>_span =
-            <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;processing response&quot;</span>, <span class="question-mark">?</span>response).entered();
+            <span class="macro">tracing::debug_span!</span>(<span class="string">"processing response"</span>, <span class="question-mark">?</span>response).entered();
 
         <span class="self">Self</span>::from_response(<span class="kw-2">&amp;mut </span>response).<span class="kw">await</span><span class="question-mark">?</span>;
 
@@ -1395,7 +1395,7 @@
         additional_headers: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)],
         credentials: <span class="prelude-ty">Option</span>&lt;ServiceCredentials&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignalWebSocket, ServiceError&gt; {
-        <span class="kw">let </span>span = <span class="macro">tracing::debug_span!</span>(<span class="string">&quot;websocket&quot;</span>);
+        <span class="kw">let </span>span = <span class="macro">tracing::debug_span!</span>(<span class="string">"websocket"</span>);
         <span class="kw">let </span>(ws, stream) = AwcWebSocket::with_client(
             <span class="kw-2">&amp;mut </span><span class="self">self</span>.client,
             <span class="self">self</span>.cfg.base_url(Endpoint::Service),
@@ -1426,7 +1426,7 @@
 </span><span class="kw">fn </span>get_client(cfg: <span class="kw-2">&amp;</span>ServiceConfiguration, user_agent: String) -&gt; Client {
     <span class="kw">let </span><span class="kw-2">mut </span>cert_bytes = std::io::Cursor::new(<span class="kw-2">&amp;</span>cfg.certificate_authority);
     <span class="kw">let </span>roots =
-        rustls_pemfile::certs(<span class="kw-2">&amp;mut </span>cert_bytes).expect(<span class="string">&quot;parseable PEM files&quot;</span>);
+        rustls_pemfile::certs(<span class="kw-2">&amp;mut </span>cert_bytes).expect(<span class="string">"parseable PEM files"</span>);
     <span class="kw">let </span>roots = roots.iter().map(|v| rustls::Certificate(v.clone()));
 
     <span class="kw">let </span><span class="kw-2">mut </span>root_certs = rustls::RootCertStore::empty();
@@ -1438,15 +1438,15 @@
         .with_safe_defaults()
         .with_root_certificates(root_certs)
         .with_no_client_auth();
-    ssl_config.alpn_protocols = <span class="macro">vec!</span>[<span class="string">b&quot;http/1.1&quot;</span>.to_vec()];
+    ssl_config.alpn_protocols = <span class="macro">vec!</span>[<span class="string">b"http/1.1"</span>.to_vec()];
 
     <span class="kw">let </span>connector = Connector::new()
         .rustls_021(Arc::new(ssl_config))
         .timeout(Duration::from_secs(<span class="number">10</span>)); <span class="comment">// https://github.com/actix/actix-web/issues/1047
     </span><span class="kw">let </span>client = awc::ClientBuilder::new()
         .connector(connector)
-        .add_default_header((<span class="string">&quot;X-Signal-Agent&quot;</span>, user_agent.clone()))
-        .add_default_header((<span class="string">&quot;User-Agent&quot;</span>, user_agent))
+        .add_default_header((<span class="string">"X-Signal-Agent"</span>, user_agent.clone()))
+        .add_default_header((<span class="string">"User-Agent"</span>, user_agent))
         .timeout(Duration::from_secs(<span class="number">65</span>)); <span class="comment">// as in Signal-Android
 
     </span>client.finish()
@@ -1463,7 +1463,7 @@
         <span class="kw">for </span>cfg <span class="kw">in </span>configs {
             <span class="kw">let _ </span>= <span class="kw">super</span>::get_client(
                 <span class="kw-2">&amp;</span>cfg.into(),
-                <span class="string">&quot;libsignal-service test&quot;</span>.to_string(),
+                <span class="string">"libsignal-service test"</span>.to_string(),
             );
         }
     }

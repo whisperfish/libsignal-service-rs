@@ -1,0 +1,1 @@
+searchState.loadedDescShard("libsignal_service_actix", 0, "Deletes a resource through the HTTP DELETE verb.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nReturns the argument unchanged.\nReturns the argument unchanged.\nCalls <code>U::from(self)</code>.\nCalls <code>U::from(self)</code>.")
