@@ -2,8 +2,8 @@ use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, DeviceId, IdentityKeyPair, ProtocolStore,
-    SenderCertificate, SenderKeyStore, SignalProtocolError,
+    process_prekey_bundle, DeviceId, IdentityKey, IdentityKeyPair,
+    ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
 use tracing::{info, trace};
@@ -50,7 +50,8 @@ pub struct SendMessageResponse {
     pub needs_sync: bool,
 }
 
-pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
+pub type SendMessageResult =
+    Result<(SentMessage, IdentityKey), MessageSenderError>;
 
 #[derive(Debug, Clone)]
 pub struct SentMessage {
@@ -347,7 +348,7 @@ where
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
-                Ok(SentMessage { needs_sync, .. }),
+                Ok((SentMessage { needs_sync, .. }, _identity_key)),
             ) if *needs_sync || self.is_multi_device().await => {
                 tracing::debug!("sending multi-device sync message");
                 let sync_message = self
@@ -420,7 +421,7 @@ where
                 .await;
 
             match result {
-                Ok(SentMessage { needs_sync, .. }) if needs_sync => {
+                Ok((SentMessage { needs_sync, .. }, _)) if needs_sync => {
                     needs_sync_in_results = true;
                 },
                 _ => (),
@@ -490,7 +491,7 @@ where
         let content_bytes = content.encode_to_vec();
 
         for _ in 0..4u8 {
-            let messages = self
+            let (messages, identity_key) = self
                 .create_encrypted_messages(
                     &recipient,
                     unidentified_access.map(|x| &x.certificate),
@@ -518,11 +519,14 @@ where
             match send {
                 Ok(SendMessageResponse { needs_sync }) => {
                     tracing::debug!("message sent!");
-                    return Ok(SentMessage {
-                        recipient,
-                        unidentified: unidentified_access.is_some(),
-                        needs_sync,
-                    });
+                    return Ok((
+                        SentMessage {
+                            recipient,
+                            unidentified: unidentified_access.is_some(),
+                            needs_sync,
+                        },
+                        identity_key,
+                    ));
                 },
                 Err(ServiceError::Unauthorized)
                     if unidentified_access.is_some() =>
@@ -704,7 +708,8 @@ where
         recipient: &ServiceAddress,
         unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
-    ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
+    ) -> Result<(Vec<OutgoingPushMessage>, IdentityKey), MessageSenderError>
+    {
         let mut messages = vec![];
 
         let mut devices: HashSet<DeviceId> = self
@@ -776,7 +781,15 @@ where
             }
         }
 
-        Ok(messages)
+        let identity_key = self
+            .protocol_store
+            .get_identity(&recipient.to_protocol_address(DEFAULT_DEVICE_ID))
+            .await?
+            .ok_or(MessageSenderError::UntrustedIdentity {
+                address: *recipient,
+            })?;
+
+        Ok((messages, identity_key))
     }
 
     /// Equivalent to `getEncryptedMessage`
@@ -884,14 +897,16 @@ where
                         recipient,
                         unidentified,
                         ..
-                    } = sent;
+                    } = sent.0;
+                    let identity_key = sent.1;
                     UnidentifiedDeliveryStatus {
                         destination_service_id: Some(
                             recipient.uuid.to_string(),
                         ),
-                        unidentified: Some(*unidentified),
-                        // XXX: actually set this.
-                        destination_identity_key: None,
+                        unidentified: Some(unidentified),
+                        destination_identity_key: Some(
+                            identity_key.serialize().into(),
+                        ),
                     }
                 })
                 .collect();
