@@ -4,10 +4,10 @@ set -euo pipefail
 update_proto() {
 	case "$1" in
 	  Signal-Android) 
-	  	git_revision="940cee0f30d6a2873ae08c65bb821c34302ccf5d"
+	  	git_revision="251cec5dee06d8d36f0177967d675e8eac2ba32f"
 		prefix="libsignal-service/src/main/protowire/";;
 	  Signal-Desktop)
-	  	git_revision="70858d9063446b07b19c03ae7d0c01075a2849e3"
+	  	git_revision="f46872b6e980132e8045b3288eb88d803f365a10"
 		prefix="protos/";;
 	esac
 	curl -LOf https://raw.githubusercontent.com/signalapp/${1}/${git_revision}/${prefix}${2}
