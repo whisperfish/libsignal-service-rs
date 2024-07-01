@@ -3,7 +3,7 @@ set -euo pipefail
 
 update_proto() {
 	case "$1" in
-	  Signal-Android) 
+	  Signal-Android)
 	  	git_revision="251cec5dee06d8d36f0177967d675e8eac2ba32f"
 		prefix="libsignal-service/src/main/protowire/";;
 	  Signal-Desktop)
