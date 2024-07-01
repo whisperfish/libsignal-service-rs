@@ -28,7 +28,6 @@ pub struct Contact {
     #[serde(skip)]
     pub verified: Verified,
     pub profile_key: Vec<u8>,
-    pub blocked: bool,
     pub expire_timer: u32,
     pub inbox_position: u32,
     pub archived: bool,
@@ -69,7 +68,6 @@ impl Contact {
             color: contact_details.color.clone(),
             verified: contact_details.verified.clone().unwrap_or_default(),
             profile_key: contact_details.profile_key().to_vec(),
-            blocked: contact_details.blocked(),
             expire_timer: contact_details.expire_timer(),
             inbox_position: contact_details.inbox_position(),
             archived: contact_details.archived(),
