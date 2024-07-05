@@ -66,7 +66,7 @@ impl From<AwcWebSocketError> for ServiceError {
 }
 
 /// Process the WebSocket, until it times out.
-async fn process<S: Stream>(
+async fn process<S>(
     socket_stream: S,
     mut incoming_sink: Sender<WebSocketStreamItem>,
 ) -> Result<(), AwcWebSocketError>
