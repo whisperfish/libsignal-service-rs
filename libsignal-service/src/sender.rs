@@ -50,12 +50,12 @@ pub struct SendMessageResponse {
     pub needs_sync: bool,
 }
 
-pub type SendMessageResult =
-    Result<(SentMessage, IdentityKey), MessageSenderError>;
+pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
 
 #[derive(Debug, Clone)]
 pub struct SentMessage {
     pub recipient: ServiceAddress,
+    pub used_identity_key: IdentityKey,
     pub unidentified: bool,
     pub needs_sync: bool,
 }
@@ -348,7 +348,7 @@ where
             // if we sent a data message and we have linked devices, we need to send a sync message
             (
                 ContentBody::DataMessage(message),
-                Ok((SentMessage { needs_sync, .. }, _identity_key)),
+                Ok(SentMessage { needs_sync, .. }),
             ) if *needs_sync || self.is_multi_device().await => {
                 tracing::debug!("sending multi-device sync message");
                 let sync_message = self
@@ -421,7 +421,7 @@ where
                 .await;
 
             match result {
-                Ok((SentMessage { needs_sync, .. }, _)) if needs_sync => {
+                Ok(SentMessage { needs_sync, .. }) if needs_sync => {
                     needs_sync_in_results = true;
                 },
                 _ => (),
@@ -491,7 +491,7 @@ where
         let content_bytes = content.encode_to_vec();
 
         for _ in 0..4u8 {
-            let (messages, identity_key) = self
+            let (messages, used_identity_key) = self
                 .create_encrypted_messages(
                     &recipient,
                     unidentified_access.map(|x| &x.certificate),
@@ -519,14 +519,12 @@ where
             match send {
                 Ok(SendMessageResponse { needs_sync }) => {
                     tracing::debug!("message sent!");
-                    return Ok((
-                        SentMessage {
-                            recipient,
-                            unidentified: unidentified_access.is_some(),
-                            needs_sync,
-                        },
-                        identity_key,
-                    ));
+                    return Ok(SentMessage {
+                        recipient,
+                        used_identity_key,
+                        unidentified: unidentified_access.is_some(),
+                        needs_sync,
+                    });
                 },
                 Err(ServiceError::Unauthorized)
                     if unidentified_access.is_some() =>
@@ -896,16 +894,16 @@ where
                     let SentMessage {
                         recipient,
                         unidentified,
+                        used_identity_key,
                         ..
-                    } = sent.0;
-                    let identity_key = sent.1;
+                    } = sent;
                     UnidentifiedDeliveryStatus {
                         destination_service_id: Some(
                             recipient.uuid.to_string(),
                         ),
-                        unidentified: Some(unidentified),
+                        unidentified: Some(*unidentified),
                         destination_identity_key: Some(
-                            identity_key.serialize().into(),
+                            used_identity_key.serialize().into(),
                         ),
                     }
                 })
