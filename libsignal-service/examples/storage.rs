@@ -205,30 +205,6 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 
-    /// set the ID of the next pre key
-    async fn set_next_pre_key_id(
-        &mut self,
-        _id: u32,
-    ) -> Result<(), SignalProtocolError> {
-        todo!()
-    }
-
-    /// set the ID of the next signed pre key
-    async fn set_next_signed_pre_key_id(
-        &mut self,
-        _id: u32,
-    ) -> Result<(), SignalProtocolError> {
-        todo!()
-    }
-
-    /// set the ID of the next PQ pre key
-    async fn set_next_pq_pre_key_id(
-        &mut self,
-        _id: u32,
-    ) -> Result<(), SignalProtocolError> {
-        todo!()
-    }
-
     async fn signed_pre_keys_count(
         &self,
     ) -> Result<usize, SignalProtocolError> {
