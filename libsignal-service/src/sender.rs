@@ -2,8 +2,8 @@ use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, DeviceId, IdentityKeyPair, ProtocolStore,
-    SenderCertificate, SenderKeyStore, SignalProtocolError,
+    process_prekey_bundle, DeviceId, IdentityKey, IdentityKeyPair,
+    ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
 use tracing::{info, trace};
@@ -55,6 +55,7 @@ pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
 #[derive(Debug, Clone)]
 pub struct SentMessage {
     pub recipient: ServiceAddress,
+    pub used_identity_key: IdentityKey,
     pub unidentified: bool,
     pub needs_sync: bool,
 }
@@ -490,7 +491,7 @@ where
         let content_bytes = content.encode_to_vec();
 
         for _ in 0..4u8 {
-            let messages = self
+            let (messages, used_identity_key) = self
                 .create_encrypted_messages(
                     &recipient,
                     unidentified_access.map(|x| &x.certificate),
@@ -520,6 +521,7 @@ where
                     tracing::debug!("message sent!");
                     return Ok(SentMessage {
                         recipient,
+                        used_identity_key,
                         unidentified: unidentified_access.is_some(),
                         needs_sync,
                     });
@@ -704,7 +706,8 @@ where
         recipient: &ServiceAddress,
         unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
-    ) -> Result<Vec<OutgoingPushMessage>, MessageSenderError> {
+    ) -> Result<(Vec<OutgoingPushMessage>, IdentityKey), MessageSenderError>
+    {
         let mut messages = vec![];
 
         let mut devices: HashSet<DeviceId> = self
@@ -776,7 +779,15 @@ where
             }
         }
 
-        Ok(messages)
+        let identity_key = self
+            .protocol_store
+            .get_identity(&recipient.to_protocol_address(DEFAULT_DEVICE_ID))
+            .await?
+            .ok_or(MessageSenderError::UntrustedIdentity {
+                address: *recipient,
+            })?;
+
+        Ok((messages, identity_key))
     }
 
     /// Equivalent to `getEncryptedMessage`
@@ -883,6 +894,7 @@ where
                     let SentMessage {
                         recipient,
                         unidentified,
+                        used_identity_key,
                         ..
                     } = sent;
                     UnidentifiedDeliveryStatus {
@@ -890,6 +902,9 @@ where
                             recipient.uuid.to_string(),
                         ),
                         unidentified: Some(*unidentified),
+                        destination_identity_key: Some(
+                            used_identity_key.serialize().into(),
+                        ),
                     }
                 })
                 .collect();
