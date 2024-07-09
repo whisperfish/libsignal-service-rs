@@ -69,24 +69,6 @@ pub trait PreKeysStore:
     /// ID of the next PQ pre key
     async fn next_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
 
-    /// set the ID of the next pre key
-    async fn set_next_pre_key_id(
-        &mut self,
-        id: u32,
-    ) -> Result<(), SignalProtocolError>;
-
-    /// set the ID of the next signed pre key
-    async fn set_next_signed_pre_key_id(
-        &mut self,
-        id: u32,
-    ) -> Result<(), SignalProtocolError>;
-
-    /// set the ID of the next PQ pre key
-    async fn set_next_pq_pre_key_id(
-        &mut self,
-        id: u32,
-    ) -> Result<(), SignalProtocolError>;
-
     /// number of signed pre-keys we currently have in store
     async fn signed_pre_keys_count(&self)
         -> Result<usize, SignalProtocolError>;
