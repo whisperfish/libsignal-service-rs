@@ -300,24 +300,6 @@
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::convert::TryFrom;
 
 <span class="kw">use crate</span>::{
@@ -388,24 +370,6 @@
 
     <span class="doccomment">/// ID of the next PQ pre key
     </span><span class="kw">async fn </span>next_pq_pre_key_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;u32, SignalProtocolError&gt;;
-
-    <span class="doccomment">/// set the ID of the next pre key
-    </span><span class="kw">async fn </span>set_next_pre_key_id(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        id: u32,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), SignalProtocolError&gt;;
-
-    <span class="doccomment">/// set the ID of the next signed pre key
-    </span><span class="kw">async fn </span>set_next_signed_pre_key_id(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        id: u32,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), SignalProtocolError&gt;;
-
-    <span class="doccomment">/// set the ID of the next PQ pre key
-    </span><span class="kw">async fn </span>set_next_pq_pre_key_id(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        id: u32,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), SignalProtocolError&gt;;
 
     <span class="doccomment">/// number of signed pre-keys we currently have in store
     </span><span class="kw">async fn </span>signed_pre_keys_count(<span class="kw-2">&amp;</span><span class="self">self</span>)
