@@ -96,8 +96,6 @@
 <a href="#96" id="96">96</a>
 <a href="#97" id="97">97</a>
 <a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::convert::TryInto;
 
 <span class="kw">use </span><span class="kw">crate</span>::proto::Verified;
@@ -128,7 +126,6 @@
     <span class="attr">#[serde(skip)]
     </span><span class="kw">pub </span>verified: Verified,
     <span class="kw">pub </span>profile_key: Vec&lt;u8&gt;,
-    <span class="kw">pub </span>blocked: bool,
     <span class="kw">pub </span>expire_timer: u32,
     <span class="kw">pub </span>inbox_position: u32,
     <span class="kw">pub </span>archived: bool,
@@ -169,7 +166,6 @@
             color: contact_details.color.clone(),
             verified: contact_details.verified.clone().unwrap_or_default(),
             profile_key: contact_details.profile_key().to_vec(),
-            blocked: contact_details.blocked(),
             expire_timer: contact_details.expire_timer(),
             inbox_position: contact_details.inbox_position(),
             archived: contact_details.archived(),

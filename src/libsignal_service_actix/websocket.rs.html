@@ -278,7 +278,7 @@
 }
 
 <span class="doccomment">/// Process the WebSocket, until it times out.
-</span><span class="kw">async fn </span>process&lt;S: Stream&gt;(
+</span><span class="kw">async fn </span>process&lt;S&gt;(
     socket_stream: S,
     <span class="kw-2">mut </span>incoming_sink: Sender&lt;WebSocketStreamItem&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), AwcWebSocketError&gt;
