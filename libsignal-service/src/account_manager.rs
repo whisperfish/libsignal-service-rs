@@ -580,7 +580,7 @@ impl<Service: PushService> AccountManager<Service> {
         }
 
         self.service
-            .put_json(
+            .put_json::<(), _>(
                 Endpoint::Service,
                 "/v1/accounts/name",
                 &[],

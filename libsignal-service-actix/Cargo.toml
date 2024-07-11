@@ -2,7 +2,7 @@
 name = "libsignal-service-actix"
 version = "0.1.0"
 authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>"]
-edition = "2018"
+edition = "2021"
 license = "AGPL-3.0"
 rust-version = "1.70.0"
 
