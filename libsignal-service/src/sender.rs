@@ -8,7 +8,6 @@ use libsignal_protocol::{
 use rand::{CryptoRng, Rng};
 use tracing::{info, trace};
 use tracing_futures::Instrument;
-use uuid::Uuid;
 
 use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
@@ -38,7 +37,7 @@ pub struct OutgoingPushMessage {
 
 #[derive(serde::Serialize, Debug)]
 pub struct OutgoingPushMessages {
-    pub recipient: ServiceAddress,
+    pub destination: uuid::Uuid,
     pub timestamp: u64,
     pub messages: Vec<OutgoingPushMessage>,
     pub online: bool,
@@ -120,8 +119,8 @@ pub enum MessageSenderError {
     #[error("Proof of type {options:?} required using token {token}")]
     ProofRequired { token: String, options: Vec<String> },
 
-    #[error("Recipient not found: {uuid}")]
-    NotFound { uuid: Uuid },
+    #[error("Recipient not found: {addr:?}")]
+    NotFound { addr: ServiceAddress },
 }
 
 impl<Service, S, R> MessageSender<Service, S, R>
@@ -500,7 +499,7 @@ where
                 .await?;
 
             let messages = OutgoingPushMessages {
-                recipient,
+                destination: recipient.uuid,
                 timestamp,
                 messages,
                 online,
@@ -601,7 +600,7 @@ where
                 Err(ServiceError::NotFoundError) => {
                     tracing::debug!("Not found when sending a message");
                     return Err(MessageSenderError::NotFound {
-                        uuid: recipient.uuid,
+                        addr: recipient,
                     });
                 },
                 Err(e) => {
@@ -722,9 +721,22 @@ where
         devices.insert(DEFAULT_DEVICE_ID.into());
 
         // never try to send messages to the sender device
-        if recipient.aci() == self.local_aci.aci() {
-            devices.remove(&self.device_id);
-        }
+        match recipient.identity {
+            ServiceIdType::AccountIdentity => {
+                if recipient.aci().is_some()
+                    && recipient.aci() == self.local_aci.aci()
+                {
+                    devices.remove(&self.device_id);
+                }
+            },
+            ServiceIdType::PhoneNumberIdentity => {
+                if recipient.pni().is_some()
+                    && recipient.pni() == self.local_aci.pni()
+                {
+                    devices.remove(&self.device_id);
+                }
+            },
+        };
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
@@ -836,7 +848,7 @@ where
                 },
                 Err(ServiceError::NotFoundError) => {
                     return Err(MessageSenderError::NotFound {
-                        uuid: recipient.uuid,
+                        addr: *recipient,
                     });
                 },
                 Err(e) => Err(e)?,

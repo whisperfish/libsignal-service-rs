@@ -75,7 +75,7 @@ pub const STICKER_PATH: &str = "stickers/%s/full/%d";
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub enum ServiceIdType {
     /// Account Identity (ACI)
     ///
@@ -811,7 +811,7 @@ pub trait PushService: MaybeSend {
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.recipient.uuid);
+        let path = format!("/v1/messages/{}", messages.destination);
         self.put_json(
             Endpoint::Service,
             &path,
@@ -902,9 +902,9 @@ pub trait PushService: MaybeSend {
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
         let endpoint = if let Some(key) = profile_key {
-            let version = bincode::serialize(
-                &key.get_profile_key_version(address.aci()),
-            )?;
+            let version = bincode::serialize(&key.get_profile_key_version(
+                address.aci().expect("profile by ACI ProtocolAddress"),
+            ))?;
             let version = std::str::from_utf8(&version)
                 .expect("hex encoded profile key version");
             format!("/v1/profile/{}/{}", address.uuid, version)

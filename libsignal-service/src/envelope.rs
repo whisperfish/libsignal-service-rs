@@ -3,7 +3,6 @@ use std::convert::{TryFrom, TryInto};
 use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, KeyIvInit};
 use prost::Message;
-use uuid::Uuid;
 
 use crate::{
     configuration::SignalingKey, push_service::ServiceError,
@@ -135,15 +134,11 @@ impl Envelope {
     }
 
     pub fn source_address(&self) -> ServiceAddress {
-        let uuid = self
-            .source_service_id
-            .as_deref()
-            .map(Uuid::parse_str)
-            .transpose()
-            .expect("valid uuid checked in constructor")
-            .expect("source_service_id is set");
-
-        ServiceAddress { uuid }
+        match self.source_service_id.as_deref() {
+            Some(service_id) => ServiceAddress::try_from(service_id)
+                .expect("invalid ProtocolAddress UUID or prefix"),
+            None => panic!("source_service_id is set"),
+        }
     }
 }
 
