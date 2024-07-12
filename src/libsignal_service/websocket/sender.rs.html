@@ -44,7 +44,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         messages: OutgoingPushMessages,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SendMessageResponse, ServiceError&gt; {
-        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">"/v1/messages/{}"</span>, messages.recipient.uuid);
+        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">"/v1/messages/{}"</span>, messages.destination);
         <span class="self">self</span>.put_json(<span class="kw-2">&amp;</span>path, messages).<span class="kw">await
     </span>}
 
@@ -53,7 +53,7 @@
         messages: OutgoingPushMessages,
         access: <span class="kw-2">&amp;</span>UnidentifiedAccess,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SendMessageResponse, ServiceError&gt; {
-        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">"/v1/messages/{}"</span>, messages.recipient.uuid);
+        <span class="kw">let </span>path = <span class="macro">format!</span>(<span class="string">"/v1/messages/{}"</span>, messages.destination);
         <span class="kw">let </span>header = <span class="macro">format!</span>(
             <span class="string">"Unidentified-Access-Key:{}"</span>,
             BASE64_RELAXED.encode(<span class="kw-2">&amp;</span>access.key)

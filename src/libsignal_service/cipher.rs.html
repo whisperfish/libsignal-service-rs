@@ -579,10 +579,6 @@
 <a href="#579" id="579">579</a>
 <a href="#580" id="580">580</a>
 <a href="#581" id="581">581</a>
-<a href="#582" id="582">582</a>
-<a href="#583" id="583">583</a>
-<a href="#584" id="584">584</a>
-<a href="#585" id="585">585</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{convert::TryFrom, fmt, time::SystemTime};
 
 <span class="kw">use </span>aes::cipher::block_padding::{Iso7816, RawPadding};
@@ -640,17 +636,13 @@
     } <span class="kw">else </span>{
         <span class="macro">format!</span>(
             <span class="string">"Envelope {{ \
-                 source_address: {}, \
+                 source_address: {:?}, \
                  source_device: {:?}, \
                  server_guid: {:?}, \
                  timestamp: {:?}, \
                  content: {} bytes, \
              }}"</span>,
-            <span class="kw">if </span>envelope.source_service_id.is_some() {
-                <span class="macro">format!</span>(<span class="string">"{:?}"</span>, envelope.source_address())
-            } <span class="kw">else </span>{
-                <span class="string">"unknown"</span>.to_string()
-            },
+            envelope.source_service_id,
             envelope.source_device(),
             envelope.server_guid(),
             envelope.timestamp(),
@@ -863,13 +855,13 @@
                 )
                 .<span class="kw">await</span><span class="question-mark">?</span>;
 
-                <span class="kw">let </span>sender = ServiceAddress {
-                    uuid: Uuid::parse_str(<span class="kw-2">&amp;</span>sender_uuid).map_err(|<span class="kw">_</span>| {
+                <span class="kw">let </span>sender = ServiceAddress::try_from(sender_uuid.as_str())
+                    .map_err(|e| {
+                        <span class="macro">tracing::error!</span>(<span class="string">"{:?}"</span>, e);
                         SignalProtocolError::InvalidSealedSenderMessage(
                             <span class="string">"invalid sender UUID"</span>.to_string(),
                         )
-                    })<span class="question-mark">?</span>,
-                };
+                    })<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>needs_receipt = <span class="kw">if </span>envelope.source_service_id.is_some() {
                     <span class="macro">tracing::warn!</span>(<span class="question-mark">?</span>envelope, <span class="string">"Received an unidentified delivery over an identified channel.  Marking needs_receipt=false"</span>);

@@ -43,6 +43,7 @@
 <a href="#43" id="43">43</a>
 <a href="#44" id="44">44</a>
 <a href="#45" id="45">45</a>
+<a href="#46" id="46">46</a>
 </pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     proto::WebSocketRequestMessage,
     push_service::{ServiceError, SignalServiceProfile},
@@ -66,9 +67,10 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;SignalServiceProfile, ServiceError&gt; {
         <span class="kw">let </span>endpoint = <span class="kw">match </span>profile_key {
             <span class="prelude-val">Some</span>(key) =&gt; {
-                <span class="kw">let </span>version = bincode::serialize(
-                    <span class="kw-2">&amp;</span>key.get_profile_key_version(address.aci()),
-                )<span class="question-mark">?</span>;
+                <span class="kw">let </span>version =
+                    bincode::serialize(<span class="kw-2">&amp;</span>key.get_profile_key_version(
+                        address.aci().expect(<span class="string">"profile by ACI ProtocolAddress"</span>),
+                    ))<span class="question-mark">?</span>;
                 <span class="kw">let </span>version = std::str::from_utf8(<span class="kw-2">&amp;</span>version)
                     .expect(<span class="string">"hex encoded profile key version"</span>);
                 <span class="macro">format!</span>(<span class="string">"/v1/profile/{}/{}"</span>, address.uuid, version)

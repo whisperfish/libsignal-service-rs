@@ -930,6 +930,18 @@
 <a href="#930" id="930">930</a>
 <a href="#931" id="931">931</a>
 <a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashSet, time::SystemTime};
 
 <span class="kw">use </span>chrono::prelude::<span class="kw-2">*</span>;
@@ -940,7 +952,6 @@
 <span class="kw">use </span>rand::{CryptoRng, Rng};
 <span class="kw">use </span>tracing::{info, trace};
 <span class="kw">use </span>tracing_futures::Instrument;
-<span class="kw">use </span>uuid::Uuid;
 
 <span class="kw">use crate</span>::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
@@ -970,7 +981,7 @@
 
 <span class="attr">#[derive(serde::Serialize, Debug)]
 </span><span class="kw">pub struct </span>OutgoingPushMessages {
-    <span class="kw">pub </span>recipient: ServiceAddress,
+    <span class="kw">pub </span>destination: uuid::Uuid,
     <span class="kw">pub </span>timestamp: u64,
     <span class="kw">pub </span>messages: Vec&lt;OutgoingPushMessage&gt;,
     <span class="kw">pub </span>online: bool,
@@ -1052,8 +1063,8 @@
     <span class="attr">#[error(<span class="string">"Proof of type {options:?} required using token {token}"</span>)]
     </span>ProofRequired { token: String, options: Vec&lt;String&gt; },
 
-    <span class="attr">#[error(<span class="string">"Recipient not found: {uuid}"</span>)]
-    </span>NotFound { uuid: Uuid },
+    <span class="attr">#[error(<span class="string">"Recipient not found: {addr:?}"</span>)]
+    </span>NotFound { addr: ServiceAddress },
 }
 
 <span class="kw">impl</span>&lt;Service, S, R&gt; MessageSender&lt;Service, S, R&gt;
@@ -1432,7 +1443,7 @@
                 .<span class="kw">await</span><span class="question-mark">?</span>;
 
             <span class="kw">let </span>messages = OutgoingPushMessages {
-                recipient,
+                destination: recipient.uuid,
                 timestamp,
                 messages,
                 online,
@@ -1533,7 +1544,7 @@
                 <span class="prelude-val">Err</span>(ServiceError::NotFoundError) =&gt; {
                     <span class="macro">tracing::debug!</span>(<span class="string">"Not found when sending a message"</span>);
                     <span class="kw">return </span><span class="prelude-val">Err</span>(MessageSenderError::NotFound {
-                        uuid: recipient.uuid,
+                        addr: recipient,
                     });
                 },
                 <span class="prelude-val">Err</span>(e) =&gt; {
@@ -1654,9 +1665,22 @@
         </span>devices.insert(DEFAULT_DEVICE_ID.into());
 
         <span class="comment">// never try to send messages to the sender device
-        </span><span class="kw">if </span>recipient.aci() == <span class="self">self</span>.local_aci.aci() {
-            devices.remove(<span class="kw-2">&amp;</span><span class="self">self</span>.device_id);
-        }
+        </span><span class="kw">match </span>recipient.identity {
+            ServiceIdType::AccountIdentity =&gt; {
+                <span class="kw">if </span>recipient.aci().is_some()
+                    &amp;&amp; recipient.aci() == <span class="self">self</span>.local_aci.aci()
+                {
+                    devices.remove(<span class="kw-2">&amp;</span><span class="self">self</span>.device_id);
+                }
+            },
+            ServiceIdType::PhoneNumberIdentity =&gt; {
+                <span class="kw">if </span>recipient.pni().is_some()
+                    &amp;&amp; recipient.pni() == <span class="self">self</span>.local_aci.pni()
+                {
+                    devices.remove(<span class="kw-2">&amp;</span><span class="self">self</span>.device_id);
+                }
+            },
+        };
 
         <span class="kw">for </span>device_id <span class="kw">in </span>devices {
             <span class="macro">trace!</span>(<span class="string">"sending message to device {}"</span>, device_id);
@@ -1768,7 +1792,7 @@
                 },
                 <span class="prelude-val">Err</span>(ServiceError::NotFoundError) =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(MessageSenderError::NotFound {
-                        uuid: recipient.uuid,
+                        addr: <span class="kw-2">*</span>recipient,
                     });
                 },
                 <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(e)<span class="question-mark">?</span>,
