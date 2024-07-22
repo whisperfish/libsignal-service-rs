@@ -363,7 +363,7 @@ where
                     data_message,
                     edit_message,
                     timestamp,
-                    [&result],
+                    Some(&result),
                 );
             self.try_send_message(
                 self.local_aci,
@@ -938,15 +938,11 @@ where
             sent: Some(sync_message::Sent {
                 destination_service_id: recipient.map(|r| r.uuid.to_string()),
                 destination_e164: None,
-                expiration_start_timestamp: if data_message
+                expiration_start_timestamp: data_message
                     .as_ref()
                     .and_then(|m| m.expire_timer)
                     .is_some()
-                {
-                    Some(timestamp)
-                } else {
-                    None
-                },
+                    .then_some(timestamp),
                 message: data_message,
                 edit_message,
                 timestamp: Some(timestamp),
