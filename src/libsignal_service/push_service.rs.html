@@ -1388,6 +1388,13 @@
 <a href="#1388" id="1388">1388</a>
 <a href="#1389" id="1389">1389</a>
 <a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::HashMap, fmt, time::Duration};
 
 <span class="kw">use crate</span>::{
@@ -1824,7 +1831,14 @@ pub const STICKER_PATH: &amp;str = "stickers/%s/full/%d";
 <span class="attr">#[derive(Debug, Serialize)]
 #[serde(rename_all = <span class="string">"camelCase"</span>)]
 </span><span class="kw">pub struct </span>LinkCapabilities {
-    <span class="kw">pub </span>pni: bool,
+    <span class="kw">pub </span>delete_sync: bool,
+}
+
+<span class="comment">// https://github.com/signalapp/Signal-Desktop/blob/1e57db6aa4786dcddc944349e4894333ac2ffc9e/ts/textsecure/WebAPI.ts#L1287
+</span><span class="kw">impl </span>Default <span class="kw">for </span>LinkCapabilities {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ delete_sync: <span class="bool-val">true </span>}
+    }
 }
 
 <span class="attr">#[derive(Debug, Deserialize)]
