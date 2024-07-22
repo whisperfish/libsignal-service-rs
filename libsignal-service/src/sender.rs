@@ -331,8 +331,8 @@ where
         }
 
         // try to send the original message to all the recipient's devices
-        let mut results = vec![
-            self.try_send_message(
+        let result = self
+            .try_send_message(
                 *recipient,
                 unidentified_access.as_ref(),
                 &content_body,
@@ -340,34 +340,40 @@ where
                 include_pni_signature,
                 online,
             )
-            .await,
-        ];
+            .await;
 
-        match (&content_body, &results[0]) {
-            // if we sent a data message and we have linked devices, we need to send a sync message
-            (
-                ContentBody::DataMessage(message),
-                Ok(SentMessage { needs_sync, .. }),
-            ) if *needs_sync || self.is_multi_device().await => {
-                tracing::debug!("sending multi-device sync message");
-                let sync_message = self
-                    .create_multi_device_sent_transcript_content(
-                        Some(recipient),
-                        Some(message.clone()),
-                        timestamp,
-                        &results,
-                    );
-                self.try_send_message(
-                    self.local_aci,
-                    None,
-                    &sync_message,
+        let needs_sync = match &result {
+            Ok(SentMessage { needs_sync, .. }) => *needs_sync,
+            _ => false,
+        };
+
+        if needs_sync || self.is_multi_device().await {
+            let data_message = match &content_body {
+                ContentBody::DataMessage(m) => Some(m.clone()),
+                _ => None,
+            };
+            let edit_message = match &content_body {
+                ContentBody::EditMessage(m) => Some(m.clone()),
+                _ => None,
+            };
+            tracing::debug!("sending multi-device sync message");
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
+                    Some(recipient),
+                    data_message,
+                    edit_message,
                     timestamp,
-                    false,
-                    false,
-                )
-                .await?;
-            },
-            _ => (),
+                    [&result],
+                );
+            self.try_send_message(
+                self.local_aci,
+                None,
+                &sync_message,
+                timestamp,
+                false,
+                false,
+            )
+            .await?;
         }
 
         if end_session {
@@ -375,7 +381,7 @@ where
             tracing::debug!("ended {} sessions with {}", n, recipient.uuid);
         }
 
-        results.remove(0)
+        result
     }
 
     /// Send a message to the recipients in a group.
@@ -398,15 +404,19 @@ where
         let content_body: ContentBody = message.into();
         let mut results = vec![];
 
-        let message = match &content_body {
+        let data_message = match &content_body {
             ContentBody::DataMessage(m) => Some(m.clone()),
             _ => None,
         };
+        let edit_message = match &content_body {
+            ContentBody::EditMessage(m) => Some(m.clone()),
+            _ => None,
+        };
 
-        let recipients = recipients.as_ref();
         let mut needs_sync_in_results = false;
+
         for (recipient, unidentified_access, include_pni_signature) in
-            recipients.iter()
+            recipients.as_ref().iter()
         {
             let result = self
                 .try_send_message(
@@ -429,37 +439,40 @@ where
             results.push(result);
         }
 
-        if needs_sync_in_results && message.is_none() {
+        if needs_sync_in_results
+            && data_message.is_none()
+            && edit_message.is_none()
+        {
             // XXX: does this happen?
             tracing::warn!(
-                "Server claims need sync, but not sending datamessage."
+                "Server claims need sync, but not sending data message or edit message"
             );
+            return results;
         }
 
         // we only need to send a synchronization message once
-        if let Some(message) = message {
-            if needs_sync_in_results || self.is_multi_device().await {
-                let sync_message = self
-                    .create_multi_device_sent_transcript_content(
-                        None,
-                        Some(message),
-                        timestamp,
-                        &results,
-                    );
+        if needs_sync_in_results || self.is_multi_device().await {
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
+                    None,
+                    data_message,
+                    edit_message,
+                    timestamp,
+                    &results,
+                );
 
-                let result = self
-                    .try_send_message(
-                        self.local_aci,
-                        None,
-                        &sync_message,
-                        timestamp,
-                        false, // XXX: maybe the sync device does want a PNI signature?
-                        false,
-                    )
-                    .await;
+            let result = self
+                .try_send_message(
+                    self.local_aci,
+                    None,
+                    &sync_message,
+                    timestamp,
+                    false, // XXX: maybe the sync device does want a PNI signature?
+                    false,
+                )
+                .await;
 
-                results.push(result);
-            }
+            results.push(result);
         }
 
         results
@@ -890,17 +903,18 @@ where
         Ok(message)
     }
 
-    fn create_multi_device_sent_transcript_content(
+    fn create_multi_device_sent_transcript_content<'a>(
         &self,
         recipient: Option<&ServiceAddress>,
         data_message: Option<crate::proto::DataMessage>,
+        edit_message: Option<crate::proto::EditMessage>,
         timestamp: u64,
-        send_message_results: &[SendMessageResult],
+        send_message_results: impl IntoIterator<Item = &'a SendMessageResult>,
     ) -> ContentBody {
         use sync_message::sent::UnidentifiedDeliveryStatus;
         let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
             send_message_results
-                .iter()
+                .into_iter()
                 .filter_map(|result| result.as_ref().ok())
                 .map(|sent| {
                     let SentMessage {
@@ -934,6 +948,7 @@ where
                     None
                 },
                 message: data_message,
+                edit_message,
                 timestamp: Some(timestamp),
                 unidentified_status,
                 ..Default::default()
