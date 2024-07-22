@@ -289,7 +289,7 @@ pub async fn link_device<
                 registration_id,
                 pni_registration_id,
                 fetches_messages: true,
-                capabilities: LinkCapabilities { pni: true },
+                capabilities: LinkCapabilities::default(),
                 name: encrypted_device_name,
             },
             device_activation_request: DeviceActivationRequest {
