@@ -437,13 +437,6 @@ pub struct LinkCapabilities {
     pub delete_sync: bool,
 }
 
-// https://github.com/signalapp/Signal-Desktop/blob/1e57db6aa4786dcddc944349e4894333ac2ffc9e/ts/textsecure/WebAPI.ts#L1287
-impl Default for LinkCapabilities {
-    fn default() -> Self {
-        Self { delete_sync: true }
-    }
-}
-
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LinkResponse {

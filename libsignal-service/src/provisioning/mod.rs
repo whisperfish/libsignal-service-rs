@@ -289,7 +289,8 @@ pub async fn link_device<
                 registration_id,
                 pni_registration_id,
                 fetches_messages: true,
-                capabilities: LinkCapabilities::default(),
+                // https://github.com/signalapp/Signa-Desktop/blob/1e57db6aa4786dcddc944349e4894333ac2ffc9e/ts/textsecure/WebAPI.ts#L1287
+                capabilities: LinkCapabilities { delete_sync: false },
                 name: encrypted_device_name,
             },
             device_activation_request: DeviceActivationRequest {
