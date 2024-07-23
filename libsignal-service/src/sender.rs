@@ -6,7 +6,7 @@ use libsignal_protocol::{
     ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
-use tracing::{info, trace};
+use tracing::{error, info, trace};
 use tracing_futures::Instrument;
 
 use crate::{
@@ -191,10 +191,9 @@ where
             )
         };
         if padded_len < len {
-            tracing::error!(
+            error!(
                 "Padded len {} < len {}. Continuing with a privacy risk.",
-                padded_len,
-                len
+                padded_len, len
             );
         } else {
             contents.resize(padded_len, 0);
@@ -460,8 +459,9 @@ where
                     timestamp,
                     &results,
                 );
-
-            let result = self
+            // Note: the result of sending a sync message is not included in results
+            // See Signal Android `SignalServiceMessageSender.java:2817`
+            if let Err(error) = self
                 .try_send_message(
                     self.local_aci,
                     None,
@@ -470,9 +470,10 @@ where
                     false, // XXX: maybe the sync device does want a PNI signature?
                     false,
                 )
-                .await;
-
-            results.push(result);
+                .await
+            {
+                error!(%error, "failed to send a synchronization message");
+            }
         }
 
         results
@@ -581,7 +582,7 @@ where
                         )
                         .await
                         .map_err(|e| {
-                            tracing::error!("failed to create session: {}", e);
+                            error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
                                 address: recipient,
                             }
