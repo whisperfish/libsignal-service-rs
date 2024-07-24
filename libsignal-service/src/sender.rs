@@ -6,7 +6,7 @@ use libsignal_protocol::{
     ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
-use tracing::{info, trace};
+use tracing::{error, info, trace};
 use tracing_futures::Instrument;
 
 use crate::{
@@ -191,10 +191,9 @@ where
             )
         };
         if padded_len < len {
-            tracing::error!(
+            error!(
                 "Padded len {} < len {}. Continuing with a privacy risk.",
-                padded_len,
-                len
+                padded_len, len
             );
         } else {
             contents.resize(padded_len, 0);
@@ -331,8 +330,8 @@ where
         }
 
         // try to send the original message to all the recipient's devices
-        let mut results = vec![
-            self.try_send_message(
+        let result = self
+            .try_send_message(
                 *recipient,
                 unidentified_access.as_ref(),
                 &content_body,
@@ -340,34 +339,40 @@ where
                 include_pni_signature,
                 online,
             )
-            .await,
-        ];
+            .await;
 
-        match (&content_body, &results[0]) {
-            // if we sent a data message and we have linked devices, we need to send a sync message
-            (
-                ContentBody::DataMessage(message),
-                Ok(SentMessage { needs_sync, .. }),
-            ) if *needs_sync || self.is_multi_device().await => {
-                tracing::debug!("sending multi-device sync message");
-                let sync_message = self
-                    .create_multi_device_sent_transcript_content(
-                        Some(recipient),
-                        Some(message.clone()),
-                        timestamp,
-                        &results,
-                    );
-                self.try_send_message(
-                    self.local_aci,
-                    None,
-                    &sync_message,
+        let needs_sync = match &result {
+            Ok(SentMessage { needs_sync, .. }) => *needs_sync,
+            _ => false,
+        };
+
+        if needs_sync || self.is_multi_device().await {
+            let data_message = match &content_body {
+                ContentBody::DataMessage(m) => Some(m.clone()),
+                _ => None,
+            };
+            let edit_message = match &content_body {
+                ContentBody::EditMessage(m) => Some(m.clone()),
+                _ => None,
+            };
+            tracing::debug!("sending multi-device sync message");
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
+                    Some(recipient),
+                    data_message,
+                    edit_message,
                     timestamp,
-                    false,
-                    false,
-                )
-                .await?;
-            },
-            _ => (),
+                    Some(&result),
+                );
+            self.try_send_message(
+                self.local_aci,
+                None,
+                &sync_message,
+                timestamp,
+                false,
+                false,
+            )
+            .await?;
         }
 
         if end_session {
@@ -375,7 +380,7 @@ where
             tracing::debug!("ended {} sessions with {}", n, recipient.uuid);
         }
 
-        results.remove(0)
+        result
     }
 
     /// Send a message to the recipients in a group.
@@ -398,15 +403,19 @@ where
         let content_body: ContentBody = message.into();
         let mut results = vec![];
 
-        let message = match &content_body {
+        let data_message = match &content_body {
             ContentBody::DataMessage(m) => Some(m.clone()),
             _ => None,
         };
+        let edit_message = match &content_body {
+            ContentBody::EditMessage(m) => Some(m.clone()),
+            _ => None,
+        };
 
-        let recipients = recipients.as_ref();
         let mut needs_sync_in_results = false;
+
         for (recipient, unidentified_access, include_pni_signature) in
-            recipients.iter()
+            recipients.as_ref().iter()
         {
             let result = self
                 .try_send_message(
@@ -429,36 +438,41 @@ where
             results.push(result);
         }
 
-        if needs_sync_in_results && message.is_none() {
+        if needs_sync_in_results
+            && data_message.is_none()
+            && edit_message.is_none()
+        {
             // XXX: does this happen?
             tracing::warn!(
-                "Server claims need sync, but not sending datamessage."
+                "Server claims need sync, but not sending data message or edit message"
             );
+            return results;
         }
 
         // we only need to send a synchronization message once
-        if let Some(message) = message {
-            if needs_sync_in_results || self.is_multi_device().await {
-                let sync_message = self
-                    .create_multi_device_sent_transcript_content(
-                        None,
-                        Some(message),
-                        timestamp,
-                        &results,
-                    );
-
-                let result = self
-                    .try_send_message(
-                        self.local_aci,
-                        None,
-                        &sync_message,
-                        timestamp,
-                        false, // XXX: maybe the sync device does want a PNI signature?
-                        false,
-                    )
-                    .await;
-
-                results.push(result);
+        if needs_sync_in_results || self.is_multi_device().await {
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
+                    None,
+                    data_message,
+                    edit_message,
+                    timestamp,
+                    &results,
+                );
+            // Note: the result of sending a sync message is not included in results
+            // See Signal Android `SignalServiceMessageSender.java:2817`
+            if let Err(error) = self
+                .try_send_message(
+                    self.local_aci,
+                    None,
+                    &sync_message,
+                    timestamp,
+                    false, // XXX: maybe the sync device does want a PNI signature?
+                    false,
+                )
+                .await
+            {
+                error!(%error, "failed to send a synchronization message");
             }
         }
 
@@ -568,7 +582,7 @@ where
                         )
                         .await
                         .map_err(|e| {
-                            tracing::error!("failed to create session: {}", e);
+                            error!("failed to create session: {}", e);
                             MessageSenderError::UntrustedIdentity {
                                 address: recipient,
                             }
@@ -890,17 +904,18 @@ where
         Ok(message)
     }
 
-    fn create_multi_device_sent_transcript_content(
+    fn create_multi_device_sent_transcript_content<'a>(
         &self,
         recipient: Option<&ServiceAddress>,
         data_message: Option<crate::proto::DataMessage>,
+        edit_message: Option<crate::proto::EditMessage>,
         timestamp: u64,
-        send_message_results: &[SendMessageResult],
+        send_message_results: impl IntoIterator<Item = &'a SendMessageResult>,
     ) -> ContentBody {
         use sync_message::sent::UnidentifiedDeliveryStatus;
         let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
             send_message_results
-                .iter()
+                .into_iter()
                 .filter_map(|result| result.as_ref().ok())
                 .map(|sent| {
                     let SentMessage {
@@ -924,16 +939,13 @@ where
             sent: Some(sync_message::Sent {
                 destination_service_id: recipient.map(|r| r.uuid.to_string()),
                 destination_e164: None,
-                expiration_start_timestamp: if data_message
+                expiration_start_timestamp: data_message
                     .as_ref()
                     .and_then(|m| m.expire_timer)
                     .is_some()
-                {
-                    Some(timestamp)
-                } else {
-                    None
-                },
+                    .then_some(timestamp),
                 message: data_message,
+                edit_message,
                 timestamp: Some(timestamp),
                 unidentified_status,
                 ..Default::default()
