@@ -32,8 +32,6 @@ impl<Service: PushService> MessageReceiver<Service> {
         &mut self,
         allow_stories: bool,
     ) -> Result<Vec<Envelope>, ServiceError> {
-        use std::convert::TryFrom;
-
         let entities = self.service.get_messages(allow_stories).await?;
         let entities = entities
             .into_iter()

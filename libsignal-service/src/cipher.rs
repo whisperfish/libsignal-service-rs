@@ -164,6 +164,7 @@ where
                 )
                 .await?;
                 let metadata = Metadata {
+                    destination: envelope.destination_address(),
                     sender: envelope.source_address(),
                     sender_device: envelope.source_device(),
                     timestamp: envelope.server_timestamp(),
@@ -201,6 +202,7 @@ where
             Type::PlaintextContent => {
                 tracing::warn!(?envelope, "Envelope with plaintext content.  This usually indicates a decryption retry.");
                 let metadata = Metadata {
+                    destination: envelope.destination_address(),
                     sender: envelope.source_address(),
                     sender_device: envelope.source_device(),
                     timestamp: envelope.server_timestamp(),
@@ -221,6 +223,7 @@ where
                 )
                 .await?;
                 let metadata = Metadata {
+                    destination: envelope.destination_address(),
                     sender: envelope.source_address(),
                     sender_device: envelope.source_device(),
                     timestamp: envelope.timestamp(),
@@ -290,6 +293,7 @@ where
                 };
 
                 let metadata = Metadata {
+                    destination: envelope.destination_address(),
                     sender,
                     sender_device: device_id.into(),
                     timestamp: envelope.timestamp(),
