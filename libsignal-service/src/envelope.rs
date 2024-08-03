@@ -136,8 +136,16 @@ impl Envelope {
     pub fn source_address(&self) -> ServiceAddress {
         match self.source_service_id.as_deref() {
             Some(service_id) => ServiceAddress::try_from(service_id)
-                .expect("invalid ProtocolAddress UUID or prefix"),
+                .expect("invalid source ProtocolAddress UUID or prefix"),
             None => panic!("source_service_id is set"),
+        }
+    }
+
+    pub fn destination_address(&self) -> ServiceAddress {
+        match self.destination_service_id.as_deref() {
+            Some(service_id) => ServiceAddress::try_from(service_id)
+                .expect("invalid destination ProtocolAddress UUID or prefix"),
+            None => panic!("destination_address is set"),
         }
     }
 }

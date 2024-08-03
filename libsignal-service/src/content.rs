@@ -19,6 +19,7 @@ mod story_message;
 #[derive(Clone, Debug)]
 pub struct Metadata {
     pub sender: crate::ServiceAddress,
+    pub destination: crate::ServiceAddress,
     pub sender_device: u32,
     pub timestamp: u64,
     pub needs_receipt: bool,
