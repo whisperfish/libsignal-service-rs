@@ -163,19 +163,25 @@ impl HyperPushService {
                 Err(ServiceError::RateLimitExceeded)
             },
             StatusCode::CONFLICT => {
-                let mismatched_devices =
-                    Self::json(&mut response).await.map_err(|e| {
-                        tracing::error!(
-                            "Failed to decode HTTP 409 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: StatusCode::CONFLICT.as_u16(),
-                        }
-                    })?;
-                Err(ServiceError::MismatchedDevicesException(
-                    mismatched_devices,
-                ))
+                if let Ok(mismatched_devices) =
+                    Self::json::<MismatchedDevices>(&mut response).await
+                {
+                    Err(ServiceError::MismatchedDevicesException(
+                        mismatched_devices,
+                    ))
+                } else if let Ok(username_taken) =
+                    Self::json::<UsernameTaken>(&mut response).await
+                {
+                    Err(ServiceError::UsernameTaken(username_taken))
+                } else {
+                    tracing::error!(
+                        "Failed to decode HTTP 409 response: {:?}",
+                        response.body()
+                    );
+                    Err(ServiceError::UnhandledResponseCode {
+                        http_code: StatusCode::CONFLICT.as_u16(),
+                    })
+                }
             },
             StatusCode::GONE => {
                 let stale_devices =

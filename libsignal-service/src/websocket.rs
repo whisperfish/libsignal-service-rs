@@ -17,7 +17,7 @@ use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
     WebSocketResponseMessage,
 };
-use crate::push_service::{MismatchedDevices, ServiceError};
+use crate::push_service::{MismatchedDevices, ServiceError, UsernameTaken};
 
 mod attachment_service;
 mod sender;
@@ -435,19 +435,19 @@ impl SignalWebSocket {
             404 => Err(ServiceError::NotFoundError),
             413 /* PAYLOAD_TOO_LARGE */ => Err(ServiceError::RateLimitExceeded) ,
             409 /* CONFLICT */ => {
-                let mismatched_devices: MismatchedDevices =
-                    json(response.body()).map_err(|e| {
-                        tracing::error!(
-                            "Failed to decode HTTP 409 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: 409,
-                        }
-                    })?;
-                Err(ServiceError::MismatchedDevicesException(
-                    mismatched_devices,
-                ))
+                let body = response.body();
+                if let Ok(mismatched_devices) = json::<MismatchedDevices>(body) {
+                    Err(ServiceError::MismatchedDevicesException(
+                        mismatched_devices,
+                    ))
+                } else if let Ok(username_taken) = json::<UsernameTaken>(body) {
+                    Err(ServiceError::UsernameTaken(username_taken))
+                } else {
+                    tracing::error!("Failed to decode HTTP 409 response: {}", String::from_utf8(body.into()).unwrap());
+                    Err(ServiceError::UnhandledResponseCode {
+                        http_code: 409,
+                    })
+                }
             },
             410 /* GONE */ => {
                 let stale_devices =

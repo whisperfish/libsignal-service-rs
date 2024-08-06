@@ -456,6 +456,12 @@ pub struct MismatchedDevices {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UsernameTaken {
+    pub username_hash: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
     pub stale_devices: Vec<u32>,
 }
@@ -667,6 +673,9 @@ pub enum ServiceError {
 
     #[error("invalid device name")]
     InvalidDeviceName,
+
+    #[error("username taken: {0:?}")]
+    UsernameTaken(UsernameTaken),
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
