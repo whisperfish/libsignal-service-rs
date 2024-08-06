@@ -34,42 +34,99 @@ use zkgroup::{
 /**
 Since we can't use format!() with constants, the URLs here are just for reference purposes
 pub const REGISTER_GCM_PATH: &str = "/v1/accounts/gcm/";
-pub const TURN_SERVER_INFO: &str = "/v1/accounts/turn";
 pub const SET_ACCOUNT_ATTRIBUTES: &str = "/v1/accounts/attributes/";
 pub const PIN_PATH: &str = "/v1/accounts/pin/";
-pub const REQUEST_PUSH_CHALLENGE: &str = "/v1/accounts/fcm/preauth/%s/%s";
+pub const REGISTRATION_LOCK_PATH: &str = "/v1/accounts/registration_lock";
 pub const WHO_AM_I: &str = "/v1/accounts/whoami";
+pub const GET_USERNAME_PATH: &str = "/v1/accounts/username_hash/%s";
+pub const MODIFY_USERNAME_PATH: &str = "/v1/accounts/username_hash";
+pub const RESERVE_USERNAME_PATH: &str = "/v1/accounts/username_hash/reserve";
+pub const CONFIRM_USERNAME_PATH: &str = "/v1/accounts/username_hash/confirm";
+pub const USERNAME_LINK_PATH: &str = "/v1/accounts/username_link";
+pub const USERNAME_FROM_LINK_PATH: &str = "/v1/accounts/username_link/%s";
+pub const DELETE_ACCOUNT_PATH: &str = "/v1/accounts/me";
+pub const CHANGE_NUMBER_PATH: &str = "/v2/accounts/number";
+pub const IDENTIFIER_REGISTERED_PATH: &str = "/v1/accounts/account/%s";
+pub const REQUEST_ACCOUNT_DATA_PATH: &str = "/v2/accounts/data_report";
+pub const PNI_KEY_DISTRUBTION_PATH: &str = "/v2/accounts/phone_number_identity_key_distribution";
 
-pub const PREKEY_PATH: &str = "/v2/keys/%s";
+pub const PREKEY_METADATA_PATH: &str = "/v2/keys?identity=%s";
+pub const PREKEY_PATH: &str = "/v2/keys?identity=%s";
 pub const PREKEY_DEVICE_PATH: &str = "/v2/keys/%s/%s";
-pub const SIGNED_PREKEY_PATH: &str = "/v2/keys/signed";
+pub const PREKEY_CHECK_PATH: &str = "/v2/keys/check";
+
+pub const TURN_SERVER_INFO: &str = "/v1/calling/relays";
 
 pub const PROVISIONING_CODE_PATH: &str = "/v1/devices/provisioning/code";
 pub const PROVISIONING_MESSAGE_PATH: &str = "/v1/provisioning/%s";
+pub const DEVICE_PATH: &str = "/v1/devices/%s";
 
-pub const DIRECTORY_TOKENS_PATH: &str = "/v1/directory/tokens";
-pub const DIRECTORY_VERIFY_PATH: &str = "/v1/directory/%s";
-pub const DIRECTORY_AUTH_PATH: &str = "/v1/directory/auth";
-pub const DIRECTORY_FEEDBACK_PATH: &str = "/v1/directory/feedback-v3/%s";
+pub const MESSAGE_PATH: &str = "/v1/messages/%s";
+pub const GROUP_MESSAGE_PATH: &str = "/v1/messages/multi_recipient?ts=%s&online=%s&urgent=%s&story=%s";
 pub const SENDER_ACK_MESSAGE_PATH: &str = "/v1/messages/%s/%d";
 pub const UUID_ACK_MESSAGE_PATH: &str = "/v1/messages/uuid/%s";
-pub const ATTACHMENT_PATH: &str = "/v2/attachments/form/upload";
+pub const ATTACHMENT_V4_PATH: &str = "/v4/attachments/form/upload";
 
-pub const PROFILE_PATH: &str = "/v1/profile/";
+pub const PAYMENTS_AUTH_PATH: &str = "/v1/payments/auth";
 
-pub const SENDER_CERTIFICATE_LEGACY_PATH: &str = "/v1/certificate/delivery";
-pub const SENDER_CERTIFICATE_PATH: &str =
-    "/v1/certificate/delivery?includeUuid=true";
+pub const PROFILE_PATH: &str = "/v1/profile/%s";
+pub const PROFILE_BATCH_CHECK_PATH: &str = "/v1/profile/identity_check/batch";
 
-pub const VERIFICATION_SESSION_PATH: &str = "/v1/verification/session";
-pub const VERIFICATION_CODE_PATH: &str    = "/v1/verification/session/%s/code";
+pub const SENDER_CERTIFICATE_PATH: &str = "/v1/certificate/delivery";
+pub const SENDER_CERTIFICATE_NO_E164_PATH: &str = "/v1/certificate/delivery?includeE164=false";
 
-pub const REGISTRATION_PATH: &str    = "/v1/registration";
-
-pub const ATTACHMENT_DOWNLOAD_PATH: &str = "attachments/%d";
+pub const ATTACHMENT_KEY_DOWNLOAD_PATH: &str = "attachments/%s";
+pub const ATTACHMENT_ID_DOWNLOAD_PATH: &str = "attachments/%d";
+pub const ATTACHMENT_UPLOAD_PATH: &str = "attachments/";
+pub const AVATAR_UPLOAD_PATH: &str = "";
 
 pub const STICKER_MANIFEST_PATH: &str = "stickers/%s/manifest.proto";
 pub const STICKER_PATH: &str = "stickers/%s/full/%d";
+
+pub const GROUPSV2_CREDENTIAL: &str = "/v1/certificate/auth/group?redemptionStartSeconds=%d&redemptionEndSeconds=%d&zkcCredential=true";
+pub const GROUPSV2_GROUP: &str = "/v2/groups/";
+pub const GROUPSV2_GROUP_PASSWORD: &str = "/v2/groups/?inviteLinkPassword=%s";
+pub const GROUPSV2_GROUP_CHANGES: &str = "/v2/groups/logs/%s?maxSupportedChangeEpoch=%d&includeFirstState=%s&includeLastState=false";
+pub const GROUPSV2_AVATAR_REQUEST: &str = "/v2/groups/avatar/form";
+pub const GROUPSV2_GROUP_JOIN: &str = "/v2/groups/join/%s";
+pub const GROUPSV2_TOKEN: &str = "/v2/groups/token";
+pub const GROUPSV2_JOINED_AT: &str = "/v2/groups/joined_at_version";
+
+pub const SUBMIT_RATE_LIMIT_CHALLENGE: &str = "/v1/challenge";
+pub const REQUEST_RATE_LIMIT_PUSH_CHALLENGE: &str = "/v1/challenge/push";
+
+pub const VERIFICATION_SESSION_PATH: &str = "/v1/verification/session";
+pub const VERIFICATION_CODE_PATH: &str = "/v1/verification/session/%s/code";
+
+pub const REGISTRATION_PATH: &str = "/v1/registration";
+
+pub const CDSI_AUTH: &str = "/v2/directory/auth";
+pub const SVR2_AUTH: &str = "/v2/backup/auth";
+pub const SVR3_AUTH: &str = "/v3/backup/auth";
+
+pub const REPORT_SPAM: &str = "/v1/messages/report/%s/%s";
+
+pub const BACKUP_AUTH_CHECK_V2: &str = "/v2/backup/auth/check";
+pub const BACKUP_AUTH_CHECK_V3: &str = "/v3/backup/auth/check";
+
+pub const ARCHIVE_CREDENTIALS: &str = "/v1/archives/auth?redemptionStartSeconds=%d&redemptionEndSeconds=%d";
+pub const ARCHIVE_READ_CREDENTIALS: &str = "/v1/archives/auth/read?cdn=%d";
+pub const ARCHIVE_BACKUP_ID: &str = "/v1/archives/backupid";
+pub const ARCHIVE_PUBLIC_KEY: &str = "/v1/archives/keys";
+pub const ARCHIVE_INFO: &str = "/v1/archives";
+pub const ARCHIVE_MESSAGE_UPLOAD_FORM: &str = "/v1/archives/upload/form";
+pub const ARCHIVE_MEDIA_UPLOAD_FORM: &str = "/v1/archives/media/upload/form";
+pub const ARCHIVE_MEDIA: &str = "/v1/archives/media";
+pub const ARCHIVE_MEDIA_LIST: &str = "/v1/archives/media?limit=%d";
+pub const ARCHIVE_MEDIA_BATCH: &str = "/v1/archives/media/batch";
+pub const ARCHIVE_MEDIA_DELETE: &str = "/v1/archives/media/delete";
+pub const ARCHIVE_MEDIA_DOWNLOAD_PATH: &str = "backups/%s/%s/%s";
+
+pub const SET_SHARE_SET_PATH: &str ="/v3/backup/share-set";
+
+pub const CALL_LINK_CREATION_AUTH: &str = "/v1/call-link/create-auth";
+pub const SERVER_DELIVERED_TIMESTAMP_HEADER: &str = "X-Signal-Timestamp";
+
 **/
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
