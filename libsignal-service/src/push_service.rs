@@ -547,6 +547,20 @@ pub struct GetAciByUsernameResponse {
     pub uuid: Uuid,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReserveUsernameRequest {
+    #[serde(default)]
+    pub username_hashes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReserveUsernameResponse {
+    #[serde(default)]
+    pub username_hash: String,
+}
+
 impl SignalServiceProfile {
     pub fn decrypt(
         &self,
@@ -1481,5 +1495,21 @@ pub trait PushService: MaybeSend {
             )
             .await?;
         Ok(res.uuid)
+    }
+
+    async fn reserve_username(
+        &mut self,
+        username_hashes: ReserveUsernameRequest,
+    ) -> Result<String, ServiceError> {
+        let res: ReserveUsernameResponse = self
+            .put_json(
+                Endpoint::Service,
+                &format!("/v1/accounts/username_hash/reserve"),
+                &[],
+                HttpAuthOverride::NoOverride,
+                username_hashes,
+            )
+            .await?;
+        Ok(res.username_hash)
     }
 }
