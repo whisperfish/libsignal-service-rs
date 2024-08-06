@@ -534,6 +534,13 @@ pub struct SignalServiceProfile {
     pub capabilities: DeviceCapabilities,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAciByUsernameResponse {
+    #[serde(default)]
+    pub uuid: Uuid,
+}
+
 impl SignalServiceProfile {
     pub fn decrypt(
         &self,
@@ -1450,5 +1457,20 @@ pub trait PushService: MaybeSend {
             )
             .await?;
         Ok(res)
+    }
+
+    async fn get_aci_by_username_hash(
+        &mut self,
+        username_hash: String,
+    ) -> Result<Uuid, ServiceError> {
+        let res: GetAciByUsernameResponse = self
+            .get_json(
+                Endpoint::Service,
+                &format!("/v1/accounts/username_hash/{}", username_hash),
+                &[],
+                HttpAuthOverride::NoOverride,
+            )
+            .await?;
+        Ok(res.uuid)
     }
 }
