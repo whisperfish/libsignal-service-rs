@@ -22,7 +22,7 @@ url = "2.1"
 
 hyper = "1.0"
 hyper-util = { version = "0.1", features = ["client", "client-legacy"] }
-hyper-rustls = { version = "0.27", features = ["http1", "http2"] }
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "ring", "logging"] }
 hyper-timeout = "0.5"
 headers = "0.4"
 http-body-util = "0.1"
@@ -31,7 +31,7 @@ http-body-util = "0.1"
 async-tungstenite = { version = "0.27", features = ["tokio-rustls-native-certs", "url"] }
 
 tokio = { version = "1.0", features = ["macros"] }
-tokio-rustls = "0.26"
+tokio-rustls = { version = "0.26", default-features = false, features = ["logging", "ring"] }
 
 rustls-pemfile = "2.0"
 
