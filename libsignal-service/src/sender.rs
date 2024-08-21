@@ -13,8 +13,10 @@ use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
     content::ContentBody,
     proto::{
-        attachment_pointer::AttachmentIdentifier,
-        attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
+        attachment_pointer::{
+            AttachmentIdentifier, Flags as AttachmentPointerFlags,
+        },
+        sync_message::{self, message_request_response},
         AttachmentPointer, SyncMessage,
     },
     push_service::*,
@@ -685,6 +687,51 @@ where
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
+        self.send_message(recipient, None, msg, ts, false, false)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Send `MessageRequestResponse` synchronization message with either a recipient ACI or a GroupV2 ID
+    #[tracing::instrument(skip(self))]
+    pub async fn send_message_request_response(
+        &mut self,
+        recipient: &ServiceAddress,
+        thread_aci: Option<&ServiceAddress>,
+        group_id: Option<&[u8; 64]>,
+        action: message_request_response::Type,
+    ) -> Result<(), MessageSenderError> {
+        match (&thread_aci, &group_id) {
+            (Some(_), Some(_)) => {
+                return Err(MessageSenderError::ProtocolError(
+                    SignalProtocolError::InvalidArgument(
+                        "Both ACI and GroupV2 ID provided".to_string(),
+                    ),
+                ))
+            },
+            (None, None) => {
+                return Err(MessageSenderError::ProtocolError(
+                    SignalProtocolError::InvalidArgument(
+                        "No ACI or GroupV2 ID provided".to_string(),
+                    ),
+                ))
+            },
+            _ => {},
+        }
+        let msg = SyncMessage {
+            message_request_response: Some(
+                sync_message::MessageRequestResponse {
+                    thread_aci: thread_aci.map(|a| a.uuid.to_string()),
+                    group_id: group_id.map(Vec::from),
+                    r#type: Some(action.into()),
+                },
+            ),
+            ..SyncMessage::with_padding()
+        };
+
+        let ts = Utc::now().timestamp_millis() as u64;
+        tracing::info!("Sending message request response: {:?}", msg);
         self.send_message(recipient, None, msg, ts, false, false)
             .await?;
 
