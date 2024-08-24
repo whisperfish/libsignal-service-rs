@@ -8,13 +8,19 @@ use libsignal_protocol::{
 use rand::{CryptoRng, Rng};
 use tracing::{error, info, trace};
 use tracing_futures::Instrument;
+use uuid::Uuid;
+use zkgroup::GROUP_IDENTIFIER_LEN;
 
 use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
     content::ContentBody,
     proto::{
-        attachment_pointer::AttachmentIdentifier,
-        attachment_pointer::Flags as AttachmentPointerFlags, sync_message,
+        attachment_pointer::{
+            AttachmentIdentifier, Flags as AttachmentPointerFlags,
+        },
+        sync_message::{
+            self, message_request_response, MessageRequestResponse,
+        },
         AttachmentPointer, SyncMessage,
     },
     push_service::*,
@@ -121,6 +127,14 @@ pub enum MessageSenderError {
 
     #[error("Recipient not found: {addr:?}")]
     NotFound { addr: ServiceAddress },
+}
+
+pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
+
+#[derive(Debug)]
+pub enum ThreadIdentifier {
+    Aci(Uuid),
+    Group(GroupV2Id),
 }
 
 impl<Service, S, R> MessageSender<Service, S, R>
@@ -681,6 +695,53 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             configuration: Some(configuration),
+            ..SyncMessage::with_padding()
+        };
+
+        let ts = Utc::now().timestamp_millis() as u64;
+        self.send_message(recipient, None, msg, ts, false, false)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Send `MessageRequestResponse` synchronization message with either a recipient ACI or a GroupV2 ID
+    #[tracing::instrument(skip(self))]
+    pub async fn send_message_request_response(
+        &mut self,
+        recipient: &ServiceAddress,
+        thread: &ThreadIdentifier,
+        action: message_request_response::Type,
+    ) -> Result<(), MessageSenderError> {
+        let message_request_response = Some(match thread {
+            ThreadIdentifier::Aci(aci) => {
+                tracing::debug!(
+                    "sending message request response {:?} for recipient {:?}",
+                    action,
+                    aci
+                );
+                MessageRequestResponse {
+                    thread_aci: Some(aci.to_string()),
+                    group_id: None,
+                    r#type: Some(action.into()),
+                }
+            },
+            ThreadIdentifier::Group(id) => {
+                tracing::debug!(
+                    "sending message request response {:?} for group {:?}",
+                    action,
+                    id
+                );
+                MessageRequestResponse {
+                    thread_aci: None,
+                    group_id: Some(id.to_vec()),
+                    r#type: Some(action.into()),
+                }
+            },
+        });
+
+        let msg = SyncMessage {
+            message_request_response,
             ..SyncMessage::with_padding()
         };
 
