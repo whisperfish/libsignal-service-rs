@@ -14,6 +14,7 @@ pub mod content;
 mod digeststream;
 pub mod envelope;
 pub mod groups_v2;
+pub mod master_key;
 pub mod messagepipe;
 pub mod models;
 pub mod pre_keys;
@@ -79,6 +80,7 @@ pub mod prelude {
             AccessControl, Group, Member, PendingMember, RequestingMember,
             Timer,
         },
+        master_key::{MasterKey, MasterKeyStore, StorageServiceKey},
         proto::{
             attachment_pointer::AttachmentIdentifier, sync_message::Contacts,
             AttachmentPointer,
