@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/work/libsignal-service-rs/libsignal-service-rs/target/debug/build/libsignal-service-e3ca115aeaa6959a/out/signalservice.rs`."><title>signalservice.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../../../../../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../../../../../../../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-static-root-path="../../../../../../../../../../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.80.1 (3f5fd8dd4 2024-08-06)" data-channel="1.80.1" data-search-js="search-d52510db62a78183.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../../../../../../../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../../../../../../../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../../../../../../../../../src-files.js"></script><script defer src="../../../../../../../../../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../../../../../../../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../../../../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../../../../../../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/work/libsignal-service-rs/libsignal-service-rs/target/debug/build/libsignal-service-f0b303e55aa9bf6d/out/signalservice.rs`."><title>signalservice.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../../../../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../../../../../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../../../../../../../../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../../../../../../../../../../../" data-static-root-path="../../../../../../../../../../../../static.files/" data-current-crate="libsignal_service" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0 (eeb90cda1 2024-09-04)" data-channel="1.81.0" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../../../../../../../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../../../../../../../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../../../../../../../../../src-files.js"></script><script defer src="../../../../../../../../../../../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../../../../../../../../../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../../../../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../../../../../../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -2613,8 +2613,190 @@
 <a href="#2613" id="2613">2613</a>
 <a href="#2614" id="2614">2614</a>
 <a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a>
+<a href="#2617" id="2617">2617</a>
+<a href="#2618" id="2618">2618</a>
+<a href="#2619" id="2619">2619</a>
 </pre></div><pre class="rust"><code><span class="comment">// This file is @generated by prost-build.
 </span><span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>WebSocketRequestMessage {
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>verb: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"2"</span>)]
+    </span><span class="kw">pub </span>path: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"3"</span>)]
+    </span><span class="kw">pub </span>body: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(string, repeated, tag = <span class="string">"5"</span>)]
+    </span><span class="kw">pub </span>headers: ::prost::alloc::vec::Vec&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(uint64, optional, tag = <span class="string">"4"</span>)]
+    </span><span class="kw">pub </span>id: ::core::option::Option&lt;u64&gt;,
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>WebSocketResponseMessage {
+    <span class="attr">#[prost(uint64, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>id: ::core::option::Option&lt;u64&gt;,
+    <span class="attr">#[prost(uint32, optional, tag = <span class="string">"2"</span>)]
+    </span><span class="kw">pub </span>status: ::core::option::Option&lt;u32&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"3"</span>)]
+    </span><span class="kw">pub </span>message: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(string, repeated, tag = <span class="string">"5"</span>)]
+    </span><span class="kw">pub </span>headers: ::prost::alloc::vec::Vec&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"4"</span>)]
+    </span><span class="kw">pub </span>body: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>WebSocketMessage {
+    <span class="attr">#[prost(enumeration = <span class="string">"web_socket_message::Type"</span>, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>r#type: ::core::option::Option&lt;i32&gt;,
+    <span class="attr">#[prost(message, optional, tag = <span class="string">"2"</span>)]
+    </span><span class="kw">pub </span>request: ::core::option::Option&lt;WebSocketRequestMessage&gt;,
+    <span class="attr">#[prost(message, optional, tag = <span class="string">"3"</span>)]
+    </span><span class="kw">pub </span>response: ::core::option::Option&lt;WebSocketResponseMessage&gt;,
+}
+<span class="doccomment">/// Nested message and enum types in `WebSocketMessage`.
+</span><span class="kw">pub mod </span>web_socket_message {
+    <span class="attr">#[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    </span><span class="kw">pub enum </span>Type {
+        Unknown = <span class="number">0</span>,
+        Request = <span class="number">1</span>,
+        Response = <span class="number">2</span>,
+    }
+    <span class="kw">impl </span>Type {
+        <span class="doccomment">/// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        </span><span class="kw">pub fn </span>as_str_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+            <span class="kw">match </span><span class="self">self </span>{
+                Type::Unknown =&gt; <span class="string">"UNKNOWN"</span>,
+                Type::Request =&gt; <span class="string">"REQUEST"</span>,
+                Type::Response =&gt; <span class="string">"RESPONSE"</span>,
+            }
+        }
+        <span class="doccomment">/// Creates an enum from field names used in the ProtoBuf definition.
+        </span><span class="kw">pub fn </span>from_str_name(value: <span class="kw-2">&amp;</span>str) -&gt; ::core::option::Option&lt;<span class="self">Self</span>&gt; {
+            <span class="kw">match </span>value {
+                <span class="string">"UNKNOWN" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Unknown),
+                <span class="string">"REQUEST" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Request),
+                <span class="string">"RESPONSE" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Response),
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            }
+        }
+    }
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>DeviceName {
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>ephemeral_public: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"2"</span>)]
+    </span><span class="kw">pub </span>synthetic_iv: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"3"</span>)]
+    </span><span class="kw">pub </span>ciphertext: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>ProvisioningUuid {
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>uuid: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>ProvisionEnvelope {
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>public_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="doccomment">/// Encrypted ProvisionMessage
+    </span><span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"2"</span>)]
+    </span><span class="kw">pub </span>body: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>ProvisionMessage {
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>aci_identity_key_public: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"2"</span>)]
+    </span><span class="kw">pub </span>aci_identity_key_private: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"11"</span>)]
+    </span><span class="kw">pub </span>pni_identity_key_public: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"12"</span>)]
+    </span><span class="kw">pub </span>pni_identity_key_private: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"8"</span>)]
+    </span><span class="kw">pub </span>aci: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"10"</span>)]
+    </span><span class="kw">pub </span>pni: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"3"</span>)]
+    </span><span class="kw">pub </span>number: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"4"</span>)]
+    </span><span class="kw">pub </span>provisioning_code: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"5"</span>)]
+    </span><span class="kw">pub </span>user_agent: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"6"</span>)]
+    </span><span class="kw">pub </span>profile_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+    <span class="attr">#[prost(bool, optional, tag = <span class="string">"7"</span>)]
+    </span><span class="kw">pub </span>read_receipts: ::core::option::Option&lt;bool&gt;,
+    <span class="attr">#[prost(uint32, optional, tag = <span class="string">"9"</span>)]
+    </span><span class="kw">pub </span>provisioning_version: ::core::option::Option&lt;u32&gt;,
+    <span class="doccomment">/// NEXT ID: 14
+    </span><span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"13"</span>)]
+    </span><span class="kw">pub </span>master_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
+}
+<span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+</span><span class="kw">pub enum </span>ProvisioningVersion {
+    Initial = <span class="number">0</span>,
+    TabletSupport = <span class="number">1</span>,
+}
+<span class="kw">impl </span>ProvisioningVersion {
+    <span class="doccomment">/// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    </span><span class="kw">pub fn </span>as_str_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+        <span class="kw">match </span><span class="self">self </span>{
+            ProvisioningVersion::Initial =&gt; <span class="string">"INITIAL"</span>,
+            ProvisioningVersion::TabletSupport =&gt; <span class="string">"TABLET_SUPPORT"</span>,
+        }
+    }
+    <span class="doccomment">/// Creates an enum from field names used in the ProtoBuf definition.
+    </span><span class="kw">pub fn </span>from_str_name(value: <span class="kw-2">&amp;</span>str) -&gt; ::core::option::Option&lt;<span class="self">Self</span>&gt; {
+        <span class="kw">match </span>value {
+            <span class="string">"INITIAL" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Initial),
+            <span class="string">"TABLET_SUPPORT" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::TabletSupport),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
+    }
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+</span><span class="kw">pub struct </span>Pack {
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"1"</span>)]
+    </span><span class="kw">pub </span>title: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(string, optional, tag = <span class="string">"2"</span>)]
+    </span><span class="kw">pub </span>author: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    <span class="attr">#[prost(message, optional, tag = <span class="string">"3"</span>)]
+    </span><span class="kw">pub </span>cover: ::core::option::Option&lt;pack::Sticker&gt;,
+    <span class="attr">#[prost(message, repeated, tag = <span class="string">"4"</span>)]
+    </span><span class="kw">pub </span>stickers: ::prost::alloc::vec::Vec&lt;pack::Sticker&gt;,
+}
+<span class="doccomment">/// Nested message and enum types in `Pack`.
+</span><span class="kw">pub mod </span>pack {
+    <span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
+    </span><span class="kw">pub struct </span>Sticker {
+        <span class="attr">#[prost(uint32, optional, tag = <span class="string">"1"</span>)]
+        </span><span class="kw">pub </span>id: ::core::option::Option&lt;u32&gt;,
+        <span class="attr">#[prost(string, optional, tag = <span class="string">"2"</span>)]
+        </span><span class="kw">pub </span>emoji: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+        <span class="attr">#[prost(string, optional, tag = <span class="string">"3"</span>)]
+        </span><span class="kw">pub </span>content_type: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
+    }
+}
+<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
 </span><span class="kw">pub struct </span>Envelope {
     <span class="attr">#[prost(enumeration = <span class="string">"envelope::Type"</span>, optional, tag = <span class="string">"1"</span>)]
     </span><span class="kw">pub </span>r#type: ::core::option::Option&lt;i32&gt;,
@@ -2991,6 +3173,8 @@
     </span><span class="kw">pub </span>flags: ::core::option::Option&lt;u32&gt;,
     <span class="attr">#[prost(uint32, optional, tag = <span class="string">"5"</span>)]
     </span><span class="kw">pub </span>expire_timer: ::core::option::Option&lt;u32&gt;,
+    <span class="attr">#[prost(uint32, optional, tag = <span class="string">"23"</span>)]
+    </span><span class="kw">pub </span>expire_timer_version: ::core::option::Option&lt;u32&gt;,
     <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"6"</span>)]
     </span><span class="kw">pub </span>profile_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
     <span class="attr">#[prost(uint64, optional, tag = <span class="string">"7"</span>)]
@@ -4797,6 +4981,8 @@
     </span><span class="kw">pub </span>profile_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
     <span class="attr">#[prost(uint32, optional, tag = <span class="string">"8"</span>)]
     </span><span class="kw">pub </span>expire_timer: ::core::option::Option&lt;u32&gt;,
+    <span class="attr">#[prost(uint32, optional, tag = <span class="string">"12"</span>)]
+    </span><span class="kw">pub </span>expire_timer_version: ::core::option::Option&lt;u32&gt;,
     <span class="attr">#[prost(uint32, optional, tag = <span class="string">"10"</span>)]
     </span><span class="kw">pub </span>inbox_position: ::core::option::Option&lt;u32&gt;,
     <span class="attr">#[prost(bool, optional, tag = <span class="string">"11"</span>)]
@@ -4894,15 +5080,6 @@
     </span><span class="kw">pub </span>target_sent_timestamp: ::core::option::Option&lt;u64&gt;,
     <span class="attr">#[prost(message, optional, tag = <span class="string">"2"</span>)]
     </span><span class="kw">pub </span>data_message: ::core::option::Option&lt;DataMessage&gt;,
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>DeviceName {
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>ephemeral_public: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"2"</span>)]
-    </span><span class="kw">pub </span>synthetic_iv: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"3"</span>)]
-    </span><span class="kw">pub </span>ciphertext: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
 }
 <span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
 </span><span class="kw">pub struct </span>ServerCertificate {
@@ -5057,175 +5234,6 @@
                 }
             }
         }
-    }
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>WebSocketRequestMessage {
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>verb: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"2"</span>)]
-    </span><span class="kw">pub </span>path: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"3"</span>)]
-    </span><span class="kw">pub </span>body: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(string, repeated, tag = <span class="string">"5"</span>)]
-    </span><span class="kw">pub </span>headers: ::prost::alloc::vec::Vec&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(uint64, optional, tag = <span class="string">"4"</span>)]
-    </span><span class="kw">pub </span>id: ::core::option::Option&lt;u64&gt;,
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>WebSocketResponseMessage {
-    <span class="attr">#[prost(uint64, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>id: ::core::option::Option&lt;u64&gt;,
-    <span class="attr">#[prost(uint32, optional, tag = <span class="string">"2"</span>)]
-    </span><span class="kw">pub </span>status: ::core::option::Option&lt;u32&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"3"</span>)]
-    </span><span class="kw">pub </span>message: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(string, repeated, tag = <span class="string">"5"</span>)]
-    </span><span class="kw">pub </span>headers: ::prost::alloc::vec::Vec&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"4"</span>)]
-    </span><span class="kw">pub </span>body: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>WebSocketMessage {
-    <span class="attr">#[prost(enumeration = <span class="string">"web_socket_message::Type"</span>, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>r#type: ::core::option::Option&lt;i32&gt;,
-    <span class="attr">#[prost(message, optional, tag = <span class="string">"2"</span>)]
-    </span><span class="kw">pub </span>request: ::core::option::Option&lt;WebSocketRequestMessage&gt;,
-    <span class="attr">#[prost(message, optional, tag = <span class="string">"3"</span>)]
-    </span><span class="kw">pub </span>response: ::core::option::Option&lt;WebSocketResponseMessage&gt;,
-}
-<span class="doccomment">/// Nested message and enum types in `WebSocketMessage`.
-</span><span class="kw">pub mod </span>web_socket_message {
-    <span class="attr">#[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    </span><span class="kw">pub enum </span>Type {
-        Unknown = <span class="number">0</span>,
-        Request = <span class="number">1</span>,
-        Response = <span class="number">2</span>,
-    }
-    <span class="kw">impl </span>Type {
-        <span class="doccomment">/// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        </span><span class="kw">pub fn </span>as_str_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
-            <span class="kw">match </span><span class="self">self </span>{
-                Type::Unknown =&gt; <span class="string">"UNKNOWN"</span>,
-                Type::Request =&gt; <span class="string">"REQUEST"</span>,
-                Type::Response =&gt; <span class="string">"RESPONSE"</span>,
-            }
-        }
-        <span class="doccomment">/// Creates an enum from field names used in the ProtoBuf definition.
-        </span><span class="kw">pub fn </span>from_str_name(value: <span class="kw-2">&amp;</span>str) -&gt; ::core::option::Option&lt;<span class="self">Self</span>&gt; {
-            <span class="kw">match </span>value {
-                <span class="string">"UNKNOWN" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Unknown),
-                <span class="string">"REQUEST" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Request),
-                <span class="string">"RESPONSE" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Response),
-                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-            }
-        }
-    }
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>ProvisioningUuid {
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>uuid: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>ProvisionEnvelope {
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>public_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="doccomment">/// Encrypted ProvisionMessage
-    </span><span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"2"</span>)]
-    </span><span class="kw">pub </span>body: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>ProvisionMessage {
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>aci_identity_key_public: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"2"</span>)]
-    </span><span class="kw">pub </span>aci_identity_key_private: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"11"</span>)]
-    </span><span class="kw">pub </span>pni_identity_key_public: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"12"</span>)]
-    </span><span class="kw">pub </span>pni_identity_key_private: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"8"</span>)]
-    </span><span class="kw">pub </span>aci: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"10"</span>)]
-    </span><span class="kw">pub </span>pni: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"3"</span>)]
-    </span><span class="kw">pub </span>number: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"4"</span>)]
-    </span><span class="kw">pub </span>provisioning_code: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"5"</span>)]
-    </span><span class="kw">pub </span>user_agent: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"6"</span>)]
-    </span><span class="kw">pub </span>profile_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-    <span class="attr">#[prost(bool, optional, tag = <span class="string">"7"</span>)]
-    </span><span class="kw">pub </span>read_receipts: ::core::option::Option&lt;bool&gt;,
-    <span class="attr">#[prost(uint32, optional, tag = <span class="string">"9"</span>)]
-    </span><span class="kw">pub </span>provisioning_version: ::core::option::Option&lt;u32&gt;,
-    <span class="doccomment">/// NEXT ID: 14
-    </span><span class="attr">#[prost(bytes = <span class="string">"vec"</span>, optional, tag = <span class="string">"13"</span>)]
-    </span><span class="kw">pub </span>master_key: ::core::option::Option&lt;::prost::alloc::vec::Vec&lt;u8&gt;&gt;,
-}
-<span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-</span><span class="kw">pub enum </span>ProvisioningVersion {
-    Initial = <span class="number">0</span>,
-    TabletSupport = <span class="number">1</span>,
-}
-<span class="kw">impl </span>ProvisioningVersion {
-    <span class="doccomment">/// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    </span><span class="kw">pub fn </span>as_str_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
-        <span class="kw">match </span><span class="self">self </span>{
-            ProvisioningVersion::Initial =&gt; <span class="string">"INITIAL"</span>,
-            ProvisioningVersion::TabletSupport =&gt; <span class="string">"TABLET_SUPPORT"</span>,
-        }
-    }
-    <span class="doccomment">/// Creates an enum from field names used in the ProtoBuf definition.
-    </span><span class="kw">pub fn </span>from_str_name(value: <span class="kw-2">&amp;</span>str) -&gt; ::core::option::Option&lt;<span class="self">Self</span>&gt; {
-        <span class="kw">match </span>value {
-            <span class="string">"INITIAL" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::Initial),
-            <span class="string">"TABLET_SUPPORT" </span>=&gt; <span class="prelude-val">Some</span>(<span class="self">Self</span>::TabletSupport),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-        }
-    }
-}
-<span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-</span><span class="kw">pub struct </span>Pack {
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"1"</span>)]
-    </span><span class="kw">pub </span>title: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(string, optional, tag = <span class="string">"2"</span>)]
-    </span><span class="kw">pub </span>author: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-    <span class="attr">#[prost(message, optional, tag = <span class="string">"3"</span>)]
-    </span><span class="kw">pub </span>cover: ::core::option::Option&lt;pack::Sticker&gt;,
-    <span class="attr">#[prost(message, repeated, tag = <span class="string">"4"</span>)]
-    </span><span class="kw">pub </span>stickers: ::prost::alloc::vec::Vec&lt;pack::Sticker&gt;,
-}
-<span class="doccomment">/// Nested message and enum types in `Pack`.
-</span><span class="kw">pub mod </span>pack {
-    <span class="attr">#[derive(Clone, PartialEq, ::prost::Message)]
-    </span><span class="kw">pub struct </span>Sticker {
-        <span class="attr">#[prost(uint32, optional, tag = <span class="string">"1"</span>)]
-        </span><span class="kw">pub </span>id: ::core::option::Option&lt;u32&gt;,
-        <span class="attr">#[prost(string, optional, tag = <span class="string">"2"</span>)]
-        </span><span class="kw">pub </span>emoji: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
-        <span class="attr">#[prost(string, optional, tag = <span class="string">"3"</span>)]
-        </span><span class="kw">pub </span>content_type: ::core::option::Option&lt;::prost::alloc::string::String&gt;,
     }
 }
 </code></pre></div></section></main></body></html>
