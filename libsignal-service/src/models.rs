@@ -29,6 +29,7 @@ pub struct Contact {
     pub verified: Verified,
     pub profile_key: Vec<u8>,
     pub expire_timer: u32,
+    pub expire_timer_version: u32,
     pub inbox_position: u32,
     pub archived: bool,
     #[serde(skip)]
@@ -69,6 +70,7 @@ impl Contact {
             verified: contact_details.verified.clone().unwrap_or_default(),
             profile_key: contact_details.profile_key().to_vec(),
             expire_timer: contact_details.expire_timer(),
+            expire_timer_version: contact_details.expire_timer_version(),
             inbox_position: contact_details.inbox_position(),
             archived: contact_details.archived(),
             avatar: contact_details.avatar.and_then(|avatar| {
