@@ -138,6 +138,7 @@ impl MessagePipe {
 /// WebSocketService that panics on every request, mainly for example code.
 pub struct PanicingWebSocketService;
 
+#[allow(clippy::diverging_sub_expression)]
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
 #[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
 impl WebSocketService for PanicingWebSocketService {

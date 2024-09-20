@@ -1,3 +1,5 @@
+#![allow(clippy::diverging_sub_expression)]
+
 use libsignal_service::pre_keys::{KyberPreKeyStoreExt, PreKeysStore};
 use libsignal_service::protocol::{
     Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore, KyberPreKeyId,
