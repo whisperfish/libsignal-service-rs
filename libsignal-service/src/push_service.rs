@@ -529,6 +529,26 @@ pub struct AttachmentV2UploadAttributes {
     attachment_id: u64,
 }
 
+#[derive(Debug)]
+pub struct PushAttachmentData {
+    content_type: Option<String>,
+    //data: InputStream,
+    //val dataSize: Long,
+    incremental: bool,
+    // val outputStreamFactory: OutputStreamFactory,
+    // val listener: SignalServiceAttachment.ProgressListener?,
+    // val cancelationSignal: CancelationSignal?,
+}
+
+#[derive(Debug, serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentV4UploadForm {
+    cdn: u32,
+    key: String,
+    headers: Map<String, String>,
+    signed_upload_location: String,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
@@ -707,6 +727,26 @@ pub trait PushService: MaybeSend {
         file: Option<(&str, &'s mut C)>,
     ) -> Result<(), ServiceError>;
 
+    /// Upload larger file to CDN2
+    ///
+    /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
+    async fn post_to_cdn2<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<(), ServiceError>;
+
+    /// Upload larger file to CDN3
+    ///
+    /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
+    async fn post_to_cdn3<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<(), ServiceError>;
+
     async fn ws(
         &mut self,
         path: &str,
@@ -848,10 +888,10 @@ pub trait PushService: MaybeSend {
         .await
     }
 
-    /// Upload attachment to CDN
+    /// Upload attachment to CDN0
     ///
     /// Returns attachment ID and the attachment digest
-    async fn upload_attachment<'s, C: std::io::Read + Send + 's>(
+    async fn upload_attachment_v2<'s, C: std::io::Read + Send + 's>(
         &mut self,
         attrs: &AttachmentV2UploadAttributes,
         content: &'s mut C,
@@ -875,7 +915,39 @@ pub trait PushService: MaybeSend {
             Some(("file", &mut digester)),
         )
         .await?;
+
         Ok((attrs.attachment_id, digester.finalize()))
+    }
+
+    async fn upload_attachment_v4<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        attrs: &AttachmentV4UploadForm,
+        content: &'s mut C,
+    ) -> Result<(u64, Vec<u8>), ServiceError> {
+        if (attrs.cdn == 2) {
+            self.post_to_cdn2(
+                attachment.getResumableUploadSpec().getResumeLocation(),
+                attachment.getData(),
+                "application/octet-stream",
+                attachment.getDataSize(),
+                attachment.getIncremental(),
+                attachment.getOutputStreamFactory(),
+                attachment.getListener(),
+                attachment.getCancelationSignal(),
+            );
+        } else {
+            return uploadToCdn3(
+                attachment.getResumableUploadSpec().getResumeLocation(),
+                attachment.getData(),
+                "application/offset+octet-stream",
+                attachment.getDataSize(),
+                attachment.getIncremental(),
+                attachment.getOutputStreamFactory(),
+                attachment.getListener(),
+                attachment.getCancelationSignal(),
+                attachment.getResumableUploadSpec().getHeaders(),
+            );
+        }
     }
 
     async fn get_messages(

@@ -218,14 +218,17 @@ where
         });
 
         // Request upload attributes
+        // TODO: we can actually store the upload spec to be able to resume the upload later
+        // if it fails or stalls (= we should at least split the API calls so clients can decide what to do)
         let attrs = self
             .identified_ws
-            .get_attachment_v2_upload_attributes()
+            .get_attachment_v4_upload_attributes()
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
+
         let (id, digest) = self
             .service
-            .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
+            .upload_attachment_v2(&attrs, &mut std::io::Cursor::new(&contents))
             .instrument(tracing::trace_span!("Uploading attachment"))
             .await?;
 

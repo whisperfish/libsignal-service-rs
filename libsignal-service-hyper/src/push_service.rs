@@ -534,6 +534,7 @@ impl PushService for HyperPushService {
     #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
     async fn post_to_cdn0<'s, C: io::Read + Send + 's>(
         &mut self,
+        cdn_id: u32,
         path: &str,
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
@@ -585,7 +586,7 @@ impl PushService for HyperPushService {
         let response = self
             .request(
                 Method::POST,
-                Endpoint::Cdn(0),
+                Endpoint::Cdn(cdn_id),
                 path,
                 &[],
                 HttpAuthOverride::NoOverride,
