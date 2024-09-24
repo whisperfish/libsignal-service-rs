@@ -16,6 +16,10 @@ pub struct Attachment<R> {
     pub reader: R,
 }
 
+const fn default_expire_timer_version() -> u32 {
+    1
+}
+
 /// Mirror of the protobuf ContactDetails message
 /// but with stronger types (e.g. `ServiceAddress` instead of optional uuid and string phone numbers)
 /// and some helper functions
@@ -29,6 +33,7 @@ pub struct Contact {
     pub verified: Verified,
     pub profile_key: Vec<u8>,
     pub expire_timer: u32,
+    #[serde(default = "default_expire_timer_version")]
     pub expire_timer_version: u32,
     pub inbox_position: u32,
     pub archived: bool,
