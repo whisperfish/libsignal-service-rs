@@ -17,7 +17,7 @@ pub struct Attachment<R> {
 }
 
 const fn default_expire_timer_version() -> u32 {
-    1
+    2
 }
 
 /// Mirror of the protobuf ContactDetails message
