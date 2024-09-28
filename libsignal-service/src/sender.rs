@@ -315,8 +315,8 @@ where
 
     /// Send a message `content` to a single `recipient`.
     #[tracing::instrument(
-        skip(self, unidentified_access, message),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(self, unidentified_access, message, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     pub async fn send_message(
         &mut self,
@@ -496,8 +496,8 @@ where
     /// Send a message (`content`) to an address (`recipient`).
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content_body),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(self, unidentified_access, content_body, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     async fn try_send_message(
         &mut self,
@@ -646,8 +646,8 @@ where
 
     /// Upload contact details to the CDN and send a sync message
     #[tracing::instrument(
-        skip(self, unidentified_access, contacts),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(self, unidentified_access, contacts, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     pub async fn send_contact_details<Contacts>(
         &mut self,
@@ -687,7 +687,7 @@ where
     }
 
     /// Send `Configuration` synchronization message
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, recipient), fields(recipient = %recipient))]
     pub async fn send_configuration(
         &mut self,
         recipient: &ServiceAddress,
@@ -706,7 +706,7 @@ where
     }
 
     /// Send `MessageRequestResponse` synchronization message with either a recipient ACI or a GroupV2 ID
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, recipient), fields(recipient = %recipient))]
     pub async fn send_message_request_response(
         &mut self,
         recipient: &ServiceAddress,
@@ -772,8 +772,8 @@ where
     // Equivalent with `getEncryptedMessages`
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(self, unidentified_access, content, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     async fn create_encrypted_messages(
         &mut self,
@@ -882,8 +882,8 @@ where
     /// When no session with the recipient exists, we need to create one.
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(self, unidentified_access, content, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     pub(crate) async fn create_encrypted_message(
         &mut self,

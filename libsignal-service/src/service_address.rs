@@ -20,6 +20,18 @@ pub struct ServiceAddress {
     pub identity: ServiceIdType,
 }
 
+impl std::fmt::Display for ServiceAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // This is used in ServiceAddress::to_service_id(&self), so keep this consistent.
+        match self.identity {
+            ServiceIdType::AccountIdentity => write!(f, "{}", self.uuid),
+            ServiceIdType::PhoneNumberIdentity => {
+                write!(f, "PNI:{}", self.uuid)
+            },
+        }
+    }
+}
+
 impl ServiceAddress {
     pub fn to_protocol_address(
         &self,
@@ -71,12 +83,7 @@ impl ServiceAddress {
     }
 
     pub fn to_service_id(&self) -> String {
-        match self.identity {
-            ServiceIdType::AccountIdentity => self.uuid.to_string(),
-            ServiceIdType::PhoneNumberIdentity => {
-                format!("PNI:{}", self.uuid)
-            },
-        }
+        self.to_string()
     }
 }
 
