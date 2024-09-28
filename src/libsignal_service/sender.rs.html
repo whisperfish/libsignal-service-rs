@@ -1332,8 +1332,8 @@
 
     <span class="doccomment">/// Send a message `content` to a single `recipient`.
     </span><span class="attr">#[tracing::instrument(
-        skip(<span class="self">self</span>, unidentified_access, message),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(<span class="self">self</span>, unidentified_access, message, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     </span><span class="kw">pub async fn </span>send_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1513,8 +1513,8 @@
     <span class="doccomment">/// Send a message (`content`) to an address (`recipient`).
     </span><span class="attr">#[tracing::instrument(
         level = <span class="string">"trace"</span>,
-        skip(<span class="self">self</span>, unidentified_access, content_body),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(<span class="self">self</span>, unidentified_access, content_body, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     </span><span class="kw">async fn </span>try_send_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1663,8 +1663,8 @@
 
     <span class="doccomment">/// Upload contact details to the CDN and send a sync message
     </span><span class="attr">#[tracing::instrument(
-        skip(<span class="self">self</span>, unidentified_access, contacts),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(<span class="self">self</span>, unidentified_access, contacts, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     </span><span class="kw">pub async fn </span>send_contact_details&lt;Contacts&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1704,7 +1704,7 @@
     }
 
     <span class="doccomment">/// Send `Configuration` synchronization message
-    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>, recipient), fields(recipient = %recipient))]
     </span><span class="kw">pub async fn </span>send_configuration(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         recipient: <span class="kw-2">&amp;</span>ServiceAddress,
@@ -1723,7 +1723,7 @@
     }
 
     <span class="doccomment">/// Send `MessageRequestResponse` synchronization message with either a recipient ACI or a GroupV2 ID
-    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>))]
+    </span><span class="attr">#[tracing::instrument(skip(<span class="self">self</span>, recipient), fields(recipient = %recipient))]
     </span><span class="kw">pub async fn </span>send_message_request_response(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         recipient: <span class="kw-2">&amp;</span>ServiceAddress,
@@ -1789,8 +1789,8 @@
     <span class="comment">// Equivalent with `getEncryptedMessages`
     </span><span class="attr">#[tracing::instrument(
         level = <span class="string">"trace"</span>,
-        skip(<span class="self">self</span>, unidentified_access, content),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(<span class="self">self</span>, unidentified_access, content, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     </span><span class="kw">async fn </span>create_encrypted_messages(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -1899,8 +1899,8 @@
     /// When no session with the recipient exists, we need to create one.
     </span><span class="attr">#[tracing::instrument(
         level = <span class="string">"trace"</span>,
-        skip(<span class="self">self</span>, unidentified_access, content),
-        fields(unidentified_access = unidentified_access.is_some()),
+        skip(<span class="self">self</span>, unidentified_access, content, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>create_encrypted_message(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,

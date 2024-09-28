@@ -128,6 +128,13 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::convert::TryFrom;
 
 <span class="kw">use </span>libsignal_protocol::{DeviceId, ProtocolAddress};
@@ -148,6 +155,18 @@
 </span><span class="kw">pub struct </span>ServiceAddress {
     <span class="kw">pub </span>uuid: Uuid,
     <span class="kw">pub </span>identity: ServiceIdType,
+}
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>ServiceAddress {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="comment">// This is used in ServiceAddress::to_service_id(&amp;self), so keep this consistent.
+        </span><span class="kw">match </span><span class="self">self</span>.identity {
+            ServiceIdType::AccountIdentity =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.uuid),
+            ServiceIdType::PhoneNumberIdentity =&gt; {
+                <span class="macro">write!</span>(f, <span class="string">"PNI:{}"</span>, <span class="self">self</span>.uuid)
+            },
+        }
+    }
 }
 
 <span class="kw">impl </span>ServiceAddress {
@@ -201,12 +220,7 @@
     }
 
     <span class="kw">pub fn </span>to_service_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; String {
-        <span class="kw">match </span><span class="self">self</span>.identity {
-            ServiceIdType::AccountIdentity =&gt; <span class="self">self</span>.uuid.to_string(),
-            ServiceIdType::PhoneNumberIdentity =&gt; {
-                <span class="macro">format!</span>(<span class="string">"PNI:{}"</span>, <span class="self">self</span>.uuid)
-            },
-        }
+        <span class="self">self</span>.to_string()
     }
 }
 
