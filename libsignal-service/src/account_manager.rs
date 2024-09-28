@@ -626,6 +626,7 @@ impl<Service: PushService> AccountManager<Service> {
     /// Should be called as the primary device to migrate from pre-PNI to PNI.
     ///
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
+    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = %local_aci))]
     pub async fn pnp_initialize_devices<
         // XXX So many constraints here, all imposed by the MessageSender
         R: rand::Rng + rand::CryptoRng,
