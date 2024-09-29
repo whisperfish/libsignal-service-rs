@@ -771,6 +771,37 @@ where
         Ok(())
     }
 
+    /// Send a `Keys` request message
+    #[tracing::instrument(skip(self))]
+    pub async fn send_sync_message_request(
+        &mut self,
+        recipient: &ServiceAddress,
+        request_type: sync_message::request::Type,
+    ) -> Result<(), MessageSenderError> {
+        if self.device_id == DEFAULT_DEVICE_ID.into() {
+            let reason = format!(
+                "Primary device can't send sync requests, ignoring {:?}",
+                request_type
+            );
+            return Err(MessageSenderError::ServiceError(
+                ServiceError::SendError { reason },
+            ));
+        }
+
+        let msg = SyncMessage {
+            request: Some(sync_message::Request {
+                r#type: Some(request_type.into()),
+            }),
+            ..SyncMessage::with_padding()
+        };
+
+        let ts = Utc::now().timestamp_millis() as u64;
+        self.send_message(recipient, None, msg, ts, false, false)
+            .await?;
+
+        Ok(())
+    }
+
     #[tracing::instrument(level = "trace", skip(self))]
     fn create_pni_signature(
         &mut self,
