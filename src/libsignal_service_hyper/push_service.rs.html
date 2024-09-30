@@ -665,6 +665,9 @@
 <a href="#665" id="665">665</a>
 <a href="#666" id="666">666</a>
 <a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::io;
 <span class="kw">use </span>std::time::Duration;
 
@@ -1199,12 +1202,15 @@
     }
 
     <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>, value, file), fields(file = file.as_ref().map(|<span class="kw">_</span>| <span class="string">""</span>)))]
-    </span><span class="kw">async fn </span>post_to_cdn0&lt;<span class="lifetime">'s</span>, C: io::Read + Send + <span class="lifetime">'s</span>&gt;(
+    </span><span class="kw">async fn </span>post_to_cdn0&lt;<span class="lifetime">'s</span>, C&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         path: <span class="kw-2">&amp;</span>str,
         value: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>str)],
         file: <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span><span class="lifetime">'s </span><span class="kw-2">mut </span>C)&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt;
+    <span class="kw">where
+        </span>C: io::Read + Send + <span class="lifetime">'s</span>,
+    {
         <span class="kw">let </span><span class="kw-2">mut </span>form = mpart_async::client::MultipartRequest::default();
 
         <span class="comment">// mpart-async has a peculiar ordering of the form items,

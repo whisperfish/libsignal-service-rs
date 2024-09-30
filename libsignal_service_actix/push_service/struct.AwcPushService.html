@@ -197,7 +197,7 @@
     's: 'async_trait,
     'life0: 'async_trait,
     'life1: 'async_trait,
-    C: 'async_trait + <a class="trait" href="https://doc.rust-lang.org/1.81.0/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 's,
+    C: <a class="trait" href="https://doc.rust-lang.org/1.81.0/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 's + 'async_trait,
     Self: 'async_trait,</div></h4></section></summary><div class='docblock'>Upload attachment to CDN <a href="../../libsignal_service/push_service/trait.PushService.html#method.upload_attachment">Read more</a></div></details><section id="method.get_messages" class="method trait-impl"><a class="src rightside" href="../../src/libsignal_service/push_service.rs.html#612">source</a><a href="#method.get_messages" class="anchor">§</a><h4 class="code-header">fn <a href="../../libsignal_service/push_service/trait.PushService.html#method.get_messages" class="fn">get_messages</a>&lt;'life0, 'async_trait&gt;(
     &amp;'life0 mut self,
     allow_stories: <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.bool.html">bool</a>,
@@ -281,8 +281,8 @@
     'life4: 'async_trait,
     'life5: 'async_trait,
     'life6: 'async_trait,
-    C: 'async_trait + <a class="trait" href="https://doc.rust-lang.org/1.81.0/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 's,
-    S: 'async_trait + <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/convert/trait.AsRef.html" title="trait core::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.str.html">str</a>&gt;,
+    C: <a class="trait" href="https://doc.rust-lang.org/1.81.0/std/io/trait.Read.html" title="trait std::io::Read">Read</a> + <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> + 's + 'async_trait,
+    S: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/convert/trait.AsRef.html" title="trait core::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.str.html">str</a>&gt; + 'async_trait,
     Self: 'async_trait,</div></h4></section></summary><div class='docblock'>Writes a profile and returns the avatar URL, if one was provided. <a href="../../libsignal_service/push_service/trait.PushService.html#method.write_profile">Read more</a></div></details><section id="method.create_verification_session" class="method trait-impl"><a class="src rightside" href="../../src/libsignal_service/push_service.rs.html#612">source</a><a href="#method.create_verification_session" class="anchor">§</a><h4 class="code-header">fn <a href="../../libsignal_service/push_service/trait.PushService.html#method.create_verification_session" class="fn">create_verification_session</a>&lt;'a, 'life0, 'async_trait&gt;(
     &amp;'life0 mut self,
     number: &amp;'a <a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.str.html">str</a>,
