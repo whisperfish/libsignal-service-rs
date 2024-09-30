@@ -700,12 +700,14 @@ pub trait PushService: MaybeSend {
     /// Upload larger file to CDN0 in legacy fashion, e.g. for attachments.
     ///
     /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
-    async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
+    async fn post_to_cdn0<'s, C>(
         &mut self,
         path: &str,
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError>;
+    ) -> Result<(), ServiceError>
+    where
+        C: std::io::Read + Send + 's;
 
     async fn ws(
         &mut self,
@@ -851,11 +853,14 @@ pub trait PushService: MaybeSend {
     /// Upload attachment to CDN
     ///
     /// Returns attachment ID and the attachment digest
-    async fn upload_attachment<'s, C: std::io::Read + Send + 's>(
+    async fn upload_attachment<'s, C>(
         &mut self,
         attrs: &AttachmentV2UploadAttributes,
         content: &'s mut C,
-    ) -> Result<(u64, Vec<u8>), ServiceError> {
+    ) -> Result<(u64, Vec<u8>), ServiceError>
+    where
+        C: std::io::Read + Send + 's,
+    {
         let values = [
             ("acl", &attrs.acl as &str),
             ("key", &attrs.key),
@@ -1081,7 +1086,7 @@ pub trait PushService: MaybeSend {
     /// See [`AccountManager`][struct@crate::AccountManager] for a convenience method.
     ///
     /// Java equivalent: `writeProfile`
-    async fn write_profile<'s, C: std::io::Read + Send + 's, S: AsRef<str>>(
+    async fn write_profile<'s, C, S>(
         &mut self,
         version: &ProfileKeyVersion,
         name: &[u8],
@@ -1089,7 +1094,11 @@ pub trait PushService: MaybeSend {
         emoji: &[u8],
         commitment: &ProfileKeyCommitment,
         avatar: AvatarWrite<&mut C>,
-    ) -> Result<Option<String>, ServiceError> {
+    ) -> Result<Option<String>, ServiceError>
+    where
+        C: std::io::Read + Send + 's,
+        S: AsRef<str>,
+    {
         #[derive(Debug, Serialize)]
         #[serde(rename_all = "camelCase")]
         struct SignalServiceProfileWrite<'s> {

@@ -16,6 +16,7 @@ impl ExampleStore {
 }
 
 #[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
 impl PreKeyStore for ExampleStore {
     /// Look up the pre-key corresponding to `prekey_id`.
     async fn get_pre_key(
@@ -44,6 +45,7 @@ impl PreKeyStore for ExampleStore {
 }
 
 #[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
 impl KyberPreKeyStore for ExampleStore {
     /// Look up the signed kyber pre-key corresponding to `kyber_prekey_id`.
     async fn get_kyber_pre_key(
@@ -73,6 +75,7 @@ impl KyberPreKeyStore for ExampleStore {
 }
 
 #[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
 impl SignedPreKeyStore for ExampleStore {
     /// Look up the signed pre-key corresponding to `signed_prekey_id`.
     async fn get_signed_pre_key(
@@ -93,6 +96,7 @@ impl SignedPreKeyStore for ExampleStore {
 }
 
 #[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
 impl KyberPreKeyStoreExt for ExampleStore {
     async fn store_last_resort_kyber_pre_key(
         &mut self,
@@ -134,6 +138,7 @@ impl KyberPreKeyStoreExt for ExampleStore {
 }
 
 #[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
 impl IdentityKeyStore for ExampleStore {
     /// Return the single specific identity the store is assumed to represent, with private key.
     async fn get_identity_key_pair(
@@ -189,6 +194,7 @@ impl IdentityKeyStore for ExampleStore {
 }
 
 #[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
 impl PreKeysStore for ExampleStore {
     /// ID of the next pre key
     async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError> {

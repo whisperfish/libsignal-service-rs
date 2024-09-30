@@ -532,12 +532,15 @@ impl PushService for HyperPushService {
     }
 
     #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
-    async fn post_to_cdn0<'s, C: io::Read + Send + 's>(
+    async fn post_to_cdn0<'s, C>(
         &mut self,
         path: &str,
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError> {
+    ) -> Result<(), ServiceError>
+    where
+        C: io::Read + Send + 's,
+    {
         let mut form = mpart_async::client::MultipartRequest::default();
 
         // mpart-async has a peculiar ordering of the form items,
