@@ -37,6 +37,7 @@ pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
 
 mod account;
+mod calling;
 mod cdn;
 mod error;
 mod keys;
@@ -46,6 +47,7 @@ mod registration;
 mod stickers;
 
 pub use account::*;
+pub use calling::*;
 pub use cdn::*;
 pub use error::*;
 pub use keys::*;
