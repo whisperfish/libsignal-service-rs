@@ -18,6 +18,7 @@ use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
 use crate::content::ContentBody;
+use crate::master_key::MasterKey;
 use crate::pre_keys::{
     KyberPreKeyEntity, PreKeyEntity, PreKeysStore, SignedPreKeyEntity,
     PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
@@ -277,6 +278,7 @@ impl<Service: PushService> AccountManager<Service> {
         aci_identity_store: &dyn IdentityKeyStore,
         pni_identity_store: &dyn IdentityKeyStore,
         credentials: ServiceCredentials,
+        master_key: Option<MasterKey>,
     ) -> Result<(), ProvisioningError> {
         let query: HashMap<_, _> = url.query_pairs().collect();
         let ephemeral_id =
@@ -328,7 +330,7 @@ impl<Service: PushService> AccountManager<Service> {
             provisioning_code: Some(provisioning_code),
             read_receipts: None,
             user_agent: None,
-            master_key: None, // XXX
+            master_key: master_key.map(|x| x.into()),
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);
