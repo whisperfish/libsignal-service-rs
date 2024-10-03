@@ -18,9 +18,9 @@ impl MasterKey {
     }
 
     pub fn from_slice(
-        slice: &Vec<u8>,
+        slice: &[u8],
     ) -> Result<Self, std::array::TryFromSliceError> {
-        let inner = slice.as_slice().try_into()?;
+        let inner = slice.try_into()?;
         Ok(Self { inner })
     }
 }
@@ -53,9 +53,9 @@ impl StorageServiceKey {
     }
 
     pub fn from_slice(
-        slice: &Vec<u8>,
+        slice: &[u8],
     ) -> Result<Self, std::array::TryFromSliceError> {
-        let inner = slice.as_slice().try_into()?;
+        let inner = slice.try_into()?;
         Ok(Self { inner })
     }
 }
