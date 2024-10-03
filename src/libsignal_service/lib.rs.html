@@ -101,6 +101,8 @@
 <a href="#101" id="101">101</a>
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
 </pre></div><pre class="rust"><code><span class="attr">#![recursion_limit = <span class="string">"256"</span>]
 #![deny(clippy::dbg_macro)]
 </span><span class="comment">// TODO: we cannot use this until whisperfish builds with a newer Rust version
@@ -117,6 +119,7 @@
 <span class="kw">mod </span>digeststream;
 <span class="kw">pub mod </span>envelope;
 <span class="kw">pub mod </span>groups_v2;
+<span class="kw">pub mod </span>master_key;
 <span class="kw">pub mod </span>messagepipe;
 <span class="kw">pub mod </span>models;
 <span class="kw">pub mod </span>pre_keys;
@@ -182,6 +185,7 @@
             AccessControl, Group, Member, PendingMember, RequestingMember,
             Timer,
         },
+        master_key::{MasterKey, MasterKeyStore, StorageServiceKey},
         proto::{
             attachment_pointer::AttachmentIdentifier, sync_message::Contacts,
             AttachmentPointer,
