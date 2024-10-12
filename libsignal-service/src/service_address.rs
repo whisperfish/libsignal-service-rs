@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use libsignal_protocol::{DeviceId, ProtocolAddress};
+use libsignal_protocol::{DeviceId, ProtocolAddress, ServiceId};
 use uuid::Uuid;
 
 pub use crate::push_service::ServiceIdType;
@@ -48,14 +48,24 @@ impl ServiceAddress {
         }
     }
 
+    #[deprecated]
     pub fn new_aci(uuid: Uuid) -> Self {
+        Self::from_aci(uuid)
+    }
+
+    pub fn from_aci(uuid: Uuid) -> Self {
         Self {
             uuid,
             identity: ServiceIdType::AccountIdentity,
         }
     }
 
+    #[deprecated]
     pub fn new_pni(uuid: Uuid) -> Self {
+        Self::from_pni(uuid)
+    }
+
+    pub fn from_pni(uuid: Uuid) -> Self {
         Self {
             uuid,
             identity: ServiceIdType::PhoneNumberIdentity,
@@ -106,9 +116,9 @@ impl TryFrom<&ProtocolAddress> for ServiceAddress {
     fn try_from(addr: &ProtocolAddress) -> Result<Self, Self::Error> {
         let value = addr.name();
         if let Some(pni) = value.strip_prefix("PNI:") {
-            Ok(ServiceAddress::new_pni(Uuid::parse_str(pni)?))
+            Ok(ServiceAddress::from_pni(Uuid::parse_str(pni)?))
         } else {
-            Ok(ServiceAddress::new_aci(Uuid::parse_str(value)?))
+            Ok(ServiceAddress::from_aci(Uuid::parse_str(value)?))
         }
         .map_err(|e| {
             tracing::error!("Parsing ServiceAddress from {:?}", addr);
@@ -122,9 +132,9 @@ impl TryFrom<&str> for ServiceAddress {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         if let Some(pni) = value.strip_prefix("PNI:") {
-            Ok(ServiceAddress::new_pni(Uuid::parse_str(pni)?))
+            Ok(ServiceAddress::from_pni(Uuid::parse_str(pni)?))
         } else {
-            Ok(ServiceAddress::new_aci(Uuid::parse_str(value)?))
+            Ok(ServiceAddress::from_aci(Uuid::parse_str(value)?))
         }
         .map_err(|e| {
             tracing::error!("Parsing ServiceAddress from '{}'", value);
@@ -138,9 +148,9 @@ impl TryFrom<&[u8]> for ServiceAddress {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         if let Some(pni) = value.strip_prefix(b"PNI:") {
-            Ok(ServiceAddress::new_pni(Uuid::from_slice(pni)?))
+            Ok(ServiceAddress::from_pni(Uuid::from_slice(pni)?))
         } else {
-            Ok(ServiceAddress::new_aci(Uuid::from_slice(value)?))
+            Ok(ServiceAddress::from_aci(Uuid::from_slice(value)?))
         }
         .map_err(|e| {
             tracing::error!("Parsing ServiceAddress from {:?}", value);
