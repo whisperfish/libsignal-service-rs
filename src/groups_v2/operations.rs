@@ -58,6 +58,19 @@ impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecodingError {
 }
 
 impl GroupOperations {
+    fn decrypt_service_id(
+        &self,
+        ciphertext: &[u8],
+    ) -> Result<ServiceId, GroupDecodingError> {
+        match self
+            .group_secret_params
+            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+        {
+            ServiceId::Aci(aci) => Ok(ServiceId::from(aci)),
+            ServiceId::Pni(pni) => Ok(ServiceId::from(pni)),
+        }
+    }
+
     fn decrypt_aci(
         &self,
         ciphertext: &[u8],
@@ -131,11 +144,11 @@ impl GroupOperations {
     ) -> Result<PendingMember, GroupDecodingError> {
         let inner_member =
             member.member.ok_or(GroupDecodingError::WrongBlob)?;
-        let aci = self.decrypt_aci(&inner_member.user_id)?;
+        let service_id = self.decrypt_service_id(&inner_member.user_id)?;
         let added_by_uuid = self.decrypt_aci(&member.added_by_user_id)?;
 
         Ok(PendingMember {
-            uuid: aci.into(),
+            address: service_id.into(),
             role: inner_member.role.try_into()?,
             added_by_uuid: added_by_uuid.into(),
             timestamp: member.timestamp,
