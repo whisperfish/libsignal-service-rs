@@ -87,6 +87,19 @@ impl ServiceAddress {
     }
 }
 
+impl From<ServiceId> for ServiceAddress {
+    fn from(service_id: ServiceId) -> Self {
+        match service_id {
+            ServiceId::Aci(service_id) => {
+                ServiceAddress::from_aci(service_id.into())
+            },
+            ServiceId::Pni(service_id) => {
+                ServiceAddress::from_pni(service_id.into())
+            },
+        }
+    }
+}
+
 impl TryFrom<&ProtocolAddress> for ServiceAddress {
     type Error = ParseServiceAddressError;
 
