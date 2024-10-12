@@ -1,6 +1,7 @@
 use std::{convert::TryFrom, convert::TryInto};
 
 use derivative::Derivative;
+use libsignal_protocol::ServiceId;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
@@ -30,15 +31,15 @@ impl PartialEq for Member {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingMember {
-    pub uuid: Uuid,
+    pub service_id: ServiceId,
     pub role: Role,
     pub added_by_uuid: Uuid,
     pub timestamp: u64,
 }
 
-#[derive(Derivative, Clone, Deserialize, Serialize)]
+#[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub struct RequestingMember {
     pub uuid: Uuid,
@@ -69,7 +70,7 @@ pub struct AccessControl {
     pub add_from_invite_link: AccessRequired,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Group {
     pub title: String,
     pub avatar: String,
