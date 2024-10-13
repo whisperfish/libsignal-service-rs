@@ -501,6 +501,27 @@ impl SignalWebSocket {
         self.request_json(request).await
     }
 
+    pub(crate) async fn get_json_with_headers<T>(
+        &mut self,
+        path: &str,
+        extra_headers: impl IntoIterator<Item = (&String, &String)>,
+    ) -> Result<T, ServiceError>
+    where
+        for<'de> T: Deserialize<'de>,
+    {
+        let headers = extra_headers
+            .into_iter()
+            .map(|(key, value)| format!("{key}:{value}"))
+            .collect();
+        let request = WebSocketRequestMessage {
+            path: Some(path.into()),
+            verb: Some("GET".into()),
+            headers,
+            ..Default::default()
+        };
+        self.request_json(request).await
+    }
+
     pub(crate) async fn put_json<D, S>(
         &mut self,
         path: &str,

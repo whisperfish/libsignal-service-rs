@@ -53,7 +53,7 @@ pub const DIRECTORY_AUTH_PATH: &str = "/v1/directory/auth";
 pub const DIRECTORY_FEEDBACK_PATH: &str = "/v1/directory/feedback-v3/%s";
 pub const SENDER_ACK_MESSAGE_PATH: &str = "/v1/messages/%s/%d";
 pub const UUID_ACK_MESSAGE_PATH: &str = "/v1/messages/uuid/%s";
-pub const ATTACHMENT_PATH: &str = "/v2/attachments/form/upload";
+pub const ATTACHMENT_PATH: &str = "/v4/attachments/form/upload";
 
 pub const PROFILE_PATH: &str = "/v1/profile/";
 
@@ -513,40 +513,33 @@ impl SignalServiceProfile {
     }
 }
 
-#[derive(Debug, serde::Deserialize, Default)]
+#[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct AttachmentV2UploadAttributes {
-    key: String,
-    credential: String,
-    acl: String,
-    algorithm: String,
-    date: String,
-    policy: String,
-    signature: String,
-    // This is different from Java's implementation,
-    // and I (Ruben) am unsure why they decide to force-parse at upload-time instead of at registration
-    // time.
-    attachment_id: u64,
+pub(crate) struct AttachmentUploadForm {
+    pub cdn: u64,
+    pub key: String,
+    pub headers: HashMap<String, String>,
+    pub signed_upload_location: String,
 }
 
-#[derive(Debug)]
-pub struct PushAttachmentData {
-    content_type: Option<String>,
-    //data: InputStream,
-    //val dataSize: Long,
-    incremental: bool,
-    // val outputStreamFactory: OutputStreamFactory,
-    // val listener: SignalServiceAttachment.ProgressListener?,
-    // val cancelationSignal: CancelationSignal?,
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct AttachmentDigest {
+    pub digest: Vec<u8>,
+    pub incremental_digest: Option<Vec<u8>>,
+    pub incremental_mac_chunkSize: u64,
 }
 
-#[derive(Debug, serde::Deserialize, Debug)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct AttachmentV4UploadForm {
-    cdn: u32,
-    key: String,
-    headers: Map<String, String>,
-    signed_upload_location: String,
+pub(crate) struct ResumableUploadSpec {
+    attachment_key: Vec<u8>,
+    attachment_iv: Vec<u8>,
+    cdn_key: String,
+    cdn_number: u32,
+    resume_location: String,
+    expiration_timestamp: u64,
+    headers: HashMap<String, String>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -627,6 +620,9 @@ pub enum ServiceError {
 
     #[error("invalid device name")]
     InvalidDeviceName,
+
+    #[error("Unknown CDN version {0}")]
+    UnknownCdnVersion(u64),
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
@@ -717,16 +713,6 @@ pub trait PushService: MaybeSend {
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError>;
 
-    /// Upload larger file to CDN0 in legacy fashion, e.g. for attachments.
-    ///
-    /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
-    async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
-        &mut self,
-        path: &str,
-        value: &[(&str, &str)],
-        file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError>;
-
     /// Upload larger file to CDN2
     ///
     /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
@@ -735,7 +721,7 @@ pub trait PushService: MaybeSend {
         path: &str,
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError>;
+    ) -> Result<AttachmentDigest, ServiceError>;
 
     /// Upload larger file to CDN3
     ///
@@ -745,7 +731,7 @@ pub trait PushService: MaybeSend {
         path: &str,
         value: &[(&str, &str)],
         file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError>;
+    ) -> Result<AttachmentDigest, ServiceError>;
 
     async fn ws(
         &mut self,
@@ -873,80 +859,68 @@ pub trait PushService: MaybeSend {
         .await
     }
 
-    /// Request AttachmentV2UploadAttributes
-    ///
-    /// Equivalent with getAttachmentV2UploadAttributes
-    async fn get_attachment_v2_upload_attributes(
-        &mut self,
-    ) -> Result<AttachmentV2UploadAttributes, ServiceError> {
-        self.get_json(
-            Endpoint::Service,
-            "/v2/attachments/form/upload",
-            &[],
-            HttpAuthOverride::NoOverride,
-        )
-        .await
-    }
-
     /// Upload attachment to CDN0
     ///
     /// Returns attachment ID and the attachment digest
-    async fn upload_attachment_v2<'s, C: std::io::Read + Send + 's>(
-        &mut self,
-        attrs: &AttachmentV2UploadAttributes,
-        content: &'s mut C,
-    ) -> Result<(u64, Vec<u8>), ServiceError> {
-        let values = [
-            ("acl", &attrs.acl as &str),
-            ("key", &attrs.key),
-            ("policy", &attrs.policy),
-            ("Content-Type", "application/octet-stream"),
-            ("x-amz-algorithm", &attrs.algorithm),
-            ("x-amz-credential", &attrs.credential),
-            ("x-amz-date", &attrs.date),
-            ("x-amz-signature", &attrs.signature),
-        ];
+    // async fn upload_attachment_v2<'s, C: std::io::Read + Send + 's>(
+    //     &mut self,
+    //     attrs: &AttachmentUploadForm,
+    //     content: &'s mut C,
+    // ) -> Result<(u64, Vec<u8>), ServiceError> {
+    //     let values = [
+    //         ("acl", &attrs.acl as &str),
+    //         ("key", &attrs.key),
+    //         ("policy", &attrs.policy),
+    //         ("Content-Type", "application/octet-stream"),
+    //         ("x-amz-algorithm", &attrs.algorithm),
+    //         ("x-amz-credential", &attrs.credential),
+    //         ("x-amz-date", &attrs.date),
+    //         ("x-amz-signature", &attrs.signature),
+    //     ];
 
-        let mut digester = crate::digeststream::DigestingReader::new(content);
+    //     let mut digester = crate::digeststream::DigestingReader::new(content);
 
-        self.post_to_cdn0(
-            "attachments/",
-            &values,
-            Some(("file", &mut digester)),
-        )
-        .await?;
+    //     self.post_to_cdn0(
+    //         "attachments/",
+    //         &values,
+    //         Some(("file", &mut digester)),
+    //     )
+    //     .await?;
 
-        Ok((attrs.attachment_id, digester.finalize()))
-    }
+    //     Ok((attrs.attachment_id, digester.finalize()))
+    // }
 
     async fn upload_attachment_v4<'s, C: std::io::Read + Send + 's>(
         &mut self,
-        attrs: &AttachmentV4UploadForm,
-        content: &'s mut C,
-    ) -> Result<(u64, Vec<u8>), ServiceError> {
-        if (attrs.cdn == 2) {
-            self.post_to_cdn2(
-                attachment.getResumableUploadSpec().getResumeLocation(),
-                attachment.getData(),
-                "application/octet-stream",
-                attachment.getDataSize(),
-                attachment.getIncremental(),
-                attachment.getOutputStreamFactory(),
-                attachment.getListener(),
-                attachment.getCancelationSignal(),
-            );
+        upload_form: &AttachmentUploadForm,
+        resumable_upload_spec: ResumableUploadSpec,
+        content: &mut C,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        if upload_form.cdn == 2 {
+            unimplemented!()
+            // self.post_to_cdn2(
+            //     attachment.getResumableUploadSpec().getResumeLocation(),
+            //     attachment.getData(),
+            //     "application/octet-stream",
+            //     attachment.getDataSize(),
+            //     attachment.getIncremental(),
+            //     attachment.getOutputStreamFactory(),
+            //     attachment.getListener(),
+            //     attachment.getCancelationSignal(),
+            // )
         } else {
-            return uploadToCdn3(
-                attachment.getResumableUploadSpec().getResumeLocation(),
-                attachment.getData(),
-                "application/offset+octet-stream",
-                attachment.getDataSize(),
-                attachment.getIncremental(),
-                attachment.getOutputStreamFactory(),
-                attachment.getListener(),
-                attachment.getCancelationSignal(),
-                attachment.getResumableUploadSpec().getHeaders(),
-            );
+            unimplemented!()
+            // self.post_to_cdn3(
+            //     attachment.getResumableUploadSpec().getResumeLocation(),
+            //     attachment.getData(),
+            //     "application/offset+octet-stream",
+            //     attachment.getDataSize(),
+            //     attachment.getIncremental(),
+            //     attachment.getOutputStreamFactory(),
+            //     attachment.getListener(),
+            //     attachment.getCancelationSignal(),
+            //     attachment.getResumableUploadSpec().getHeaders(),
+            // )
         }
     }
 

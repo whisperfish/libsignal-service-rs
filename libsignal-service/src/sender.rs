@@ -220,15 +220,24 @@ where
         // Request upload attributes
         // TODO: we can actually store the upload spec to be able to resume the upload later
         // if it fails or stalls (= we should at least split the API calls so clients can decide what to do)
-        let attrs = self
+        let attachment_upload_form = self
             .identified_ws
             .get_attachment_v4_upload_attributes()
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
 
-        let (id, digest) = self
+        let resumable_upload_spec = self
+            .identified_ws
+            .get_resumable_upload_url(&attachment_upload_form)
+            .await?;
+
+        let digest = self
             .service
-            .upload_attachment_v2(&attrs, &mut std::io::Cursor::new(&contents))
+            .upload_attachment_v4(
+                &attachment_upload_form,
+                resumable_upload_spec,
+                &mut std::io::Cursor::new(&contents),
+            )
             .instrument(tracing::trace_span!("Uploading attachment"))
             .await?;
 
@@ -237,7 +246,7 @@ where
             key: Some(key.to_vec()),
             size: Some(len as u32),
             // thumbnail: Option<Vec<u8>>,
-            digest: Some(digest),
+            digest: Some(digest.digest),
             file_name: spec.file_name,
             flags: Some(
                 if spec.voice_note == Some(true) {
@@ -261,7 +270,9 @@ where
                     .as_millis() as u64,
             ),
             cdn_number: Some(0),
-            attachment_identifier: Some(AttachmentIdentifier::CdnId(id)),
+            attachment_identifier: Some(AttachmentIdentifier::CdnId(
+                attachment_upload_form.cdn,
+            )),
             ..Default::default()
         })
     }
