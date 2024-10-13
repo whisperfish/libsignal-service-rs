@@ -542,6 +542,11 @@ pub(crate) struct ResumableUploadSpec {
     headers: HashMap<String, String>,
 }
 
+#[derive(Debug)]
+pub(crate) struct ResumeInfo {
+    pub offset: usize,
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
@@ -889,7 +894,6 @@ pub trait PushService: MaybeSend {
 
     //     Ok((attrs.attachment_id, digester.finalize()))
     // }
-
     async fn upload_attachment_v4<'s, C: std::io::Read + Send + 's>(
         &mut self,
         upload_form: &AttachmentUploadForm,

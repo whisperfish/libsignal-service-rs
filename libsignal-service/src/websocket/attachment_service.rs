@@ -1,15 +1,17 @@
-use crate::push_service::{AttachmentUploadForm, ResumableUploadSpec};
+use crate::push_service::{
+    AttachmentUploadForm, ResumableUploadSpec, ResumeInfo,
+};
 
 use super::*;
 
 impl SignalWebSocket {
-    pub async fn get_attachment_v4_upload_attributes(
+    pub(crate) async fn get_attachment_v4_upload_attributes(
         &mut self,
     ) -> Result<AttachmentUploadForm, ServiceError> {
         self.get_json("/v4/attachments/form/upload").await
     }
 
-    pub async fn get_resumable_upload_url(
+    pub(crate) async fn get_resumable_upload_url(
         &mut self,
         attachment_upload_form: &AttachmentUploadForm,
     ) -> Result<ResumableUploadSpec, ServiceError> {
@@ -34,5 +36,35 @@ impl SignalWebSocket {
             &attachment_upload_form.headers,
         )
         .await
+    }
+
+    pub(crate) async fn get_resume_info_cdn3(
+        &mut self,
+        resumable_url: &str,
+        headers: Vec<String>,
+    ) -> Result<ResumeInfo, ServiceError> {
+        let response: WebSocketResponseMessage = self
+            .request(WebSocketRequestMessage {
+                verb: Some("HEAD".into()),
+                path: Some(resumable_url.to_owned()),
+                headers: vec!["Tus-Resumable:1.0.0".into()],
+                ..Default::default()
+            })
+            .await?;
+
+        let upload_offset = response
+            .headers()
+            .get("Upload-Offset")
+            .ok_or(ServiceError::InvalidFrameError {
+                reason: "no Upload-Offset header in response".into(),
+            })?
+            .parse()
+            .map_err(|_| ServiceError::InvalidFrameError {
+                reason: "invalid integer value for Upload-Offset header".into(),
+            })?;
+
+        Ok(ResumeInfo {
+            offset: upload_offset,
+        })
     }
 }

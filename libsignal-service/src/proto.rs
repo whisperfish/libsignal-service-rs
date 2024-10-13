@@ -1,5 +1,7 @@
 #![allow(clippy::all)]
 
+use std::collections::HashMap;
+
 use rand::{Rng, RngCore};
 include!(concat!(env!("OUT_DIR"), "/signalservice.rs"));
 include!(concat!(env!("OUT_DIR"), "/signal.rs"));
@@ -65,6 +67,14 @@ impl WebSocketResponseMessage {
                 ..Default::default()
             }
         }
+    }
+
+    pub fn headers(&self) -> HashMap<String, String> {
+        self.headers
+            .iter()
+            .filter_map(|kv| kv.split_once(":"))
+            .map(|(k, v)| (k.to_owned(), v.to_owned()))
+            .collect()
     }
 }
 

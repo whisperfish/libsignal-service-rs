@@ -531,76 +531,76 @@ impl PushService for HyperPushService {
         ))
     }
 
-    #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
-    async fn post_to_cdn0<'s, C: io::Read + Send + 's>(
-        &mut self,
-        cdn_id: u32,
-        path: &str,
-        value: &[(&str, &str)],
-        file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError> {
-        let mut form = mpart_async::client::MultipartRequest::default();
+    // #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
+    // async fn post_to_cdn0<'s, C: io::Read + Send + 's>(
+    //     &mut self,
+    //     cdn_id: u32,
+    //     path: &str,
+    //     value: &[(&str, &str)],
+    //     file: Option<(&str, &'s mut C)>,
+    // ) -> Result<(), ServiceError> {
+    //     let mut form = mpart_async::client::MultipartRequest::default();
 
-        // mpart-async has a peculiar ordering of the form items,
-        // and Amazon S3 expects them in a very specific order (i.e., the file contents should
-        // go last.
-        //
-        // mpart-async uses a VecDeque internally for ordering the fields in the order given.
-        //
-        // https://github.com/cetra3/mpart-async/issues/16
+    //     // mpart-async has a peculiar ordering of the form items,
+    //     // and Amazon S3 expects them in a very specific order (i.e., the file contents should
+    //     // go last.
+    //     //
+    //     // mpart-async uses a VecDeque internally for ordering the fields in the order given.
+    //     //
+    //     // https://github.com/cetra3/mpart-async/issues/16
 
-        for &(k, v) in value {
-            form.add_field(k, v);
-        }
+    //     for &(k, v) in value {
+    //         form.add_field(k, v);
+    //     }
 
-        if let Some((filename, file)) = file {
-            // XXX Actix doesn't cope with none-'static lifetimes
-            // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf)
-                .expect("infallible Read instance");
-            form.add_stream(
-                "file",
-                filename,
-                "application/octet-stream",
-                futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
-            );
-        }
+    //     if let Some((filename, file)) = file {
+    //         // XXX Actix doesn't cope with none-'static lifetimes
+    //         // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
+    //         let mut buf = Vec::new();
+    //         file.read_to_end(&mut buf)
+    //             .expect("infallible Read instance");
+    //         form.add_stream(
+    //             "file",
+    //             filename,
+    //             "application/octet-stream",
+    //             futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
+    //         );
+    //     }
 
-        let content_type =
-            format!("multipart/form-data; boundary={}", form.get_boundary());
+    //     let content_type =
+    //         format!("multipart/form-data; boundary={}", form.get_boundary());
 
-        // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
-        // stream. Sadly, Content-Length != contents.len(), but should include the whole form.
-        let mut body_contents = vec![];
-        while let Some(b) = form.next().await {
-            // Unwrap, because no error type was used above
-            body_contents.extend(b.unwrap());
-        }
-        tracing::trace!(
-            "Sending PUT with Content-Type={} and length {}",
-            content_type,
-            body_contents.len()
-        );
+    //     // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
+    //     // stream. Sadly, Content-Length != contents.len(), but should include the whole form.
+    //     let mut body_contents = vec![];
+    //     while let Some(b) = form.next().await {
+    //         // Unwrap, because no error type was used above
+    //         body_contents.extend(b.unwrap());
+    //     }
+    //     tracing::trace!(
+    //         "Sending PUT with Content-Type={} and length {}",
+    //         content_type,
+    //         body_contents.len()
+    //     );
 
-        let response = self
-            .request(
-                Method::POST,
-                Endpoint::Cdn(cdn_id),
-                path,
-                &[],
-                HttpAuthOverride::NoOverride,
-                Some(RequestBody {
-                    contents: body_contents,
-                    content_type,
-                }),
-            )
-            .await?;
+    //     let response = self
+    //         .request(
+    //             Method::POST,
+    //             Endpoint::Cdn(cdn_id),
+    //             path,
+    //             &[],
+    //             HttpAuthOverride::NoOverride,
+    //             Some(RequestBody {
+    //                 contents: body_contents,
+    //                 content_type,
+    //             }),
+    //         )
+    //         .await?;
 
-        debug!("HyperPushService::PUT response: {:?}", response);
+    //     debug!("HyperPushService::PUT response: {:?}", response);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     async fn ws(
         &mut self,
