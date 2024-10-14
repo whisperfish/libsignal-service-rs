@@ -25,6 +25,7 @@ use libsignal_protocol::{
 use phonenumber::PhoneNumber;
 use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
+use url::Url;
 use uuid::Uuid;
 use zkgroup::{
     profiles::{ProfileKeyCommitment, ProfileKeyVersion},
@@ -513,13 +514,13 @@ impl SignalServiceProfile {
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AttachmentUploadForm {
-    pub cdn: u64,
+    pub cdn: u32,
     pub key: String,
     pub headers: HashMap<String, String>,
-    pub signed_upload_location: String,
+    pub signed_upload_location: Url,
 }
 
 #[derive(Debug, Deserialize)]
@@ -627,7 +628,7 @@ pub enum ServiceError {
     InvalidDeviceName,
 
     #[error("Unknown CDN version {0}")]
-    UnknownCdnVersion(u64),
+    UnknownCdnVersion(u32),
 }
 
 #[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
@@ -686,6 +687,14 @@ pub trait PushService: MaybeSend {
     where
         for<'de> D: Deserialize<'de>,
         S: MaybeSend + Serialize;
+
+    async fn post(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        additional_headers: &[(&str, &str)],
+        credentials_override: HttpAuthOverride,
+    ) -> Result<HashMap<String, String>, ServiceError>;
 
     async fn post_json<D, S>(
         &mut self,
@@ -895,7 +904,7 @@ pub trait PushService: MaybeSend {
     async fn get_attachment_resumable_upload_url(
         &mut self,
         attachment_upload_form: &AttachmentUploadForm,
-    ) -> Result<ResumableUploadSpec, ServiceError> {
+    ) -> Result<Url, ServiceError> {
         let mut headers = attachment_upload_form.headers.clone();
         headers.insert("Content-Length".into(), "0".into());
         if attachment_upload_form.cdn == 2 {
@@ -912,19 +921,21 @@ pub trait PushService: MaybeSend {
             ));
         };
 
-        let request_headers: Vec<(&str, &str)> = attachment_upload_form
-            .headers
+        let request_headers: Vec<(&str, &str)> = headers
             .iter()
             .map(|(k, v)| (k.as_str(), v.as_str()))
             .collect();
 
-        self.get_json(
-            Endpoint::Service,
-            &attachment_upload_form.signed_upload_location,
-            request_headers.as_slice(),
-            HttpAuthOverride::NoOverride,
-        )
-        .await
+        let response = self
+            .post(
+                Endpoint::Cdn(attachment_upload_form.cdn),
+                attachment_upload_form.signed_upload_location.path(),
+                request_headers.as_slice(),
+                HttpAuthOverride::Unidentified, // this is hack because I'm a smartass, Authorization is part of the supplied headers
+            )
+            .await?;
+
+        Ok(response.get("location").unwrap().parse().unwrap())
     }
 
     async fn get_attachment_resume_info_cdn3(

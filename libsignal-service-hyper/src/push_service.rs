@@ -150,6 +150,7 @@ impl HyperPushService {
 
         match response.status() {
             StatusCode::OK => Ok(response),
+            StatusCode::CREATED => Ok(response),
             StatusCode::NO_CONTENT => Ok(response),
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
@@ -439,6 +440,34 @@ impl PushService for HyperPushService {
             .await?;
 
         Self::json(&mut response).await
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn post(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        additional_headers: &[(&str, &str)],
+        credentials_override: HttpAuthOverride,
+    ) -> Result<HashMap<String, String>, ServiceError> {
+        let mut response = self
+            .request(
+                Method::POST,
+                service,
+                path,
+                additional_headers,
+                credentials_override,
+                None,
+            )
+            .await?;
+
+        Ok(response
+            .headers()
+            .iter()
+            .filter_map(|(k, v)| {
+                Some((k.to_string(), v.to_str().ok()?.to_owned()))
+            })
+            .collect())
     }
 
     #[tracing::instrument(skip(self, value))]

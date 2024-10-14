@@ -226,16 +226,20 @@ where
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
 
+        dbg!(&attachment_upload_form);
+
         let resumable_upload_spec = self
             .service
             .get_attachment_resumable_upload_url(&attachment_upload_form)
             .await?;
 
+        panic!("{}", resumable_upload_spec);
+
         let digest = self
             .service
             .upload_attachment_v4(
                 &attachment_upload_form,
-                resumable_upload_spec,
+                unimplemented!(),
                 &mut std::io::Cursor::new(&contents),
             )
             .instrument(tracing::trace_span!("Uploading attachment"))
@@ -271,7 +275,7 @@ where
             ),
             cdn_number: Some(0),
             attachment_identifier: Some(AttachmentIdentifier::CdnId(
-                attachment_upload_form.cdn,
+                attachment_upload_form.cdn as u64,
             )),
             ..Default::default()
         })

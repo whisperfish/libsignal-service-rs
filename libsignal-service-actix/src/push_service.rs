@@ -95,6 +95,7 @@ impl AwcPushService {
     {
         match response.status() {
             StatusCode::OK => Ok(()),
+            StatusCode::CREATED => Ok(()),
             StatusCode::NO_CONTENT => Ok(()),
             StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
                 Err(ServiceError::Unauthorized)
