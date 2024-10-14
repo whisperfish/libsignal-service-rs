@@ -1,5 +1,5 @@
-use std::io;
 use std::time::Duration;
+use std::{collections::HashMap, io};
 
 use bytes::{Buf, Bytes};
 use futures::{FutureExt, StreamExt, TryStreamExt};
@@ -293,6 +293,34 @@ impl PushService for HyperPushService {
     type ByteStream = Box<dyn futures::io::AsyncRead + Send + Unpin>;
 
     #[tracing::instrument(skip(self))]
+    async fn head(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        additional_headers: &[(&str, &str)],
+        credentials_override: HttpAuthOverride,
+    ) -> Result<HashMap<String, String>, ServiceError> {
+        let mut response = self
+            .request(
+                Method::HEAD,
+                service,
+                path,
+                additional_headers,
+                credentials_override,
+                None,
+            )
+            .await?;
+
+        Ok(response
+            .headers()
+            .iter()
+            .filter_map(|(k, v)| {
+                Some((k.to_string(), v.to_str().ok()?.to_owned()))
+            })
+            .collect())
+    }
+
+    #[tracing::instrument(skip(self))]
     async fn get_json<T>(
         &mut self,
         service: Endpoint,
@@ -531,76 +559,99 @@ impl PushService for HyperPushService {
         ))
     }
 
-    // #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
-    // async fn post_to_cdn0<'s, C: io::Read + Send + 's>(
-    //     &mut self,
-    //     cdn_id: u32,
-    //     path: &str,
-    //     value: &[(&str, &str)],
-    //     file: Option<(&str, &'s mut C)>,
-    // ) -> Result<(), ServiceError> {
-    //     let mut form = mpart_async::client::MultipartRequest::default();
+    #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
+    async fn post_to_cdn0<'s, C: io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<(), ServiceError> {
+        let mut form = mpart_async::client::MultipartRequest::default();
 
-    //     // mpart-async has a peculiar ordering of the form items,
-    //     // and Amazon S3 expects them in a very specific order (i.e., the file contents should
-    //     // go last.
-    //     //
-    //     // mpart-async uses a VecDeque internally for ordering the fields in the order given.
-    //     //
-    //     // https://github.com/cetra3/mpart-async/issues/16
+        // mpart-async has a peculiar ordering of the form items,
+        // and Amazon S3 expects them in a very specific order (i.e., the file contents should
+        // go last.
+        //
+        // mpart-async uses a VecDeque internally for ordering the fields in the order given.
+        //
+        // https://github.com/cetra3/mpart-async/issues/16
 
-    //     for &(k, v) in value {
-    //         form.add_field(k, v);
-    //     }
+        for &(k, v) in value {
+            form.add_field(k, v);
+        }
 
-    //     if let Some((filename, file)) = file {
-    //         // XXX Actix doesn't cope with none-'static lifetimes
-    //         // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
-    //         let mut buf = Vec::new();
-    //         file.read_to_end(&mut buf)
-    //             .expect("infallible Read instance");
-    //         form.add_stream(
-    //             "file",
-    //             filename,
-    //             "application/octet-stream",
-    //             futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
-    //         );
-    //     }
+        if let Some((filename, file)) = file {
+            // XXX Actix doesn't cope with none-'static lifetimes
+            // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf)
+                .expect("infallible Read instance");
+            form.add_stream(
+                "file",
+                filename,
+                "application/octet-stream",
+                futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
+            );
+        }
 
-    //     let content_type =
-    //         format!("multipart/form-data; boundary={}", form.get_boundary());
+        let content_type =
+            format!("multipart/form-data; boundary={}", form.get_boundary());
 
-    //     // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
-    //     // stream. Sadly, Content-Length != contents.len(), but should include the whole form.
-    //     let mut body_contents = vec![];
-    //     while let Some(b) = form.next().await {
-    //         // Unwrap, because no error type was used above
-    //         body_contents.extend(b.unwrap());
-    //     }
-    //     tracing::trace!(
-    //         "Sending PUT with Content-Type={} and length {}",
-    //         content_type,
-    //         body_contents.len()
-    //     );
+        // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
+        // stream. Sadly, Content-Length != contents.len(), but should include the whole form.
+        let mut body_contents = vec![];
+        while let Some(b) = form.next().await {
+            // Unwrap, because no error type was used above
+            body_contents.extend(b.unwrap());
+        }
+        tracing::trace!(
+            "Sending PUT with Content-Type={} and length {}",
+            content_type,
+            body_contents.len()
+        );
 
-    //     let response = self
-    //         .request(
-    //             Method::POST,
-    //             Endpoint::Cdn(cdn_id),
-    //             path,
-    //             &[],
-    //             HttpAuthOverride::NoOverride,
-    //             Some(RequestBody {
-    //                 contents: body_contents,
-    //                 content_type,
-    //             }),
-    //         )
-    //         .await?;
+        let response = self
+            .request(
+                Method::POST,
+                Endpoint::Cdn(0),
+                path,
+                &[],
+                HttpAuthOverride::NoOverride,
+                Some(RequestBody {
+                    contents: body_contents,
+                    content_type,
+                }),
+            )
+            .await?;
 
-    //     debug!("HyperPushService::PUT response: {:?}", response);
+        debug!("HyperPushService::PUT response: {:?}", response);
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
+
+    /// Upload larger file to CDN2
+    ///
+    /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
+    async fn post_to_cdn2<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        unimplemented!()
+    }
+
+    /// Upload larger file to CDN3
+    ///
+    /// Implementations are allowed to *panic* when the Read instance throws an IO-Error
+    async fn post_to_cdn3<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        unimplemented!()
+    }
 
     async fn ws(
         &mut self,

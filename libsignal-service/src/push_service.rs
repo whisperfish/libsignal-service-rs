@@ -515,7 +515,7 @@ impl SignalServiceProfile {
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AttachmentUploadForm {
+pub struct AttachmentUploadForm {
     pub cdn: u64,
     pub key: String,
     pub headers: HashMap<String, String>,
@@ -524,7 +524,7 @@ pub(crate) struct AttachmentUploadForm {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AttachmentDigest {
+pub struct AttachmentDigest {
     pub digest: Vec<u8>,
     pub incremental_digest: Option<Vec<u8>>,
     pub incremental_mac_chunkSize: u64,
@@ -532,7 +532,7 @@ pub(crate) struct AttachmentDigest {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct ResumableUploadSpec {
+pub struct ResumableUploadSpec {
     attachment_key: Vec<u8>,
     attachment_iv: Vec<u8>,
     cdn_key: String,
@@ -635,6 +635,15 @@ pub enum ServiceError {
 pub trait PushService: MaybeSend {
     type ByteStream: futures::io::AsyncRead + MaybeSend + Unpin;
 
+    // will be better once we refactor this trait (= ditch it) and can manipulate requests ourselves
+    async fn head(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        additional_headers: &[(&str, &str)],
+        credentials_override: HttpAuthOverride,
+    ) -> Result<HashMap<String, String>, ServiceError>;
+
     async fn get_json<T>(
         &mut self,
         service: Endpoint,
@@ -717,6 +726,13 @@ pub trait PushService: MaybeSend {
         cdn_id: u32,
         path: &str,
     ) -> Result<Self::ByteStream, ServiceError>;
+
+    async fn post_to_cdn0<'s, C: std::io::Read + Send + 's>(
+        &mut self,
+        path: &str,
+        value: &[(&str, &str)],
+        file: Option<(&str, &'s mut C)>,
+    ) -> Result<(), ServiceError>;
 
     /// Upload larger file to CDN2
     ///
@@ -864,36 +880,90 @@ pub trait PushService: MaybeSend {
         .await
     }
 
-    /// Upload attachment to CDN0
+    async fn get_attachment_v4_upload_attributes(
+        &mut self,
+    ) -> Result<AttachmentUploadForm, ServiceError> {
+        self.get_json(
+            Endpoint::Service,
+            "/v4/attachments/form/upload",
+            &[],
+            HttpAuthOverride::NoOverride,
+        )
+        .await
+    }
+
+    async fn get_attachment_resumable_upload_url(
+        &mut self,
+        attachment_upload_form: &AttachmentUploadForm,
+    ) -> Result<ResumableUploadSpec, ServiceError> {
+        let mut headers = attachment_upload_form.headers.clone();
+        headers.insert("Content-Length".into(), "0".into());
+        if attachment_upload_form.cdn == 2 {
+            headers.insert(
+                "Content-Type".into(),
+                "application/octet-stream".into(),
+            );
+        } else if attachment_upload_form.cdn == 3 {
+            headers.insert("Upload-Defer-Length".into(), "1".into());
+            headers.insert("Tus-Resumable".into(), "1.0.0".into());
+        } else {
+            return Err(ServiceError::UnknownCdnVersion(
+                attachment_upload_form.cdn,
+            ));
+        };
+
+        let request_headers: Vec<(&str, &str)> = attachment_upload_form
+            .headers
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+
+        self.get_json(
+            Endpoint::Service,
+            &attachment_upload_form.signed_upload_location,
+            request_headers.as_slice(),
+            HttpAuthOverride::NoOverride,
+        )
+        .await
+    }
+
+    async fn get_attachment_resume_info_cdn3(
+        &mut self,
+        resumable_url: &str,
+        mut headers: HashMap<String, String>,
+    ) -> Result<ResumeInfo, ServiceError> {
+        headers.insert("Tus-Resumable".into(), "1.0.0".into());
+        let request_headers: Vec<(&str, &str)> = headers
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.as_str()))
+            .collect();
+        let response_headers = self
+            .head(
+                Endpoint::Service,
+                resumable_url,
+                request_headers.as_slice(),
+                HttpAuthOverride::NoOverride,
+            )
+            .await?;
+
+        let upload_offset = response_headers
+            .get("Upload-Offset")
+            .ok_or(ServiceError::InvalidFrameError {
+                reason: "no Upload-Offset header in response".into(),
+            })?
+            .parse()
+            .map_err(|_| ServiceError::InvalidFrameError {
+                reason: "invalid integer value for Upload-Offset header".into(),
+            })?;
+
+        Ok(ResumeInfo {
+            offset: upload_offset,
+        })
+    }
+
+    /// Upload attachment
     ///
     /// Returns attachment ID and the attachment digest
-    // async fn upload_attachment_v2<'s, C: std::io::Read + Send + 's>(
-    //     &mut self,
-    //     attrs: &AttachmentUploadForm,
-    //     content: &'s mut C,
-    // ) -> Result<(u64, Vec<u8>), ServiceError> {
-    //     let values = [
-    //         ("acl", &attrs.acl as &str),
-    //         ("key", &attrs.key),
-    //         ("policy", &attrs.policy),
-    //         ("Content-Type", "application/octet-stream"),
-    //         ("x-amz-algorithm", &attrs.algorithm),
-    //         ("x-amz-credential", &attrs.credential),
-    //         ("x-amz-date", &attrs.date),
-    //         ("x-amz-signature", &attrs.signature),
-    //     ];
-
-    //     let mut digester = crate::digeststream::DigestingReader::new(content);
-
-    //     self.post_to_cdn0(
-    //         "attachments/",
-    //         &values,
-    //         Some(("file", &mut digester)),
-    //     )
-    //     .await?;
-
-    //     Ok((attrs.attachment_id, digester.finalize()))
-    // }
     async fn upload_attachment_v4<'s, C: std::io::Read + Send + 's>(
         &mut self,
         upload_form: &AttachmentUploadForm,

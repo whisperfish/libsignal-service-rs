@@ -221,14 +221,14 @@ where
         // TODO: we can actually store the upload spec to be able to resume the upload later
         // if it fails or stalls (= we should at least split the API calls so clients can decide what to do)
         let attachment_upload_form = self
-            .identified_ws
+            .service
             .get_attachment_v4_upload_attributes()
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
 
         let resumable_upload_spec = self
-            .identified_ws
-            .get_resumable_upload_url(&attachment_upload_form)
+            .service
+            .get_attachment_resumable_upload_url(&attachment_upload_form)
             .await?;
 
         let digest = self

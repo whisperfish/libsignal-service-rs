@@ -19,7 +19,6 @@ use crate::proto::{
 };
 use crate::push_service::{MismatchedDevices, ServiceError};
 
-mod attachment_service;
 mod sender;
 
 type RequestStreamItem = (
