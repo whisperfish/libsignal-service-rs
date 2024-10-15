@@ -21,8 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        project: ["libsignal-service"]
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf
@@ -32,7 +30,6 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
 
   build:
     name: Build (${{ matrix.project }}, Rust ${{ matrix.toolchain }})
@@ -43,7 +40,6 @@ jobs:
         project: ["libsignal-service"]
         toolchain: ["stable", "beta", "nightly"]
         coverage: [false, true]
-        features: ["", "unsend-futures"]
         exclude:
           # Coverage related excludes
           - toolchain: stable
@@ -52,13 +48,6 @@ jobs:
             coverage: true
           - toolchain: nightly
             coverage: false
-
-          # Feature flag related excludes
-            # Actix like above
-          - features: "unsend-futures"
-            toolchain: "beta"
-          - features: "unsend-futures"
-            toolchain: "nightly"
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf
@@ -75,20 +64,20 @@ jobs:
         if: ${{ !matrix.coverage }}
         with:
           command: test
-          args: --all-targets --no-fail-fast --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
+          args: --all-targets --no-fail-fast 
 
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all-targets --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
+          args: --all-targets
 
       - name: Run tests
         uses: actions-rs/cargo@v1
         if: ${{ matrix.coverage }}
         with:
           command: test
-          args: --all-targets --no-fail-fast --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
+          args: --all-targets --no-fail-fast 
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
