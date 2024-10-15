@@ -218,7 +218,7 @@ where
 
         // Request upload attributes
         let attrs = self
-            .identified_ws
+            .service
             .get_attachment_v2_upload_attributes()
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
