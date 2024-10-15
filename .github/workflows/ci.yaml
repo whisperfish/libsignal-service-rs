@@ -22,12 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: ["libsignal-service-actix", "libsignal-service-hyper", "libsignal-service"]
-        features: ["", "unsend-futures"]
-        exclude:
-          # -actix always has unsend futures, so we don't have that feature flag
-          - project: "libsignal-service-actix"
-            features: "unsend-futures"
+        project: ["libsignal-service"]
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf
@@ -45,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: ["libsignal-service-actix", "libsignal-service-hyper", "libsignal-service"]
+        project: ["libsignal-service"]
         toolchain: ["stable", "beta", "nightly"]
         coverage: [false, true]
         features: ["", "unsend-futures"]
@@ -60,17 +55,10 @@ jobs:
 
           # Feature flag related excludes
             # Actix like above
-          - project: "libsignal-service-actix"
-            features: "unsend-futures"
-            # We don't need to spawn this many jobs to see that unsend-futures works
           - features: "unsend-futures"
             toolchain: "beta"
           - features: "unsend-futures"
             toolchain: "nightly"
-        include:
-          - project: "libsignal-service-actix"
-            toolchain: "1.75"
-            coverage: false
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf

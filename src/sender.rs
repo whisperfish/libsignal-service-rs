@@ -84,10 +84,10 @@ pub struct AttachmentSpec {
 
 /// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
-pub struct MessageSender<Service, S, R> {
+pub struct MessageSender<S, R> {
     identified_ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
-    service: Service,
+    service: PushService,
     cipher: ServiceCipher<S, R>,
     csprng: R,
     protocol_store: S,
@@ -137,9 +137,8 @@ pub enum ThreadIdentifier {
     Group(GroupV2Id),
 }
 
-impl<Service, S, R> MessageSender<Service, S, R>
+impl<S, R> MessageSender<S, R>
 where
-    Service: PushService,
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
     R: Rng + CryptoRng,
 {
@@ -147,7 +146,7 @@ where
     pub fn new(
         identified_ws: SignalWebSocket,
         unidentified_ws: SignalWebSocket,
-        service: Service,
+        service: PushService,
         cipher: ServiceCipher<S, R>,
         csprng: R,
         protocol_store: S,

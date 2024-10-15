@@ -14,23 +14,16 @@ use tokio::time::Instant;
 use tokio_rustls::rustls;
 use url::Url;
 
-use libsignal_service::{
+use crate::{
     configuration::ServiceCredentials,
-    messagepipe::*,
     push_service::{self, ServiceError},
-    MaybeSend,
 };
 
-// This weird one-time trait is required because MaybeSend, unlike Send, is not
-// an auto trait. Only auto traits can be used as additional traits in a trait object.
-trait MaybeSendSink: Sink<Message, Error = TungsteniteError> + MaybeSend {}
-impl<T> MaybeSendSink for T where
-    T: Sink<Message, Error = TungsteniteError> + MaybeSend
-{
-}
+use crate::messagepipe::{WebSocketService, WebSocketStreamItem};
 
 pub struct TungsteniteWebSocket {
-    socket_sink: Box<dyn MaybeSendSink + Unpin>,
+    socket_sink:
+        Box<dyn Sink<Message, Error = TungsteniteError> + Send + Unpin>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -56,33 +49,6 @@ impl From<TungsteniteWebSocketError> for ServiceError {
         }
     }
 }
-
-// impl From<AwcWebSocketError> for ServiceError {
-//     fn from(e: AwcWebSocketError) -> ServiceError {
-//         match e {
-//             AwcWebSocketError::ConnectionError(e) => match e {
-//                 WsClientError::InvalidResponseStatus(s) => match s {
-//                     StatusCode::FORBIDDEN => ServiceError::Unauthorized,
-//                     s => ServiceError::WsError {
-//                         reason: format!("HTTP status {}", s),
-//                     },
-//                 },
-//                 e => ServiceError::WsError {
-//                     reason: e.to_string(),
-//                 },
-//             },
-//         }
-//     }
-// }
-
-// impl From<WsProtocolError> for AwcWebSocketError {
-//     fn from(e: WsProtocolError) -> AwcWebSocketError {
-//         todo!("error conversion {:?}", e)
-//         // return Some(Err(ServiceError::WsError {
-//         //     reason: e.to_string(),
-//         // }));
-//     }
-// }
 
 // Process the WebSocket, until it times out.
 async fn process<S>(
@@ -222,8 +188,7 @@ impl TungsteniteWebSocket {
     }
 }
 
-#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
-#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
+#[async_trait::async_trait]
 impl WebSocketService for TungsteniteWebSocket {
     type Stream = Receiver<WebSocketStreamItem>;
 

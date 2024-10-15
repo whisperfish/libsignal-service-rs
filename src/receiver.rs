@@ -11,14 +11,14 @@ use crate::{
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
 #[derive(Clone)]
-pub struct MessageReceiver<Service> {
-    service: Service,
+pub struct MessageReceiver {
+    service: PushService,
 }
 
-impl<Service: PushService> MessageReceiver<Service> {
+impl MessageReceiver {
     // TODO: to avoid providing the wrong service/wrong credentials
     // change it like LinkingManager or ProvisioningManager
-    pub fn new(service: Service) -> Self {
+    pub fn new(service: PushService) -> Self {
         MessageReceiver { service }
     }
 

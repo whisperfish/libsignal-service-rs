@@ -21,6 +21,7 @@ use crate::push_service::{MismatchedDevices, ServiceError};
 
 mod attachment_service;
 mod sender;
+pub(crate) mod tungstenite;
 
 type RequestStreamItem = (
     WebSocketRequestMessage,

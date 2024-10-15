@@ -52,8 +52,8 @@ use crate::{
 
 type Aes256Ctr128BE = ctr::Ctr128BE<aes::Aes256>;
 
-pub struct AccountManager<Service> {
-    service: Service,
+pub struct AccountManager {
+    service: PushService,
     profile_key: Option<ProfileKey>,
 }
 
@@ -73,8 +73,8 @@ pub struct Profile {
     pub avatar: Option<String>,
 }
 
-impl<Service: PushService> AccountManager<Service> {
-    pub fn new(service: Service, profile_key: Option<ProfileKey>) -> Self {
+impl AccountManager {
+    pub fn new(service: PushService, profile_key: Option<ProfileKey>) -> Self {
         Self {
             service,
             profile_key,
@@ -639,7 +639,7 @@ impl<Service: PushService> AccountManager<Service> {
         &mut self,
         aci_protocol_store: &mut Aci,
         pni_protocol_store: &mut Pni,
-        mut sender: MessageSender<Service, AciOrPni, R>,
+        mut sender: MessageSender<AciOrPni, R>,
         local_aci: ServiceAddress,
         e164: PhoneNumber,
         csprng: &mut R,
