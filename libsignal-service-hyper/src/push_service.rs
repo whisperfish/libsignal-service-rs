@@ -161,6 +161,7 @@ impl HyperPushService {
             },
             StatusCode::PAYLOAD_TOO_LARGE => {
                 // This is 413 and means rate limit exceeded for Signal.
+                panic!("{:?}", response);
                 Err(ServiceError::RateLimitExceeded)
             },
             StatusCode::CONFLICT => {
@@ -406,6 +407,32 @@ impl PushService for HyperPushService {
         Self::json(&mut response).await
     }
 
+    #[tracing::instrument(skip(self, contents))]
+    async fn patch_file(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        additional_headers: &[(&str, &str)],
+        credentials_override: HttpAuthOverride,
+        contents: Vec<u8>,
+        content_type: String,
+    ) -> Result<(), ServiceError> {
+        let mut response = self
+            .request(
+                Method::PATCH,
+                service,
+                path,
+                additional_headers,
+                credentials_override,
+                Some(RequestBody {
+                    contents,
+                    content_type,
+                }),
+            )
+            .await?;
+        Ok(())
+    }
+
     #[tracing::instrument(skip(self, value))]
     async fn patch_json<D, S>(
         &mut self,
@@ -443,7 +470,7 @@ impl PushService for HyperPushService {
     }
 
     #[tracing::instrument(skip(self))]
-    async fn post(
+    async fn post_empty_body(
         &mut self,
         service: Endpoint,
         path: &str,

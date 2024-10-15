@@ -226,31 +226,31 @@ where
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
 
-        dbg!(&attachment_upload_form);
-
-        let resumable_upload_spec = self
+        let resumable_upload_url = self
             .service
             .get_attachment_resumable_upload_url(&attachment_upload_form)
             .await?;
 
-        panic!("{}", resumable_upload_spec);
-
-        let digest = self
+        let attachment_digest = self
             .service
             .upload_attachment_v4(
-                &attachment_upload_form,
-                unimplemented!(),
+                attachment_upload_form.cdn,
+                &resumable_upload_url,
+                &spec.content_type,
+                spec.length,
+                attachment_upload_form.headers,
                 &mut std::io::Cursor::new(&contents),
             )
             .instrument(tracing::trace_span!("Uploading attachment"))
-            .await?;
+            .await
+            .expect("HELL NO");
 
         Ok(AttachmentPointer {
             content_type: Some(spec.content_type),
             key: Some(key.to_vec()),
             size: Some(len as u32),
             // thumbnail: Option<Vec<u8>>,
-            digest: Some(digest.digest),
+            digest: Some(attachment_digest.digest),
             file_name: spec.file_name,
             flags: Some(
                 if spec.voice_note == Some(true) {

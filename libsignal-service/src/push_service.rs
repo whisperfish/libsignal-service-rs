@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fmt, time::Duration};
+use std::{
+    collections::HashMap,
+    fmt,
+    io::{Read, SeekFrom},
+    time::Duration,
+};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -528,7 +533,7 @@ pub struct AttachmentUploadForm {
 pub struct AttachmentDigest {
     pub digest: Vec<u8>,
     pub incremental_digest: Option<Vec<u8>>,
-    pub incremental_mac_chunkSize: u64,
+    pub incremental_mac_chunk_size: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -544,8 +549,9 @@ pub struct ResumableUploadSpec {
 }
 
 #[derive(Debug)]
-pub(crate) struct ResumeInfo {
-    pub offset: usize,
+pub struct ResumeInfo {
+    pub content_range: Option<String>,
+    pub content_start: u64,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -676,6 +682,16 @@ pub trait PushService: MaybeSend {
         for<'de> D: Deserialize<'de>,
         S: MaybeSend + Serialize;
 
+    async fn patch_file(
+        &mut self,
+        service: Endpoint,
+        path: &str,
+        additional_headers: &[(&str, &str)],
+        credentials_override: HttpAuthOverride,
+        contents: Vec<u8>,
+        content_type: String,
+    ) -> Result<(), ServiceError>;
+
     async fn patch_json<D, S>(
         &mut self,
         service: Endpoint,
@@ -688,7 +704,7 @@ pub trait PushService: MaybeSend {
         for<'de> D: Deserialize<'de>,
         S: MaybeSend + Serialize;
 
-    async fn post(
+    async fn post_empty_body(
         &mut self,
         service: Endpoint,
         path: &str,
@@ -927,7 +943,7 @@ pub trait PushService: MaybeSend {
             .collect();
 
         let response = self
-            .post(
+            .post_empty_body(
                 Endpoint::Cdn(attachment_upload_form.cdn),
                 attachment_upload_form.signed_upload_location.path(),
                 request_headers.as_slice(),
@@ -940,7 +956,7 @@ pub trait PushService: MaybeSend {
 
     async fn get_attachment_resume_info_cdn3(
         &mut self,
-        resumable_url: &str,
+        resumable_url: &Url,
         mut headers: HashMap<String, String>,
     ) -> Result<ResumeInfo, ServiceError> {
         headers.insert("Tus-Resumable".into(), "1.0.0".into());
@@ -950,15 +966,15 @@ pub trait PushService: MaybeSend {
             .collect();
         let response_headers = self
             .head(
-                Endpoint::Service,
-                resumable_url,
+                Endpoint::Cdn(3),
+                resumable_url.path(),
                 request_headers.as_slice(),
-                HttpAuthOverride::NoOverride,
+                HttpAuthOverride::Unidentified, // this is assuming knowledge of not adding any auth
             )
             .await?;
 
         let upload_offset = response_headers
-            .get("Upload-Offset")
+            .get("upload-offset")
             .ok_or(ServiceError::InvalidFrameError {
                 reason: "no Upload-Offset header in response".into(),
             })?
@@ -968,20 +984,27 @@ pub trait PushService: MaybeSend {
             })?;
 
         Ok(ResumeInfo {
-            offset: upload_offset,
+            content_range: None,
+            content_start: upload_offset,
         })
     }
 
     /// Upload attachment
     ///
     /// Returns attachment ID and the attachment digest
-    async fn upload_attachment_v4<'s, C: std::io::Read + Send + 's>(
+    async fn upload_attachment_v4<
+        's,
+        R: std::io::Read + std::io::Seek + Send + 's,
+    >(
         &mut self,
-        upload_form: &AttachmentUploadForm,
-        resumable_upload_spec: ResumableUploadSpec,
-        content: &mut C,
+        cdn_id: u32,
+        resumable_url: &Url,
+        content_type: &str,
+        length: usize,
+        mut headers: HashMap<String, String>,
+        mut content: R,
     ) -> Result<AttachmentDigest, ServiceError> {
-        if upload_form.cdn == 2 {
+        if cdn_id == 2 {
             unimplemented!()
             // self.post_to_cdn2(
             //     attachment.getResumableUploadSpec().getResumeLocation(),
@@ -994,18 +1017,46 @@ pub trait PushService: MaybeSend {
             //     attachment.getCancelationSignal(),
             // )
         } else {
-            unimplemented!()
-            // self.post_to_cdn3(
-            //     attachment.getResumableUploadSpec().getResumeLocation(),
-            //     attachment.getData(),
-            //     "application/offset+octet-stream",
-            //     attachment.getDataSize(),
-            //     attachment.getIncremental(),
-            //     attachment.getOutputStreamFactory(),
-            //     attachment.getListener(),
-            //     attachment.getCancelationSignal(),
-            //     attachment.getResumableUploadSpec().getHeaders(),
-            // )
+            let resume_info = self
+                .get_attachment_resume_info_cdn3(resumable_url, headers.clone())
+                .await?;
+
+            let mut digester =
+                crate::digeststream::DigestingReader::new(&mut content);
+            digester
+                .seek(SeekFrom::Start(resume_info.content_start))
+                .unwrap();
+
+            let mut buf = Vec::new();
+            digester.read_to_end(&mut buf).unwrap();
+
+            headers.insert("Tus-Resumable".into(), "1.0.0".into());
+            headers.insert(
+                "Upload-Offset".into(),
+                resume_info.content_start.to_string(),
+            );
+            headers.insert("Upload-Length".into(), buf.len().to_string());
+
+            let request_headers: Vec<(&str, &str)> = headers
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str()))
+                .collect();
+
+            self.patch_file(
+                Endpoint::Cdn(3),
+                resumable_url.path(),
+                &request_headers,
+                HttpAuthOverride::Unidentified,
+                buf,
+                content_type.to_owned(),
+            )
+            .await?;
+
+            Ok(AttachmentDigest {
+                digest: digester.finalize(),
+                incremental_digest: None,
+                incremental_mac_chunk_size: 0,
+            })
         }
     }
 
