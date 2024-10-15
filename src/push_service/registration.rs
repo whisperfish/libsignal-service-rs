@@ -2,10 +2,7 @@ use libsignal_protocol::IdentityKey;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{
-    AccountAttributes, AuthCredentials, PushService,
-    RegistrationSessionMetadataResponse, ServiceError,
-};
+use super::{AccountAttributes, AuthCredentials, PushService, ServiceError};
 use crate::{
     configuration::Endpoint,
     pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
@@ -78,6 +75,45 @@ pub struct DeviceActivationRequest {
     pub pni_signed_pre_key: SignedPreKeyEntity,
     pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
     pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RecaptchaAttributes {
+    pub r#type: String,
+    pub token: String,
+    pub captcha: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegistrationSessionMetadataResponse {
+    pub id: String,
+    #[serde(default)]
+    pub next_sms: Option<i32>,
+    #[serde(default)]
+    pub next_call: Option<i32>,
+    #[serde(default)]
+    pub next_verification_attempt: Option<i32>,
+    pub allowed_to_request_code: bool,
+    #[serde(default)]
+    pub requested_information: Vec<String>,
+    pub verified: bool,
+}
+
+impl RegistrationSessionMetadataResponse {
+    pub fn push_challenge_required(&self) -> bool {
+        // .contains() requires &String ...
+        self.requested_information
+            .iter()
+            .any(|x| x.as_str() == "pushChallenge")
+    }
+
+    pub fn captcha_required(&self) -> bool {
+        // .contains() requires &String ...
+        self.requested_information
+            .iter()
+            .any(|x| x.as_str() == "captcha")
+    }
 }
 
 impl PushService {

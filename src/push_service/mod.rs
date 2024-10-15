@@ -4,10 +4,8 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::{KyberPreKeyEntity, PreKeyEntity, SignedPreKeyEntity},
     prelude::ServiceConfiguration,
-    profile_cipher::ProfileCipherError,
-    utils::{serde_base64, serde_optional_base64},
+    utils::serde_base64,
     websocket::{tungstenite::TungsteniteWebSocket, SignalWebSocket},
-    Profile,
 };
 
 use bytes::{Buf, Bytes};
@@ -39,7 +37,6 @@ pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub const DEFAULT_DEVICE_ID: u32 = 1;
 
 mod account;
-mod captcha;
 mod cdn;
 mod error;
 mod keys;
@@ -49,11 +46,11 @@ mod registration;
 mod stickers;
 
 pub use account::*;
-pub use captcha::*;
 pub use cdn::*;
 pub use error::*;
 pub use keys::*;
 pub use linking::*;
+pub use profile::*;
 pub use registration::*;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -165,62 +162,6 @@ pub struct MismatchedDevices {
 #[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
     pub stale_devices: Vec<u32>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SignalServiceProfile {
-    #[serde(default, with = "serde_optional_base64")]
-    pub identity_key: Option<Vec<u8>>,
-    #[serde(default, with = "serde_optional_base64")]
-    pub name: Option<Vec<u8>>,
-    #[serde(default, with = "serde_optional_base64")]
-    pub about: Option<Vec<u8>>,
-    #[serde(default, with = "serde_optional_base64")]
-    pub about_emoji: Option<Vec<u8>>,
-
-    // TODO: not sure whether this is via optional_base64
-    // #[serde(default, with = "serde_optional_base64")]
-    // pub payment_address: Option<Vec<u8>>,
-    pub avatar: Option<String>,
-    pub unidentified_access: Option<String>,
-
-    #[serde(default)]
-    pub unrestricted_unidentified_access: bool,
-
-    pub capabilities: DeviceCapabilities,
-}
-
-impl SignalServiceProfile {
-    pub fn decrypt(
-        &self,
-        profile_cipher: crate::profile_cipher::ProfileCipher,
-    ) -> Result<Profile, ProfileCipherError> {
-        // Profile decryption
-        let name = self
-            .name
-            .as_ref()
-            .map(|data| profile_cipher.decrypt_name(data))
-            .transpose()?
-            .flatten();
-        let about = self
-            .about
-            .as_ref()
-            .map(|data| profile_cipher.decrypt_about(data))
-            .transpose()?;
-        let about_emoji = self
-            .about_emoji
-            .as_ref()
-            .map(|data| profile_cipher.decrypt_emoji(data))
-            .transpose()?;
-
-        Ok(Profile {
-            name,
-            about,
-            about_emoji,
-            avatar: self.avatar.clone(),
-        })
-    }
 }
 
 #[derive(Debug)]
