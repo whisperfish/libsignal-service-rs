@@ -54,7 +54,6 @@ pub use cdn::*;
 pub use error::*;
 pub use keys::*;
 pub use linking::*;
-pub use profile::*;
 pub use registration::*;
 
 #[derive(Debug, Serialize, Deserialize)]

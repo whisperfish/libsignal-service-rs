@@ -220,10 +220,11 @@ impl PushService {
     /// Request a verification code.
     ///
     /// Signal requires a client type, and they use these three strings internally:
-    /// - "android-2021-03"
-    /// - "android"
-    /// - "ios"
-    /// "android-2021-03" allegedly implies FCM support, whereas the other strings don't.  In
+    ///   - "android-2021-03"
+    ///   - "android"
+    ///   - "ios"
+    ///
+    /// "android-2021-03" allegedly implies FCM support, whereas the other strings don't. In
     /// principle, they will consider any string as "unknown", so other strings may work too.
     pub async fn request_verification_code(
         &mut self,

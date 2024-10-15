@@ -107,7 +107,7 @@ impl PushService {
         Ok(pre_keys)
     }
 
-    async fn get_sender_certificate(
+    pub async fn get_sender_certificate(
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
         let cert: SenderCertificateJson = self
@@ -121,7 +121,7 @@ impl PushService {
         Ok(SenderCertificate::deserialize(&cert.certificate)?)
     }
 
-    async fn get_uuid_only_sender_certificate(
+    pub async fn get_uuid_only_sender_certificate(
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
         let cert: SenderCertificateJson = self
