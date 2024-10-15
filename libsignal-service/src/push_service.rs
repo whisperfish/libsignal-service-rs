@@ -1000,7 +1000,7 @@ pub trait PushService: MaybeSend {
         cdn_id: u32,
         resumable_url: &Url,
         content_type: &str,
-        length: usize,
+        length: u64,
         mut headers: HashMap<String, String>,
         mut content: R,
     ) -> Result<AttachmentDigest, ServiceError> {
@@ -1020,6 +1020,18 @@ pub trait PushService: MaybeSend {
             let resume_info = self
                 .get_attachment_resume_info_cdn3(resumable_url, headers.clone())
                 .await?;
+
+            if resume_info.content_start == length {
+                let mut digester =
+                    crate::digeststream::DigestingReader::new(&mut content);
+                let mut buf = Vec::new();
+                digester.read_to_end(&mut buf).unwrap();
+                return Ok(AttachmentDigest {
+                    digest: digester.finalize(),
+                    incremental_digest: None,
+                    incremental_mac_chunk_size: 0,
+                });
+            }
 
             let mut digester =
                 crate::digeststream::DigestingReader::new(&mut content);

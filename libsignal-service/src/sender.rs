@@ -237,7 +237,7 @@ where
                 attachment_upload_form.cdn,
                 &resumable_upload_url,
                 &spec.content_type,
-                spec.length,
+                contents.len() as u64,
                 attachment_upload_form.headers,
                 &mut std::io::Cursor::new(&contents),
             )
@@ -273,9 +273,9 @@ where
                     .expect("unix epoch in the past")
                     .as_millis() as u64,
             ),
-            cdn_number: Some(0),
-            attachment_identifier: Some(AttachmentIdentifier::CdnId(
-                attachment_upload_form.cdn as u64,
+            cdn_number: Some(attachment_upload_form.cdn),
+            attachment_identifier: Some(AttachmentIdentifier::CdnKey(
+                attachment_upload_form.key,
             )),
             ..Default::default()
         })
