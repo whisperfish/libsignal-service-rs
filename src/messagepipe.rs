@@ -1,11 +1,9 @@
-use bytes::Bytes;
 use futures::{
     channel::{
         mpsc::{self, Sender},
         oneshot,
     },
     prelude::*,
-    stream::FusedStream,
 };
 
 pub use crate::{
@@ -18,22 +16,10 @@ pub use crate::{
 
 use crate::{push_service::ServiceError, websocket::SignalWebSocket};
 
-pub enum WebSocketStreamItem {
-    Message(Bytes),
-    KeepAliveRequest,
-}
-
 #[derive(Debug)]
 pub enum Incoming {
     Envelope(Envelope),
     QueueEmpty,
-}
-
-#[async_trait::async_trait]
-pub trait WebSocketService {
-    type Stream: FusedStream<Item = WebSocketStreamItem> + Unpin;
-
-    async fn send_message(&mut self, msg: Bytes) -> Result<(), ServiceError>;
 }
 
 pub struct MessagePipe {
@@ -131,18 +117,5 @@ impl MessagePipe {
 
         let combined = futures::stream::select(stream, runner.into_stream());
         combined.filter_map(|x| async { x })
-    }
-}
-
-/// WebSocketService that panics on every request, mainly for example code.
-pub struct PanicingWebSocketService;
-
-#[allow(clippy::diverging_sub_expression)]
-#[async_trait::async_trait]
-impl WebSocketService for PanicingWebSocketService {
-    type Stream = futures::channel::mpsc::Receiver<WebSocketStreamItem>;
-
-    async fn send_message(&mut self, _msg: Bytes) -> Result<(), ServiceError> {
-        todo!();
     }
 }

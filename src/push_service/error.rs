@@ -39,10 +39,10 @@ pub enum ServiceError {
     #[error("Unexpected response: HTTP {http_code}")]
     UnhandledResponseCode { http_code: u16 },
 
-    #[error("Websocket error: {reason}")]
-    WsError { reason: String },
+    #[error("Websocket error: {0}")]
+    WsError(#[from] reqwest_websocket::Error),
     #[error("Websocket closing: {reason}")]
-    WsClosing { reason: String },
+    WsClosing { reason: &'static str },
 
     #[error("Invalid frame: {reason}")]
     InvalidFrameError { reason: String },
@@ -85,4 +85,7 @@ pub enum ServiceError {
 
     #[error("invalid device name")]
     InvalidDeviceName,
+
+    #[error("HTTP reqwest error: {0}")]
+    Http(#[from] reqwest::Error),
 }

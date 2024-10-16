@@ -2,11 +2,13 @@ use std::{collections::HashMap, convert::TryInto};
 
 use crate::{
     configuration::Endpoint,
-    groups_v2::model::{Group, GroupChanges},
-    groups_v2::operations::{GroupDecodingError, GroupOperations},
+    groups_v2::{
+        model::{Group, GroupChanges},
+        operations::{GroupDecodingError, GroupOperations},
+    },
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
-    push_service::{HttpAuth, HttpAuthOverride, ServiceIds},
+    push_service::{HttpAuth, HttpAuthOverride, ReqwestExt, ServiceIds},
     utils::BASE64_RELAXED,
 };
 
@@ -15,6 +17,7 @@ use bytes::Bytes;
 use chrono::{Days, NaiveDate, NaiveTime, Utc};
 use futures::AsyncReadExt;
 use rand::RngCore;
+use reqwest::Method;
 use serde::Deserialize;
 use zkgroup::{
     auth::AuthCredentialWithPniResponse,
@@ -165,12 +168,15 @@ impl<C: CredentialsCache> GroupsManager<C> {
 
             let credentials_response: CredentialResponse = self
                 .push_service
-                .get_json(
+                .request(
+                    Method::GET,
                     Endpoint::Service,
                     &path,
-                    &[],
                     HttpAuthOverride::NoOverride,
-                )
+                )?
+                .send_to_signal()
+                .await?
+                .json()
                 .await?;
             self.credentials_cache
                 .write(credentials_response.parse()?)?;

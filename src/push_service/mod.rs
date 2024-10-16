@@ -1,36 +1,23 @@
-use std::{io, time::Duration};
+use std::time::Duration;
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::{KyberPreKeyEntity, PreKeyEntity, SignedPreKeyEntity},
     prelude::ServiceConfiguration,
     utils::serde_base64,
-    websocket::{tungstenite::TungsteniteWebSocket, SignalWebSocket},
+    websocket::SignalWebSocket,
 };
 
-use bytes::{Buf, Bytes};
 use derivative::Derivative;
-use headers::{Authorization, HeaderMapExt};
-use http_body_util::{BodyExt, Full};
-use hyper::{
-    body::Incoming,
-    header::{CONTENT_LENGTH, CONTENT_TYPE, USER_AGENT},
-    Method, Request, Response, StatusCode,
-};
-use hyper_rustls::HttpsConnector;
-use hyper_timeout::TimeoutConnector;
-use hyper_util::{
-    client::legacy::{connect::HttpConnector, Client},
-    rt::TokioExecutor,
-};
 use libsignal_protocol::{
     error::SignalProtocolError,
     kem::{Key, Public},
     IdentityKey, PreKeyBundle, PublicKey,
 };
-use prost::Message as ProtobufMessage;
+use protobuf::ProtobufResponseExt;
+use reqwest::{Method, RequestBuilder, Response, StatusCode};
+use reqwest_websocket::RequestBuilderExt;
 use serde::{Deserialize, Serialize};
-use tokio_rustls::rustls;
 use tracing::{debug_span, Instrument};
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
@@ -62,16 +49,6 @@ pub struct ProofRequired {
 #[derive(Derivative, Clone, Serialize, Deserialize)]
 #[derivative(Debug)]
 pub struct HttpAuth {
-    pub username: String,
-    #[derivative(Debug = "ignore")]
-    pub password: String,
-}
-
-/// This type is used in registration lock handling.
-/// It's identical with HttpAuth, but used to avoid type confusion.
-#[derive(Derivative, Clone, Serialize, Deserialize)]
-#[derivative(Debug)]
-pub struct AuthCredentials {
     pub username: String,
     #[derivative(Debug = "ignore")]
     pub password: String,
@@ -164,127 +141,83 @@ pub struct StaleDevices {
     pub stale_devices: Vec<u32>,
 }
 
-#[derive(Debug)]
-struct RequestBody {
-    contents: Vec<u8>,
-    content_type: String,
-}
-
 #[derive(Clone)]
 pub struct PushService {
     cfg: ServiceConfiguration,
-    user_agent: String,
     credentials: Option<HttpAuth>,
-    client:
-        Client<TimeoutConnector<HttpsConnector<HttpConnector>>, Full<Bytes>>,
+    client: reqwest::Client,
 }
 
 impl PushService {
     pub fn new(
         cfg: impl Into<ServiceConfiguration>,
         credentials: Option<ServiceCredentials>,
-        user_agent: String,
+        user_agent: impl AsRef<str>,
     ) -> Self {
         let cfg = cfg.into();
-        let tls_config = Self::tls_config(&cfg);
-
-        let https = hyper_rustls::HttpsConnectorBuilder::new()
-            .with_tls_config(tls_config)
-            .https_only()
-            .enable_http1()
-            .build();
-
-        // as in Signal-Android
-        let mut timeout_connector = TimeoutConnector::new(https);
-        timeout_connector.set_connect_timeout(Some(Duration::from_secs(10)));
-        timeout_connector.set_read_timeout(Some(Duration::from_secs(65)));
-        timeout_connector.set_write_timeout(Some(Duration::from_secs(65)));
-
-        let client: Client<_, Full<Bytes>> =
-            Client::builder(TokioExecutor::new()).build(timeout_connector);
+        let client = reqwest::ClientBuilder::new()
+            .add_root_certificate(
+                reqwest::Certificate::from_pem(
+                    &cfg.certificate_authority.as_bytes(),
+                )
+                .unwrap(),
+            )
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(65))
+            .user_agent(user_agent.as_ref())
+            .build()
+            .unwrap();
 
         Self {
             cfg,
             credentials: credentials.and_then(|c| c.authorization()),
             client,
-            user_agent,
         }
     }
 
-    fn tls_config(cfg: &ServiceConfiguration) -> rustls::ClientConfig {
-        let mut cert_bytes = io::Cursor::new(&cfg.certificate_authority);
-        let roots = rustls_pemfile::certs(&mut cert_bytes);
-
-        let mut root_certs = rustls::RootCertStore::empty();
-        root_certs.add_parsable_certificates(
-            roots.map(|c| c.expect("parsable PEM files")),
-        );
-
-        rustls::ClientConfig::builder()
-            .with_root_certificates(root_certs)
-            .with_no_client_auth()
-    }
-
-    #[tracing::instrument(skip(self, path, body), fields(path = %path.as_ref()))]
-    async fn request(
+    #[tracing::instrument(skip(self, path), fields(path = %path.as_ref()))]
+    pub fn request(
         &self,
         method: Method,
         endpoint: Endpoint,
         path: impl AsRef<str>,
-        additional_headers: &[(&str, &str)],
-        credentials_override: HttpAuthOverride,
-        body: Option<RequestBody>,
-    ) -> Result<Response<Incoming>, ServiceError> {
+        auth_override: HttpAuthOverride,
+    ) -> Result<RequestBuilder, ServiceError> {
         let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
-        let mut builder = Request::builder()
-            .method(method)
-            .uri(url.as_str())
-            .header(USER_AGENT, &self.user_agent);
+        let mut builder = self.client.request(method, url);
 
-        for (header, value) in additional_headers {
-            builder = builder.header(*header, *value);
-        }
-
-        match credentials_override {
+        builder = match auth_override {
             HttpAuthOverride::NoOverride => {
                 if let Some(HttpAuth { username, password }) =
                     self.credentials.as_ref()
                 {
+                    builder.basic_auth(username, Some(password))
+                } else {
                     builder
-                        .headers_mut()
-                        .unwrap()
-                        .typed_insert(Authorization::basic(username, password));
                 }
             },
             HttpAuthOverride::Identified(HttpAuth { username, password }) => {
-                builder
-                    .headers_mut()
-                    .unwrap()
-                    .typed_insert(Authorization::basic(&username, &password));
+                builder.basic_auth(username, Some(password))
             },
-            HttpAuthOverride::Unidentified => (),
+            HttpAuthOverride::Unidentified => builder,
         };
 
-        let request = if let Some(RequestBody {
-            contents,
-            content_type,
-        }) = body
-        {
-            builder
-                .header(CONTENT_LENGTH, contents.len() as u64)
-                .header(CONTENT_TYPE, content_type)
-                .body(Full::new(Bytes::from(contents)))
-                .unwrap()
-        } else {
-            builder.body(Full::default()).unwrap()
-        };
+        Ok(builder)
+    }
+}
 
-        let mut response = self.client.request(request).await.map_err(|e| {
-            ServiceError::SendError {
-                reason: e.to_string(),
-            }
-        })?;
+#[async_trait::async_trait]
+pub(crate) trait ReqwestExt
+where
+    Self: Sized,
+{
+    async fn send_to_signal(self) -> Result<Response, ServiceError>;
+}
 
+#[async_trait::async_trait]
+impl ReqwestExt for RequestBuilder {
+    async fn send_to_signal(self) -> Result<Response, ServiceError> {
+        let response = self.send().await?;
         match response.status() {
             StatusCode::OK => Ok(response),
             StatusCode::NO_CONTENT => Ok(response),
@@ -301,10 +234,10 @@ impl PushService {
             },
             StatusCode::CONFLICT => {
                 let mismatched_devices =
-                    Self::json(&mut response).await.map_err(|e| {
+                    response.json().await.map_err(|error| {
                         tracing::error!(
-                            "Failed to decode HTTP 409 response: {}",
-                            e
+                            %error,
+                            "failed to decode HTTP 409 status"
                         );
                         ServiceError::UnhandledResponseCode {
                             http_code: StatusCode::CONFLICT.as_u16(),
@@ -315,25 +248,17 @@ impl PushService {
                 ))
             },
             StatusCode::GONE => {
-                let stale_devices =
-                    Self::json(&mut response).await.map_err(|e| {
-                        tracing::error!(
-                            "Failed to decode HTTP 410 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: StatusCode::GONE.as_u16(),
-                        }
-                    })?;
+                let stale_devices = response.json().await.map_err(|error| {
+                    tracing::error!(%error, "failed to decode HTTP 410 status");
+                    ServiceError::UnhandledResponseCode {
+                        http_code: StatusCode::GONE.as_u16(),
+                    }
+                })?;
                 Err(ServiceError::StaleDevices(stale_devices))
             },
             StatusCode::LOCKED => {
-                let locked = Self::json(&mut response).await.map_err(|e| {
-                    tracing::error!(
-                        ?response,
-                        "Failed to decode HTTP 423 response: {}",
-                        e
-                    );
+                let locked = response.json().await.map_err(|error| {
+                    tracing::error!(%error, "failed to decode HTTP 423 status");
                     ServiceError::UnhandledResponseCode {
                         http_code: StatusCode::LOCKED.as_u16(),
                     }
@@ -342,10 +267,10 @@ impl PushService {
             },
             StatusCode::PRECONDITION_REQUIRED => {
                 let proof_required =
-                    Self::json(&mut response).await.map_err(|e| {
+                    response.json().await.map_err(|error| {
                         tracing::error!(
-                            "Failed to decode HTTP 428 response: {}",
-                            e
+                            %error,
+                            "failed to decode HTTP 428 status"
                         );
                         ServiceError::UnhandledResponseCode {
                             http_code: StatusCode::PRECONDITION_REQUIRED
@@ -356,306 +281,107 @@ impl PushService {
             },
             // XXX: fill in rest from PushServiceSocket
             code => {
-                tracing::trace!(
-                    "Unhandled response {} with body: {}",
-                    code.as_u16(),
-                    Self::text(&mut response).await?,
-                );
+                let response_text = response.text().await?;
+                tracing::trace!(status_code =% code, body = response_text, "unhandled HTTP response");
                 Err(ServiceError::UnhandledResponseCode {
                     http_code: code.as_u16(),
                 })
             },
         }
     }
+}
 
-    async fn body(
-        response: &mut Response<Incoming>,
-    ) -> Result<impl Buf, ServiceError> {
-        Ok(response
-            .collect()
-            .await
-            .map_err(|e| ServiceError::ResponseError {
-                reason: format!("failed to aggregate HTTP response body: {e}"),
-            })?
-            .aggregate())
+pub(crate) mod protobuf {
+    use async_trait::async_trait;
+    use prost::{EncodeError, Message};
+    use reqwest::{header, RequestBuilder, Response};
+
+    use super::ServiceError;
+
+    pub(crate) trait ProtobufRequestBuilderExt
+    where
+        Self: Sized,
+    {
+        /// Set the request payload encoded as protobuf.
+        /// Sets the `Content-Type` header to `application/protobuf`
+        #[allow(dead_code)]
+        fn protobuf<T: Message + Default>(
+            self,
+            value: T,
+        ) -> Result<Self, EncodeError>;
     }
 
-    #[tracing::instrument(skip(response), fields(status = %response.status()))]
-    async fn json<T>(
-        response: &mut Response<Incoming>,
-    ) -> Result<T, ServiceError>
-    where
-        for<'de> T: Deserialize<'de>,
-    {
-        let body = Self::body(response).await?;
+    #[async_trait::async_trait]
+    pub(crate) trait ProtobufResponseExt {
+        /// Get the response body decoded from Protobuf
+        async fn protobuf<T: prost::Message + Default>(
+            self,
+        ) -> Result<T, ServiceError>;
+    }
 
-        if body.has_remaining() {
-            serde_json::from_reader(body.reader())
-        } else {
-            serde_json::from_value(serde_json::Value::Null)
+    impl ProtobufRequestBuilderExt for RequestBuilder {
+        fn protobuf<T: Message + Default>(
+            self,
+            value: T,
+        ) -> Result<Self, EncodeError> {
+            let mut buf = Vec::new();
+            value.encode(&mut buf)?;
+            let this =
+                self.header(header::CONTENT_TYPE, "application/protobuf");
+            Ok(this.body(buf))
         }
-        .map_err(|e| ServiceError::JsonDecodeError {
-            reason: e.to_string(),
-        })
     }
 
-    #[tracing::instrument(skip(response), fields(status = %response.status()))]
-    async fn protobuf<M>(
-        response: &mut Response<Incoming>,
-    ) -> Result<M, ServiceError>
-    where
-        M: ProtobufMessage + Default,
-    {
-        let body = Self::body(response).await?;
-        M::decode(body).map_err(ServiceError::ProtobufDecodeError)
-    }
-
-    #[tracing::instrument(skip(response), fields(status = %response.status()))]
-    async fn text(
-        response: &mut Response<Incoming>,
-    ) -> Result<String, ServiceError> {
-        let body = Self::body(response).await?;
-        io::read_to_string(body.reader()).map_err(|e| {
-            ServiceError::ResponseError {
-                reason: format!("failed to read HTTP response body: {e}"),
-            }
-        })
+    #[async_trait]
+    impl ProtobufResponseExt for Response {
+        async fn protobuf<T: Message + Default>(
+            self,
+        ) -> Result<T, ServiceError> {
+            let body = self.bytes().await?;
+            let decoded = T::decode(body)?;
+            Ok(decoded)
+        }
     }
 }
 
 impl PushService {
-    #[tracing::instrument(skip(self))]
-    pub(crate) async fn get_json<T>(
-        &mut self,
-        service: Endpoint,
-        path: &str,
-        additional_headers: &[(&str, &str)],
-        credentials_override: HttpAuthOverride,
-    ) -> Result<T, ServiceError>
-    where
-        for<'de> T: Deserialize<'de>,
-    {
-        let mut response = self
-            .request(
-                Method::GET,
-                service,
-                path,
-                additional_headers,
-                credentials_override,
-                None,
-            )
-            .await?;
-
-        Self::json(&mut response).await
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn delete_json<T>(
-        &mut self,
-        service: Endpoint,
-        path: &str,
-        additional_headers: &[(&str, &str)],
-    ) -> Result<T, ServiceError>
-    where
-        for<'de> T: Deserialize<'de>,
-    {
-        let mut response = self
-            .request(
-                Method::DELETE,
-                service,
-                path,
-                additional_headers,
-                HttpAuthOverride::NoOverride,
-                None,
-            )
-            .await?;
-
-        Self::json(&mut response).await
-    }
-
-    #[tracing::instrument(skip(self, value))]
-    pub async fn put_json<D, S>(
-        &mut self,
-        service: Endpoint,
-        path: &str,
-        additional_headers: &[(&str, &str)],
-        credentials_override: HttpAuthOverride,
-        value: S,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Send + Serialize,
-    {
-        let json = serde_json::to_vec(&value).map_err(|e| {
-            ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            }
-        })?;
-
-        let mut response = self
-            .request(
-                Method::PUT,
-                service,
-                path,
-                additional_headers,
-                credentials_override,
-                Some(RequestBody {
-                    contents: json,
-                    content_type: "application/json".into(),
-                }),
-            )
-            .await?;
-
-        Self::json(&mut response).await
-    }
-
-    #[tracing::instrument(skip(self, value))]
-    async fn patch_json<D, S>(
-        &mut self,
-        service: Endpoint,
-        path: &str,
-        additional_headers: &[(&str, &str)],
-        credentials_override: HttpAuthOverride,
-        value: S,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Send + Serialize,
-    {
-        let json = serde_json::to_vec(&value).map_err(|e| {
-            ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            }
-        })?;
-
-        let mut response = self
-            .request(
-                Method::PATCH,
-                service,
-                path,
-                additional_headers,
-                credentials_override,
-                Some(RequestBody {
-                    contents: json,
-                    content_type: "application/json".into(),
-                }),
-            )
-            .await?;
-
-        Self::json(&mut response).await
-    }
-
-    #[tracing::instrument(skip(self, value))]
-    async fn post_json<D, S>(
-        &mut self,
-        service: Endpoint,
-        path: &str,
-        additional_headers: &[(&str, &str)],
-        credentials_override: HttpAuthOverride,
-        value: S,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Send + Serialize,
-    {
-        let json = serde_json::to_vec(&value).map_err(|e| {
-            ServiceError::JsonDecodeError {
-                reason: e.to_string(),
-            }
-        })?;
-
-        let mut response = self
-            .request(
-                Method::POST,
-                service,
-                path,
-                additional_headers,
-                credentials_override,
-                Some(RequestBody {
-                    contents: json,
-                    content_type: "application/json".into(),
-                }),
-            )
-            .await?;
-
-        Self::json(&mut response).await
-    }
-
-    #[tracing::instrument(skip(self))]
-    async fn get_protobuf<T>(
-        &mut self,
-        service: Endpoint,
-        path: &str,
-        additional_headers: &[(&str, &str)],
-        credentials_override: HttpAuthOverride,
-    ) -> Result<T, ServiceError>
-    where
-        T: Default + ProtobufMessage,
-    {
-        let mut response = self
-            .request(
-                Method::GET,
-                service,
-                path,
-                additional_headers,
-                credentials_override,
-                None,
-            )
-            .await?;
-
-        Self::protobuf(&mut response).await
-    }
-
-    #[tracing::instrument(skip(self, value))]
-    async fn put_protobuf<D, S>(
-        &mut self,
-        service: Endpoint,
-        path: &str,
-        additional_headers: &[(&str, &str)],
-        value: S,
-    ) -> Result<D, ServiceError>
-    where
-        D: Default + ProtobufMessage,
-        S: Sized + ProtobufMessage,
-    {
-        let protobuf = value.encode_to_vec();
-
-        let mut response = self
-            .request(
-                Method::PUT,
-                service,
-                path,
-                additional_headers,
-                HttpAuthOverride::NoOverride,
-                Some(RequestBody {
-                    contents: protobuf,
-                    content_type: "application/x-protobuf".into(),
-                }),
-            )
-            .await?;
-
-        Self::protobuf(&mut response).await
-    }
-
     pub async fn ws(
         &mut self,
         path: &str,
         keepalive_path: &str,
-        additional_headers: &[(&str, &str)],
+        additional_headers: &[(&'static str, &str)],
         credentials: Option<ServiceCredentials>,
     ) -> Result<SignalWebSocket, ServiceError> {
         let span = debug_span!("websocket");
-        let (ws, stream) = TungsteniteWebSocket::with_tls_config(
-            Self::tls_config(&self.cfg),
-            self.cfg.base_url(Endpoint::Service),
-            path,
-            additional_headers,
-            credentials.as_ref(),
-        )
-        .instrument(span.clone())
-        .await?;
+
+        let endpoint = self.cfg.base_url(Endpoint::Service);
+        let mut url = endpoint.join(path).expect("valid url");
+        url.set_scheme("wss").expect("valid https base url");
+
+        if let Some(credentials) = credentials {
+            url.query_pairs_mut()
+                .append_pair("login", &credentials.login())
+                .append_pair(
+                    "password",
+                    credentials.password.as_ref().expect("a password"),
+                );
+        }
+
+        let mut builder = self.client.get(url);
+        for (key, value) in additional_headers {
+            builder = builder.header(*key, *value);
+        }
+
+        let ws = builder
+            .upgrade()
+            .send()
+            .await?
+            .into_websocket()
+            .instrument(span.clone())
+            .await?;
+
         let (ws, task) =
-            SignalWebSocket::from_socket(ws, stream, keepalive_path.to_owned());
+            SignalWebSocket::from_socket(ws, keepalive_path.to_owned());
         let task = task.instrument(span);
         tokio::task::spawn(task);
         Ok(ws)
@@ -665,13 +391,17 @@ impl PushService {
         &mut self,
         credentials: HttpAuth,
     ) -> Result<crate::proto::Group, ServiceError> {
-        self.get_protobuf(
+        self.request(
+            Method::GET,
             Endpoint::Storage,
             "/v1/groups/",
-            &[],
             HttpAuthOverride::Identified(credentials),
-        )
+        )?
+        .send()
+        .await?
+        .protobuf()
         .await
+        .map_err(Into::into)
     }
 }
 

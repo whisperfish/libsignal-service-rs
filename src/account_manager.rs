@@ -1,5 +1,6 @@
 use base64::prelude::*;
 use phonenumber::PhoneNumber;
+use reqwest::Method;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
@@ -28,9 +29,9 @@ use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{
-    AvatarWrite, DeviceActivationRequest, DeviceInfo, RecaptchaAttributes,
-    RegistrationMethod, ServiceIdType, VerifyAccountResponse,
-    DEFAULT_DEVICE_ID,
+    AvatarWrite, DeviceActivationRequest, DeviceInfo, HttpAuthOverride,
+    RecaptchaAttributes, RegistrationMethod, ReqwestExt, ServiceIdType,
+    VerifyAccountResponse, DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
 use crate::session_store::SessionStoreExt;
@@ -44,9 +45,7 @@ use crate::{
     profile_name::ProfileName,
     proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
     provisioning::{ProvisioningCipher, ProvisioningError},
-    push_service::{
-        AccountAttributes, HttpAuthOverride, PushService, ServiceError,
-    },
+    push_service::{AccountAttributes, PushService, ServiceError},
     utils::serde_base64,
 };
 
@@ -224,13 +223,17 @@ impl AccountManager {
 
         let dc: DeviceCode = self
             .service
-            .get_json(
+            .request(
+                Method::GET,
                 Endpoint::Service,
                 "/v1/devices/provisioning/code",
-                &[],
                 HttpAuthOverride::NoOverride,
-            )
+            )?
+            .send_to_signal()
+            .await?
+            .json()
             .await?;
+
         Ok(dc.verification_code)
     }
 
@@ -247,16 +250,19 @@ impl AccountManager {
         let body = env.encode_to_vec();
 
         self.service
-            .put_json(
+            .request(
+                Method::PUT,
                 Endpoint::Service,
                 &format!("/v1/provisioning/{}", destination),
-                &[],
                 HttpAuthOverride::NoOverride,
-                &ProvisioningMessage {
-                    body: BASE64_RELAXED.encode(body),
-                },
-            )
-            .await
+            )?
+            .json(&ProvisioningMessage {
+                body: BASE64_RELAXED.encode(body),
+            })
+            .send_to_signal()
+            .await?;
+
+        Ok(())
     }
 
     /// Link a new device, given a tsurl.
@@ -582,15 +588,16 @@ impl AccountManager {
         }
 
         self.service
-            .put_json::<(), _>(
+            .request(
+                Method::PUT,
                 Endpoint::Service,
                 "/v1/accounts/name",
-                &[],
                 HttpAuthOverride::NoOverride,
-                Data {
-                    device_name: encrypted_device_name.encode_to_vec(),
-                },
-            )
+            )?
+            .json(&Data {
+                device_name: encrypted_device_name.encode_to_vec(),
+            })
+            .send_to_signal()
             .await?;
 
         Ok(())
@@ -607,20 +614,22 @@ impl AccountManager {
         token: &str,
         captcha: &str,
     ) -> Result<(), ServiceError> {
-        let payload = RecaptchaAttributes {
-            r#type: String::from("recaptcha"),
-            token: String::from(token),
-            captcha: String::from(captcha),
-        };
         self.service
-            .put_json(
+            .request(
+                Method::PUT,
                 Endpoint::Service,
                 "/v1/challenge",
-                &[],
                 HttpAuthOverride::NoOverride,
-                payload,
-            )
-            .await
+            )?
+            .json(&RecaptchaAttributes {
+                r#type: String::from("recaptcha"),
+                token: String::from(token),
+                captcha: String::from(captcha),
+            })
+            .send_to_signal()
+            .await?;
+
+        Ok(())
     }
 
     /// Initialize PNI on linked devices.

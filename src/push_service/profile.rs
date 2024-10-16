@@ -1,3 +1,4 @@
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
@@ -5,12 +6,12 @@ use crate::{
     configuration::Endpoint,
     content::ServiceError,
     profile_cipher::ProfileCipherError,
-    push_service::{AvatarWrite, HttpAuthOverride},
+    push_service::AvatarWrite,
     utils::{serde_base64, serde_optional_base64},
     Profile, ServiceAddress,
 };
 
-use super::{DeviceCapabilities, PushService};
+use super::{DeviceCapabilities, HttpAuthOverride, PushService, ReqwestExt};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,13 +103,17 @@ impl PushService {
             format!("/v1/profile/{}", address.uuid)
         };
         // TODO: set locale to en_US
-        self.get_json(
+        self.request(
+            Method::GET,
             Endpoint::Service,
             &endpoint,
-            &[],
             HttpAuthOverride::NoOverride,
-        )
+        )?
+        .send_to_signal()
+        .await?
+        .json()
         .await
+        .map_err(Into::into)
     }
 
     pub async fn retrieve_profile_avatar(
@@ -161,35 +166,32 @@ impl PushService {
         };
 
         // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
-        let response: Result<String, _> = self
-            .put_json(
+        let upload_url: Result<String, _> = self
+            .request(
+                Method::PUT,
                 Endpoint::Service,
                 "/v1/profile",
-                &[],
                 HttpAuthOverride::NoOverride,
-                command,
-            )
+            )?
+            .json(&command)
+            .send_to_signal()
+            .await?
+            .json()
             .await;
-        match (response, avatar) {
-            (Ok(_url), AvatarWrite::NewAvatar(_avatar)) => {
+
+        match (upload_url, avatar) {
+            (_url, AvatarWrite::NewAvatar(_avatar)) => {
                 // FIXME
                 unreachable!("Uploading avatar unimplemented");
             },
             // FIXME cleanup when #54883 is stable and MSRV:
             // or-patterns syntax is experimental
             // see issue #54883 <https://github.com/rust-lang/rust/issues/54883> for more information
-            (
-                Err(ServiceError::JsonDecodeError { .. }),
-                AvatarWrite::RetainAvatar,
-            )
-            | (
-                Err(ServiceError::JsonDecodeError { .. }),
-                AvatarWrite::NoAvatar,
-            ) => {
+            (Err(_), AvatarWrite::RetainAvatar)
+            | (Err(_), AvatarWrite::NoAvatar) => {
                 // OWS sends an empty string when there's no attachment
                 Ok(None)
             },
-            (Err(e), _) => Err(e),
             (Ok(_resp), AvatarWrite::RetainAvatar)
             | (Ok(_resp), AvatarWrite::NoAvatar) => {
                 tracing::warn!(
