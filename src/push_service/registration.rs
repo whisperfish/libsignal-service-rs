@@ -8,7 +8,7 @@ use super::{AccountAttributes, PushService, ServiceError};
 use crate::{
     configuration::Endpoint,
     pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
-    push_service::{HttpAuthOverride, ReqwestExt},
+    push_service::{response::ReqwestExt, HttpAuthOverride},
     utils::serde_base64,
 };
 
@@ -168,7 +168,9 @@ impl PushService {
             device_activation_request,
             every_signed_key_valid: true,
         })
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -207,7 +209,9 @@ impl PushService {
             mcc,
             mnc,
         })
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -248,7 +252,9 @@ impl PushService {
             mnc,
             push_challenge,
         })
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -288,7 +294,9 @@ impl PushService {
             HttpAuthOverride::Unidentified,
         )?
         .json(&VerificationCodeRequest { transport, client })
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -314,7 +322,9 @@ impl PushService {
         .json(&VerificationCode {
             code: verification_code,
         })
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await

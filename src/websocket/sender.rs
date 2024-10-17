@@ -13,7 +13,7 @@ impl SignalWebSocket {
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
         let path = format!("/v1/messages/{}", messages.destination);
-        self.put_json(&path, messages).await
+        self.put_json(&path, messages, vec![]).await
     }
 
     pub async fn send_messages_unidentified(
@@ -26,7 +26,6 @@ impl SignalWebSocket {
             "Unidentified-Access-Key:{}",
             BASE64_RELAXED.encode(&access.key)
         );
-        self.put_json_with_headers(&path, messages, vec![header])
-            .await
+        self.put_json(&path, messages, vec![header]).await
     }
 }

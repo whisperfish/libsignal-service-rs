@@ -6,7 +6,9 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{HttpAuthOverride, PushService, ReqwestExt, ServiceError};
+use super::{
+    response::ReqwestExt, HttpAuthOverride, PushService, ServiceError,
+};
 use crate::{
     configuration::Endpoint,
     utils::{serde_optional_base64, serde_phone_number},
@@ -134,7 +136,9 @@ impl PushService {
             "/v1/accounts/whoami",
             HttpAuthOverride::NoOverride,
         )?
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -157,7 +161,9 @@ impl PushService {
                 "/v1/devices/",
                 HttpAuthOverride::NoOverride,
             )?
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?
             .json()
             .await?;
@@ -181,7 +187,9 @@ impl PushService {
             HttpAuthOverride::NoOverride,
         )?
         .json(&attributes)
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await

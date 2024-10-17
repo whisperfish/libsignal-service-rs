@@ -9,7 +9,7 @@ use crate::{
     proto::AttachmentPointer, push_service::HttpAuthOverride,
 };
 
-use super::{PushService, ReqwestExt, ServiceError};
+use super::{response::ReqwestExt, PushService, ServiceError};
 
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -53,7 +53,9 @@ impl PushService {
                 path,
                 HttpAuthOverride::Unidentified, // CDN requests are always without authentication
             )?
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?
             .bytes_stream()
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
@@ -71,7 +73,9 @@ impl PushService {
             "/v2/attachments/form/upload",
             HttpAuthOverride::NoOverride,
         )?
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -130,7 +134,9 @@ impl PushService {
                 HttpAuthOverride::NoOverride,
             )?
             .multipart(form)
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?;
 
         debug!("HyperPushService::PUT response: {:?}", response);

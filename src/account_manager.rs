@@ -229,7 +229,9 @@ impl AccountManager {
                 "/v1/devices/provisioning/code",
                 HttpAuthOverride::NoOverride,
             )?
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?
             .json()
             .await?;
@@ -259,7 +261,9 @@ impl AccountManager {
             .json(&ProvisioningMessage {
                 body: BASE64_RELAXED.encode(body),
             })
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?;
 
         Ok(())
@@ -597,7 +601,9 @@ impl AccountManager {
             .json(&Data {
                 device_name: encrypted_device_name.encode_to_vec(),
             })
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?;
 
         Ok(())
@@ -626,7 +632,9 @@ impl AccountManager {
                 token: String::from(token),
                 captcha: String::from(captcha),
             })
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?;
 
         Ok(())

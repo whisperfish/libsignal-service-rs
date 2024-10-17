@@ -174,7 +174,9 @@ impl<C: CredentialsCache> GroupsManager<C> {
                     &path,
                     HttpAuthOverride::NoOverride,
                 )?
-                .send_to_signal()
+                .send()
+                .await?
+                .service_error_for_status()
                 .await?
                 .json()
                 .await?;

@@ -15,7 +15,7 @@ use libsignal_protocol::{
     IdentityKey, PreKeyBundle, PublicKey,
 };
 use protobuf::ProtobufResponseExt;
-use reqwest::{Method, RequestBuilder, Response, StatusCode};
+use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
 use serde::{Deserialize, Serialize};
 use tracing::{debug_span, Instrument};
@@ -30,6 +30,7 @@ mod keys;
 mod linking;
 mod profile;
 mod registration;
+mod response;
 mod stickers;
 
 pub use account::*;
@@ -39,6 +40,7 @@ pub use keys::*;
 pub use linking::*;
 pub use profile::*;
 pub use registration::*;
+pub(crate) use response::{ReqwestExt, SignalServiceResponse};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProofRequired {
@@ -204,147 +206,7 @@ impl PushService {
 
         Ok(builder)
     }
-}
 
-#[async_trait::async_trait]
-pub(crate) trait ReqwestExt
-where
-    Self: Sized,
-{
-    async fn send_to_signal(self) -> Result<Response, ServiceError>;
-}
-
-#[async_trait::async_trait]
-impl ReqwestExt for RequestBuilder {
-    async fn send_to_signal(self) -> Result<Response, ServiceError> {
-        let response = self.send().await?;
-        match response.status() {
-            StatusCode::OK => Ok(response),
-            StatusCode::NO_CONTENT => Ok(response),
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
-                Err(ServiceError::Unauthorized)
-            },
-            StatusCode::NOT_FOUND => {
-                // This is 404 and means that e.g. recipient is not registered
-                Err(ServiceError::NotFoundError)
-            },
-            StatusCode::PAYLOAD_TOO_LARGE => {
-                // This is 413 and means rate limit exceeded for Signal.
-                Err(ServiceError::RateLimitExceeded)
-            },
-            StatusCode::CONFLICT => {
-                let mismatched_devices =
-                    response.json().await.map_err(|error| {
-                        tracing::error!(
-                            %error,
-                            "failed to decode HTTP 409 status"
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: StatusCode::CONFLICT.as_u16(),
-                        }
-                    })?;
-                Err(ServiceError::MismatchedDevicesException(
-                    mismatched_devices,
-                ))
-            },
-            StatusCode::GONE => {
-                let stale_devices = response.json().await.map_err(|error| {
-                    tracing::error!(%error, "failed to decode HTTP 410 status");
-                    ServiceError::UnhandledResponseCode {
-                        http_code: StatusCode::GONE.as_u16(),
-                    }
-                })?;
-                Err(ServiceError::StaleDevices(stale_devices))
-            },
-            StatusCode::LOCKED => {
-                let locked = response.json().await.map_err(|error| {
-                    tracing::error!(%error, "failed to decode HTTP 423 status");
-                    ServiceError::UnhandledResponseCode {
-                        http_code: StatusCode::LOCKED.as_u16(),
-                    }
-                })?;
-                Err(ServiceError::Locked(locked))
-            },
-            StatusCode::PRECONDITION_REQUIRED => {
-                let proof_required =
-                    response.json().await.map_err(|error| {
-                        tracing::error!(
-                            %error,
-                            "failed to decode HTTP 428 status"
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: StatusCode::PRECONDITION_REQUIRED
-                                .as_u16(),
-                        }
-                    })?;
-                Err(ServiceError::ProofRequiredError(proof_required))
-            },
-            // XXX: fill in rest from PushServiceSocket
-            code => {
-                let response_text = response.text().await?;
-                tracing::trace!(status_code =% code, body = response_text, "unhandled HTTP response");
-                Err(ServiceError::UnhandledResponseCode {
-                    http_code: code.as_u16(),
-                })
-            },
-        }
-    }
-}
-
-pub(crate) mod protobuf {
-    use async_trait::async_trait;
-    use prost::{EncodeError, Message};
-    use reqwest::{header, RequestBuilder, Response};
-
-    use super::ServiceError;
-
-    pub(crate) trait ProtobufRequestBuilderExt
-    where
-        Self: Sized,
-    {
-        /// Set the request payload encoded as protobuf.
-        /// Sets the `Content-Type` header to `application/protobuf`
-        #[allow(dead_code)]
-        fn protobuf<T: Message + Default>(
-            self,
-            value: T,
-        ) -> Result<Self, EncodeError>;
-    }
-
-    #[async_trait::async_trait]
-    pub(crate) trait ProtobufResponseExt {
-        /// Get the response body decoded from Protobuf
-        async fn protobuf<T: prost::Message + Default>(
-            self,
-        ) -> Result<T, ServiceError>;
-    }
-
-    impl ProtobufRequestBuilderExt for RequestBuilder {
-        fn protobuf<T: Message + Default>(
-            self,
-            value: T,
-        ) -> Result<Self, EncodeError> {
-            let mut buf = Vec::new();
-            value.encode(&mut buf)?;
-            let this =
-                self.header(header::CONTENT_TYPE, "application/protobuf");
-            Ok(this.body(buf))
-        }
-    }
-
-    #[async_trait]
-    impl ProtobufResponseExt for Response {
-        async fn protobuf<T: Message + Default>(
-            self,
-        ) -> Result<T, ServiceError> {
-            let body = self.bytes().await?;
-            let decoded = T::decode(body)?;
-            Ok(decoded)
-        }
-    }
-}
-
-impl PushService {
     pub async fn ws(
         &mut self,
         path: &str,
@@ -399,9 +261,64 @@ impl PushService {
         )?
         .send()
         .await?
+        .service_error_for_status()
+        .await?
         .protobuf()
         .await
         .map_err(Into::into)
+    }
+}
+
+pub(crate) mod protobuf {
+    use async_trait::async_trait;
+    use prost::{EncodeError, Message};
+    use reqwest::{header, RequestBuilder, Response};
+
+    use super::ServiceError;
+
+    pub(crate) trait ProtobufRequestBuilderExt
+    where
+        Self: Sized,
+    {
+        /// Set the request payload encoded as protobuf.
+        /// Sets the `Content-Type` header to `application/protobuf`
+        #[allow(dead_code)]
+        fn protobuf<T: Message + Default>(
+            self,
+            value: T,
+        ) -> Result<Self, EncodeError>;
+    }
+
+    #[async_trait::async_trait]
+    pub(crate) trait ProtobufResponseExt {
+        /// Get the response body decoded from Protobuf
+        async fn protobuf<T: prost::Message + Default>(
+            self,
+        ) -> Result<T, ServiceError>;
+    }
+
+    impl ProtobufRequestBuilderExt for RequestBuilder {
+        fn protobuf<T: Message + Default>(
+            self,
+            value: T,
+        ) -> Result<Self, EncodeError> {
+            let mut buf = Vec::new();
+            value.encode(&mut buf)?;
+            let this =
+                self.header(header::CONTENT_TYPE, "application/protobuf");
+            Ok(this.body(buf))
+        }
+    }
+
+    #[async_trait]
+    impl ProtobufResponseExt for Response {
+        async fn protobuf<T: Message + Default>(
+            self,
+        ) -> Result<T, ServiceError> {
+            let body = self.bytes().await?;
+            let decoded = T::decode(body)?;
+            Ok(decoded)
+        }
     }
 }
 

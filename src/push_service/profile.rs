@@ -109,7 +109,7 @@ impl PushService {
             &endpoint,
             HttpAuthOverride::NoOverride,
         )?
-        .send_to_signal()
+        .send().await?.service_error_for_status()
         .await?
         .json()
         .await
@@ -174,7 +174,7 @@ impl PushService {
                 HttpAuthOverride::NoOverride,
             )?
             .json(&command)
-            .send_to_signal()
+            .send().await?.service_error_for_status()
             .await?
             .json()
             .await;

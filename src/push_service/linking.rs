@@ -5,8 +5,8 @@ use uuid::Uuid;
 use crate::configuration::Endpoint;
 
 use super::{
-    DeviceActivationRequest, HttpAuth, HttpAuthOverride, PushService,
-    ReqwestExt, ServiceError,
+    response::ReqwestExt, DeviceActivationRequest, HttpAuth, HttpAuthOverride,
+    PushService, ServiceError,
 };
 
 #[derive(Debug, Serialize)]
@@ -67,7 +67,9 @@ impl PushService {
             HttpAuthOverride::Identified(http_auth),
         )?
         .json(&link_request)
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -81,7 +83,9 @@ impl PushService {
             format!("/v1/devices/{}", id),
             HttpAuthOverride::NoOverride,
         )?
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?;
 
         Ok(())

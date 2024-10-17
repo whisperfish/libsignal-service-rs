@@ -14,7 +14,7 @@ use crate::{
 };
 
 use super::{
-    HttpAuthOverride, PushService, ReqwestExt, SenderCertificateJson,
+    response::ReqwestExt, HttpAuthOverride, PushService, SenderCertificateJson,
     ServiceError, ServiceIdType, VerifyAccountResponse,
 };
 
@@ -36,7 +36,9 @@ impl PushService {
             &format!("/v2/keys?identity={}", service_id_type),
             HttpAuthOverride::NoOverride,
         )?
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await
@@ -55,7 +57,9 @@ impl PushService {
             HttpAuthOverride::NoOverride,
         )?
         .json(&pre_key_state)
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?;
 
         Ok(())
@@ -76,7 +80,9 @@ impl PushService {
                 &path,
                 HttpAuthOverride::NoOverride,
             )?
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?
             .json()
             .await?;
@@ -105,7 +111,9 @@ impl PushService {
                 &path,
                 HttpAuthOverride::NoOverride,
             )?
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?
             .json()
             .await?;
@@ -127,7 +135,9 @@ impl PushService {
                 "/v1/certificate/delivery",
                 HttpAuthOverride::NoOverride,
             )?
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?
             .json()
             .await?;
@@ -144,7 +154,9 @@ impl PushService {
                 "/v1/certificate/delivery?includeE164=false",
                 HttpAuthOverride::NoOverride,
             )?
-            .send_to_signal()
+            .send()
+            .await?
+            .service_error_for_status()
             .await?
             .json()
             .await?;
@@ -190,7 +202,9 @@ impl PushService {
             pni_registration_ids,
             signature_valid_on_each_signed_pre_key,
         })
-        .send_to_signal()
+        .send()
+        .await?
+        .service_error_for_status()
         .await?
         .json()
         .await

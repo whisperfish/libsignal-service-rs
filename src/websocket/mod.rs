@@ -17,7 +17,7 @@ use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
     WebSocketResponseMessage,
 };
-use crate::push_service::{self, MismatchedDevices, ServiceError};
+use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
 mod sender;
 // pub(crate) mod tungstenite;
@@ -432,95 +432,16 @@ impl SignalWebSocket {
     where
         for<'de> T: serde::Deserialize<'de>,
     {
-        let response = self.request(r).await?;
-        if response.status() != 200 {
-            tracing::debug!(
-                "request_json with non-200 status code. message: {}",
-                response.message()
-            );
-        }
-
-        fn json<U>(body: &[u8]) -> Result<U, ServiceError>
-        where
-            for<'de> U: serde::Deserialize<'de>,
-        {
-            serde_json::from_slice(body).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        }
-
-        match response.status() {
-            200 | 204 => json(response.body()),
-            401 | 403 => Err(ServiceError::Unauthorized),
-            404 => Err(ServiceError::NotFoundError),
-            413 /* PAYLOAD_TOO_LARGE */ => Err(ServiceError::RateLimitExceeded) ,
-            409 /* CONFLICT */ => {
-                let mismatched_devices: MismatchedDevices =
-                    json(response.body()).map_err(|e| {
-                        tracing::error!(
-                            "Failed to decode HTTP 409 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: 409,
-                        }
-                    })?;
-                Err(ServiceError::MismatchedDevicesException(
-                    mismatched_devices,
-                ))
-            },
-            410 /* GONE */ => {
-                let stale_devices =
-                    json(response.body()).map_err(|e| {
-                        tracing::error!(
-                            "Failed to decode HTTP 410 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: 410,
-                        }
-                    })?;
-                Err(ServiceError::StaleDevices(stale_devices))
-            },
-            423 /* LOCKED */ => {
-                let locked = json(response.body()).map_err(|e| {
-                    tracing::error!("Failed to decode HTTP 423 response: {}", e);
-                    ServiceError::UnhandledResponseCode {
-                        http_code: 423,
-                    }
-                })?;
-                Err(ServiceError::Locked(locked))
-            },
-            428 /* PRECONDITION_REQUIRED */ => {
-                let proof_required = json(response.body()).map_err(|e| {
-                    tracing::error!("Failed to decode HTTP 428 response: {}", e);
-                    ServiceError::UnhandledResponseCode {
-                        http_code: 428,
-                    }
-                })?;
-                Err(ServiceError::ProofRequiredError(proof_required))
-            },
-            _ => Err(ServiceError::UnhandledResponseCode {
-                http_code: response.status() as u16,
-            }),
-        }
+        self.request(r)
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
+            .map_err(Into::into)
     }
 
-    pub(crate) async fn put_json<D, S>(
-        &mut self,
-        path: &str,
-        value: S,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Serialize,
-    {
-        self.put_json_with_headers(path, value, vec![]).await
-    }
-
-    pub(crate) async fn put_json_with_headers<'h, D, S>(
+    pub(crate) async fn put_json<'h, D, S>(
         &mut self,
         path: &str,
         value: S,
