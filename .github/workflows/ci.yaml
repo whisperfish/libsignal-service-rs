@@ -54,25 +54,16 @@ jobs:
       - name: Configure CI cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        if: matrix.toolchain != 'nightly'
-        with:
-          command: test
-          args: --all-targets --no-fail-fast 
-
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all-targets
+        run: cargo build --all-targets
+
+      - name: Run tests
+        if: matrix.toolchain != 'nightly'
+        run: cargo test --all-targets --no-fail-fast
 
       - name: Run tests with code coverage
-        uses: actions-rs/cargo@v1
         if: matrix.toolchain == 'nightly'
-        with:
-          command: test
-          args: --all-targets --no-fail-fast 
+        run: cargo test --all-targets --no-fail-fast
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
