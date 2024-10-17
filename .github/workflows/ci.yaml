@@ -47,7 +47,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
 
-      - uses: dtolnay/rust-toolchain@master
+      - id: rustc
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
 
@@ -55,15 +56,15 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo build --all-targets
+        run: cargo +${{ steps.rustc.outputs.name }} build --all-targets
 
       - name: Run tests
         if: matrix.toolchain != 'nightly'
-        run: cargo test --all-targets --no-fail-fast
+        run: cargo +${{ steps.rustc.outputs.name }} test --all-targets --no-fail-fast
 
       - name: Run tests with code coverage
         if: matrix.toolchain == 'nightly'
-        run: cargo test --all-targets --no-fail-fast
+        run: cargo +${{ steps.rustc.outputs.name }} test --all-targets --no-fail-fast
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
