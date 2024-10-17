@@ -9,6 +9,7 @@ pub struct WebSocketRequestMessageBuilder {
 }
 
 impl WebSocketRequestMessage {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(method: Method) -> WebSocketRequestMessageBuilder {
         WebSocketRequestMessageBuilder {
             request: WebSocketRequestMessage {
