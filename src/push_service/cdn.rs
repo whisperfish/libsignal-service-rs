@@ -108,6 +108,7 @@ impl PushService {
         filename: String,
         mut reader: impl Read + Send,
     ) -> Result<(), ServiceError> {
+        // Amazon S3 expects multipart fields in a very specific order (the file contents should go last.)
         let mut form = reqwest::multipart::Form::new();
         form = form.text("acl", upload_attributes.acl);
         form = form.text("key", upload_attributes.key);
