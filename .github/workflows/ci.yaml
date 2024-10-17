@@ -32,22 +32,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   build:
-    name: Build (${{ matrix.project }}, Rust ${{ matrix.toolchain }})
+    name: Build with Rust ${{ matrix.toolchain }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        project: ["libsignal-service"]
         toolchain: ["stable", "beta", "nightly", "1.75"]
-        coverage: [false, true]
-        exclude:
-          # Coverage related excludes
-          - toolchain: stable
-            coverage: true
-          - toolchain: beta
-            coverage: true
-          - toolchain: nightly
-            coverage: false
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf
@@ -61,7 +51,7 @@ jobs:
 
       - name: Run tests
         uses: actions-rs/cargo@v1
-        if: ${{ !matrix.coverage }}
+        if: ${{ matrix.toolchain != "nightly" }}
         with:
           command: test
           args: --all-targets --no-fail-fast 
@@ -72,9 +62,9 @@ jobs:
           command: build
           args: --all-targets
 
-      - name: Run tests
+      - name: Run tests with code coverage
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.coverage }}
+        if: ${{ matrix.toolchain == "nightly" }}
         with:
           command: test
           args: --all-targets --no-fail-fast 
