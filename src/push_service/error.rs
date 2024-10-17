@@ -21,8 +21,8 @@ pub enum ServiceError {
     #[error("Error decoding response: {reason}")]
     ResponseError { reason: String },
 
-    #[error("Error decoding JSON response: {reason}")]
-    JsonDecodeError { reason: String },
+    #[error("Error decoding JSON: {0}")]
+    JsonDecodeError(#[from] serde_json::Error),
     #[error("Error decoding protobuf frame: {0}")]
     ProtobufDecodeError(#[from] prost::DecodeError),
     #[error("error encoding or decoding bincode: {0}")]
@@ -39,13 +39,13 @@ pub enum ServiceError {
     #[error("Unexpected response: HTTP {http_code}")]
     UnhandledResponseCode { http_code: u16 },
 
-    #[error("Websocket error: {reason}")]
-    WsError { reason: String },
+    #[error("Websocket error: {0}")]
+    WsError(#[from] reqwest_websocket::Error),
     #[error("Websocket closing: {reason}")]
-    WsClosing { reason: String },
+    WsClosing { reason: &'static str },
 
     #[error("Invalid frame: {reason}")]
-    InvalidFrameError { reason: String },
+    InvalidFrame { reason: String },
 
     #[error("MAC error")]
     MacError,
@@ -85,4 +85,7 @@ pub enum ServiceError {
 
     #[error("invalid device name")]
     InvalidDeviceName,
+
+    #[error("HTTP reqwest error: {0}")]
+    Http(#[from] reqwest::Error),
 }

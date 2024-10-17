@@ -82,7 +82,6 @@ pub struct AttachmentSpec {
     pub blur_hash: Option<String>,
 }
 
-/// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
 pub struct MessageSender<S, R> {
     identified_ws: SignalWebSocket,
@@ -222,9 +221,10 @@ where
             .get_attachment_v2_upload_attributes()
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
+
         let (id, digest) = self
             .service
-            .upload_attachment(&attrs, &mut std::io::Cursor::new(&contents))
+            .upload_attachment(attrs, &mut std::io::Cursor::new(&contents))
             .instrument(tracing::trace_span!("Uploading attachment"))
             .await?;
 

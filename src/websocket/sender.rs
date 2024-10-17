@@ -12,8 +12,10 @@ impl SignalWebSocket {
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.destination);
-        self.put_json(&path, messages).await
+        let request = WebSocketRequestMessage::new(Method::PUT)
+            .path(format!("/v1/messages/{}", messages.destination))
+            .json(&messages)?;
+        self.request_json(request).await
     }
 
     pub async fn send_messages_unidentified(
@@ -21,12 +23,13 @@ impl SignalWebSocket {
         messages: OutgoingPushMessages,
         access: &UnidentifiedAccess,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let path = format!("/v1/messages/{}", messages.destination);
-        let header = format!(
-            "Unidentified-Access-Key:{}",
-            BASE64_RELAXED.encode(&access.key)
-        );
-        self.put_json_with_headers(&path, messages, vec![header])
-            .await
+        let request = WebSocketRequestMessage::new(Method::PUT)
+            .path(format!("/v1/messages/{}", messages.destination))
+            .header(
+                "Unidentified-Access-Key:{}",
+                BASE64_RELAXED.encode(&access.key),
+            )
+            .json(&messages)?;
+        self.request_json(request).await
     }
 }
