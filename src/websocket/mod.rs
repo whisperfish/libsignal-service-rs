@@ -9,8 +9,8 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::BoxFuture;
 use futures::prelude::*;
 use futures::stream::FuturesUnordered;
+use reqwest::Method;
 use reqwest_websocket::WebSocket;
-use serde::{Deserialize, Serialize};
 use tokio::time::Instant;
 
 use crate::proto::{
@@ -19,8 +19,10 @@ use crate::proto::{
 };
 use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
+mod request;
 mod sender;
-// pub(crate) mod tungstenite;
+
+pub use request::WebSocketRequestMessageBuilder;
 
 type RequestStreamItem = (
     WebSocketRequestMessage,
@@ -202,12 +204,10 @@ impl SignalWebSocketProcess {
                 _ = ka_interval.tick().fuse() => {
                     use prost::Message;
                     tracing::debug!("sending keep-alive");
-                    let request = WebSocketRequestMessage {
-                        id: Some(self.next_request_id()),
-                        path: Some(self.keep_alive_path.clone()),
-                        verb: Some("GET".into()),
-                        ..Default::default()
-                    };
+                    let request = WebSocketRequestMessage::new(Method::GET)
+                        .id(self.next_request_id())
+                        .path(&self.keep_alive_path)
+                        .build();
                     self.outgoing_keep_alive_set.insert(request.id.unwrap());
                     let msg = WebSocketMessage {
                         r#type: Some(web_socket_message::Type::Request.into()),
@@ -440,30 +440,5 @@ impl SignalWebSocket {
             .json()
             .await
             .map_err(Into::into)
-    }
-
-    pub(crate) async fn put_json<'h, D, S>(
-        &mut self,
-        path: &str,
-        value: S,
-        mut extra_headers: Vec<String>,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Serialize,
-    {
-        extra_headers.push("content-type:application/json".into());
-        let request = WebSocketRequestMessage {
-            path: Some(path.into()),
-            verb: Some("PUT".into()),
-            headers: extra_headers,
-            body: Some(serde_json::to_vec(&value).map_err(|e| {
-                ServiceError::SendError {
-                    reason: format!("Serializing JSON {}", e),
-                }
-            })?),
-            ..Default::default()
-        };
-        self.request_json(request).await
     }
 }
