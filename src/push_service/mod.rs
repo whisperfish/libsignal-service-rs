@@ -160,7 +160,7 @@ impl PushService {
         let client = reqwest::ClientBuilder::new()
             .add_root_certificate(
                 reqwest::Certificate::from_pem(
-                    &cfg.certificate_authority.as_bytes(),
+                    cfg.certificate_authority.as_bytes(),
                 )
                 .unwrap(),
             )
@@ -332,11 +332,8 @@ mod tests {
         let configs = &[SignalServers::Staging, SignalServers::Production];
 
         for cfg in configs {
-            let _ = super::PushService::new(
-                cfg,
-                None,
-                "libsignal-service test".to_string(),
-            );
+            let _ =
+                super::PushService::new(cfg, None, "libsignal-service test");
         }
     }
 

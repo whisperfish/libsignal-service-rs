@@ -33,7 +33,7 @@ impl PushService {
         self.request(
             Method::GET,
             Endpoint::Service,
-            &format!("/v2/keys?identity={}", service_id_type),
+            format!("/v2/keys?identity={}", service_id_type),
             HttpAuthOverride::NoOverride,
         )?
         .send()
@@ -53,7 +53,7 @@ impl PushService {
         self.request(
             Method::PUT,
             Endpoint::Service,
-            &format!("/v2/keys?identity={}", service_id_type),
+            format!("/v2/keys?identity={}", service_id_type),
             HttpAuthOverride::NoOverride,
         )?
         .json(&pre_key_state)

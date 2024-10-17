@@ -128,7 +128,7 @@ impl SignalWebSocketProcess {
                 tracing::trace!("sending request with body");
                 self.request_sink.send((request, sink)).await.map_err(
                     |_| ServiceError::WsClosing {
-                        reason: "request handler failed".into(),
+                        reason: "request handler failed",
                     },
                 )?;
                 self.outgoing_responses.push(Box::pin(recv));
@@ -197,7 +197,7 @@ impl SignalWebSocketProcess {
             push_service::KEEPALIVE_TIMEOUT_SECONDS,
         );
 
-        Ok(loop {
+        loop {
             futures::select! {
                 _ = ka_interval.tick().fuse() => {
                     use prost::Message;
@@ -309,7 +309,8 @@ impl SignalWebSocketProcess {
                     }
                 }
             }
-        })
+        }
+        Ok(())
     }
 }
 

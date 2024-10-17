@@ -241,7 +241,7 @@ impl PushService {
         self.request(
             Method::PATCH,
             Endpoint::Service,
-            &format!("/v1/verification/session/{}", session_id),
+            format!("/v1/verification/session/{}", session_id),
             HttpAuthOverride::Unidentified,
         )?
         .json(&UpdateVerificationSessionRequestBody {
@@ -290,7 +290,7 @@ impl PushService {
         self.request(
             Method::POST,
             Endpoint::Service,
-            &format!("/v1/verification/session/{}/code", session_id),
+            format!("/v1/verification/session/{}/code", session_id),
             HttpAuthOverride::Unidentified,
         )?
         .json(&VerificationCodeRequest { transport, client })
@@ -316,7 +316,7 @@ impl PushService {
         self.request(
             Method::PUT,
             Endpoint::Service,
-            &format!("/v1/verification/session/{}/code", session_id),
+            format!("/v1/verification/session/{}/code", session_id),
             HttpAuthOverride::Unidentified,
         )?
         .json(&VerificationCode {

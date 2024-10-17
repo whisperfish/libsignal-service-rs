@@ -255,7 +255,7 @@ impl AccountManager {
             .request(
                 Method::PUT,
                 Endpoint::Service,
-                &format!("/v1/provisioning/{}", destination),
+                format!("/v1/provisioning/{}", destination),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&ProvisioningMessage {

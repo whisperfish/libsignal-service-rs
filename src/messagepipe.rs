@@ -97,7 +97,7 @@ impl MessagePipe {
         responder
             .send(response)
             .map_err(|_| ServiceError::WsClosing {
-                reason: "could not respond to message pipe request".into(),
+                reason: "could not respond to message pipe request",
             })?;
 
         Ok(result)
