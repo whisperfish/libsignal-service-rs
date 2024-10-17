@@ -1,17 +1,21 @@
+use reqwest::Method;
+
 use crate::{
-    proto::WebSocketRequestMessage,
-    push_service::{ServiceError, SignalServiceProfile},
-    websocket::SignalWebSocket,
+    configuration::Endpoint,
+    prelude::PushService,
+    push_service::{
+        HttpAuthOverride, ReqwestExt, ServiceError, SignalServiceProfile,
+    },
     ServiceAddress,
 };
 
 pub struct ProfileService {
-    ws: SignalWebSocket,
+    push_service: PushService,
 }
 
 impl ProfileService {
-    pub fn from_socket(ws: SignalWebSocket) -> Self {
-        ProfileService { ws }
+    pub fn from_socket(push_service: PushService) -> Self {
+        ProfileService { push_service }
     }
 
     pub async fn retrieve_profile_by_id(
@@ -19,7 +23,7 @@ impl ProfileService {
         address: ServiceAddress,
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
-        let endpoint = match profile_key {
+        let path = match profile_key {
             Some(key) => {
                 let version =
                     bincode::serialize(&key.get_profile_key_version(
@@ -34,13 +38,17 @@ impl ProfileService {
             },
         };
 
-        let request = WebSocketRequestMessage {
-            path: Some(endpoint),
-            verb: Some("GET".into()),
-            // TODO: set locale to en_US
-            ..Default::default()
-        };
-
-        self.ws.request_json(request).await
+        self.push_service
+            .request(
+                Method::GET,
+                Endpoint::Service,
+                path,
+                HttpAuthOverride::NoOverride,
+            )?
+            .send_to_signal()
+            .await?
+            .json()
+            .await
+            .map_err(Into::into)
     }
 }

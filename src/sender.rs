@@ -82,7 +82,6 @@ pub struct AttachmentSpec {
     pub blur_hash: Option<String>,
 }
 
-/// Equivalent of Java's `SignalServiceMessageSender`.
 #[derive(Clone)]
 pub struct MessageSender<S, R> {
     identified_ws: SignalWebSocket,
