@@ -32,12 +32,20 @@ impl PushService {
         &mut self,
         ptr: &AttachmentPointer,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        let id = match ptr.attachment_identifier.as_ref().unwrap() {
-            AttachmentIdentifier::CdnId(id) => &id.to_string(),
-            AttachmentIdentifier::CdnKey(key) => key,
+        let path = match ptr.attachment_identifier.as_ref() {
+            Some(AttachmentIdentifier::CdnId(id)) => {
+                format!("attachments/{}", id)
+            },
+            Some(AttachmentIdentifier::CdnKey(key)) => {
+                format!("attachments/{}", key)
+            },
+            None => {
+                return Err(ServiceError::InvalidFrame {
+                    reason: "no attachment identifier in pointer".into(),
+                });
+            },
         };
-        self.get_from_cdn(ptr.cdn_number(), &format!("attachments/{}", id))
-            .await
+        self.get_from_cdn(ptr.cdn_number(), &path).await
     }
 
     #[tracing::instrument(skip(self))]

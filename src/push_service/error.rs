@@ -45,7 +45,7 @@ pub enum ServiceError {
     WsClosing { reason: &'static str },
 
     #[error("Invalid frame: {reason}")]
-    InvalidFrameError { reason: String },
+    InvalidFrame { reason: String },
 
     #[error("MAC error")]
     MacError,

@@ -122,7 +122,7 @@ impl SignalWebSocketProcess {
 
         use web_socket_message::Type;
         match (msg.r#type(), msg.request, msg.response) {
-            (Type::Unknown, _, _) => Err(ServiceError::InvalidFrameError {
+            (Type::Unknown, _, _) => Err(ServiceError::InvalidFrame {
                 reason: "Unknown frame type".into(),
             }),
             (Type::Request, Some(request), _) => {
@@ -137,7 +137,7 @@ impl SignalWebSocketProcess {
 
                 Ok(())
             },
-            (Type::Request, None, _) => Err(ServiceError::InvalidFrameError {
+            (Type::Request, None, _) => Err(ServiceError::InvalidFrame {
                 reason: "Type was request, but does not contain request."
                     .into(),
             }),
@@ -175,7 +175,7 @@ impl SignalWebSocketProcess {
 
                 Ok(())
             },
-            (Type::Response, _, None) => Err(ServiceError::InvalidFrameError {
+            (Type::Response, _, None) => Err(ServiceError::InvalidFrame {
                 reason: "Type was response, but does not contain response."
                     .into(),
             }),

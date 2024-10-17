@@ -79,7 +79,7 @@ impl MessagePipe {
             let body = if let Some(body) = request.body.as_ref() {
                 body
             } else {
-                return Err(ServiceError::InvalidFrameError {
+                return Err(ServiceError::InvalidFrame {
                     reason: "Request without body.".into(),
                 });
             };
