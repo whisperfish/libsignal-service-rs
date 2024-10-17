@@ -51,7 +51,7 @@ jobs:
 
       - name: Run tests
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.toolchain != "nightly" }}
+        if: matrix.toolchain != 'nightly'
         with:
           command: test
           args: --all-targets --no-fail-fast 
@@ -64,7 +64,7 @@ jobs:
 
       - name: Run tests with code coverage
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.toolchain == "nightly" }}
+        if: matrix.toolchain == 'nightly'
         with:
           command: test
           args: --all-targets --no-fail-fast 
