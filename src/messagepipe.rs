@@ -29,8 +29,7 @@ pub enum Incoming {
     QueueEmpty,
 }
 
-#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
-#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
+#[async_trait::async_trait]
 pub trait WebSocketService {
     type Stream: FusedStream<Item = WebSocketStreamItem> + Unpin;
 
@@ -139,8 +138,7 @@ impl MessagePipe {
 pub struct PanicingWebSocketService;
 
 #[allow(clippy::diverging_sub_expression)]
-#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
-#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
+#[async_trait::async_trait]
 impl WebSocketService for PanicingWebSocketService {
     type Stream = futures::channel::mpsc::Receiver<WebSocketStreamItem>;
 

@@ -1,8 +1,15 @@
-use std::io;
-use std::time::Duration;
+use std::{io, time::Duration};
+
+use crate::{
+    configuration::{Endpoint, ServiceCredentials},
+    pre_keys::{KyberPreKeyEntity, PreKeyEntity, SignedPreKeyEntity},
+    prelude::ServiceConfiguration,
+    utils::serde_base64,
+    websocket::{tungstenite::TungsteniteWebSocket, SignalWebSocket},
+};
 
 use bytes::{Buf, Bytes};
-use futures::{FutureExt, StreamExt, TryStreamExt};
+use derivative::Derivative;
 use headers::{Authorization, HeaderMapExt};
 use http_body_util::{BodyExt, Full};
 use hyper::{
@@ -16,24 +23,145 @@ use hyper_util::{
     client::legacy::{connect::HttpConnector, Client},
     rt::TokioExecutor,
 };
-use libsignal_service::{
-    configuration::*, prelude::ProtobufMessage, push_service::*,
-    websocket::SignalWebSocket, MaybeSend,
+use libsignal_protocol::{
+    error::SignalProtocolError,
+    kem::{Key, Public},
+    IdentityKey, PreKeyBundle, PublicKey,
 };
+use prost::Message as ProtobufMessage;
 use serde::{Deserialize, Serialize};
-use tokio_rustls::rustls::{self, ClientConfig};
-use tracing::{debug, debug_span};
-use tracing_futures::Instrument;
+use tokio_rustls::rustls;
+use tracing::{debug_span, Instrument};
 
-use crate::websocket::TungsteniteWebSocket;
+pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
+pub const DEFAULT_DEVICE_ID: u32 = 1;
 
-#[derive(Clone)]
-pub struct HyperPushService {
-    cfg: ServiceConfiguration,
-    user_agent: String,
-    credentials: Option<HttpAuth>,
-    client:
-        Client<TimeoutConnector<HttpsConnector<HttpConnector>>, Full<Bytes>>,
+mod account;
+mod cdn;
+mod error;
+mod keys;
+mod linking;
+mod profile;
+mod registration;
+mod stickers;
+
+pub use account::*;
+pub use cdn::*;
+pub use error::*;
+pub use keys::*;
+pub use linking::*;
+pub use profile::*;
+pub use registration::*;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProofRequired {
+    pub token: String,
+    pub options: Vec<String>,
+}
+
+#[derive(Derivative, Clone, Serialize, Deserialize)]
+#[derivative(Debug)]
+pub struct HttpAuth {
+    pub username: String,
+    #[derivative(Debug = "ignore")]
+    pub password: String,
+}
+
+/// This type is used in registration lock handling.
+/// It's identical with HttpAuth, but used to avoid type confusion.
+#[derive(Derivative, Clone, Serialize, Deserialize)]
+#[derivative(Debug)]
+pub struct AuthCredentials {
+    pub username: String,
+    #[derivative(Debug = "ignore")]
+    pub password: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum HttpAuthOverride {
+    NoOverride,
+    Unidentified,
+    Identified(HttpAuth),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum AvatarWrite<C> {
+    NewAvatar(C),
+    RetainAvatar,
+    NoAvatar,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SenderCertificateJson {
+    #[serde(with = "serde_base64")]
+    certificate: Vec<u8>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreKeyResponse {
+    #[serde(with = "serde_base64")]
+    pub identity_key: Vec<u8>,
+    pub devices: Vec<PreKeyResponseItem>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreKeyResponseItem {
+    pub device_id: u32,
+    pub registration_id: u32,
+    pub signed_pre_key: SignedPreKeyEntity,
+    pub pre_key: Option<PreKeyEntity>,
+    pub pq_pre_key: Option<KyberPreKeyEntity>,
+}
+
+impl PreKeyResponseItem {
+    pub(crate) fn into_bundle(
+        self,
+        identity: IdentityKey,
+    ) -> Result<PreKeyBundle, SignalProtocolError> {
+        let b = PreKeyBundle::new(
+            self.registration_id,
+            self.device_id.into(),
+            self.pre_key
+                .map(|pk| -> Result<_, SignalProtocolError> {
+                    Ok((
+                        pk.key_id.into(),
+                        PublicKey::deserialize(&pk.public_key)?,
+                    ))
+                })
+                .transpose()?,
+            // pre_key: Option<(u32, PublicKey)>,
+            self.signed_pre_key.key_id.into(),
+            PublicKey::deserialize(&self.signed_pre_key.public_key)?,
+            self.signed_pre_key.signature,
+            identity,
+        )?;
+
+        if let Some(pq_pk) = self.pq_pre_key {
+            Ok(b.with_kyber_pre_key(
+                pq_pk.key_id.into(),
+                Key::<Public>::deserialize(&pq_pk.public_key)?,
+                pq_pk.signature,
+            ))
+        } else {
+            Ok(b)
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MismatchedDevices {
+    pub missing_devices: Vec<u32>,
+    pub extra_devices: Vec<u32>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaleDevices {
+    pub stale_devices: Vec<u32>,
 }
 
 #[derive(Debug)]
@@ -42,7 +170,16 @@ struct RequestBody {
     content_type: String,
 }
 
-impl HyperPushService {
+#[derive(Clone)]
+pub struct PushService {
+    cfg: ServiceConfiguration,
+    user_agent: String,
+    credentials: Option<HttpAuth>,
+    client:
+        Client<TimeoutConnector<HttpsConnector<HttpConnector>>, Full<Bytes>>,
+}
+
+impl PushService {
     pub fn new(
         cfg: impl Into<ServiceConfiguration>,
         credentials: Option<ServiceCredentials>,
@@ -74,7 +211,7 @@ impl HyperPushService {
         }
     }
 
-    fn tls_config(cfg: &ServiceConfiguration) -> ClientConfig {
+    fn tls_config(cfg: &ServiceConfiguration) -> rustls::ClientConfig {
         let mut cert_bytes = io::Cursor::new(&cfg.certificate_authority);
         let roots = rustls_pemfile::certs(&mut cert_bytes);
 
@@ -286,14 +423,9 @@ impl HyperPushService {
     }
 }
 
-#[cfg_attr(feature = "unsend-futures", async_trait::async_trait(?Send))]
-#[cfg_attr(not(feature = "unsend-futures"), async_trait::async_trait)]
-impl PushService for HyperPushService {
-    // This is in principle known at compile time, but long to write out.
-    type ByteStream = Box<dyn futures::io::AsyncRead + Send + Unpin>;
-
+impl PushService {
     #[tracing::instrument(skip(self))]
-    async fn get_json<T>(
+    pub(crate) async fn get_json<T>(
         &mut self,
         service: Endpoint,
         path: &str,
@@ -342,7 +474,7 @@ impl PushService for HyperPushService {
     }
 
     #[tracing::instrument(skip(self, value))]
-    async fn put_json<D, S>(
+    pub async fn put_json<D, S>(
         &mut self,
         service: Endpoint,
         path: &str,
@@ -352,7 +484,7 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: MaybeSend + Serialize,
+        S: Send + Serialize,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {
@@ -388,7 +520,7 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: MaybeSend + Serialize,
+        S: Send + Serialize,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {
@@ -424,7 +556,7 @@ impl PushService for HyperPushService {
     ) -> Result<D, ServiceError>
     where
         for<'de> D: Deserialize<'de>,
-        S: MaybeSend + Serialize,
+        S: Send + Serialize,
     {
         let json = serde_json::to_vec(&value).map_err(|e| {
             ServiceError::JsonDecodeError {
@@ -458,7 +590,7 @@ impl PushService for HyperPushService {
         credentials_override: HttpAuthOverride,
     ) -> Result<T, ServiceError>
     where
-        T: Default + libsignal_service::prelude::ProtobufMessage,
+        T: Default + ProtobufMessage,
     {
         let mut response = self
             .request(
@@ -483,8 +615,8 @@ impl PushService for HyperPushService {
         value: S,
     ) -> Result<D, ServiceError>
     where
-        D: Default + libsignal_service::prelude::ProtobufMessage,
-        S: Sized + libsignal_service::prelude::ProtobufMessage,
+        D: Default + ProtobufMessage,
+        S: Sized + ProtobufMessage,
     {
         let protobuf = value.encode_to_vec();
 
@@ -505,106 +637,7 @@ impl PushService for HyperPushService {
         Self::protobuf(&mut response).await
     }
 
-    #[tracing::instrument(skip(self))]
-    async fn get_from_cdn(
-        &mut self,
-        cdn_id: u32,
-        path: &str,
-    ) -> Result<Self::ByteStream, ServiceError> {
-        let response = self
-            .request(
-                Method::GET,
-                Endpoint::Cdn(cdn_id),
-                path,
-                &[],
-                HttpAuthOverride::Unidentified, // CDN requests are always without authentication
-                None,
-            )
-            .await?;
-
-        Ok(Box::new(
-            response
-                .into_body()
-                .into_data_stream()
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
-                .into_async_read(),
-        ))
-    }
-
-    #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
-    async fn post_to_cdn0<'s, C>(
-        &mut self,
-        path: &str,
-        value: &[(&str, &str)],
-        file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError>
-    where
-        C: io::Read + Send + 's,
-    {
-        let mut form = mpart_async::client::MultipartRequest::default();
-
-        // mpart-async has a peculiar ordering of the form items,
-        // and Amazon S3 expects them in a very specific order (i.e., the file contents should
-        // go last.
-        //
-        // mpart-async uses a VecDeque internally for ordering the fields in the order given.
-        //
-        // https://github.com/cetra3/mpart-async/issues/16
-
-        for &(k, v) in value {
-            form.add_field(k, v);
-        }
-
-        if let Some((filename, file)) = file {
-            // XXX Actix doesn't cope with none-'static lifetimes
-            // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf)
-                .expect("infallible Read instance");
-            form.add_stream(
-                "file",
-                filename,
-                "application/octet-stream",
-                futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
-            );
-        }
-
-        let content_type =
-            format!("multipart/form-data; boundary={}", form.get_boundary());
-
-        // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
-        // stream. Sadly, Content-Length != contents.len(), but should include the whole form.
-        let mut body_contents = vec![];
-        while let Some(b) = form.next().await {
-            // Unwrap, because no error type was used above
-            body_contents.extend(b.unwrap());
-        }
-        tracing::trace!(
-            "Sending PUT with Content-Type={} and length {}",
-            content_type,
-            body_contents.len()
-        );
-
-        let response = self
-            .request(
-                Method::POST,
-                Endpoint::Cdn(0),
-                path,
-                &[],
-                HttpAuthOverride::NoOverride,
-                Some(RequestBody {
-                    contents: body_contents,
-                    content_type,
-                }),
-            )
-            .await?;
-
-        debug!("HyperPushService::PUT response: {:?}", response);
-
-        Ok(())
-    }
-
-    async fn ws(
+    pub async fn ws(
         &mut self,
         path: &str,
         keepalive_path: &str,
@@ -624,25 +657,35 @@ impl PushService for HyperPushService {
         let (ws, task) =
             SignalWebSocket::from_socket(ws, stream, keepalive_path.to_owned());
         let task = task.instrument(span);
-        #[cfg(feature = "unsend-futures")]
-        tokio::task::spawn_local(task);
-        #[cfg(not(feature = "unsend-futures"))]
         tokio::task::spawn(task);
         Ok(ws)
+    }
+
+    pub(crate) async fn get_group(
+        &mut self,
+        credentials: HttpAuth,
+    ) -> Result<crate::proto::Group, ServiceError> {
+        self.get_protobuf(
+            Endpoint::Storage,
+            "/v1/groups/",
+            &[],
+            HttpAuthOverride::Identified(credentials),
+        )
+        .await
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::configuration::SignalServers;
     use bytes::{Buf, Bytes};
-    use libsignal_service::configuration::SignalServers;
 
     #[test]
     fn create_clients() {
         let configs = &[SignalServers::Staging, SignalServers::Production];
 
         for cfg in configs {
-            let _ = super::HyperPushService::new(
+            let _ = super::PushService::new(
                 cfg,
                 None,
                 "libsignal-service test".to_string(),

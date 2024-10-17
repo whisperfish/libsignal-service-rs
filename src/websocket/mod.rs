@@ -19,8 +19,8 @@ use crate::proto::{
 };
 use crate::push_service::{MismatchedDevices, ServiceError};
 
-mod attachment_service;
 mod sender;
+pub(crate) mod tungstenite;
 
 type RequestStreamItem = (
     WebSocketRequestMessage,
@@ -484,21 +484,6 @@ impl SignalWebSocket {
                 http_code: response.status() as u16,
             }),
         }
-    }
-
-    pub(crate) async fn get_json<T>(
-        &mut self,
-        path: &str,
-    ) -> Result<T, ServiceError>
-    where
-        for<'de> T: Deserialize<'de>,
-    {
-        let request = WebSocketRequestMessage {
-            path: Some(path.into()),
-            verb: Some("GET".into()),
-            ..Default::default()
-        };
-        self.request_json(request).await
     }
 
     pub(crate) async fn put_json<D, S>(

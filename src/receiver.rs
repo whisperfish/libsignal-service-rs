@@ -3,7 +3,6 @@ use bytes::{Buf, Bytes};
 use crate::{
     attachment_cipher::decrypt_in_place,
     configuration::ServiceCredentials,
-    envelope::Envelope,
     messagepipe::MessagePipe,
     models::{Contact, ParseContactError},
     push_service::*,
@@ -11,33 +10,15 @@ use crate::{
 
 /// Equivalent of Java's `SignalServiceMessageReceiver`.
 #[derive(Clone)]
-pub struct MessageReceiver<Service> {
-    service: Service,
+pub struct MessageReceiver {
+    service: PushService,
 }
 
-impl<Service: PushService> MessageReceiver<Service> {
+impl MessageReceiver {
     // TODO: to avoid providing the wrong service/wrong credentials
     // change it like LinkingManager or ProvisioningManager
-    pub fn new(service: Service) -> Self {
+    pub fn new(service: PushService) -> Self {
         MessageReceiver { service }
-    }
-
-    /// One-off method to receive all pending messages.
-    ///
-    /// Equivalent with Java's `SignalServiceMessageReceiver::retrieveMessages`.
-    ///
-    /// For streaming messages, use a `MessagePipe` through
-    /// [`MessageReceiver::create_message_pipe()`].
-    pub async fn retrieve_messages(
-        &mut self,
-        allow_stories: bool,
-    ) -> Result<Vec<Envelope>, ServiceError> {
-        let entities = self.service.get_messages(allow_stories).await?;
-        let entities = entities
-            .into_iter()
-            .map(Envelope::try_from)
-            .collect::<Result<_, _>>()?;
-        Ok(entities)
     }
 
     pub async fn create_message_pipe(

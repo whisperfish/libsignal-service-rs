@@ -127,17 +127,17 @@ impl<T: CredentialsCache> CredentialsCache for &mut T {
     }
 }
 
-pub struct GroupsManager<S: PushService, C: CredentialsCache> {
+pub struct GroupsManager<C: CredentialsCache> {
     service_ids: ServiceIds,
-    push_service: S,
+    push_service: PushService,
     credentials_cache: C,
     server_public_params: ServerPublicParams,
 }
 
-impl<S: PushService, C: CredentialsCache> GroupsManager<S, C> {
+impl<C: CredentialsCache> GroupsManager<C> {
     pub fn new(
         service_ids: ServiceIds,
-        push_service: S,
+        push_service: PushService,
         credentials_cache: C,
         server_public_params: ServerPublicParams,
     ) -> Self {

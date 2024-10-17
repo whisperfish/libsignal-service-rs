@@ -21,13 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        project: ["libsignal-service-actix", "libsignal-service-hyper", "libsignal-service"]
-        features: ["", "unsend-futures"]
-        exclude:
-          # -actix always has unsend futures, so we don't have that feature flag
-          - project: "libsignal-service-actix"
-            features: "unsend-futures"
     steps:
       - uses: actions/checkout@v3
       - name: Install protobuf
@@ -37,70 +30,49 @@ jobs:
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
 
   build:
-    name: Build (${{ matrix.project }}, Rust ${{ matrix.toolchain }})
+    name: Build / Rust ${{ matrix.toolchain }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        project: ["libsignal-service-actix", "libsignal-service-hyper", "libsignal-service"]
-        toolchain: ["stable", "beta", "nightly"]
-        coverage: [false, true]
-        features: ["", "unsend-futures"]
-        exclude:
-          # Coverage related excludes
-          - toolchain: stable
-            coverage: true
-          - toolchain: beta
-            coverage: true
-          - toolchain: nightly
-            coverage: false
-
-          # Feature flag related excludes
-            # Actix like above
-          - project: "libsignal-service-actix"
-            features: "unsend-futures"
-            # We don't need to spawn this many jobs to see that unsend-futures works
-          - features: "unsend-futures"
-            toolchain: "beta"
-          - features: "unsend-futures"
-            toolchain: "nightly"
-        include:
-          - project: "libsignal-service-actix"
-            toolchain: "1.75"
-            coverage: false
+        toolchain: ["stable", "beta", "nightly", "1.75"]
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Install protobuf
         run: |
           sudo apt-get update
           sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
-      - uses: actions-rs/toolchain@v1
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.toolchain }}
-          override: true
+
+      - name: Configure CI cache
+        uses: Swatinem/rust-cache@v2
 
       - name: Run tests
         uses: actions-rs/cargo@v1
-        if: ${{ !matrix.coverage }}
+        if: matrix.toolchain != 'nightly'
         with:
           command: test
-          args: --all-targets --no-fail-fast --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
+          args: --all-targets --no-fail-fast 
 
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --all-targets --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
+          args: --all-targets
 
-      - name: Run tests
+      - name: Run tests with code coverage
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.coverage }}
+        if: matrix.toolchain == 'nightly'
         with:
           command: test
-          args: --all-targets --no-fail-fast --features "${{ matrix.features }}" --manifest-path ${{ matrix.project }}/Cargo.toml
+          args: --all-targets --no-fail-fast 
         env:
           CARGO_INCREMENTAL: '0'
           RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'

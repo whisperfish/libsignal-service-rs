@@ -136,12 +136,11 @@ pub async fn link_device<
     R: rand::Rng + rand::CryptoRng,
     Aci: PreKeysStore,
     Pni: PreKeysStore,
-    P: PushService + Clone,
 >(
     aci_store: &mut Aci,
     pni_store: &mut Pni,
     csprng: &mut R,
-    mut push_service: P,
+    mut push_service: PushService,
     password: &str,
     device_name: &str,
     mut tx: Sender<SecondaryDeviceProvisioning>,
