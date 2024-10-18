@@ -1,5 +1,6 @@
 use libsignal_protocol::Aci;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 use crate::{
@@ -92,14 +93,15 @@ impl PushService {
         address: Aci,
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
+        let uuid: Uuid = address.into();
         let endpoint = if let Some(key) = profile_key {
             let version =
                 bincode::serialize(&key.get_profile_key_version(address))?;
             let version = std::str::from_utf8(&version)
                 .expect("hex encoded profile key version");
-            format!("/v1/profile/{}/{}", address.service_id_string(), version)
+            format!("/v1/profile/{}/{}", uuid, version)
         } else {
-            format!("/v1/profile/{}", address.service_id_string())
+            format!("/v1/profile/{}", uuid)
         };
         // TODO: set locale to en_US
         self.get_json(
