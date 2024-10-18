@@ -75,8 +75,8 @@ pub enum ProvisioningError {
     DecodeError(#[from] prost::DecodeError),
     #[error("Websocket error: {reason}")]
     WsError { reason: String },
-    #[error("Websocket closing: {reason}")]
-    WsClosing { reason: String },
+    #[error("Websocket closing")]
+    WsClosing,
     #[error("Service error: {0}")]
     ServiceError(#[from] ServiceError),
     #[error("libsignal-protocol error: {0}")]

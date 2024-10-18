@@ -2,10 +2,13 @@ use std::fmt;
 
 use chrono::{DateTime, Utc};
 use phonenumber::PhoneNumber;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{HttpAuthOverride, PushService, ServiceError};
+use super::{
+    response::ReqwestExt, HttpAuthOverride, PushService, ServiceError,
+};
 use crate::{
     configuration::Endpoint,
     utils::{serde_optional_base64, serde_phone_number},
@@ -127,13 +130,19 @@ pub struct WhoAmIResponse {
 impl PushService {
     /// Method used to check our own UUID
     pub async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
-        self.get_json(
+        self.request(
+            Method::GET,
             Endpoint::Service,
             "/v1/accounts/whoami",
-            &[],
             HttpAuthOverride::NoOverride,
-        )
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
         .await
+        .map_err(Into::into)
     }
 
     /// Fetches a list of all devices tied to the authenticated account.
@@ -146,12 +155,17 @@ impl PushService {
         }
 
         let devices: DeviceInfoList = self
-            .get_json(
+            .request(
+                Method::GET,
                 Endpoint::Service,
                 "/v1/devices/",
-                &[],
                 HttpAuthOverride::NoOverride,
-            )
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
             .await?;
 
         Ok(devices.devices)
@@ -166,18 +180,19 @@ impl PushService {
             "only one of PIN and registration lock can be set."
         );
 
-        match self
-            .put_json(
-                Endpoint::Service,
-                "/v1/accounts/attributes/",
-                &[],
-                HttpAuthOverride::NoOverride,
-                attributes,
-            )
-            .await
-        {
-            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
-            r => r,
-        }
+        self.request(
+            Method::PUT,
+            Endpoint::Service,
+            "/v1/accounts/attributes/",
+            HttpAuthOverride::NoOverride,
+        )?
+        .json(&attributes)
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 }

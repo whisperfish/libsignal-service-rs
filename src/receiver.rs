@@ -64,7 +64,7 @@ impl MessageReceiver {
                         retries += 1;
                         if retries >= MAX_DOWNLOAD_RETRIES {
                             return Err(ServiceError::Timeout {
-                                reason: "too many retries".into(),
+                                reason: "too many retries",
                             });
                         }
                     },

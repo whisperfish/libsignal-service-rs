@@ -1,19 +1,15 @@
 use std::io::{self, Read};
 
-use bytes::Bytes;
-use futures::{FutureExt, StreamExt, TryStreamExt};
-use http_body_util::BodyExt;
-use hyper::Method;
+use futures::TryStreamExt;
+use reqwest::{multipart::Part, Method};
 use tracing::debug;
 
 use crate::{
-    configuration::Endpoint,
-    prelude::AttachmentIdentifier,
-    proto::AttachmentPointer,
-    push_service::{HttpAuthOverride, RequestBody},
+    configuration::Endpoint, prelude::AttachmentIdentifier,
+    proto::AttachmentPointer, push_service::HttpAuthOverride,
 };
 
-use super::{PushService, ServiceError};
+use super::{response::ReqwestExt, PushService, ServiceError};
 
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -32,170 +28,128 @@ pub struct AttachmentV2UploadAttributes {
 }
 
 impl PushService {
+    pub async fn get_attachment(
+        &mut self,
+        ptr: &AttachmentPointer,
+    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
+        let path = match ptr.attachment_identifier.as_ref() {
+            Some(AttachmentIdentifier::CdnId(id)) => {
+                format!("attachments/{}", id)
+            },
+            Some(AttachmentIdentifier::CdnKey(key)) => {
+                format!("attachments/{}", key)
+            },
+            None => {
+                return Err(ServiceError::InvalidFrame {
+                    reason: "no attachment identifier in pointer",
+                });
+            },
+        };
+        self.get_from_cdn(ptr.cdn_number(), &path).await
+    }
+
     #[tracing::instrument(skip(self))]
     pub(crate) async fn get_from_cdn(
         &mut self,
         cdn_id: u32,
         path: &str,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        let response = self
+        let response_stream = self
             .request(
                 Method::GET,
                 Endpoint::Cdn(cdn_id),
                 path,
-                &[],
                 HttpAuthOverride::Unidentified, // CDN requests are always without authentication
-                None,
-            )
-            .await?;
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .bytes_stream()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            .into_async_read();
 
-        Ok(Box::new(
-            response
-                .into_body()
-                .into_data_stream()
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
-                .into_async_read(),
-        ))
+        Ok(response_stream)
     }
 
-    pub async fn get_attachment_by_id(
-        &mut self,
-        id: &str,
-        cdn_id: u32,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        let path = format!("attachments/{}", id);
-        self.get_from_cdn(cdn_id, &path).await
-    }
-
-    pub async fn get_attachment(
-        &mut self,
-        ptr: &AttachmentPointer,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        match ptr.attachment_identifier.as_ref().unwrap() {
-            AttachmentIdentifier::CdnId(id) => {
-                // cdn_number did not exist for this part of the protocol.
-                // cdn_number(), however, returns 0 when the field does not
-                // exist.
-                self.get_attachment_by_id(&format!("{}", id), ptr.cdn_number())
-                    .await
-            },
-            AttachmentIdentifier::CdnKey(key) => {
-                self.get_attachment_by_id(key, ptr.cdn_number()).await
-            },
-        }
-    }
-
-    pub async fn get_attachment_v2_upload_attributes(
+    pub(crate) async fn get_attachment_v2_upload_attributes(
         &mut self,
     ) -> Result<AttachmentV2UploadAttributes, ServiceError> {
-        self.get_json(
+        self.request(
+            Method::GET,
             Endpoint::Service,
             "/v2/attachments/form/upload",
-            &[],
             HttpAuthOverride::NoOverride,
-        )
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
         .await
+        .map_err(Into::into)
     }
 
     /// Upload attachment to CDN
     ///
     /// Returns attachment ID and the attachment digest
-    pub async fn upload_attachment<'s, C>(
+    pub async fn upload_attachment(
         &mut self,
-        attrs: &AttachmentV2UploadAttributes,
-        content: &'s mut C,
-    ) -> Result<(u64, Vec<u8>), ServiceError>
-    where
-        C: std::io::Read + Send + 's,
-    {
-        let values = [
-            ("acl", &attrs.acl as &str),
-            ("key", &attrs.key),
-            ("policy", &attrs.policy),
-            ("Content-Type", "application/octet-stream"),
-            ("x-amz-algorithm", &attrs.algorithm),
-            ("x-amz-credential", &attrs.credential),
-            ("x-amz-date", &attrs.date),
-            ("x-amz-signature", &attrs.signature),
-        ];
+        attrs: AttachmentV2UploadAttributes,
+        mut reader: impl Read + Send,
+    ) -> Result<(u64, Vec<u8>), ServiceError> {
+        let attachment_id = attrs.attachment_id;
+        let mut digester =
+            crate::digeststream::DigestingReader::new(&mut reader);
 
-        let mut digester = crate::digeststream::DigestingReader::new(content);
+        self.post_to_cdn0("attachments/", attrs, "file".into(), &mut digester)
+            .await?;
 
-        self.post_to_cdn0(
-            "attachments/",
-            &values,
-            Some(("file", &mut digester)),
-        )
-        .await?;
-        Ok((attrs.attachment_id, digester.finalize()))
+        Ok((attachment_id, digester.finalize()))
     }
 
-    #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
-    pub async fn post_to_cdn0<'s, C>(
+    #[tracing::instrument(skip(self, upload_attributes, reader))]
+    pub async fn post_to_cdn0(
         &mut self,
         path: &str,
-        value: &[(&str, &str)],
-        file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError>
-    where
-        C: Read + Send + 's,
-    {
-        let mut form = mpart_async::client::MultipartRequest::default();
+        upload_attributes: AttachmentV2UploadAttributes,
+        filename: String,
+        mut reader: impl Read + Send,
+    ) -> Result<(), ServiceError> {
+        let mut buf = Vec::new();
+        reader
+            .read_to_end(&mut buf)
+            .expect("infallible Read instance");
 
-        // mpart-async has a peculiar ordering of the form items,
-        // and Amazon S3 expects them in a very specific order (i.e., the file contents should
-        // go last.
-        //
-        // mpart-async uses a VecDeque internally for ordering the fields in the order given.
-        //
-        // https://github.com/cetra3/mpart-async/issues/16
-
-        for &(k, v) in value {
-            form.add_field(k, v);
-        }
-
-        if let Some((filename, file)) = file {
-            // XXX Actix doesn't cope with none-'static lifetimes
-            // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf)
-                .expect("infallible Read instance");
-            form.add_stream(
+        // Amazon S3 expects multipart fields in a very specific order
+        // DO NOT CHANGE THIS (or do it, but feel the wrath of the gods)
+        let form = reqwest::multipart::Form::new()
+            .text("acl", upload_attributes.acl)
+            .text("key", upload_attributes.key)
+            .text("policy", upload_attributes.policy)
+            .text("Content-Type", "application/octet-stream")
+            .text("x-amz-algorithm", upload_attributes.algorithm)
+            .text("x-amz-credential", upload_attributes.credential)
+            .text("x-amz-date", upload_attributes.date)
+            .text("x-amz-signature", upload_attributes.signature)
+            .part(
                 "file",
-                filename,
-                "application/octet-stream",
-                futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
+                Part::stream(buf)
+                    .mime_str("application/octet-stream")?
+                    .file_name(filename),
             );
-        }
-
-        let content_type =
-            format!("multipart/form-data; boundary={}", form.get_boundary());
-
-        // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
-        // stream. Sadly, Content-Length != contents.len(), but should include the whole form.
-        let mut body_contents = vec![];
-        while let Some(b) = form.next().await {
-            // Unwrap, because no error type was used above
-            body_contents.extend(b.unwrap());
-        }
-        tracing::trace!(
-            "Sending PUT with Content-Type={} and length {}",
-            content_type,
-            body_contents.len()
-        );
 
         let response = self
             .request(
                 Method::POST,
                 Endpoint::Cdn(0),
                 path,
-                &[],
                 HttpAuthOverride::NoOverride,
-                Some(RequestBody {
-                    contents: body_contents,
-                    content_type,
-                }),
-            )
+            )?
+            .multipart(form)
+            .send()
+            .await?
+            .service_error_for_status()
             .await?;
 
         debug!("HyperPushService::PUT response: {:?}", response);

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use libsignal_protocol::{IdentityKey, PreKeyBundle, SenderCertificate};
+use reqwest::Method;
 use serde::Deserialize;
 
 use crate::{
@@ -13,8 +14,8 @@ use crate::{
 };
 
 use super::{
-    HttpAuthOverride, PushService, SenderCertificateJson, ServiceError,
-    ServiceIdType, VerifyAccountResponse,
+    response::ReqwestExt, HttpAuthOverride, PushService, SenderCertificateJson,
+    ServiceError, ServiceIdType, VerifyAccountResponse,
 };
 
 #[derive(Debug, Deserialize, Default)]
@@ -29,13 +30,19 @@ impl PushService {
         &mut self,
         service_id_type: ServiceIdType,
     ) -> Result<PreKeyStatus, ServiceError> {
-        self.get_json(
+        self.request(
+            Method::GET,
             Endpoint::Service,
-            &format!("/v2/keys?identity={}", service_id_type),
-            &[],
+            format!("/v2/keys?identity={}", service_id_type),
             HttpAuthOverride::NoOverride,
-        )
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
         .await
+        .map_err(Into::into)
     }
 
     pub async fn register_pre_keys(
@@ -43,19 +50,19 @@ impl PushService {
         service_id_type: ServiceIdType,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
-        match self
-            .put_json(
-                Endpoint::Service,
-                &format!("/v2/keys?identity={}", service_id_type),
-                &[],
-                HttpAuthOverride::NoOverride,
-                pre_key_state,
-            )
-            .await
-        {
-            Err(ServiceError::JsonDecodeError { .. }) => Ok(()),
-            r => r,
-        }
+        self.request(
+            Method::PUT,
+            Endpoint::Service,
+            format!("/v2/keys?identity={}", service_id_type),
+            HttpAuthOverride::NoOverride,
+        )?
+        .json(&pre_key_state)
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?;
+
+        Ok(())
     }
 
     pub async fn get_pre_key(
@@ -67,13 +74,19 @@ impl PushService {
             format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id);
 
         let mut pre_key_response: PreKeyResponse = self
-            .get_json(
+            .request(
+                Method::GET,
                 Endpoint::Service,
                 &path,
-                &[],
                 HttpAuthOverride::NoOverride,
-            )
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
             .await?;
+
         assert!(!pre_key_response.devices.is_empty());
 
         let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
@@ -92,12 +105,17 @@ impl PushService {
             format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id)
         };
         let pre_key_response: PreKeyResponse = self
-            .get_json(
+            .request(
+                Method::GET,
                 Endpoint::Service,
                 &path,
-                &[],
                 HttpAuthOverride::NoOverride,
-            )
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
             .await?;
         let mut pre_keys = vec![];
         let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
@@ -111,12 +129,17 @@ impl PushService {
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
         let cert: SenderCertificateJson = self
-            .get_json(
+            .request(
+                Method::GET,
                 Endpoint::Service,
                 "/v1/certificate/delivery",
-                &[],
                 HttpAuthOverride::NoOverride,
-            )
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
             .await?;
         Ok(SenderCertificate::deserialize(&cert.certificate)?)
     }
@@ -125,12 +148,17 @@ impl PushService {
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
         let cert: SenderCertificateJson = self
-            .get_json(
+            .request(
+                Method::GET,
                 Endpoint::Service,
                 "/v1/certificate/delivery?includeE164=false",
-                &[],
                 HttpAuthOverride::NoOverride,
-            )
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
             .await?;
         Ok(SenderCertificate::deserialize(&cert.certificate)?)
     }
@@ -160,23 +188,26 @@ impl PushService {
             pni_registration_ids: HashMap<String, u32>,
             signature_valid_on_each_signed_pre_key: bool,
         }
-
-        let res: VerifyAccountResponse = self
-            .put_json(
-                Endpoint::Service,
-                "/v2/accounts/phone_number_identity_key_distribution",
-                &[],
-                HttpAuthOverride::NoOverride,
-                PniKeyDistributionRequest {
-                    pni_identity_key: pni_identity_key.serialize().into(),
-                    device_messages,
-                    device_pni_signed_prekeys,
-                    device_pni_last_resort_kyber_prekeys,
-                    pni_registration_ids,
-                    signature_valid_on_each_signed_pre_key,
-                },
-            )
-            .await?;
-        Ok(res)
+        self.request(
+            Method::PUT,
+            Endpoint::Service,
+            "/v2/accounts/phone_number_identity_key_distribution",
+            HttpAuthOverride::NoOverride,
+        )?
+        .json(&PniKeyDistributionRequest {
+            pni_identity_key: pni_identity_key.serialize().into(),
+            device_messages,
+            device_pni_signed_prekeys,
+            device_pni_last_resort_kyber_prekeys,
+            pni_registration_ids,
+            signature_valid_on_each_signed_pre_key,
+        })
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 }

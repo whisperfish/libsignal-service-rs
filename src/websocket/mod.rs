@@ -9,18 +9,20 @@ use futures::channel::{mpsc, oneshot};
 use futures::future::BoxFuture;
 use futures::prelude::*;
 use futures::stream::FuturesUnordered;
-use prost::Message;
-use serde::{Deserialize, Serialize};
+use reqwest::Method;
+use reqwest_websocket::WebSocket;
+use tokio::time::Instant;
 
-use crate::messagepipe::{WebSocketService, WebSocketStreamItem};
 use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
     WebSocketResponseMessage,
 };
-use crate::push_service::{MismatchedDevices, ServiceError};
+use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
+mod request;
 mod sender;
-pub(crate) mod tungstenite;
+
+pub use request::WebSocketRequestMessageBuilder;
 
 type RequestStreamItem = (
     WebSocketRequestMessage,
@@ -61,7 +63,7 @@ struct SignalWebSocketInner {
     stream: Option<SignalRequestStream>,
 }
 
-struct SignalWebSocketProcess<WS: WebSocketService> {
+struct SignalWebSocketProcess {
     /// Whether to enable keep-alive or not (and send a request to this path)
     keep_alive_path: String,
 
@@ -73,7 +75,7 @@ struct SignalWebSocketProcess<WS: WebSocketService> {
     /// Signal's requests should go in here, to be delivered to the application.
     request_sink: mpsc::Sender<RequestStreamItem>,
 
-    outgoing_request_map: HashMap<
+    outgoing_requests: HashMap<
         u64,
         oneshot::Sender<Result<WebSocketResponseMessage, ServiceError>>,
     >,
@@ -84,36 +86,35 @@ struct SignalWebSocketProcess<WS: WebSocketService> {
         BoxFuture<'static, Result<WebSocketResponseMessage, Canceled>>,
     >,
 
-    // WS backend stuff
-    ws: WS,
-    stream: WS::Stream,
+    ws: WebSocket,
 }
 
-impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
+impl SignalWebSocketProcess {
     async fn process_frame(
         &mut self,
-        frame: Bytes,
+        frame: Vec<u8>,
     ) -> Result<(), ServiceError> {
-        let msg = WebSocketMessage::decode(frame)?;
+        use prost::Message;
+        let msg = WebSocketMessage::decode(Bytes::from(frame))?;
         if let Some(request) = &msg.request {
             tracing::trace!(
-                "decoded WebSocketMessage request {{ r#type: {:?}, verb: {:?}, path: {:?}, body: {} bytes, headers: {:?}, id: {:?} }}",
-                msg.r#type(),
+                msg_type =? msg.r#type(),
+                request.id,
                 request.verb,
                 request.path,
-                request.body.as_ref().map(|x| x.len()).unwrap_or(0),
-                request.headers,
-                request.id,
+                request_body_size_bytes = request.body.as_ref().map(|x| x.len()).unwrap_or(0),
+                ?request.headers,
+                "decoded WebSocketMessage request"
             );
         } else if let Some(response) = &msg.response {
             tracing::trace!(
-                "decoded WebSocketMessage response {{ r#type: {:?}, status: {:?}, message: {:?}, body: {} bytes, headers: {:?}, id: {:?} }}",
-                msg.r#type(),
+                msg_type =? msg.r#type(),
                 response.status,
                 response.message,
-                response.body.as_ref().map(|x| x.len()).unwrap_or(0),
-                response.headers,
+                response_body_size_bytes = response.body.as_ref().map(|x| x.len()).unwrap_or(0),
+                ?response.headers,
                 response.id,
+                "decoded WebSocketMessage response"
             );
         } else {
             tracing::debug!("decoded {msg:?}");
@@ -121,29 +122,27 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
 
         use web_socket_message::Type;
         match (msg.r#type(), msg.request, msg.response) {
-            (Type::Unknown, _, _) => Err(ServiceError::InvalidFrameError {
-                reason: "Unknown frame type".into(),
+            (Type::Unknown, _, _) => Err(ServiceError::InvalidFrame {
+                reason: "unknown frame type",
             }),
             (Type::Request, Some(request), _) => {
                 let (sink, recv) = oneshot::channel();
                 tracing::trace!("sending request with body");
                 self.request_sink.send((request, sink)).await.map_err(
-                    |_| ServiceError::WsError {
-                        reason: "request handler failed".into(),
+                    |_| ServiceError::WsClosing {
+                        reason: "request handler failed",
                     },
                 )?;
                 self.outgoing_responses.push(Box::pin(recv));
 
                 Ok(())
             },
-            (Type::Request, None, _) => Err(ServiceError::InvalidFrameError {
-                reason: "Type was request, but does not contain request."
-                    .into(),
+            (Type::Request, None, _) => Err(ServiceError::InvalidFrame {
+                reason: "type was request, but does not contain request",
             }),
             (Type::Response, _, Some(response)) => {
                 if let Some(id) = response.id {
-                    if let Some(responder) =
-                        self.outgoing_request_map.remove(&id)
+                    if let Some(responder) = self.outgoing_requests.remove(&id)
                     {
                         if let Err(e) = responder.send(Ok(response)) {
                             tracing::warn!(
@@ -155,10 +154,11 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                     } else if let Some(_x) =
                         self.outgoing_keep_alive_set.take(&id)
                     {
-                        if response.status() != 200 {
+                        let status_code = response.status();
+                        if status_code != 200 {
                             tracing::warn!(
-                                "Response code for keep-alive is not 200: {:?}",
-                                response
+                                status_code,
+                                "response code for keep-alive != 200"
                             );
                             return Err(ServiceError::UnhandledResponseCode {
                                 http_code: response.status() as u16,
@@ -166,17 +166,16 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                         }
                     } else {
                         tracing::warn!(
-                            "Response for non existing request: {:?}",
-                            response
+                            ?response,
+                            "response for non existing request"
                         );
                     }
                 }
 
                 Ok(())
             },
-            (Type::Response, _, None) => Err(ServiceError::InvalidFrameError {
-                reason: "Type was response, but does not contain response."
-                    .into(),
+            (Type::Response, _, None) => Err(ServiceError::InvalidFrame {
+                reason: "type was response, but does not contain response",
             }),
         }
     }
@@ -186,83 +185,107 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
         let mut rng = rand::thread_rng();
         loop {
             let id = rng.gen();
-            if !self.outgoing_request_map.contains_key(&id) {
+            if !self.outgoing_requests.contains_key(&id) {
                 return id;
             }
         }
     }
 
     async fn run(mut self) -> Result<(), ServiceError> {
+        let mut ka_interval = tokio::time::interval_at(
+            Instant::now(),
+            push_service::KEEPALIVE_TIMEOUT_SECONDS,
+        );
+
         loop {
             futures::select! {
+                _ = ka_interval.tick().fuse() => {
+                    use prost::Message;
+                    tracing::debug!("sending keep-alive");
+                    let request = WebSocketRequestMessage::new(Method::GET)
+                        .id(self.next_request_id())
+                        .path(&self.keep_alive_path)
+                        .build();
+                    self.outgoing_keep_alive_set.insert(request.id.unwrap());
+                    let msg = WebSocketMessage {
+                        r#type: Some(web_socket_message::Type::Request.into()),
+                        request: Some(request),
+                        ..Default::default()
+                    };
+                    let buffer = msg.encode_to_vec();
+                    if let Err(e) = self.ws.send(reqwest_websocket::Message::Binary(buffer)).await {
+                        tracing::info!("Websocket sink has closed: {:?}.", e);
+                        break;
+                    };
+                },
                 // Process requests from the application, forward them to Signal
                 x = self.requests.next() => {
                     match x {
                         Some((mut request, responder)) => {
+                            use prost::Message;
+
                             // Regenerate ID if already in the table
                             request.id = Some(
                                 request
                                     .id
-                                    .filter(|x| !self.outgoing_request_map.contains_key(x))
+                                    .filter(|x| !self.outgoing_requests.contains_key(x))
                                     .unwrap_or_else(|| self.next_request_id()),
                             );
                             tracing::trace!(
-                                "sending WebSocketRequestMessage {{ verb: {:?}, path: {:?}, body (bytes): {:?}, headers: {:?}, id: {:?} }}",
+                                request.id,
                                 request.verb,
                                 request.path,
-                                request.body.as_ref().map(|x| x.len()),
-                                request.headers,
-                                request.id,
+                                request_body_size_bytes = request.body.as_ref().map(|x| x.len()),
+                                ?request.headers,
+                                "sending WebSocketRequestMessage",
                             );
 
-                            self.outgoing_request_map.insert(request.id.unwrap(), responder);
+                            self.outgoing_requests.insert(request.id.unwrap(), responder);
                             let msg = WebSocketMessage {
                                 r#type: Some(web_socket_message::Type::Request.into()),
                                 request: Some(request),
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            self.ws.send_message(buffer.into()).await?
+                            self.ws.send(reqwest_websocket::Message::Binary(buffer)).await?
                         }
                         None => {
-                            return Err(ServiceError::WsError {
-                                reason: "SignalWebSocket: end of application request stream; socket closing".into()
+                            return Err(ServiceError::WsClosing {
+                                reason: "end of application request stream; socket closing"
                             });
                         }
                     }
                 }
-                web_socket_item = self.stream.next() => {
+                // Incoming websocket message
+                web_socket_item = self.ws.next().fuse() => {
+                    use reqwest_websocket::Message;
                     match web_socket_item {
-                        Some(WebSocketStreamItem::Message(frame)) => {
+                        Some(Ok(Message::Close { code, reason })) => {
+                            tracing::warn!(%code, reason, "websocket closed");
+                            break;
+                        },
+                        Some(Ok(Message::Binary(frame))) => {
                             self.process_frame(frame).await?;
                         }
-                        Some(WebSocketStreamItem::KeepAliveRequest) => {
-                            // XXX: would be nicer if we could drop this request into the request
-                            // queue above.
-                            tracing::debug!("Sending keep alive upon request");
-                            let request = WebSocketRequestMessage {
-                                id: Some(self.next_request_id()),
-                                path: Some(self.keep_alive_path.clone()),
-                                verb: Some("GET".into()),
-                                ..Default::default()
-                            };
-                            self.outgoing_keep_alive_set.insert(request.id.unwrap());
-                            let msg = WebSocketMessage {
-                                r#type: Some(web_socket_message::Type::Request.into()),
-                                request: Some(request),
-                                ..Default::default()
-                            };
-                            let buffer = msg.encode_to_vec();
-                            self.ws.send_message(buffer.into()).await?;
+                        Some(Ok(Message::Ping(_))) => {
+                            tracing::trace!("received ping");
                         }
+                        Some(Ok(Message::Pong(_))) => {
+                            tracing::trace!("received pong");
+                        }
+                        Some(Ok(Message::Text(_))) => {
+                            tracing::trace!("received text (unsupported, skipping)");
+                        }
+                        Some(Err(e)) => return Err(ServiceError::WsError(e)),
                         None => {
-                            return Err(ServiceError::WsError {
-                                reason: "end of web request stream; socket closing".into()
+                            return Err(ServiceError::WsClosing {
+                                reason: "end of web request stream; socket closing"
                             });
                         }
                     }
                 }
                 response = self.outgoing_responses.next() => {
+                    use prost::Message;
                     match response {
                         Some(Ok(response)) => {
                             tracing::trace!("sending response {:?}", response);
@@ -273,10 +296,10 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            self.ws.send_message(buffer.into()).await?;
+                            self.ws.send(buffer.into()).await?;
                         }
-                        Some(Err(e)) => {
-                            tracing::error!("could not generate response to a Signal request; responder was canceled: {}. Continuing.", e);
+                        Some(Err(error)) => {
+                            tracing::error!(%error, "could not generate response to a Signal request; responder was canceled. continuing.");
                         }
                         None => {
                             unreachable!("outgoing responses should never fuse")
@@ -285,6 +308,7 @@ impl<WS: WebSocketService> SignalWebSocketProcess<WS> {
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -293,9 +317,8 @@ impl SignalWebSocket {
         self.inner.lock().unwrap()
     }
 
-    pub fn from_socket<WS: WebSocketService + 'static>(
-        ws: WS,
-        stream: WS::Stream,
+    pub fn from_socket(
+        ws: WebSocket,
         keep_alive_path: String,
     ) -> (Self, impl Future<Output = ()>) {
         // Create process
@@ -306,7 +329,7 @@ impl SignalWebSocket {
             keep_alive_path,
             requests: outgoing_requests,
             request_sink: incoming_request_sink,
-            outgoing_request_map: HashMap::default(),
+            outgoing_requests: HashMap::default(),
             outgoing_keep_alive_set: HashSet::new(),
             // Initializing the FuturesUnordered with a `pending` future means it will never fuse
             // itself, so an "empty" FuturesUnordered will still allow new futures to be added.
@@ -316,7 +339,6 @@ impl SignalWebSocket {
             .into_iter()
             .collect(),
             ws,
-            stream,
         };
         let process = process.run().map(|x| match x {
             Ok(()) => (),
@@ -389,15 +411,14 @@ impl SignalWebSocket {
         async move {
             if let Err(_e) = request_sink.send((r, sink)).await {
                 return Err(ServiceError::WsClosing {
-                    reason: "WebSocket closing while sending request.".into(),
+                    reason: "WebSocket closing while sending request",
                 });
             }
             // Handle the oneshot sender error for dropped senders.
             match recv.await {
                 Ok(x) => x,
                 Err(_) => Err(ServiceError::WsClosing {
-                    reason: "WebSocket closing while waiting for a response."
-                        .into(),
+                    reason: "WebSocket closing while waiting for a response",
                 }),
             }
         }
@@ -410,116 +431,12 @@ impl SignalWebSocket {
     where
         for<'de> T: serde::Deserialize<'de>,
     {
-        let response = self.request(r).await?;
-        if response.status() != 200 {
-            tracing::debug!(
-                "request_json with non-200 status code. message: {}",
-                response.message()
-            );
-        }
-
-        fn json<U>(body: &[u8]) -> Result<U, ServiceError>
-        where
-            for<'de> U: serde::Deserialize<'de>,
-        {
-            serde_json::from_slice(body).map_err(|e| {
-                ServiceError::JsonDecodeError {
-                    reason: e.to_string(),
-                }
-            })
-        }
-
-        match response.status() {
-            200 | 204 => json(response.body()),
-            401 | 403 => Err(ServiceError::Unauthorized),
-            404 => Err(ServiceError::NotFoundError),
-            413 /* PAYLOAD_TOO_LARGE */ => Err(ServiceError::RateLimitExceeded) ,
-            409 /* CONFLICT */ => {
-                let mismatched_devices: MismatchedDevices =
-                    json(response.body()).map_err(|e| {
-                        tracing::error!(
-                            "Failed to decode HTTP 409 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: 409,
-                        }
-                    })?;
-                Err(ServiceError::MismatchedDevicesException(
-                    mismatched_devices,
-                ))
-            },
-            410 /* GONE */ => {
-                let stale_devices =
-                    json(response.body()).map_err(|e| {
-                        tracing::error!(
-                            "Failed to decode HTTP 410 response: {}",
-                            e
-                        );
-                        ServiceError::UnhandledResponseCode {
-                            http_code: 410,
-                        }
-                    })?;
-                Err(ServiceError::StaleDevices(stale_devices))
-            },
-            423 /* LOCKED */ => {
-                let locked = json(response.body()).map_err(|e| {
-                    tracing::error!("Failed to decode HTTP 423 response: {}", e);
-                    ServiceError::UnhandledResponseCode {
-                        http_code: 423,
-                    }
-                })?;
-                Err(ServiceError::Locked(locked))
-            },
-            428 /* PRECONDITION_REQUIRED */ => {
-                let proof_required = json(response.body()).map_err(|e| {
-                    tracing::error!("Failed to decode HTTP 428 response: {}", e);
-                    ServiceError::UnhandledResponseCode {
-                        http_code: 428,
-                    }
-                })?;
-                Err(ServiceError::ProofRequiredError(proof_required))
-            },
-            _ => Err(ServiceError::UnhandledResponseCode {
-                http_code: response.status() as u16,
-            }),
-        }
-    }
-
-    pub(crate) async fn put_json<D, S>(
-        &mut self,
-        path: &str,
-        value: S,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Serialize,
-    {
-        self.put_json_with_headers(path, value, vec![]).await
-    }
-
-    pub(crate) async fn put_json_with_headers<'h, D, S>(
-        &mut self,
-        path: &str,
-        value: S,
-        mut extra_headers: Vec<String>,
-    ) -> Result<D, ServiceError>
-    where
-        for<'de> D: Deserialize<'de>,
-        S: Serialize,
-    {
-        extra_headers.push("content-type:application/json".into());
-        let request = WebSocketRequestMessage {
-            path: Some(path.into()),
-            verb: Some("PUT".into()),
-            headers: extra_headers,
-            body: Some(serde_json::to_vec(&value).map_err(|e| {
-                ServiceError::SendError {
-                    reason: format!("Serializing JSON {}", e),
-                }
-            })?),
-            ..Default::default()
-        };
-        self.request_json(request).await
+        self.request(r)
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
+            .map_err(Into::into)
     }
 }
