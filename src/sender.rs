@@ -757,7 +757,7 @@ where
     }
 
     /// Send `Keys` synchronization message
-    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
+    #[tracing::instrument(skip(self), fields(recipient = %recipient.service_id_string()))]
     pub async fn send_keys(
         &mut self,
         recipient: &ServiceId,
