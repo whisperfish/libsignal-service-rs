@@ -651,7 +651,7 @@ where
     /// Upload contact details to the CDN and send a sync message
     #[tracing::instrument(
         skip(self, unidentified_access, contacts, recipient),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient.service_id_string()),
     )]
     pub async fn send_contact_details<Contacts>(
         &mut self,
