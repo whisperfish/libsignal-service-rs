@@ -121,34 +121,36 @@ impl PushService {
             .read_to_end(&mut buf)
             .expect("infallible Read instance");
 
-        // Amazon S3 expects multipart fields in a very specific order (the file contents should go last.)
+        // Amazon S3 expects multipart fields in a very specific order
+        // DO NOT CHANGE THIS (or do it, but feel the wrath of the gods)
         let form = reqwest::multipart::Form::new()
             .text("acl", upload_attributes.acl)
             .text("key", upload_attributes.key)
             .text("policy", upload_attributes.policy)
+            .text("Content-Type", "application/octet-stream")
             .text("x-amz-algorithm", upload_attributes.algorithm)
             .text("x-amz-credential", upload_attributes.credential)
             .text("x-amz-date", upload_attributes.date)
             .text("x-amz-signature", upload_attributes.signature)
-            .part("file", Part::bytes(buf));
+            .part(
+                "file",
+                Part::stream(buf)
+                    .mime_str("application/octet-stream")?
+                    .file_name(filename),
+            );
 
-        let content_type =
-            format!("multipart/form-data; boundary={}", form.boundary());
-
-        dbg!(content_type);
-
-        let response = dbg!(self
+        let response = self
             .request(
                 Method::POST,
                 Endpoint::Cdn(0),
                 path,
                 HttpAuthOverride::NoOverride,
             )?
-            .multipart(form))
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?;
+            .multipart(form)
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?;
 
         debug!("HyperPushService::PUT response: {:?}", response);
 
