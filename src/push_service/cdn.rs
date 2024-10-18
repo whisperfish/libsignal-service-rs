@@ -41,7 +41,7 @@ impl PushService {
             },
             None => {
                 return Err(ServiceError::InvalidFrame {
-                    reason: "no attachment identifier in pointer".into(),
+                    reason: "no attachment identifier in pointer",
                 });
             },
         };

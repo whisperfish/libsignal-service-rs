@@ -105,11 +105,9 @@ impl ProvisioningPipe {
                     );
 
                 // acknowledge
-                responder.send(ok).map_err(|_| {
-                    ProvisioningError::WsClosing {
-                        reason: "could not respond to provision request".into(),
-                    }
-                })?;
+                responder
+                    .send(ok)
+                    .map_err(|_| ProvisioningError::WsClosing)?;
 
                 Ok(Some(ProvisioningStep::Url(provisioning_url)))
             },
@@ -132,11 +130,9 @@ impl ProvisioningPipe {
                     self.provisioning_cipher.decrypt(provision_envelope)?;
 
                 // acknowledge
-                responder.send(ok).map_err(|_| {
-                    ProvisioningError::WsClosing {
-                        reason: "could not respond to provision request".into(),
-                    }
-                })?;
+                responder
+                    .send(ok)
+                    .map_err(|_| ProvisioningError::WsClosing)?;
 
                 Ok(Some(ProvisioningStep::Message(provision_message)))
             },

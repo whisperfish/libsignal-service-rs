@@ -1,3 +1,4 @@
+use aes::cipher::block_padding::UnpadError;
 use libsignal_protocol::SignalProtocolError;
 use zkgroup::ZkGroupDeserializationFailure;
 
@@ -10,7 +11,7 @@ use super::{
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
-    Timeout { reason: String },
+    Timeout { reason: &'static str },
 
     #[error("invalid URL: {0}")]
     InvalidUrl(#[from] url::ParseError),
@@ -18,8 +19,8 @@ pub enum ServiceError {
     #[error("Error sending request: {reason}")]
     SendError { reason: String },
 
-    #[error("Error decoding response: {reason}")]
-    ResponseError { reason: String },
+    #[error("i/o error")]
+    IO(#[from] std::io::Error),
 
     #[error("Error decoding JSON: {0}")]
     JsonDecodeError(#[from] serde_json::Error),
@@ -44,8 +45,14 @@ pub enum ServiceError {
     #[error("Websocket closing: {reason}")]
     WsClosing { reason: &'static str },
 
+    #[error("Invalid padding: {0}")]
+    Padding(#[from] UnpadError),
+
+    #[error("unknown padding version {0}")]
+    PaddingVersion(u32),
+
     #[error("Invalid frame: {reason}")]
-    InvalidFrame { reason: String },
+    InvalidFrame { reason: &'static str },
 
     #[error("MAC error")]
     MacError,

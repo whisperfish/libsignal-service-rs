@@ -108,12 +108,17 @@ pub enum AttachmentUploadError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum MessageSenderError {
-    #[error("{0}")]
+    #[error("service error: {0}")]
     ServiceError(#[from] ServiceError),
+
     #[error("protocol error: {0}")]
     ProtocolError(#[from] SignalProtocolError),
+
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
+
+    #[error("primary device can't send sync message {0:?}")]
+    SendSyncMessageError(sync_message::request::Type),
 
     #[error("Untrusted identity key with {address:?}")]
     UntrustedIdentity { address: ServiceAddress },
@@ -778,13 +783,7 @@ where
         request_type: sync_message::request::Type,
     ) -> Result<(), MessageSenderError> {
         if self.device_id == DEFAULT_DEVICE_ID.into() {
-            let reason = format!(
-                "Primary device can't send sync requests, ignoring {:?}",
-                request_type
-            );
-            return Err(MessageSenderError::ServiceError(
-                ServiceError::SendError { reason },
-            ));
+            return Err(MessageSenderError::SendSyncMessageError(request_type));
         }
 
         let msg = SyncMessage {

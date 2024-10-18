@@ -80,7 +80,7 @@ impl MessagePipe {
                 body
             } else {
                 return Err(ServiceError::InvalidFrame {
-                    reason: "Request without body.".into(),
+                    reason: "request without body.",
                 });
             };
             Some(Incoming::Envelope(Envelope::decrypt(

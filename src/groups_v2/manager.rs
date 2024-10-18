@@ -183,10 +183,9 @@ impl<C: CredentialsCache> GroupsManager<C> {
             self.credentials_cache
                 .write(credentials_response.parse()?)?;
             self.credentials_cache.get(&today)?.ok_or_else(|| {
-                ServiceError::ResponseError {
+                ServiceError::InvalidFrame {
                     reason:
-                        "credentials received did not contain requested day"
-                            .into(),
+                        "credentials received did not contain requested day",
                 }
             })?
         };
@@ -287,12 +286,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             .retrieve_groups_v2_profile_avatar(path)
             .await?;
         let mut result = Vec::with_capacity(10 * 1024 * 1024);
-        encrypted_avatar
-            .read_to_end(&mut result)
-            .await
-            .map_err(|e| ServiceError::ResponseError {
-                reason: format!("reading avatar data: {}", e),
-            })?;
+        encrypted_avatar.read_to_end(&mut result).await?;
         Ok(GroupOperations::new(group_secret_params).decrypt_avatar(&result))
     }
 

@@ -123,7 +123,7 @@ impl SignalWebSocketProcess {
         use web_socket_message::Type;
         match (msg.r#type(), msg.request, msg.response) {
             (Type::Unknown, _, _) => Err(ServiceError::InvalidFrame {
-                reason: "Unknown frame type".into(),
+                reason: "unknown frame type",
             }),
             (Type::Request, Some(request), _) => {
                 let (sink, recv) = oneshot::channel();
@@ -138,8 +138,7 @@ impl SignalWebSocketProcess {
                 Ok(())
             },
             (Type::Request, None, _) => Err(ServiceError::InvalidFrame {
-                reason: "Type was request, but does not contain request."
-                    .into(),
+                reason: "type was request, but does not contain request",
             }),
             (Type::Response, _, Some(response)) => {
                 if let Some(id) = response.id {
@@ -176,8 +175,7 @@ impl SignalWebSocketProcess {
                 Ok(())
             },
             (Type::Response, _, None) => Err(ServiceError::InvalidFrame {
-                reason: "Type was response, but does not contain response."
-                    .into(),
+                reason: "type was response, but does not contain response",
             }),
         }
     }
@@ -413,14 +411,14 @@ impl SignalWebSocket {
         async move {
             if let Err(_e) = request_sink.send((r, sink)).await {
                 return Err(ServiceError::WsClosing {
-                    reason: "WebSocket closing while sending request.",
+                    reason: "WebSocket closing while sending request",
                 });
             }
             // Handle the oneshot sender error for dropped senders.
             match recv.await {
                 Ok(x) => x,
                 Err(_) => Err(ServiceError::WsClosing {
-                    reason: "WebSocket closing while waiting for a response.",
+                    reason: "WebSocket closing while waiting for a response",
                 }),
             }
         }
