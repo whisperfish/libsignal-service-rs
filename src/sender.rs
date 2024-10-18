@@ -933,7 +933,7 @@ where
     #[tracing::instrument(
         level = "trace",
         skip(self, unidentified_access, content),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient.service_id_string()),
     )]
     pub(crate) async fn create_encrypted_message(
         &mut self,
