@@ -1,6 +1,7 @@
-use libsignal_protocol::ProtocolAddress;
+use libsignal_protocol::{ProtocolAddress, ServiceId};
 use uuid::Uuid;
 
+use crate::ServiceIdExt;
 pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
@@ -18,8 +19,8 @@ mod story_message;
 
 #[derive(Clone, Debug)]
 pub struct Metadata {
-    pub sender: crate::ServiceAddress,
-    pub destination: crate::ServiceAddress,
+    pub sender: ServiceId,
+    pub destination: ServiceId,
     pub sender_device: u32,
     pub timestamp: u64,
     pub needs_receipt: bool,

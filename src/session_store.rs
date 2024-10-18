@@ -1,7 +1,9 @@
 use async_trait::async_trait;
-use libsignal_protocol::{ProtocolAddress, SessionStore, SignalProtocolError};
+use libsignal_protocol::{
+    ProtocolAddress, ServiceId, SessionStore, SignalProtocolError,
+};
 
-use crate::{push_service::DEFAULT_DEVICE_ID, ServiceAddress};
+use crate::push_service::DEFAULT_DEVICE_ID;
 
 /// This is additional functions required to handle
 /// session deletion. It might be a candidate for inclusion into
@@ -13,7 +15,7 @@ pub trait SessionStoreExt: SessionStore {
     /// This should return every device except for the main device [DEFAULT_DEVICE_ID].
     async fn get_sub_device_sessions(
         &self,
-        name: &ServiceAddress,
+        name: &ServiceId,
     ) -> Result<Vec<u32>, SignalProtocolError>;
 
     /// Remove a session record for a recipient ID + device ID tuple.
@@ -28,7 +30,7 @@ pub trait SessionStoreExt: SessionStore {
     /// Returns the number of deleted sessions.
     async fn delete_all_sessions(
         &self,
-        address: &ServiceAddress,
+        address: &ServiceId,
     ) -> Result<usize, SignalProtocolError>;
 
     /// Remove a session record for a recipient ID + device ID tuple.
@@ -48,10 +50,10 @@ pub trait SessionStoreExt: SessionStore {
         Ok(count)
     }
 
-    async fn compute_safety_number<'s>(
-        &'s self,
-        local_address: &'s ServiceAddress,
-        address: &'s ServiceAddress,
+    async fn compute_safety_number(
+        &self,
+        local_address: &ServiceId,
+        address: &ServiceId,
     ) -> Result<String, SignalProtocolError>
     where
         Self: Sized + libsignal_protocol::IdentityKeyStore,
@@ -73,9 +75,9 @@ pub trait SessionStoreExt: SessionStore {
         let fp = libsignal_protocol::Fingerprint::new(
             2,
             5200,
-            local_address.uuid.as_bytes(),
+            local_address.raw_uuid().as_bytes(),
             local.identity_key(),
-            address.uuid.as_bytes(),
+            address.raw_uuid().as_bytes(),
             &ident,
         )?;
         fp.display_string()

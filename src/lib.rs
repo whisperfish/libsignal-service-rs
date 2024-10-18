@@ -49,7 +49,6 @@ pub const GROUP_UPDATE_FLAG: u32 = 1;
 pub const GROUP_LEAVE_FLAG: u32 = 2;
 
 pub mod prelude {
-    pub use super::ServiceAddress;
     pub use crate::{
         cipher::ServiceCipher,
         configuration::{
