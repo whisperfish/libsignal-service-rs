@@ -1,7 +1,7 @@
 use std::io::{self, Read};
 
 use futures::TryStreamExt;
-use reqwest::{header::CONTENT_TYPE, multipart::Part, Method};
+use reqwest::{multipart::Part, Method};
 use tracing::debug;
 
 use crate::{

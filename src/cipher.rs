@@ -136,8 +136,7 @@ where
         } else {
             return Err(ServiceError::InvalidFrame {
                 reason:
-                    "Envelope should have either a legacy message or content."
-                        .into(),
+                    "envelope should have either a legacy message or content.",
             });
         };
 
