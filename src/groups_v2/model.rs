@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
 
+use crate::ServiceAddress;
+
 use super::GroupDecodingError;
 
 #[derive(Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -30,15 +32,15 @@ impl PartialEq for Member {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingMember {
-    pub uuid: Uuid,
+    pub address: ServiceAddress,
     pub role: Role,
     pub added_by_uuid: Uuid,
     pub timestamp: u64,
 }
 
-#[derive(Derivative, Clone, Deserialize, Serialize)]
+#[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub struct RequestingMember {
     pub uuid: Uuid,
@@ -69,7 +71,7 @@ pub struct AccessControl {
     pub add_from_invite_link: AccessRequired,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Group {
     pub title: String,
     pub avatar: String,
