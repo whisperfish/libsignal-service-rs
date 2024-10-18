@@ -43,7 +43,7 @@ impl WebSocketRequestMessageBuilder {
         value: S,
     ) -> Result<WebSocketRequestMessage, serde_json::Error> {
         self.request.body = Some(serde_json::to_vec(&value)?);
-        Ok(self.header("Content-Type", "application/json").request)
+        Ok(self.header("content-type", "application/json").request)
     }
 
     pub fn build(self) -> WebSocketRequestMessage {

@@ -68,7 +68,7 @@ pub struct SentMessage {
 /// Attachment specification to be used for uploading.
 ///
 /// Loose equivalent of Java's `SignalServiceAttachmentStream`.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct AttachmentSpec {
     pub content_type: String,
     pub length: usize,

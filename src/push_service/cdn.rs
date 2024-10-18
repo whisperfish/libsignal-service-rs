@@ -1,7 +1,7 @@
 use std::io::{self, Read};
 
 use futures::TryStreamExt;
-use reqwest::{multipart::Part, Method};
+use reqwest::{header::CONTENT_TYPE, multipart::Part, Method};
 use tracing::debug;
 
 use crate::{
@@ -116,37 +116,39 @@ impl PushService {
         filename: String,
         mut reader: impl Read + Send,
     ) -> Result<(), ServiceError> {
-        // Amazon S3 expects multipart fields in a very specific order (the file contents should go last.)
-        let mut form = reqwest::multipart::Form::new();
-        form = form.text("acl", upload_attributes.acl);
-        form = form.text("key", upload_attributes.key);
-        form = form.text("policy", upload_attributes.policy);
-        form = form.text("x-amz-algorithm", upload_attributes.algorithm);
-        form = form.text("x-amz-credential", upload_attributes.credential);
-        form = form.text("x-amz-date", upload_attributes.date);
-        form = form.text("x-amz-signature", upload_attributes.signature);
-
         let mut buf = Vec::new();
         reader
             .read_to_end(&mut buf)
             .expect("infallible Read instance");
 
-        form = form.text("Content-Type", "application/octet-stream");
-        form = form.text("Content-Length", buf.len().to_string());
-        form = form.part("file", Part::bytes(buf).file_name(filename));
+        // Amazon S3 expects multipart fields in a very specific order (the file contents should go last.)
+        let form = reqwest::multipart::Form::new()
+            .text("acl", upload_attributes.acl)
+            .text("key", upload_attributes.key)
+            .text("policy", upload_attributes.policy)
+            .text("x-amz-algorithm", upload_attributes.algorithm)
+            .text("x-amz-credential", upload_attributes.credential)
+            .text("x-amz-date", upload_attributes.date)
+            .text("x-amz-signature", upload_attributes.signature)
+            .part("file", Part::bytes(buf));
 
-        let response = self
+        let content_type =
+            format!("multipart/form-data; boundary={}", form.boundary());
+
+        dbg!(content_type);
+
+        let response = dbg!(self
             .request(
                 Method::POST,
                 Endpoint::Cdn(0),
                 path,
                 HttpAuthOverride::NoOverride,
             )?
-            .multipart(form)
-            .send()
-            .await?
-            .service_error_for_status()
-            .await?;
+            .multipart(form))
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?;
 
         debug!("HyperPushService::PUT response: {:?}", response);
 
