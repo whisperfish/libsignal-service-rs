@@ -34,7 +34,7 @@ impl WebSocketRequestMessageBuilder {
     pub fn header(mut self, key: &str, value: impl AsRef<str>) -> Self {
         self.request
             .headers
-            .push(format!("{key}={}", value.as_ref()));
+            .push(format!("{key}:{}", value.as_ref()));
         self
     }
 
