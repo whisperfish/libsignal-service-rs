@@ -501,7 +501,7 @@ where
     #[tracing::instrument(
         level = "trace",
         skip(self, unidentified_access, content_body, recipient),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient.service_id_string()),
     )]
     async fn try_send_message(
         &mut self,
