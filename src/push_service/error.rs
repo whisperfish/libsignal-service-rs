@@ -1,10 +1,11 @@
 use libsignal_protocol::SignalProtocolError;
 use zkgroup::ZkGroupDeserializationFailure;
 
-use crate::{groups_v2::GroupDecodingError, ParseServiceAddressError};
+use crate::groups_v2::GroupDecodingError;
 
 use super::{
-    MismatchedDevices, ProofRequired, RegistrationLockFailure, StaleDevices,
+    MismatchedDevices, ProofRequired, RegistrationLockFailure, ServiceIdType,
+    StaleDevices,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -14,6 +15,9 @@ pub enum ServiceError {
 
     #[error("invalid URL: {0}")]
     InvalidUrl(#[from] url::ParseError),
+
+    #[error("wrong address type: {0}")]
+    InvalidAddressType(ServiceIdType),
 
     #[error("Error sending request: {reason}")]
     SendError { reason: String },
@@ -76,9 +80,6 @@ pub enum ServiceError {
 
     #[error("unsupported content")]
     UnsupportedContent,
-
-    #[error(transparent)]
-    ParseServiceAddress(#[from] ParseServiceAddressError),
 
     #[error("Not found.")]
     NotFoundError,

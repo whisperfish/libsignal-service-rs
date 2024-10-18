@@ -148,7 +148,7 @@ impl GroupOperations {
         let added_by_uuid = self.decrypt_aci(&member.added_by_user_id)?;
 
         Ok(PendingMember {
-            address: service_id.into(),
+            address: service_id,
             role: inner_member.role.try_into()?,
             added_by_uuid: added_by_uuid.into(),
             timestamp: member.timestamp,
