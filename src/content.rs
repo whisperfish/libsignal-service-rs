@@ -127,7 +127,7 @@ impl fmt::Display for ContentBody {
                         return write!(f, "DataMessage(attachments: {n})")
                     },
                     _ => {
-                        write!(f, "DataMessage(..)")
+                        write!(f, "{self:?}")
                     },
                 }
             },
