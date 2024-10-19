@@ -108,23 +108,28 @@ impl fmt::Display for ContentBody {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::NullMessage(_) => write!(f, "NullMessage"),
-            Self::DataMessage(m) => match (&m.body, m.attachments.len()) {
-                (Some(body), 0) => {
-                    return write!(f, "DataMessage({}", body);
-                },
-                (Some(body), n) => {
-                    return write!(
-                        f,
-                        "DataMessage({}, attachments: {n})",
-                        body
-                    );
-                },
-                (None, n) if n > 0 => {
-                    return write!(f, "DataMessage(attachments: {n})");
-                },
-                _ => {
-                    return write!(f, "DataMessage(..)");
-                },
+            Self::DataMessage(m) => {
+                match (&m.body, &m.reaction, m.attachments.len()) {
+                    (Some(body), _, 0) => {
+                        write!(f, "DataMessage({}", body)
+                    },
+                    (Some(body), _, n) => {
+                        write!(f, "DataMessage({}, attachments: {n})", body)
+                    },
+                    (None, Some(emoji), _) => {
+                        write!(
+                            f,
+                            "DataMessage(reaction: {})",
+                            emoji.emoji.as_deref().unwrap_or("None")
+                        )
+                    },
+                    (None, _, n) if n > 0 => {
+                        return write!(f, "DataMessage(attachments: {n})")
+                    },
+                    _ => {
+                        write!(f, "DataMessage(..)")
+                    },
+                }
             },
             Self::SynchronizeMessage(_) => write!(f, "SynchronizeMessage"),
             Self::CallMessage(_) => write!(f, "CallMessage"),
