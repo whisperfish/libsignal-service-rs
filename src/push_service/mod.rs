@@ -177,7 +177,7 @@ impl PushService {
         }
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(endpoint = %endpoint))]
     pub fn request(
         &self,
         method: Method,

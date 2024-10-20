@@ -92,6 +92,26 @@ pub enum Endpoint<'a> {
     },
 }
 
+impl fmt::Display for Endpoint<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Endpoint::Absolute(url) => write!(f, "absolute URL {url}"),
+            Endpoint::Service { path } => {
+                write!(f, "service API call to {path}")
+            },
+            Endpoint::Storage { path } => {
+                write!(f, "storage API call to {path}")
+            },
+            Endpoint::Cdn { cdn_id, path, .. } => {
+                write!(f, "CDN{cdn_id} call to {path}")
+            },
+            Endpoint::ContactDiscovery { path } => {
+                write!(f, "Contact discovery API call to {path}")
+            },
+        }
+    }
+}
+
 impl<'a> Endpoint<'a> {
     pub fn service(path: impl Into<Cow<'a, str>>) -> Self {
         Self::Service { path: path.into() }
