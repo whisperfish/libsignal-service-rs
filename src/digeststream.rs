@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::io::{self, Read, Seek, SeekFrom};
 
 use sha2::{Digest, Sha256};
 
@@ -7,7 +7,7 @@ pub struct DigestingReader<'r, R> {
     digest: Sha256,
 }
 
-impl<'r, R: Read> Read for DigestingReader<'r, R> {
+impl<'r, R: Read + Seek> Read for DigestingReader<'r, R> {
     fn read(&mut self, tgt: &mut [u8]) -> Result<usize, std::io::Error> {
         let amount = self.inner.read(tgt)?;
         self.digest.update(&tgt[..amount]);
@@ -15,12 +15,16 @@ impl<'r, R: Read> Read for DigestingReader<'r, R> {
     }
 }
 
-impl<'r, R: Read> DigestingReader<'r, R> {
+impl<'r, R: Read + Seek> DigestingReader<'r, R> {
     pub fn new(inner: &'r mut R) -> Self {
         Self {
             inner,
             digest: Sha256::new(),
         }
+    }
+
+    pub fn seek(&mut self, from: SeekFrom) -> io::Result<u64> {
+        self.inner.seek(from)
     }
 
     pub fn finalize(self) -> Vec<u8> {

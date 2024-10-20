@@ -177,15 +177,14 @@ impl PushService {
         }
     }
 
-    #[tracing::instrument(skip(self, path), fields(path = %path.as_ref()))]
+    #[tracing::instrument(skip(self))]
     pub fn request(
         &self,
         method: Method,
         endpoint: Endpoint,
-        path: impl AsRef<str>,
         auth_override: HttpAuthOverride,
     ) -> Result<RequestBuilder, ServiceError> {
-        let url = self.cfg.base_url(endpoint).join(path.as_ref())?;
+        let url = endpoint.into_url(&self.cfg)?;
         let mut builder = self.client.request(method, url);
 
         builder = match auth_override {
@@ -216,8 +215,7 @@ impl PushService {
     ) -> Result<SignalWebSocket, ServiceError> {
         let span = debug_span!("websocket");
 
-        let endpoint = self.cfg.base_url(Endpoint::Service);
-        let mut url = endpoint.join(path).expect("valid url");
+        let mut url = Endpoint::service(path).into_url(&self.cfg)?;
         url.set_scheme("wss").expect("valid https base url");
 
         if let Some(credentials) = credentials {
@@ -255,8 +253,7 @@ impl PushService {
     ) -> Result<crate::proto::Group, ServiceError> {
         self.request(
             Method::GET,
-            Endpoint::Storage,
-            "/v1/groups/",
+            Endpoint::storage("/v1/groups/"),
             HttpAuthOverride::Identified(credentials),
         )?
         .send()

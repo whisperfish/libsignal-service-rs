@@ -221,15 +221,29 @@ where
         });
 
         // Request upload attributes
-        let attrs = self
+        // TODO: we can actually store the upload spec to be able to resume the upload later
+        // if it fails or stalls (= we should at least split the API calls so clients can decide what to do)
+        let attachment_upload_form = self
             .service
-            .get_attachment_v2_upload_attributes()
+            .get_attachment_v4_upload_attributes()
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
 
-        let (id, digest) = self
+        let resumable_upload_url = self
             .service
-            .upload_attachment(attrs, &mut std::io::Cursor::new(&contents))
+            .get_attachment_resumable_upload_url(&attachment_upload_form)
+            .await?;
+
+        let attachment_digest = self
+            .service
+            .upload_attachment_v4(
+                attachment_upload_form.cdn,
+                &resumable_upload_url,
+                &spec.content_type,
+                contents.len() as u64,
+                attachment_upload_form.headers,
+                &mut std::io::Cursor::new(&contents),
+            )
             .instrument(tracing::trace_span!("Uploading attachment"))
             .await?;
 
@@ -238,7 +252,7 @@ where
             key: Some(key.to_vec()),
             size: Some(len as u32),
             // thumbnail: Option<Vec<u8>>,
-            digest: Some(digest),
+            digest: Some(attachment_digest.digest),
             file_name: spec.file_name,
             flags: Some(
                 if spec.voice_note == Some(true) {
@@ -261,8 +275,10 @@ where
                     .expect("unix epoch in the past")
                     .as_millis() as u64,
             ),
-            cdn_number: Some(0),
-            attachment_identifier: Some(AttachmentIdentifier::CdnId(id)),
+            cdn_number: Some(attachment_upload_form.cdn),
+            attachment_identifier: Some(AttachmentIdentifier::CdnKey(
+                attachment_upload_form.key,
+            )),
             ..Default::default()
         })
     }

@@ -92,7 +92,7 @@ impl PushService {
         address: ServiceAddress,
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
-        let endpoint = if let Some(key) = profile_key {
+        let path = if let Some(key) = profile_key {
             let version = bincode::serialize(&key.get_profile_key_version(
                 address.aci().expect("profile by ACI ProtocolAddress"),
             ))?;
@@ -105,8 +105,7 @@ impl PushService {
         // TODO: set locale to en_US
         self.request(
             Method::GET,
-            Endpoint::Service,
-            &endpoint,
+            Endpoint::service(path),
             HttpAuthOverride::NoOverride,
         )?
         .send()
@@ -171,8 +170,7 @@ impl PushService {
         let upload_url: Result<String, _> = self
             .request(
                 Method::PUT,
-                Endpoint::Service,
-                "/v1/profile",
+                Endpoint::service("/v1/profile"),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&command)

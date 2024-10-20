@@ -41,8 +41,7 @@ impl ProfileService {
         self.push_service
             .request(
                 Method::GET,
-                Endpoint::Service,
-                path,
+                Endpoint::service(path),
                 HttpAuthOverride::NoOverride,
             )?
             .send()

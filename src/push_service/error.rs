@@ -93,6 +93,9 @@ pub enum ServiceError {
     #[error("invalid device name")]
     InvalidDeviceName,
 
+    #[error("Unknown CDN version {0}")]
+    UnknownCdnVersion(u32),
+
     #[error("HTTP reqwest error: {0}")]
     Http(#[from] reqwest::Error),
 }
