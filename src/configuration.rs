@@ -190,6 +190,7 @@ impl From<&SignalServers> for ServiceConfiguration {
                     let mut map = HashMap::new();
                     map.insert(0, "https://cdn-staging.signal.org".parse().unwrap());
                     map.insert(2, "https://cdn2-staging.signal.org".parse().unwrap());
+                    map.insert(3, "https://cdn3-staging.signal.org".parse().unwrap());
                     map
                 },
                 contact_discovery_url:
