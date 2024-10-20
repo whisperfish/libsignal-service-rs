@@ -5,9 +5,9 @@ use std::{
 
 use futures::TryStreamExt;
 use reqwest::{
-    header::{CONTENT_LENGTH, CONTENT_TYPE},
+    header::{CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE},
     multipart::Part,
-    Method,
+    Method, StatusCode,
 };
 use serde::Deserialize;
 use tracing::{debug, trace};
@@ -47,18 +47,6 @@ pub struct AttachmentDigest {
     pub digest: Vec<u8>,
     pub incremental_digest: Option<Vec<u8>>,
     pub incremental_mac_chunk_size: u64,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ResumableUploadSpec {
-    attachment_key: Vec<u8>,
-    attachment_iv: Vec<u8>,
-    cdn_key: String,
-    cdn_number: u32,
-    resume_location: String,
-    expiration_timestamp: u64,
-    headers: HashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -175,16 +163,79 @@ impl PushService {
             .parse()?)
     }
 
+    #[tracing::instrument(skip(self))]
+    async fn get_attachment_resume_info_cdn2(
+        &mut self,
+        resumable_url: &Url,
+        content_length: u64,
+    ) -> Result<ResumeInfo, ServiceError> {
+        let response = self
+            .request(
+                Method::PUT,
+                Endpoint::cdn_url(2, resumable_url),
+                HttpAuthOverride::Unidentified,
+            )?
+            .header(CONTENT_RANGE, format!("bytes */{content_length}"))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        let status = response.status();
+
+        if status.is_success() {
+            Ok(ResumeInfo {
+                content_range: None,
+                content_start: content_length,
+            })
+        } else if status == StatusCode::PERMANENT_REDIRECT {
+            let offset =
+                match response.headers().get(RANGE) {
+                    Some(range) => range
+                        .to_str()
+                        .map_err(|_| ServiceError::InvalidFrame {
+                            reason: "invalid format for Range HTTP header",
+                        })?
+                        .split("-")
+                        .nth(1)
+                        .ok_or_else(|| ServiceError::InvalidFrame {
+                            reason:
+                                "invalid value format for Range HTTP header",
+                        })?
+                        .parse::<u64>()
+                        .map_err(|_| ServiceError::InvalidFrame {
+                            reason:
+                                "invalid number format for Range HTTP header",
+                        })?
+                        + 1,
+                    None => 0,
+                };
+
+            Ok(ResumeInfo {
+                content_range: Some(format!(
+                    "bytes {}-{}/{}",
+                    offset,
+                    content_length - 1,
+                    content_length
+                )),
+                content_start: offset,
+            })
+        } else {
+            Err(ServiceError::InvalidFrame {
+                reason: "failed to get resumable upload data from CDN2",
+            })
+        }
+    }
+
+    #[tracing::instrument(skip(self))]
     async fn get_attachment_resume_info_cdn3(
         &mut self,
         resumable_url: &Url,
         headers: &HashMap<String, String>,
     ) -> Result<ResumeInfo, ServiceError> {
-        trace!("getting attachment resume info from CDN3");
         let mut request = self
             .request(
                 Method::HEAD,
-                Endpoint::cdn(3, resumable_url.path()),
+                Endpoint::cdn_url(3, resumable_url),
                 HttpAuthOverride::Unidentified,
             )?
             .header("Tus-Resumable", "1.0.0");
@@ -220,85 +271,32 @@ impl PushService {
     ///
     /// Returns attachment ID and the attachment digest
     #[tracing::instrument(skip(self, headers, content))]
-    pub(crate) async fn upload_attachment_v4<
-        's,
-        R: std::io::Read + std::io::Seek + Send + 's,
-    >(
+    pub(crate) async fn upload_attachment_v4(
         &mut self,
         cdn_id: u32,
         resumable_url: &Url,
         content_type: &str,
-        length: u64,
+        content_length: u64,
         headers: HashMap<String, String>,
-        mut content: R,
+        content: impl std::io::Read + std::io::Seek + Send,
     ) -> Result<AttachmentDigest, ServiceError> {
         if cdn_id == 2 {
-            unimplemented!()
-            // self.post_to_cdn2(
-            //     attachment.getResumableUploadSpec().getResumeLocation(),
-            //     attachment.getData(),
-            //     "application/octet-stream",
-            //     attachment.getDataSize(),
-            //     attachment.getIncremental(),
-            //     attachment.getOutputStreamFactory(),
-            //     attachment.getListener(),
-            //     attachment.getCancelationSignal(),
-            // )
+            self.upload_to_cdn2(resumable_url, content_length, content)
+                .await
         } else {
-            let resume_info = self
-                .get_attachment_resume_info_cdn3(resumable_url, &headers)
-                .await?;
-
-            trace!(?resume_info, "got resume info");
-
-            if resume_info.content_start == length {
-                let mut digester =
-                    crate::digeststream::DigestingReader::new(&mut content);
-                let mut buf = Vec::new();
-                digester.read_to_end(&mut buf).unwrap();
-                return Ok(AttachmentDigest {
-                    digest: digester.finalize(),
-                    incremental_digest: None,
-                    incremental_mac_chunk_size: 0,
-                });
-            }
-
-            let mut digester =
-                crate::digeststream::DigestingReader::new(&mut content);
-            digester
-                .seek(SeekFrom::Start(resume_info.content_start))
-                .unwrap();
-
-            let mut buf = Vec::new();
-            digester.read_to_end(&mut buf).unwrap();
-
-            trace!("digested content");
-
-            self.request(
-                Method::PATCH,
-                Endpoint::cdn(3, resumable_url.path()),
-                HttpAuthOverride::Unidentified,
-            )?
-            .header("Tus-Resumable", "1.0.0")
-            .header("Upload-Offset", resume_info.content_start)
-            .header("Upload-Length", buf.len())
-            .header(CONTENT_TYPE, content_type)
-            .body(buf)
-            .send()
-            .await?;
-
-            trace!("attachment uploaded");
-
-            Ok(AttachmentDigest {
-                digest: digester.finalize(),
-                incremental_digest: None,
-                incremental_mac_chunk_size: 0,
-            })
+            self.upload_to_cdn3(
+                resumable_url,
+                &headers,
+                content_type,
+                content_length,
+                content,
+            )
+            .await
         }
     }
 
     #[tracing::instrument(skip(self, upload_attributes, reader))]
-    pub async fn post_to_cdn0(
+    pub async fn upload_to_cdn0(
         &mut self,
         path: &str,
         upload_attributes: AttachmentV2UploadAttributes,
@@ -343,5 +341,99 @@ impl PushService {
         debug!("HyperPushService::PUT response: {:?}", response);
 
         Ok(())
+    }
+
+    async fn upload_to_cdn2(
+        &mut self,
+        resumable_url: &Url,
+        content_length: u64,
+        mut content: impl std::io::Read + std::io::Seek + Send,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        let resume_info = self
+            .get_attachment_resume_info_cdn2(resumable_url, content_length)
+            .await?;
+
+        let mut digester =
+            crate::digeststream::DigestingReader::new(&mut content);
+
+        let mut buf = Vec::new();
+        digester.read_to_end(&mut buf)?;
+
+        trace!("digested content");
+
+        let mut request = self.request(
+            Method::PUT,
+            Endpoint::cdn_url(2, resumable_url),
+            HttpAuthOverride::Unidentified,
+        )?;
+
+        if let Some(content_range) = resume_info.content_range {
+            request = request.header(CONTENT_RANGE, content_range);
+        }
+
+        request.body(buf).send().await?.error_for_status()?;
+
+        Ok(AttachmentDigest {
+            digest: digester.finalize(),
+            incremental_digest: None,
+            incremental_mac_chunk_size: 0,
+        })
+    }
+
+    async fn upload_to_cdn3(
+        &mut self,
+        resumable_url: &Url,
+        headers: &HashMap<String, String>,
+        content_type: &str,
+        content_length: u64,
+        mut content: impl std::io::Read + std::io::Seek + Send,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        let resume_info = self
+            .get_attachment_resume_info_cdn3(resumable_url, &headers)
+            .await?;
+
+        trace!(?resume_info, "got resume info");
+
+        if resume_info.content_start == content_length {
+            let mut digester =
+                crate::digeststream::DigestingReader::new(&mut content);
+            let mut buf = Vec::new();
+            digester.read_to_end(&mut buf)?;
+            return Ok(AttachmentDigest {
+                digest: digester.finalize(),
+                incremental_digest: None,
+                incremental_mac_chunk_size: 0,
+            });
+        }
+
+        let mut digester =
+            crate::digeststream::DigestingReader::new(&mut content);
+        digester.seek(SeekFrom::Start(resume_info.content_start))?;
+
+        let mut buf = Vec::new();
+        digester.read_to_end(&mut buf)?;
+
+        trace!("digested content");
+
+        self.request(
+            Method::PATCH,
+            Endpoint::cdn(3, resumable_url.path()),
+            HttpAuthOverride::Unidentified,
+        )?
+        .header("Tus-Resumable", "1.0.0")
+        .header("Upload-Offset", resume_info.content_start)
+        .header("Upload-Length", buf.len())
+        .header(CONTENT_TYPE, content_type)
+        .body(buf)
+        .send()
+        .await?;
+
+        trace!("attachment uploaded");
+
+        Ok(AttachmentDigest {
+            digest: digester.finalize(),
+            incremental_digest: None,
+            incremental_mac_chunk_size: 0,
+        })
     }
 }

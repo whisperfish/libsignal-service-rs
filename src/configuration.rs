@@ -76,10 +76,20 @@ pub enum SignalServers {
 #[derive(Debug)]
 pub enum Endpoint<'a> {
     Absolute(Url),
-    Service { path: Cow<'a, str> },
-    Storage { path: Cow<'a, str> },
-    Cdn { path: Cow<'a, str>, cdn_id: u32 },
-    ContactDiscovery { path: Cow<'a, str> },
+    Service {
+        path: Cow<'a, str>,
+    },
+    Storage {
+        path: Cow<'a, str>,
+    },
+    Cdn {
+        cdn_id: u32,
+        path: Cow<'a, str>,
+        query: Option<Cow<'a, str>>,
+    },
+    ContactDiscovery {
+        path: Cow<'a, str>,
+    },
 }
 
 impl<'a> Endpoint<'a> {
@@ -89,8 +99,17 @@ impl<'a> Endpoint<'a> {
 
     pub fn cdn(cdn_id: u32, path: impl Into<Cow<'a, str>>) -> Self {
         Self::Cdn {
-            path: path.into(),
             cdn_id,
+            path: path.into(),
+            query: None,
+        }
+    }
+
+    pub fn cdn_url(cdn_id: u32, url: &'a Url) -> Self {
+        Self::Cdn {
+            cdn_id,
+            path: url.path().into(),
+            query: url.query().map(Into::into),
         }
     }
 
@@ -109,8 +128,15 @@ impl<'a> Endpoint<'a> {
             Endpoint::Storage { path } => {
                 service_configuration.storage_url.join(&path)
             },
-            Endpoint::Cdn { path, ref cdn_id } => {
-                service_configuration.cdn_urls[cdn_id].join(&path)
+            Endpoint::Cdn {
+                ref cdn_id,
+                path,
+                query,
+            } => {
+                let mut url = service_configuration.cdn_urls[cdn_id].clone();
+                url.set_path(&path);
+                url.set_query(query.as_deref());
+                Ok(url)
             },
             Endpoint::ContactDiscovery { path } => {
                 service_configuration.contact_discovery_url.join(&path)

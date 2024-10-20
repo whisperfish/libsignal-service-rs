@@ -244,7 +244,6 @@ where
                 attachment_upload_form.headers,
                 &mut std::io::Cursor::new(&contents),
             )
-            .instrument(tracing::trace_span!("Uploading attachment"))
             .await?;
 
         Ok(AttachmentPointer {
