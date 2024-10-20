@@ -32,8 +32,7 @@ impl PushService {
     ) -> Result<PreKeyStatus, ServiceError> {
         self.request(
             Method::GET,
-            Endpoint::Service,
-            format!("/v2/keys?identity={}", service_id_type),
+            Endpoint::service(format!("/v2/keys?identity={}", service_id_type)),
             HttpAuthOverride::NoOverride,
         )?
         .send()
@@ -52,8 +51,7 @@ impl PushService {
     ) -> Result<(), ServiceError> {
         self.request(
             Method::PUT,
-            Endpoint::Service,
-            format!("/v2/keys?identity={}", service_id_type),
+            Endpoint::service(format!("/v2/keys?identity={}", service_id_type)),
             HttpAuthOverride::NoOverride,
         )?
         .json(&pre_key_state)
@@ -76,8 +74,7 @@ impl PushService {
         let mut pre_key_response: PreKeyResponse = self
             .request(
                 Method::GET,
-                Endpoint::Service,
-                &path,
+                Endpoint::service(path),
                 HttpAuthOverride::NoOverride,
             )?
             .send()
@@ -107,8 +104,7 @@ impl PushService {
         let pre_key_response: PreKeyResponse = self
             .request(
                 Method::GET,
-                Endpoint::Service,
-                &path,
+                Endpoint::service(path),
                 HttpAuthOverride::NoOverride,
             )?
             .send()
@@ -131,8 +127,7 @@ impl PushService {
         let cert: SenderCertificateJson = self
             .request(
                 Method::GET,
-                Endpoint::Service,
-                "/v1/certificate/delivery",
+                Endpoint::service("/v1/certificate/delivery"),
                 HttpAuthOverride::NoOverride,
             )?
             .send()
@@ -150,8 +145,7 @@ impl PushService {
         let cert: SenderCertificateJson = self
             .request(
                 Method::GET,
-                Endpoint::Service,
-                "/v1/certificate/delivery?includeE164=false",
+                Endpoint::service("/v1/certificate/delivery?includeE164=false"),
                 HttpAuthOverride::NoOverride,
             )?
             .send()
@@ -190,8 +184,9 @@ impl PushService {
         }
         self.request(
             Method::PUT,
-            Endpoint::Service,
-            "/v2/accounts/phone_number_identity_key_distribution",
+            Endpoint::service(
+                "/v2/accounts/phone_number_identity_key_distribution",
+            ),
             HttpAuthOverride::NoOverride,
         )?
         .json(&PniKeyDistributionRequest {

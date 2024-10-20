@@ -62,8 +62,7 @@ impl PushService {
     ) -> Result<LinkResponse, ServiceError> {
         self.request(
             Method::PUT,
-            Endpoint::Service,
-            "/v1/devices/link",
+            Endpoint::service("/v1/devices/link"),
             HttpAuthOverride::Identified(http_auth),
         )?
         .json(&link_request)
@@ -79,8 +78,7 @@ impl PushService {
     pub async fn unlink_device(&mut self, id: i64) -> Result<(), ServiceError> {
         self.request(
             Method::DELETE,
-            Endpoint::Service,
-            format!("/v1/devices/{}", id),
+            Endpoint::service(format!("/v1/devices/{}", id)),
             HttpAuthOverride::NoOverride,
         )?
         .send()

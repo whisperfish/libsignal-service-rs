@@ -225,8 +225,7 @@ impl AccountManager {
             .service
             .request(
                 Method::GET,
-                Endpoint::Service,
-                "/v1/devices/provisioning/code",
+                Endpoint::service("/v1/devices/provisioning/code"),
                 HttpAuthOverride::NoOverride,
             )?
             .send()
@@ -254,8 +253,7 @@ impl AccountManager {
         self.service
             .request(
                 Method::PUT,
-                Endpoint::Service,
-                format!("/v1/provisioning/{}", destination),
+                Endpoint::service(format!("/v1/provisioning/{destination}")),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&ProvisioningMessage {
@@ -594,8 +592,7 @@ impl AccountManager {
         self.service
             .request(
                 Method::PUT,
-                Endpoint::Service,
-                "/v1/accounts/name",
+                Endpoint::service("/v1/accounts/name"),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&Data {
@@ -623,8 +620,7 @@ impl AccountManager {
         self.service
             .request(
                 Method::PUT,
-                Endpoint::Service,
-                "/v1/challenge",
+                Endpoint::service("/v1/challenge"),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&RecaptchaAttributes {

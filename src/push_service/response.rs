@@ -10,8 +10,10 @@ where
     ServiceError: From<<R as SignalServiceResponse>::Error>,
 {
     match response.status_code() {
-        StatusCode::OK => Ok(response),
-        StatusCode::NO_CONTENT => Ok(response),
+        StatusCode::OK
+        | StatusCode::CREATED
+        | StatusCode::ACCEPTED
+        | StatusCode::NO_CONTENT => Ok(response),
         StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN => {
             Err(ServiceError::Unauthorized)
         },

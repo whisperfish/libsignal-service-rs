@@ -132,8 +132,7 @@ impl PushService {
     pub async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
         self.request(
             Method::GET,
-            Endpoint::Service,
-            "/v1/accounts/whoami",
+            Endpoint::service("/v1/accounts/whoami"),
             HttpAuthOverride::NoOverride,
         )?
         .send()
@@ -157,8 +156,7 @@ impl PushService {
         let devices: DeviceInfoList = self
             .request(
                 Method::GET,
-                Endpoint::Service,
-                "/v1/devices/",
+                Endpoint::service("/v1/devices/"),
                 HttpAuthOverride::NoOverride,
             )?
             .send()
@@ -182,8 +180,7 @@ impl PushService {
 
         self.request(
             Method::PUT,
-            Endpoint::Service,
-            "/v1/accounts/attributes/",
+            Endpoint::service("/v1/accounts/attributes/"),
             HttpAuthOverride::NoOverride,
         )?
         .json(&attributes)
