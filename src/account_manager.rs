@@ -253,7 +253,7 @@ impl AccountManager {
         self.service
             .request(
                 Method::PUT,
-                Endpoint::service(format!("/v1/provisioning/{}", destination)),
+                Endpoint::service(format!("/v1/provisioning/{destination}")),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&ProvisioningMessage {

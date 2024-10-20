@@ -343,6 +343,7 @@ impl PushService {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self, content))]
     async fn upload_to_cdn2(
         &mut self,
         resumable_url: &Url,
@@ -380,6 +381,7 @@ impl PushService {
         })
     }
 
+    #[tracing::instrument(skip(self, content))]
     async fn upload_to_cdn3(
         &mut self,
         resumable_url: &Url,
@@ -389,7 +391,7 @@ impl PushService {
         mut content: impl std::io::Read + std::io::Seek + Send,
     ) -> Result<AttachmentDigest, ServiceError> {
         let resume_info = self
-            .get_attachment_resume_info_cdn3(resumable_url, &headers)
+            .get_attachment_resume_info_cdn3(resumable_url, headers)
             .await?;
 
         trace!(?resume_info, "got resume info");
