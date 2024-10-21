@@ -347,6 +347,7 @@ where
         online: bool,
     ) -> SendMessageResult {
         let content_body = message.into();
+        let message_to_self = recipient == &self.local_aci;
 
         use crate::proto::data_message::Flags;
 
@@ -357,8 +358,39 @@ where
             _ => false,
         };
 
+        let create_sync_message =
+            |content_body, send_message_results| -> ContentBody {
+                let (data_message, edit_message) = match content_body {
+                    ContentBody::DataMessage(m) => (Some(m), None),
+                    ContentBody::EditMessage(m) => (None, Some(m)),
+                    _ => (None, None),
+                };
+                Self::create_multi_device_sent_transcript_content(
+                    Some(recipient),
+                    data_message,
+                    edit_message,
+                    timestamp,
+                    send_message_results,
+                )
+            };
+
+        // only send a sync message when sending to self and skip the rest of the process
+        if message_to_self {
+            let sync_message = create_sync_message(content_body, None);
+            return self
+                .try_send_message(
+                    *recipient,
+                    None,
+                    &sync_message,
+                    timestamp,
+                    include_pni_signature,
+                    online,
+                )
+                .await;
+        }
+
         // don't send anything to self nor session enders to others as sealed sender
-        if recipient == &self.local_aci || end_session {
+        if end_session {
             unidentified_access.take();
         }
 
@@ -380,23 +412,8 @@ where
         };
 
         if needs_sync || self.is_multi_device().await {
-            let data_message = match &content_body {
-                ContentBody::DataMessage(m) => Some(m.clone()),
-                _ => None,
-            };
-            let edit_message = match &content_body {
-                ContentBody::EditMessage(m) => Some(m.clone()),
-                _ => None,
-            };
             tracing::debug!("sending multi-device sync message");
-            let sync_message = self
-                .create_multi_device_sent_transcript_content(
-                    Some(recipient),
-                    data_message,
-                    edit_message,
-                    timestamp,
-                    Some(&result),
-                );
+            let sync_message = create_sync_message(content_body, Some(&result));
             self.try_send_message(
                 self.local_aci,
                 None,
@@ -436,15 +453,6 @@ where
         let content_body: ContentBody = message.into();
         let mut results = vec![];
 
-        let data_message = match &content_body {
-            ContentBody::DataMessage(m) => Some(m.clone()),
-            _ => None,
-        };
-        let edit_message = match &content_body {
-            ContentBody::EditMessage(m) => Some(m.clone()),
-            _ => None,
-        };
-
         let mut needs_sync_in_results = false;
 
         for (recipient, unidentified_access, include_pni_signature) in
@@ -471,6 +479,12 @@ where
             results.push(result);
         }
 
+        let (data_message, edit_message) = match content_body {
+            ContentBody::DataMessage(m) => (Some(m), None),
+            ContentBody::EditMessage(m) => (None, Some(m)),
+            _ => (None, None),
+        };
+
         if needs_sync_in_results
             && data_message.is_none()
             && edit_message.is_none()
@@ -484,8 +498,8 @@ where
 
         // we only need to send a synchronization message once
         if needs_sync_in_results || self.is_multi_device().await {
-            let sync_message = self
-                .create_multi_device_sent_transcript_content(
+            let sync_message =
+                Self::create_multi_device_sent_transcript_content(
                     None,
                     data_message,
                     edit_message,
@@ -1029,7 +1043,6 @@ where
     }
 
     fn create_multi_device_sent_transcript_content<'a>(
-        &self,
         recipient: Option<&ServiceAddress>,
         data_message: Option<crate::proto::DataMessage>,
         edit_message: Option<crate::proto::EditMessage>,
