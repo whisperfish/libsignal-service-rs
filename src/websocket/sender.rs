@@ -26,7 +26,7 @@ impl SignalWebSocket {
         let request = WebSocketRequestMessage::new(Method::PUT)
             .path(format!("/v1/messages/{}", messages.destination))
             .header(
-                "Unidentified-Access-Key:{}",
+                "Unidentified-Access-Key",
                 BASE64_RELAXED.encode(&access.key),
             )
             .json(&messages)?;
