@@ -28,6 +28,7 @@ use crate::{
     service_address::ServiceIdExt,
     session_store::SessionStoreExt,
     unidentified_access::UnidentifiedAccess,
+    utils::serde_service_id,
     websocket::SignalWebSocket,
 };
 
@@ -44,7 +45,8 @@ pub struct OutgoingPushMessage {
 
 #[derive(serde::Serialize, Debug)]
 pub struct OutgoingPushMessages {
-    pub destination: uuid::Uuid,
+    #[serde(with = "serde_service_id")]
+    pub destination: ServiceId,
     pub timestamp: u64,
     pub messages: Vec<OutgoingPushMessage>,
     pub online: bool,
@@ -551,7 +553,7 @@ where
                 .await?;
 
             let messages = OutgoingPushMessages {
-                destination: recipient.raw_uuid(),
+                destination: recipient,
                 timestamp,
                 messages,
                 online,

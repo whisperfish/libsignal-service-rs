@@ -290,3 +290,28 @@ pub mod serde_phone_number {
             .map_err(serde::de::Error::custom)
     }
 }
+
+pub mod serde_service_id {
+    use libsignal_protocol::ServiceId;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        service_id: &ServiceId,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&service_id.service_id_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ServiceId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        ServiceId::parse_from_service_id_string(&String::deserialize(
+            deserializer,
+        )?)
+        .ok_or_else(|| serde::de::Error::custom("invalid service ID string"))
+    }
+}

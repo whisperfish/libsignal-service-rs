@@ -70,8 +70,8 @@ impl PushService {
         device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
         let path = format!(
-            "/v2/keys/{}/{}?pq=true",
-            destination.raw_uuid(),
+            "/v2/keys/{}/{}",
+            destination.service_id_string(),
             device_id
         );
 
@@ -101,9 +101,13 @@ impl PushService {
         device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
         let path = if device_id == 1 {
-            format!("/v2/keys/{}/*?pq=true", destination.raw_uuid())
+            format!("/v2/keys/{}/*", destination.service_id_string())
         } else {
-            format!("/v2/keys/{}/{}?pq=true", destination.raw_uuid(), device_id)
+            format!(
+                "/v2/keys/{}/{}",
+                destination.service_id_string(),
+                device_id
+            )
         };
         let pre_key_response: PreKeyResponse = self
             .request(
