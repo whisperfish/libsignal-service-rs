@@ -124,7 +124,7 @@ impl fmt::Display for ContentBody {
                         )
                     },
                     (None, _, n) if n > 0 => {
-                        return write!(f, "DataMessage(attachments: {n})")
+                        write!(f, "DataMessage(attachments: {n})")
                     },
                     _ => {
                         write!(f, "{self:?}")
