@@ -105,20 +105,6 @@ pub enum ContentBody {
 }
 
 impl ContentBody {
-    pub fn data_message(&self) -> Option<&DataMessage> {
-        match self {
-            ContentBody::DataMessage(d) => Some(d),
-            _ => None,
-        }
-    }
-
-    pub fn edit_message(&self) -> Option<&EditMessage> {
-        match self {
-            ContentBody::EditMessage(d) => Some(d),
-            _ => None,
-        }
-    }
-
     pub fn into_proto(self) -> crate::proto::Content {
         match self {
             Self::NullMessage(msg) => crate::proto::Content {

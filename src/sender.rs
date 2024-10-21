@@ -476,17 +476,6 @@ where
             results.push(result);
         }
 
-        if needs_sync_in_results
-            && content_body.data_message().is_none()
-            && content_body.edit_message().is_none()
-        {
-            // XXX: does this happen?
-            tracing::warn!(
-                "Server claims need sync, but not sending data message or edit message"
-            );
-            return results;
-        }
-
         // we only need to send a synchronization message once
         if needs_sync_in_results || self.is_multi_device().await {
             let sync_message =
