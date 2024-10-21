@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{collections::HashMap, str::FromStr};
+use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
 use crate::utils::BASE64_RELAXED;
 use base64::prelude::*;
@@ -74,11 +74,96 @@ pub enum SignalServers {
 }
 
 #[derive(Debug)]
-pub enum Endpoint {
-    Service,
-    Storage,
-    Cdn(u32),
-    ContactDiscovery,
+pub enum Endpoint<'a> {
+    Absolute(Url),
+    Service {
+        path: Cow<'a, str>,
+    },
+    Storage {
+        path: Cow<'a, str>,
+    },
+    Cdn {
+        cdn_id: u32,
+        path: Cow<'a, str>,
+        query: Option<Cow<'a, str>>,
+    },
+    ContactDiscovery {
+        path: Cow<'a, str>,
+    },
+}
+
+impl fmt::Display for Endpoint<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Endpoint::Absolute(url) => write!(f, "absolute URL {url}"),
+            Endpoint::Service { path } => {
+                write!(f, "service API call to {path}")
+            },
+            Endpoint::Storage { path } => {
+                write!(f, "storage API call to {path}")
+            },
+            Endpoint::Cdn { cdn_id, path, .. } => {
+                write!(f, "CDN{cdn_id} call to {path}")
+            },
+            Endpoint::ContactDiscovery { path } => {
+                write!(f, "Contact discovery API call to {path}")
+            },
+        }
+    }
+}
+
+impl<'a> Endpoint<'a> {
+    pub fn service(path: impl Into<Cow<'a, str>>) -> Self {
+        Self::Service { path: path.into() }
+    }
+
+    pub fn cdn(cdn_id: u32, path: impl Into<Cow<'a, str>>) -> Self {
+        Self::Cdn {
+            cdn_id,
+            path: path.into(),
+            query: None,
+        }
+    }
+
+    pub fn cdn_url(cdn_id: u32, url: &'a Url) -> Self {
+        Self::Cdn {
+            cdn_id,
+            path: url.path().into(),
+            query: url.query().map(Into::into),
+        }
+    }
+
+    pub fn storage(path: impl Into<Cow<'a, str>>) -> Self {
+        Self::Storage { path: path.into() }
+    }
+
+    pub fn into_url(
+        self,
+        service_configuration: &ServiceConfiguration,
+    ) -> Result<Url, url::ParseError> {
+        match self {
+            Endpoint::Service { path } => {
+                service_configuration.service_url.join(&path)
+            },
+            Endpoint::Storage { path } => {
+                service_configuration.storage_url.join(&path)
+            },
+            Endpoint::Cdn {
+                ref cdn_id,
+                path,
+                query,
+            } => {
+                let mut url = service_configuration.cdn_urls[cdn_id].clone();
+                url.set_path(&path);
+                url.set_query(query.as_deref());
+                Ok(url)
+            },
+            Endpoint::ContactDiscovery { path } => {
+                service_configuration.contact_discovery_url.join(&path)
+            },
+            Endpoint::Absolute(url) => Ok(url),
+        }
+    }
 }
 
 impl FromStr for SignalServers {
@@ -125,6 +210,7 @@ impl From<&SignalServers> for ServiceConfiguration {
                     let mut map = HashMap::new();
                     map.insert(0, "https://cdn-staging.signal.org".parse().unwrap());
                     map.insert(2, "https://cdn2-staging.signal.org".parse().unwrap());
+                    map.insert(3, "https://cdn3-staging.signal.org".parse().unwrap());
                     map
                 },
                 contact_discovery_url:
@@ -144,6 +230,7 @@ impl From<&SignalServers> for ServiceConfiguration {
                     let mut map = HashMap::new();
                     map.insert(0, "https://cdn.signal.org".parse().unwrap());
                     map.insert(2, "https://cdn2.signal.org".parse().unwrap());
+                    map.insert(3, "https://cdn3.signal.org".parse().unwrap());
                     map
                 },
                 contact_discovery_url: "https://api.directory.signal.org".parse().unwrap(),
@@ -153,17 +240,6 @@ impl From<&SignalServers> for ServiceConfiguration {
                 zkgroup_server_public_params: bincode::deserialize(
                     &BASE64_RELAXED.decode("AMhf5ywVwITZMsff/eCyudZx9JDmkkkbV6PInzG4p8x3VqVJSFiMvnvlEKWuRob/1eaIetR31IYeAbm0NdOuHH8Qi+Rexi1wLlpzIo1gstHWBfZzy1+qHRV5A4TqPp15YzBPm0WSggW6PbSn+F4lf57VCnHF7p8SvzAA2ZZJPYJURt8X7bbg+H3i+PEjH9DXItNEqs2sNcug37xZQDLm7X36nOoGPs54XsEGzPdEV+itQNGUFEjY6X9Uv+Acuks7NpyGvCoKxGwgKgE5XyJ+nNKlyHHOLb6N1NuHyBrZrgtY/JYJHRooo5CEqYKBqdFnmbTVGEkCvJKxLnjwKWf+fEPoWeQFj5ObDjcKMZf2Jm2Ae69x+ikU5gBXsRmoF94GXTLfN0/vLt98KDPnxwAQL9j5V1jGOY8jQl6MLxEs56cwXN0dqCnImzVH3TZT1cJ8SW1BRX6qIVxEzjsSGx3yxF3suAilPMqGRp4ffyopjMD1JXiKR2RwLKzizUe5e8XyGOy9fplzhw3jVzTRyUZTRSZKkMLWcQ/gv0E4aONNqs4P+NameAZYOD12qRkxosQQP5uux6B2nRyZ7sAV54DgFyLiRcq1FvwKw2EPQdk4HDoePrO/RNUbyNddnM/mMgj4FW65xCoT1LmjrIjsv/Ggdlx46ueczhMgtBunx1/w8k8V+l8LVZ8gAT6wkU5J+DPQalQguMg12Jzug3q4TbdHiGCmD9EunCwOmsLuLJkz6EcSYXtrlDEnAM+hicw7iergYLLlMXpfTdGxJCWJmP4zqUFeTTmsmhsjGBt7NiEB/9pFFEB3pSbf4iiUukw63Eo8Aqnf4iwob6X1QviCWuc8t0LUlT9vALgh/f2DPVOOmR0RW6bgRvc7DSF20V/omg+YBw==").unwrap()).unwrap(),
             },
-        }
-    }
-}
-
-impl ServiceConfiguration {
-    pub fn base_url(&self, endpoint: Endpoint) -> &Url {
-        match endpoint {
-            Endpoint::Service => &self.service_url,
-            Endpoint::Storage => &self.storage_url,
-            Endpoint::Cdn(ref n) => &self.cdn_urls[n],
-            Endpoint::ContactDiscovery => &self.contact_discovery_url,
         }
     }
 }

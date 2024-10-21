@@ -2,11 +2,13 @@ use std::{collections::HashMap, convert::TryInto};
 
 use crate::{
     configuration::Endpoint,
-    groups_v2::model::{Group, GroupChanges},
-    groups_v2::operations::{GroupDecodingError, GroupOperations},
+    groups_v2::{
+        model::{Group, GroupChanges},
+        operations::{GroupDecodingError, GroupOperations},
+    },
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
-    push_service::{HttpAuth, HttpAuthOverride, ServiceIds},
+    push_service::{HttpAuth, HttpAuthOverride, ReqwestExt, ServiceIds},
     utils::BASE64_RELAXED,
 };
 
@@ -15,6 +17,7 @@ use bytes::Bytes;
 use chrono::{Days, NaiveDate, NaiveTime, Utc};
 use futures::AsyncReadExt;
 use rand::RngCore;
+use reqwest::Method;
 use serde::Deserialize;
 use zkgroup::{
     auth::AuthCredentialWithPniResponse,
@@ -165,20 +168,23 @@ impl<C: CredentialsCache> GroupsManager<C> {
 
             let credentials_response: CredentialResponse = self
                 .push_service
-                .get_json(
-                    Endpoint::Service,
-                    &path,
-                    &[],
+                .request(
+                    Method::GET,
+                    Endpoint::service(path),
                     HttpAuthOverride::NoOverride,
-                )
+                )?
+                .send()
+                .await?
+                .service_error_for_status()
+                .await?
+                .json()
                 .await?;
             self.credentials_cache
                 .write(credentials_response.parse()?)?;
             self.credentials_cache.get(&today)?.ok_or_else(|| {
-                ServiceError::ResponseError {
+                ServiceError::InvalidFrame {
                     reason:
-                        "credentials received did not contain requested day"
-                            .into(),
+                        "credentials received did not contain requested day",
                 }
             })?
         };
@@ -279,12 +285,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             .retrieve_groups_v2_profile_avatar(path)
             .await?;
         let mut result = Vec::with_capacity(10 * 1024 * 1024);
-        encrypted_avatar
-            .read_to_end(&mut result)
-            .await
-            .map_err(|e| ServiceError::ResponseError {
-                reason: format!("reading avatar data: {}", e),
-            })?;
+        encrypted_avatar.read_to_end(&mut result).await?;
         Ok(GroupOperations::new(group_secret_params).decrypt_avatar(&result))
     }
 

@@ -1,14 +1,26 @@
+use derivative::Derivative;
 use libsignal_protocol::IdentityKey;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{AccountAttributes, AuthCredentials, PushService, ServiceError};
+use super::{AccountAttributes, PushService, ServiceError};
 use crate::{
     configuration::Endpoint,
     pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
-    push_service::HttpAuthOverride,
+    push_service::{response::ReqwestExt, HttpAuthOverride},
     utils::serde_base64,
 };
+
+/// This type is used in registration lock handling.
+/// It's identical with HttpAuth, but used to avoid type confusion.
+#[derive(Derivative, Clone, Serialize, Deserialize)]
+#[derivative(Debug)]
+pub struct AuthCredentials {
+    pub username: String,
+    #[derivative(Debug = "ignore")]
+    pub password: String,
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -31,19 +43,11 @@ pub struct VerifyAccountResponse {
     pub number: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum VerificationTransport {
     Sms,
     Voice,
-}
-
-impl VerificationTransport {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Self::Sms => "sms",
-            Self::Voice => "voice",
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -148,7 +152,12 @@ impl PushService {
             device_activation_request: DeviceActivationRequest,
         }
 
-        let req = RegistrationSessionRequestBody {
+        self.request(
+            Method::POST,
+            Endpoint::service("/v1/registration"),
+            HttpAuthOverride::NoOverride,
+        )?
+        .json(&RegistrationSessionRequestBody {
             session_id: registration_method.session_id(),
             recovery_password: registration_method.recovery_password(),
             account_attributes,
@@ -157,18 +166,14 @@ impl PushService {
             pni_identity_key: pni_identity_key.serialize().into(),
             device_activation_request,
             every_signed_key_valid: true,
-        };
-
-        let res: VerifyAccountResponse = self
-            .post_json(
-                Endpoint::Service,
-                "/v1/registration",
-                &[],
-                HttpAuthOverride::NoOverride,
-                req,
-            )
-            .await?;
-        Ok(res)
+        })
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     // Equivalent of Java's
@@ -190,24 +195,25 @@ impl PushService {
             push_token_type: Option<&'a str>,
         }
 
-        let req = VerificationSessionMetadataRequestBody {
+        self.request(
+            Method::POST,
+            Endpoint::service("/v1/verification/session"),
+            HttpAuthOverride::Unidentified,
+        )?
+        .json(&VerificationSessionMetadataRequestBody {
             number,
             push_token_type: push_token.as_ref().map(|_| "fcm"),
             push_token,
             mcc,
             mnc,
-        };
-
-        let res: RegistrationSessionMetadataResponse = self
-            .post_json(
-                Endpoint::Service,
-                "/v1/verification/session",
-                &[],
-                HttpAuthOverride::Unidentified,
-                req,
-            )
-            .await?;
-        Ok(res)
+        })
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn patch_verification_session<'a>(
@@ -230,25 +236,29 @@ impl PushService {
             push_token_type: Option<&'a str>,
         }
 
-        let req = UpdateVerificationSessionRequestBody {
+        self.request(
+            Method::PATCH,
+            Endpoint::service(format!(
+                "/v1/verification/session/{}",
+                session_id
+            )),
+            HttpAuthOverride::Unidentified,
+        )?
+        .json(&UpdateVerificationSessionRequestBody {
             captcha,
             push_token_type: push_token.as_ref().map(|_| "fcm"),
             push_token,
             mcc,
             mnc,
             push_challenge,
-        };
-
-        let res: RegistrationSessionMetadataResponse = self
-            .patch_json(
-                Endpoint::Service,
-                &format!("/v1/verification/session/{}", session_id),
-                &[],
-                HttpAuthOverride::Unidentified,
-                req,
-            )
-            .await?;
-        Ok(res)
+        })
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     // Equivalent of Java's
@@ -271,20 +281,28 @@ impl PushService {
         // locale: Option<String>,
         transport: VerificationTransport,
     ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
-        let mut req = std::collections::HashMap::new();
-        req.insert("transport", transport.as_str());
-        req.insert("client", client);
+        #[derive(Debug, Serialize)]
+        struct VerificationCodeRequest<'a> {
+            transport: VerificationTransport,
+            client: &'a str,
+        }
 
-        let res: RegistrationSessionMetadataResponse = self
-            .post_json(
-                Endpoint::Service,
-                &format!("/v1/verification/session/{}/code", session_id),
-                &[],
-                HttpAuthOverride::Unidentified,
-                req,
-            )
-            .await?;
-        Ok(res)
+        self.request(
+            Method::POST,
+            Endpoint::service(format!(
+                "/v1/verification/session/{}/code",
+                session_id
+            )),
+            HttpAuthOverride::Unidentified,
+        )?
+        .json(&VerificationCodeRequest { transport, client })
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn submit_verification_code(
@@ -292,18 +310,28 @@ impl PushService {
         session_id: &str,
         verification_code: &str,
     ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
-        let mut req = std::collections::HashMap::new();
-        req.insert("code", verification_code);
+        #[derive(Debug, Serialize)]
+        struct VerificationCode<'a> {
+            code: &'a str,
+        }
 
-        let res: RegistrationSessionMetadataResponse = self
-            .put_json(
-                Endpoint::Service,
-                &format!("/v1/verification/session/{}/code", session_id),
-                &[],
-                HttpAuthOverride::Unidentified,
-                req,
-            )
-            .await?;
-        Ok(res)
+        self.request(
+            Method::PUT,
+            Endpoint::service(format!(
+                "/v1/verification/session/{}/code",
+                session_id
+            )),
+            HttpAuthOverride::Unidentified,
+        )?
+        .json(&VerificationCode {
+            code: verification_code,
+        })
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 }

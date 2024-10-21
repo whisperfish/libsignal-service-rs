@@ -1,3 +1,4 @@
+use aes::cipher::block_padding::UnpadError;
 use libsignal_protocol::SignalProtocolError;
 use zkgroup::ZkGroupDeserializationFailure;
 
@@ -11,7 +12,7 @@ use super::{
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
     #[error("Service request timed out: {reason}")]
-    Timeout { reason: String },
+    Timeout { reason: &'static str },
 
     #[error("invalid URL: {0}")]
     InvalidUrl(#[from] url::ParseError),
@@ -22,11 +23,11 @@ pub enum ServiceError {
     #[error("Error sending request: {reason}")]
     SendError { reason: String },
 
-    #[error("Error decoding response: {reason}")]
-    ResponseError { reason: String },
+    #[error("i/o error")]
+    IO(#[from] std::io::Error),
 
-    #[error("Error decoding JSON response: {reason}")]
-    JsonDecodeError { reason: String },
+    #[error("Error decoding JSON: {0}")]
+    JsonDecodeError(#[from] serde_json::Error),
     #[error("Error decoding protobuf frame: {0}")]
     ProtobufDecodeError(#[from] prost::DecodeError),
     #[error("error encoding or decoding bincode: {0}")]
@@ -43,13 +44,19 @@ pub enum ServiceError {
     #[error("Unexpected response: HTTP {http_code}")]
     UnhandledResponseCode { http_code: u16 },
 
-    #[error("Websocket error: {reason}")]
-    WsError { reason: String },
+    #[error("Websocket error: {0}")]
+    WsError(#[from] reqwest_websocket::Error),
     #[error("Websocket closing: {reason}")]
-    WsClosing { reason: String },
+    WsClosing { reason: &'static str },
+
+    #[error("Invalid padding: {0}")]
+    Padding(#[from] UnpadError),
+
+    #[error("unknown padding version {0}")]
+    PaddingVersion(u32),
 
     #[error("Invalid frame: {reason}")]
-    InvalidFrameError { reason: String },
+    InvalidFrame { reason: &'static str },
 
     #[error("MAC error")]
     MacError,
@@ -86,4 +93,10 @@ pub enum ServiceError {
 
     #[error("invalid device name")]
     InvalidDeviceName,
+
+    #[error("Unknown CDN version {0}")]
+    UnknownCdnVersion(u32),
+
+    #[error("HTTP reqwest error: {0}")]
+    Http(#[from] reqwest::Error),
 }

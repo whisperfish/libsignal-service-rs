@@ -134,10 +134,9 @@ where
         let ciphertext = if let Some(msg) = envelope.content.as_ref() {
             msg
         } else {
-            return Err(ServiceError::InvalidFrameError {
+            return Err(ServiceError::InvalidFrame {
                 reason:
-                    "Envelope should have either a legacy message or content."
-                        .into(),
+                    "envelope should have either a legacy message or content.",
             });
         };
 
@@ -314,11 +313,8 @@ where
             },
             _ => {
                 // else
-                return Err(ServiceError::InvalidFrameError {
-                    reason: format!(
-                        "Envelope has unknown type {:?}.",
-                        envelope.r#type()
-                    ),
+                return Err(ServiceError::InvalidFrame {
+                    reason: "envelope has unknown type",
                 });
             },
         };
@@ -411,9 +407,7 @@ struct Plaintext {
 #[allow(clippy::comparison_chain)]
 fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     if version < 2 {
-        Err(ServiceError::InvalidFrameError {
-            reason: format!("Unknown version {}", version),
-        })
+        Err(ServiceError::PaddingVersion(version))
     } else if version == 2 {
         Ok(contents.to_vec())
     } else {
@@ -439,8 +433,8 @@ fn strip_padding_version(
     contents: &mut Vec<u8>,
 ) -> Result<(), ServiceError> {
     if version < 2 {
-        Err(ServiceError::InvalidFrameError {
-            reason: format!("Unknown version {}", version),
+        Err(ServiceError::InvalidFrame {
+            reason: "unknown version",
         })
     } else if version == 2 {
         Ok(())
@@ -452,11 +446,7 @@ fn strip_padding_version(
 
 #[allow(clippy::comparison_chain)]
 fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
-    let new_length = Iso7816::raw_unpad(contents)
-        .map_err(|e| ServiceError::InvalidFrameError {
-            reason: format!("Invalid message padding: {:?}", e),
-        })?
-        .len();
+    let new_length = Iso7816::raw_unpad(contents)?.len();
     contents.resize(new_length, 0);
     Ok(())
 }

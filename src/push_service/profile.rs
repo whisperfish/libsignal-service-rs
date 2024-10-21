@@ -1,18 +1,18 @@
 use libsignal_protocol::Aci;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 use crate::{
     configuration::Endpoint,
     content::ServiceError,
     profile_cipher::ProfileCipherError,
-    push_service::{AvatarWrite, HttpAuthOverride},
+    push_service::AvatarWrite,
     utils::{serde_base64, serde_optional_base64},
     Profile,
 };
 
-use super::{DeviceCapabilities, PushService};
+use super::{DeviceCapabilities, HttpAuthOverride, PushService, ReqwestExt};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -93,24 +93,28 @@ impl PushService {
         address: Aci,
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
-        let uuid: Uuid = address.into();
-        let endpoint = if let Some(key) = profile_key {
+        let path = if let Some(key) = profile_key {
             let version =
                 bincode::serialize(&key.get_profile_key_version(address))?;
             let version = std::str::from_utf8(&version)
                 .expect("hex encoded profile key version");
-            format!("/v1/profile/{}/{}", uuid, version)
+            format!("/v1/profile/{}/{}", address.service_id_string(), version)
         } else {
-            format!("/v1/profile/{}", uuid)
+            format!("/v1/profile/{}", address.service_id_string())
         };
         // TODO: set locale to en_US
-        self.get_json(
-            Endpoint::Service,
-            &endpoint,
-            &[],
+        self.request(
+            Method::GET,
+            Endpoint::service(path),
             HttpAuthOverride::NoOverride,
-        )
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
         .await
+        .map_err(Into::into)
     }
 
     pub async fn retrieve_profile_avatar(
@@ -163,35 +167,33 @@ impl PushService {
         };
 
         // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
-        let response: Result<String, _> = self
-            .put_json(
-                Endpoint::Service,
-                "/v1/profile",
-                &[],
+        let upload_url: Result<String, _> = self
+            .request(
+                Method::PUT,
+                Endpoint::service("/v1/profile"),
                 HttpAuthOverride::NoOverride,
-                command,
-            )
+            )?
+            .json(&command)
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
             .await;
-        match (response, avatar) {
-            (Ok(_url), AvatarWrite::NewAvatar(_avatar)) => {
+
+        match (upload_url, avatar) {
+            (_url, AvatarWrite::NewAvatar(_avatar)) => {
                 // FIXME
                 unreachable!("Uploading avatar unimplemented");
             },
             // FIXME cleanup when #54883 is stable and MSRV:
             // or-patterns syntax is experimental
             // see issue #54883 <https://github.com/rust-lang/rust/issues/54883> for more information
-            (
-                Err(ServiceError::JsonDecodeError { .. }),
-                AvatarWrite::RetainAvatar,
-            )
-            | (
-                Err(ServiceError::JsonDecodeError { .. }),
-                AvatarWrite::NoAvatar,
-            ) => {
+            (Err(_), AvatarWrite::RetainAvatar)
+            | (Err(_), AvatarWrite::NoAvatar) => {
                 // OWS sends an empty string when there's no attachment
                 Ok(None)
             },
-            (Err(e), _) => Err(e),
             (Ok(_resp), AvatarWrite::RetainAvatar)
             | (Ok(_resp), AvatarWrite::NoAvatar) => {
                 tracing::warn!(

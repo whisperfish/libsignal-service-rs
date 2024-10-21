@@ -1,11 +1,12 @@
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::configuration::Endpoint;
 
 use super::{
-    DeviceActivationRequest, HttpAuth, HttpAuthOverride, PushService,
-    ServiceError,
+    response::ReqwestExt, DeviceActivationRequest, HttpAuth, HttpAuthOverride,
+    PushService, ServiceError,
 };
 
 #[derive(Debug, Serialize)]
@@ -59,18 +60,32 @@ impl PushService {
         link_request: &LinkRequest,
         http_auth: HttpAuth,
     ) -> Result<LinkResponse, ServiceError> {
-        self.put_json(
-            Endpoint::Service,
-            "/v1/devices/link",
-            &[],
+        self.request(
+            Method::PUT,
+            Endpoint::service("/v1/devices/link"),
             HttpAuthOverride::Identified(http_auth),
-            link_request,
-        )
+        )?
+        .json(&link_request)
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
         .await
+        .map_err(Into::into)
     }
 
     pub async fn unlink_device(&mut self, id: i64) -> Result<(), ServiceError> {
-        self.delete_json(Endpoint::Service, &format!("/v1/devices/{}", id), &[])
-            .await
+        self.request(
+            Method::DELETE,
+            Endpoint::service(format!("/v1/devices/{}", id)),
+            HttpAuthOverride::NoOverride,
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?;
+
+        Ok(())
     }
 }

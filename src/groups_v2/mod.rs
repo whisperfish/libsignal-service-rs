@@ -10,6 +10,6 @@ pub use manager::{
 };
 pub use model::{
     AccessControl, Group, GroupChange, GroupChanges, Member, PendingMember,
-    RequestingMember, Timer,
+    RequestingMember, Role, Timer,
 };
 pub use operations::GroupDecodingError;

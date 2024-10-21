@@ -1,19 +1,24 @@
-use std::io::{self, Read};
-
-use bytes::Bytes;
-use futures::{FutureExt, StreamExt, TryStreamExt};
-use http_body_util::BodyExt;
-use hyper::Method;
-use tracing::debug;
-
-use crate::{
-    configuration::Endpoint,
-    prelude::AttachmentIdentifier,
-    proto::AttachmentPointer,
-    push_service::{HttpAuthOverride, RequestBody},
+use std::{
+    collections::HashMap,
+    io::{self, Read, SeekFrom},
 };
 
-use super::{PushService, ServiceError};
+use futures::TryStreamExt;
+use reqwest::{
+    header::{CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE},
+    multipart::Part,
+    Method, StatusCode,
+};
+use serde::Deserialize;
+use tracing::{debug, trace};
+use url::Url;
+
+use crate::{
+    configuration::Endpoint, prelude::AttachmentIdentifier,
+    proto::AttachmentPointer, push_service::HttpAuthOverride,
+};
+
+use super::{response::ReqwestExt, PushService, ServiceError};
 
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -25,181 +30,412 @@ pub struct AttachmentV2UploadAttributes {
     date: String,
     policy: String,
     signature: String,
-    // This is different from Java's implementation,
-    // and I (Ruben) am unsure why they decide to force-parse at upload-time instead of at registration
-    // time.
-    attachment_id: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentUploadForm {
+    pub cdn: u32,
+    pub key: String,
+    pub headers: HashMap<String, String>,
+    pub signed_upload_location: Url,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AttachmentDigest {
+    pub digest: Vec<u8>,
+    pub incremental_digest: Option<Vec<u8>>,
+    pub incremental_mac_chunk_size: u64,
+}
+
+#[derive(Debug)]
+pub struct ResumeInfo {
+    pub content_range: Option<String>,
+    pub content_start: u64,
 }
 
 impl PushService {
+    pub async fn get_attachment(
+        &mut self,
+        ptr: &AttachmentPointer,
+    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
+        let path = match ptr.attachment_identifier.as_ref() {
+            Some(AttachmentIdentifier::CdnId(id)) => {
+                format!("attachments/{}", id)
+            },
+            Some(AttachmentIdentifier::CdnKey(key)) => {
+                format!("attachments/{}", key)
+            },
+            None => {
+                return Err(ServiceError::InvalidFrame {
+                    reason: "no attachment identifier in pointer",
+                });
+            },
+        };
+        self.get_from_cdn(ptr.cdn_number(), &path).await
+    }
+
     #[tracing::instrument(skip(self))]
     pub(crate) async fn get_from_cdn(
         &mut self,
         cdn_id: u32,
         path: &str,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        let response = self
+        let response_stream = self
             .request(
                 Method::GET,
-                Endpoint::Cdn(cdn_id),
-                path,
-                &[],
+                Endpoint::cdn(cdn_id, path),
                 HttpAuthOverride::Unidentified, // CDN requests are always without authentication
-                None,
-            )
-            .await?;
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .bytes_stream()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            .into_async_read();
 
-        Ok(Box::new(
-            response
-                .into_body()
-                .into_data_stream()
-                .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
-                .into_async_read(),
-        ))
+        Ok(response_stream)
     }
 
-    pub async fn get_attachment_by_id(
+    pub(crate) async fn get_attachment_v4_upload_attributes(
         &mut self,
-        id: &str,
-        cdn_id: u32,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        let path = format!("attachments/{}", id);
-        self.get_from_cdn(cdn_id, &path).await
+    ) -> Result<AttachmentUploadForm, ServiceError> {
+        self.request(
+            Method::GET,
+            Endpoint::service("/v4/attachments/form/upload"),
+            HttpAuthOverride::NoOverride,
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 
-    pub async fn get_attachment(
+    #[tracing::instrument(skip(self), level=tracing::Level::TRACE)]
+    pub(crate) async fn get_attachment_resumable_upload_url(
         &mut self,
-        ptr: &AttachmentPointer,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        match ptr.attachment_identifier.as_ref().unwrap() {
-            AttachmentIdentifier::CdnId(id) => {
-                // cdn_number did not exist for this part of the protocol.
-                // cdn_number(), however, returns 0 when the field does not
-                // exist.
-                self.get_attachment_by_id(&format!("{}", id), ptr.cdn_number())
-                    .await
-            },
-            AttachmentIdentifier::CdnKey(key) => {
-                self.get_attachment_by_id(key, ptr.cdn_number()).await
-            },
+        attachment_upload_form: &AttachmentUploadForm,
+    ) -> Result<Url, ServiceError> {
+        let mut request = self.request(
+            Method::POST,
+            Endpoint::Absolute(
+                attachment_upload_form.signed_upload_location.clone(),
+            ),
+            HttpAuthOverride::Unidentified,
+        )?;
+
+        for (key, value) in &attachment_upload_form.headers {
+            request = request.header(key, value);
+        }
+        request = request.header(CONTENT_LENGTH, "0");
+
+        if attachment_upload_form.cdn == 2 {
+            request = request.header(CONTENT_TYPE, "application/octet-stream");
+        } else if attachment_upload_form.cdn == 3 {
+            request = request
+                .header("Upload-Defer-Length", "1")
+                .header("Tus-Resumable", "1.0.0");
+        } else {
+            return Err(ServiceError::UnknownCdnVersion(
+                attachment_upload_form.cdn,
+            ));
+        };
+
+        Ok(request
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .headers()
+            .get("location")
+            .ok_or_else(|| ServiceError::InvalidFrame {
+                reason: "missing location header in HTTP response",
+            })?
+            .to_str()
+            .map_err(|_| ServiceError::InvalidFrame {
+                reason: "invalid location header bytes in HTTP response",
+            })?
+            .parse()?)
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn get_attachment_resume_info_cdn2(
+        &mut self,
+        resumable_url: &Url,
+        content_length: u64,
+    ) -> Result<ResumeInfo, ServiceError> {
+        let response = self
+            .request(
+                Method::PUT,
+                Endpoint::cdn_url(2, resumable_url),
+                HttpAuthOverride::Unidentified,
+            )?
+            .header(CONTENT_RANGE, format!("bytes */{content_length}"))
+            .send()
+            .await?
+            .error_for_status()?;
+
+        let status = response.status();
+
+        if status.is_success() {
+            Ok(ResumeInfo {
+                content_range: None,
+                content_start: content_length,
+            })
+        } else if status == StatusCode::PERMANENT_REDIRECT {
+            let offset =
+                match response.headers().get(RANGE) {
+                    Some(range) => range
+                        .to_str()
+                        .map_err(|_| ServiceError::InvalidFrame {
+                            reason: "invalid format for Range HTTP header",
+                        })?
+                        .split("-")
+                        .nth(1)
+                        .ok_or_else(|| ServiceError::InvalidFrame {
+                            reason:
+                                "invalid value format for Range HTTP header",
+                        })?
+                        .parse::<u64>()
+                        .map_err(|_| ServiceError::InvalidFrame {
+                            reason:
+                                "invalid number format for Range HTTP header",
+                        })?
+                        + 1,
+                    None => 0,
+                };
+
+            Ok(ResumeInfo {
+                content_range: Some(format!(
+                    "bytes {}-{}/{}",
+                    offset,
+                    content_length - 1,
+                    content_length
+                )),
+                content_start: offset,
+            })
+        } else {
+            Err(ServiceError::InvalidFrame {
+                reason: "failed to get resumable upload data from CDN2",
+            })
         }
     }
 
-    pub async fn get_attachment_v2_upload_attributes(
+    #[tracing::instrument(skip(self))]
+    async fn get_attachment_resume_info_cdn3(
         &mut self,
-    ) -> Result<AttachmentV2UploadAttributes, ServiceError> {
-        self.get_json(
-            Endpoint::Service,
-            "/v2/attachments/form/upload",
-            &[],
-            HttpAuthOverride::NoOverride,
-        )
-        .await
+        resumable_url: &Url,
+        headers: &HashMap<String, String>,
+    ) -> Result<ResumeInfo, ServiceError> {
+        let mut request = self
+            .request(
+                Method::HEAD,
+                Endpoint::cdn_url(3, resumable_url),
+                HttpAuthOverride::Unidentified,
+            )?
+            .header("Tus-Resumable", "1.0.0");
+
+        for (key, value) in headers {
+            request = request.header(key, value);
+        }
+
+        let response = request.send().await?.service_error_for_status().await?;
+
+        let upload_offset = response
+            .headers()
+            .get("upload-offset")
+            .ok_or(ServiceError::InvalidFrame {
+                reason: "no Upload-Offset header in response",
+            })?
+            .to_str()
+            .map_err(|_| ServiceError::InvalidFrame {
+                reason: "invalid upload-offset header bytes in HTTP response",
+            })?
+            .parse()
+            .map_err(|_| ServiceError::InvalidFrame {
+                reason: "invalid integer value for Upload-Offset header",
+            })?;
+
+        Ok(ResumeInfo {
+            content_range: None,
+            content_start: upload_offset,
+        })
     }
 
-    /// Upload attachment to CDN
+    /// Upload attachment
     ///
     /// Returns attachment ID and the attachment digest
-    pub async fn upload_attachment<'s, C>(
+    #[tracing::instrument(skip(self, headers, content))]
+    pub(crate) async fn upload_attachment_v4(
         &mut self,
-        attrs: &AttachmentV2UploadAttributes,
-        content: &'s mut C,
-    ) -> Result<(u64, Vec<u8>), ServiceError>
-    where
-        C: std::io::Read + Send + 's,
-    {
-        let values = [
-            ("acl", &attrs.acl as &str),
-            ("key", &attrs.key),
-            ("policy", &attrs.policy),
-            ("Content-Type", "application/octet-stream"),
-            ("x-amz-algorithm", &attrs.algorithm),
-            ("x-amz-credential", &attrs.credential),
-            ("x-amz-date", &attrs.date),
-            ("x-amz-signature", &attrs.signature),
-        ];
-
-        let mut digester = crate::digeststream::DigestingReader::new(content);
-
-        self.post_to_cdn0(
-            "attachments/",
-            &values,
-            Some(("file", &mut digester)),
-        )
-        .await?;
-        Ok((attrs.attachment_id, digester.finalize()))
+        cdn_id: u32,
+        resumable_url: &Url,
+        content_type: &str,
+        content_length: u64,
+        headers: HashMap<String, String>,
+        content: impl std::io::Read + std::io::Seek + Send,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        if cdn_id == 2 {
+            self.upload_to_cdn2(resumable_url, content_length, content)
+                .await
+        } else {
+            self.upload_to_cdn3(
+                resumable_url,
+                &headers,
+                content_type,
+                content_length,
+                content,
+            )
+            .await
+        }
     }
 
-    #[tracing::instrument(skip(self, value, file), fields(file = file.as_ref().map(|_| "")))]
-    pub async fn post_to_cdn0<'s, C>(
+    #[tracing::instrument(skip(self, upload_attributes, reader))]
+    pub async fn upload_to_cdn0(
         &mut self,
         path: &str,
-        value: &[(&str, &str)],
-        file: Option<(&str, &'s mut C)>,
-    ) -> Result<(), ServiceError>
-    where
-        C: Read + Send + 's,
-    {
-        let mut form = mpart_async::client::MultipartRequest::default();
+        upload_attributes: AttachmentV2UploadAttributes,
+        filename: String,
+        mut reader: impl Read + Send,
+    ) -> Result<(), ServiceError> {
+        let mut buf = Vec::new();
+        reader
+            .read_to_end(&mut buf)
+            .expect("infallible Read instance");
 
-        // mpart-async has a peculiar ordering of the form items,
-        // and Amazon S3 expects them in a very specific order (i.e., the file contents should
-        // go last.
-        //
-        // mpart-async uses a VecDeque internally for ordering the fields in the order given.
-        //
-        // https://github.com/cetra3/mpart-async/issues/16
-
-        for &(k, v) in value {
-            form.add_field(k, v);
-        }
-
-        if let Some((filename, file)) = file {
-            // XXX Actix doesn't cope with none-'static lifetimes
-            // https://docs.rs/actix-web/3.2.0/actix_web/body/enum.Body.html
-            let mut buf = Vec::new();
-            file.read_to_end(&mut buf)
-                .expect("infallible Read instance");
-            form.add_stream(
+        // Amazon S3 expects multipart fields in a very specific order
+        // DO NOT CHANGE THIS (or do it, but feel the wrath of the gods)
+        let form = reqwest::multipart::Form::new()
+            .text("acl", upload_attributes.acl)
+            .text("key", upload_attributes.key)
+            .text("policy", upload_attributes.policy)
+            .text("Content-Type", "application/octet-stream")
+            .text("x-amz-algorithm", upload_attributes.algorithm)
+            .text("x-amz-credential", upload_attributes.credential)
+            .text("x-amz-date", upload_attributes.date)
+            .text("x-amz-signature", upload_attributes.signature)
+            .part(
                 "file",
-                filename,
-                "application/octet-stream",
-                futures::future::ok::<_, ()>(Bytes::from(buf)).into_stream(),
+                Part::stream(buf)
+                    .mime_str("application/octet-stream")?
+                    .file_name(filename),
             );
-        }
-
-        let content_type =
-            format!("multipart/form-data; boundary={}", form.get_boundary());
-
-        // XXX Amazon S3 needs the Content-Length, but we don't know it without depleting the whole
-        // stream. Sadly, Content-Length != contents.len(), but should include the whole form.
-        let mut body_contents = vec![];
-        while let Some(b) = form.next().await {
-            // Unwrap, because no error type was used above
-            body_contents.extend(b.unwrap());
-        }
-        tracing::trace!(
-            "Sending PUT with Content-Type={} and length {}",
-            content_type,
-            body_contents.len()
-        );
 
         let response = self
             .request(
                 Method::POST,
-                Endpoint::Cdn(0),
-                path,
-                &[],
+                Endpoint::cdn(0, path),
                 HttpAuthOverride::NoOverride,
-                Some(RequestBody {
-                    contents: body_contents,
-                    content_type,
-                }),
-            )
+            )?
+            .multipart(form)
+            .send()
+            .await?
+            .service_error_for_status()
             .await?;
 
         debug!("HyperPushService::PUT response: {:?}", response);
 
         Ok(())
+    }
+
+    #[tracing::instrument(skip(self, content))]
+    async fn upload_to_cdn2(
+        &mut self,
+        resumable_url: &Url,
+        content_length: u64,
+        mut content: impl std::io::Read + std::io::Seek + Send,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        let resume_info = self
+            .get_attachment_resume_info_cdn2(resumable_url, content_length)
+            .await?;
+
+        let mut digester =
+            crate::digeststream::DigestingReader::new(&mut content);
+
+        let mut buf = Vec::new();
+        digester.read_to_end(&mut buf)?;
+
+        trace!("digested content");
+
+        let mut request = self.request(
+            Method::PUT,
+            Endpoint::cdn_url(2, resumable_url),
+            HttpAuthOverride::Unidentified,
+        )?;
+
+        if let Some(content_range) = resume_info.content_range {
+            request = request.header(CONTENT_RANGE, content_range);
+        }
+
+        request.body(buf).send().await?.error_for_status()?;
+
+        Ok(AttachmentDigest {
+            digest: digester.finalize(),
+            incremental_digest: None,
+            incremental_mac_chunk_size: 0,
+        })
+    }
+
+    #[tracing::instrument(skip(self, content))]
+    async fn upload_to_cdn3(
+        &mut self,
+        resumable_url: &Url,
+        headers: &HashMap<String, String>,
+        content_type: &str,
+        content_length: u64,
+        mut content: impl std::io::Read + std::io::Seek + Send,
+    ) -> Result<AttachmentDigest, ServiceError> {
+        let resume_info = self
+            .get_attachment_resume_info_cdn3(resumable_url, headers)
+            .await?;
+
+        trace!(?resume_info, "got resume info");
+
+        if resume_info.content_start == content_length {
+            let mut digester =
+                crate::digeststream::DigestingReader::new(&mut content);
+            let mut buf = Vec::new();
+            digester.read_to_end(&mut buf)?;
+            return Ok(AttachmentDigest {
+                digest: digester.finalize(),
+                incremental_digest: None,
+                incremental_mac_chunk_size: 0,
+            });
+        }
+
+        let mut digester =
+            crate::digeststream::DigestingReader::new(&mut content);
+        digester.seek(SeekFrom::Start(resume_info.content_start))?;
+
+        let mut buf = Vec::new();
+        digester.read_to_end(&mut buf)?;
+
+        trace!("digested content");
+
+        self.request(
+            Method::PATCH,
+            Endpoint::cdn(3, resumable_url.path()),
+            HttpAuthOverride::Unidentified,
+        )?
+        .header("Tus-Resumable", "1.0.0")
+        .header("Upload-Offset", resume_info.content_start)
+        .header("Upload-Length", buf.len())
+        .header(CONTENT_TYPE, content_type)
+        .body(buf)
+        .send()
+        .await?;
+
+        trace!("attachment uploaded");
+
+        Ok(AttachmentDigest {
+            digest: digester.finalize(),
+            incremental_digest: None,
+            incremental_mac_chunk_size: 0,
+        })
     }
 }

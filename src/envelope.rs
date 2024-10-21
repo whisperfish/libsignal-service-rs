@@ -27,8 +27,8 @@ impl Envelope {
             if input.len() < VERSION_LENGTH
                 || input[VERSION_OFFSET] != SUPPORTED_VERSION
             {
-                return Err(ServiceError::InvalidFrameError {
-                    reason: "Unsupported signaling cryptogram version".into(),
+                return Err(ServiceError::InvalidFrame {
+                    reason: "unsupported signaling cryptogram version",
                 });
             }
 
