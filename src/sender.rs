@@ -6,7 +6,7 @@ use libsignal_protocol::{
     ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 use tracing_futures::Instrument;
 use uuid::Uuid;
 use zkgroup::GROUP_IDENTIFIER_LEN;
@@ -376,6 +376,7 @@ where
 
         // only send a sync message when sending to self and skip the rest of the process
         if message_to_self {
+            debug!("sending note to self");
             let sync_message = create_sync_message(content_body, None);
             return self
                 .try_send_message(
@@ -412,7 +413,7 @@ where
         };
 
         if needs_sync || self.is_multi_device().await {
-            tracing::debug!("sending multi-device sync message");
+            debug!("sending multi-device sync message");
             let sync_message = create_sync_message(content_body, Some(&result));
             self.try_send_message(
                 self.local_aci,
