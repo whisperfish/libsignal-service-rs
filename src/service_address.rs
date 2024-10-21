@@ -1,160 +1,39 @@
-use std::convert::TryFrom;
+use libsignal_protocol::{Aci, DeviceId, Pni, ProtocolAddress, ServiceId};
 
-use libsignal_protocol::{DeviceId, ProtocolAddress, ServiceId};
-use uuid::Uuid;
+pub trait ServiceIdExt {
+    fn to_protocol_address(
+        self,
+        device_id: impl Into<DeviceId>,
+    ) -> ProtocolAddress;
 
-pub use crate::push_service::ServiceIdType;
+    fn aci(self) -> Option<Aci>;
 
-#[derive(thiserror::Error, Debug, Clone)]
-pub enum ParseServiceAddressError {
-    #[error("Supplied UUID could not be parsed")]
-    InvalidUuid(#[from] uuid::Error),
-
-    #[error("Envelope without UUID")]
-    NoUuid,
+    fn pni(self) -> Option<Pni>;
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-pub struct ServiceAddress {
-    pub uuid: Uuid,
-    pub identity: ServiceIdType,
-}
-
-impl std::fmt::Display for ServiceAddress {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // This is used in ServiceAddress::to_service_id(&self), so keep this consistent.
-        match self.identity {
-            ServiceIdType::AccountIdentity => write!(f, "{}", self.uuid),
-            ServiceIdType::PhoneNumberIdentity => {
-                write!(f, "PNI:{}", self.uuid)
-            },
-        }
-    }
-}
-
-impl ServiceAddress {
-    pub fn to_protocol_address(
-        &self,
+impl<A> ServiceIdExt for A
+where
+    A: Into<ServiceId>,
+{
+    fn to_protocol_address(
+        self,
         device_id: impl Into<DeviceId>,
     ) -> ProtocolAddress {
-        match self.identity {
-            ServiceIdType::AccountIdentity => {
-                ProtocolAddress::new(self.uuid.to_string(), device_id.into())
-            },
-            ServiceIdType::PhoneNumberIdentity => ProtocolAddress::new(
-                format!("PNI:{}", self.uuid),
-                device_id.into(),
-            ),
+        let service_id: ServiceId = self.into();
+        ProtocolAddress::new(service_id.service_id_string(), device_id.into())
+    }
+
+    fn aci(self) -> Option<Aci> {
+        match self.into() {
+            ServiceId::Aci(aci) => Some(aci),
+            ServiceId::Pni(_) => None,
         }
     }
 
-    #[deprecated]
-    pub fn new_aci(uuid: Uuid) -> Self {
-        Self::from_aci(uuid)
-    }
-
-    pub fn from_aci(uuid: Uuid) -> Self {
-        Self {
-            uuid,
-            identity: ServiceIdType::AccountIdentity,
+    fn pni(self) -> Option<Pni> {
+        match self.into() {
+            ServiceId::Aci(_) => None,
+            ServiceId::Pni(pni) => Some(pni),
         }
-    }
-
-    #[deprecated]
-    pub fn new_pni(uuid: Uuid) -> Self {
-        Self::from_pni(uuid)
-    }
-
-    pub fn from_pni(uuid: Uuid) -> Self {
-        Self {
-            uuid,
-            identity: ServiceIdType::PhoneNumberIdentity,
-        }
-    }
-
-    pub fn aci(&self) -> Option<libsignal_protocol::Aci> {
-        use libsignal_protocol::Aci;
-        match self.identity {
-            ServiceIdType::AccountIdentity => {
-                Some(Aci::from_uuid_bytes(self.uuid.into_bytes()))
-            },
-            ServiceIdType::PhoneNumberIdentity => None,
-        }
-    }
-
-    pub fn pni(&self) -> Option<libsignal_protocol::Pni> {
-        use libsignal_protocol::Pni;
-        match self.identity {
-            ServiceIdType::AccountIdentity => None,
-            ServiceIdType::PhoneNumberIdentity => {
-                Some(Pni::from_uuid_bytes(self.uuid.into_bytes()))
-            },
-        }
-    }
-
-    pub fn to_service_id(&self) -> String {
-        self.to_string()
-    }
-}
-
-impl From<ServiceId> for ServiceAddress {
-    fn from(service_id: ServiceId) -> Self {
-        match service_id {
-            ServiceId::Aci(service_id) => {
-                ServiceAddress::from_aci(service_id.into())
-            },
-            ServiceId::Pni(service_id) => {
-                ServiceAddress::from_pni(service_id.into())
-            },
-        }
-    }
-}
-
-impl TryFrom<&ProtocolAddress> for ServiceAddress {
-    type Error = ParseServiceAddressError;
-
-    fn try_from(addr: &ProtocolAddress) -> Result<Self, Self::Error> {
-        let value = addr.name();
-        if let Some(pni) = value.strip_prefix("PNI:") {
-            Ok(ServiceAddress::from_pni(Uuid::parse_str(pni)?))
-        } else {
-            Ok(ServiceAddress::from_aci(Uuid::parse_str(value)?))
-        }
-        .map_err(|e| {
-            tracing::error!("Parsing ServiceAddress from {:?}", addr);
-            ParseServiceAddressError::InvalidUuid(e)
-        })
-    }
-}
-
-impl TryFrom<&str> for ServiceAddress {
-    type Error = ParseServiceAddressError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if let Some(pni) = value.strip_prefix("PNI:") {
-            Ok(ServiceAddress::from_pni(Uuid::parse_str(pni)?))
-        } else {
-            Ok(ServiceAddress::from_aci(Uuid::parse_str(value)?))
-        }
-        .map_err(|e| {
-            tracing::error!("Parsing ServiceAddress from '{}'", value);
-            ParseServiceAddressError::InvalidUuid(e)
-        })
-    }
-}
-
-impl TryFrom<&[u8]> for ServiceAddress {
-    type Error = ParseServiceAddressError;
-
-    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        if let Some(pni) = value.strip_prefix(b"PNI:") {
-            Ok(ServiceAddress::from_pni(Uuid::from_slice(pni)?))
-        } else {
-            Ok(ServiceAddress::from_aci(Uuid::from_slice(value)?))
-        }
-        .map_err(|e| {
-            tracing::error!("Parsing ServiceAddress from {:?}", value);
-            ParseServiceAddressError::InvalidUuid(e)
-        })
     }
 }

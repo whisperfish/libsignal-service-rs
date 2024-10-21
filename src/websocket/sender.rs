@@ -13,7 +13,10 @@ impl SignalWebSocket {
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
         let request = WebSocketRequestMessage::new(Method::PUT)
-            .path(format!("/v1/messages/{}", messages.destination))
+            .path(format!(
+                "/v1/messages/{}",
+                messages.destination.service_id_string()
+            ))
             .json(&messages)?;
         self.request_json(request).await
     }
@@ -24,7 +27,10 @@ impl SignalWebSocket {
         access: &UnidentifiedAccess,
     ) -> Result<SendMessageResponse, ServiceError> {
         let request = WebSocketRequestMessage::new(Method::PUT)
-            .path(format!("/v1/messages/{}", messages.destination))
+            .path(format!(
+                "/v1/messages/{}",
+                messages.destination.service_id_string()
+            ))
             .header(
                 "Unidentified-Access-Key",
                 BASE64_RELAXED.encode(&access.key),
