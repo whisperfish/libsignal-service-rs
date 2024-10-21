@@ -389,7 +389,7 @@ where
                 .await;
         }
 
-        // don't send anything to self nor session enders to others as sealed sender
+        // don't send session enders as sealed sender
         if end_session {
             unidentified_access.take();
         }
