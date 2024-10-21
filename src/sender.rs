@@ -358,26 +358,16 @@ where
             _ => false,
         };
 
-        let create_sync_message =
-            |content_body, send_message_results| -> ContentBody {
-                let (data_message, edit_message) = match content_body {
-                    ContentBody::DataMessage(m) => (Some(m), None),
-                    ContentBody::EditMessage(m) => (None, Some(m)),
-                    _ => (None, None),
-                };
-                Self::create_multi_device_sent_transcript_content(
-                    Some(recipient),
-                    data_message,
-                    edit_message,
-                    timestamp,
-                    send_message_results,
-                )
-            };
-
         // only send a sync message when sending to self and skip the rest of the process
         if message_to_self {
             debug!("sending note to self");
-            let sync_message = create_sync_message(content_body, None);
+            let sync_message =
+                Self::create_multi_device_sent_transcript_content(
+                    Some(recipient),
+                    content_body,
+                    timestamp,
+                    None,
+                );
             return self
                 .try_send_message(
                     *recipient,
@@ -414,7 +404,13 @@ where
 
         if needs_sync || self.is_multi_device().await {
             debug!("sending multi-device sync message");
-            let sync_message = create_sync_message(content_body, Some(&result));
+            let sync_message =
+                Self::create_multi_device_sent_transcript_content(
+                    None,
+                    content_body,
+                    timestamp,
+                    Some(&result),
+                );
             self.try_send_message(
                 self.local_aci,
                 None,
@@ -480,15 +476,9 @@ where
             results.push(result);
         }
 
-        let (data_message, edit_message) = match content_body {
-            ContentBody::DataMessage(m) => (Some(m), None),
-            ContentBody::EditMessage(m) => (None, Some(m)),
-            _ => (None, None),
-        };
-
         if needs_sync_in_results
-            && data_message.is_none()
-            && edit_message.is_none()
+            && content_body.data_message().is_none()
+            && content_body.edit_message().is_none()
         {
             // XXX: does this happen?
             tracing::warn!(
@@ -502,8 +492,7 @@ where
             let sync_message =
                 Self::create_multi_device_sent_transcript_content(
                     None,
-                    data_message,
-                    edit_message,
+                    content_body,
                     timestamp,
                     &results,
                 );
@@ -1045,12 +1034,16 @@ where
 
     fn create_multi_device_sent_transcript_content<'a>(
         recipient: Option<&ServiceAddress>,
-        data_message: Option<crate::proto::DataMessage>,
-        edit_message: Option<crate::proto::EditMessage>,
+        content_body: ContentBody,
         timestamp: u64,
         send_message_results: impl IntoIterator<Item = &'a SendMessageResult>,
     ) -> ContentBody {
         use sync_message::sent::UnidentifiedDeliveryStatus;
+        let (data_message, edit_message) = match content_body {
+            ContentBody::DataMessage(m) => (Some(m), None),
+            ContentBody::EditMessage(m) => (None, Some(m)),
+            _ => (None, None),
+        };
         let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
             send_message_results
                 .into_iter()
