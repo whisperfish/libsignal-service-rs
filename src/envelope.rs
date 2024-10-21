@@ -26,7 +26,7 @@ impl TryFrom<EnvelopeEntity> for Envelope {
 }
 
 impl Envelope {
-    #[tracing::instrument(skip(input, signaling_key), fields(input_size = input.len()))]
+    #[tracing::instrument(skip(input, signaling_key), fields(signaling_key_present = signaling_key.is_some(), input_size = input.len()))]
     pub fn decrypt(
         input: &[u8],
         signaling_key: Option<&SignalingKey>,

@@ -1,4 +1,5 @@
 use libsignal_protocol::ProtocolAddress;
+use std::fmt;
 use uuid::Uuid;
 
 pub use crate::{
@@ -29,6 +30,21 @@ pub struct Metadata {
     ///
     /// The server GUID is used to report spam messages.
     pub server_guid: Option<Uuid>,
+}
+
+impl fmt::Display for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Metadata {{ sender: {}, guid: {} }}",
+            self.sender.to_service_id(),
+            // XXX: should this still be optional?
+            self.server_guid
+                .map(|u| u.to_string())
+                .as_deref()
+                .unwrap_or("None"),
+        )
+    }
 }
 
 impl Metadata {
@@ -84,6 +100,46 @@ impl Content {
             Ok(Self::from_body(msg, metadata))
         } else {
             Err(ServiceError::UnsupportedContent)
+        }
+    }
+}
+
+impl fmt::Display for ContentBody {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NullMessage(_) => write!(f, "NullMessage"),
+            Self::DataMessage(m) => {
+                match (&m.body, &m.reaction, m.attachments.len()) {
+                    (Some(body), _, 0) => {
+                        write!(f, "DataMessage({}", body)
+                    },
+                    (Some(body), _, n) => {
+                        write!(f, "DataMessage({}, attachments: {n})", body)
+                    },
+                    (None, Some(emoji), _) => {
+                        write!(
+                            f,
+                            "DataMessage(reaction: {})",
+                            emoji.emoji.as_deref().unwrap_or("None")
+                        )
+                    },
+                    (None, _, n) if n > 0 => {
+                        write!(f, "DataMessage(attachments: {n})")
+                    },
+                    _ => {
+                        write!(f, "{self:?}")
+                    },
+                }
+            },
+            Self::SynchronizeMessage(_) => write!(f, "SynchronizeMessage"),
+            Self::CallMessage(_) => write!(f, "CallMessage"),
+            Self::ReceiptMessage(_) => write!(f, "ReceiptMessage"),
+            Self::TypingMessage(_) => write!(f, "TypingMessage"),
+            // Self::SenderKeyDistributionMessage(_) => write!(f, "SenderKeyDistributionMessage"),
+            // Self::DecryptionErrorMessage(_) => write!(f, "DecryptionErrorMessage"),
+            Self::StoryMessage(_) => write!(f, "StoryMessage"),
+            Self::PniSignatureMessage(_) => write!(f, "PniSignatureMessage"),
+            Self::EditMessage(_) => write!(f, "EditMessage"),
         }
     }
 }
