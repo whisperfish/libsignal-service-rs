@@ -354,6 +354,7 @@ where
     ) -> SendMessageResult {
         let content_body = message.into();
         let message_to_self = recipient == &self.local_aci;
+        let is_multi_device = self.is_multi_device().await;
 
         use crate::proto::data_message::Flags;
 
@@ -365,7 +366,7 @@ where
         };
 
         // only send a sync message when sending to self and skip the rest of the process
-        if message_to_self {
+        if message_to_self && is_multi_device {
             debug!("sending note to self");
             let sync_message =
                 Self::create_multi_device_sent_transcript_content(
@@ -408,7 +409,7 @@ where
             _ => false,
         };
 
-        if needs_sync || self.is_multi_device().await {
+        if needs_sync || is_multi_device {
             debug!("sending multi-device sync message");
             let sync_message =
                 Self::create_multi_device_sent_transcript_content(
@@ -544,7 +545,7 @@ where
             }) = self
                 .create_encrypted_messages(
                     &recipient,
-                    unidentified_access.map(|x| &x.certificate),
+                    uDnidentified_access.map(|x| &x.certificate),
                     &content_bytes,
                 )
                 .await?
