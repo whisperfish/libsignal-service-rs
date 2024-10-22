@@ -453,7 +453,7 @@ where
         let mut needs_sync_in_results = false;
 
         for (recipient, unidentified_access, include_pni_signature) in
-            recipients.as_ref().iter()
+            recipients.as_ref()
         {
             let result = self
                 .try_send_message(
