@@ -1,4 +1,3 @@
-use core::time;
 use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
@@ -140,6 +139,12 @@ pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
 pub enum ThreadIdentifier {
     Aci(Uuid),
     Group(GroupV2Id),
+}
+
+#[derive(Debug)]
+pub struct EncryptedMessages {
+    messages: Vec<OutgoingPushMessage>,
+    used_identity_key: IdentityKey,
 }
 
 impl<S, R> MessageSender<S, R>
@@ -533,13 +538,23 @@ where
         let content_bytes = content.encode_to_vec();
 
         for _ in 0..4u8 {
-            let (messages, used_identity_key) = self
+            let Some(EncryptedMessages {
+                messages,
+                used_identity_key,
+            }) = self
                 .create_encrypted_messages(
                     &recipient,
                     unidentified_access.map(|x| &x.certificate),
                     &content_bytes,
                 )
-                .await?;
+                .await?
+            else {
+                // this can happen for example when a device is primary, without any secondaries
+                // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
+                // addressed to self
+                debug!("no messages were encrypted: this should rarely happen");
+                break;
+            };
 
             let messages = OutgoingPushMessages {
                 destination: recipient.uuid,
@@ -839,8 +854,7 @@ where
         recipient: &ServiceAddress,
         unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
-    ) -> Result<(Vec<OutgoingPushMessage>, IdentityKey), MessageSenderError>
-    {
+    ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
         let mut messages = vec![];
 
         let mut devices: HashSet<DeviceId> = self
@@ -925,15 +939,22 @@ where
             }
         }
 
-        let identity_key = self
-            .protocol_store
-            .get_identity(&recipient.to_protocol_address(DEFAULT_DEVICE_ID))
-            .await?
-            .ok_or(MessageSenderError::UntrustedIdentity {
-                address: *recipient,
-            })?;
-
-        Ok((messages, identity_key))
+        if messages.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(EncryptedMessages {
+                messages,
+                used_identity_key: self
+                    .protocol_store
+                    .get_identity(
+                        &recipient.to_protocol_address(DEFAULT_DEVICE_ID),
+                    )
+                    .await?
+                    .ok_or(MessageSenderError::UntrustedIdentity {
+                        address: *recipient,
+                    })?,
+            }))
+        }
     }
 
     /// Equivalent to `getEncryptedMessage`
