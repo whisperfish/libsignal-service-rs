@@ -1,3 +1,4 @@
+use core::time;
 use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
@@ -508,7 +509,7 @@ where
     /// Send a message (`content`) to an address (`recipient`).
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content_body, recipient),
+        skip(self, unidentified_access),
         fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
     )]
     async fn try_send_message(
@@ -1064,8 +1065,7 @@ where
                 expiration_start_timestamp: data_message
                     .as_ref()
                     .and_then(|m| m.expire_timer)
-                    .is_some()
-                    .then_some(timestamp),
+                    .map(|_| timestamp),
                 message: data_message,
                 edit_message,
                 timestamp: Some(timestamp),
