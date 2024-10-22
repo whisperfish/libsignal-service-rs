@@ -520,6 +520,8 @@ where
         include_pni_signature: bool,
         online: bool,
     ) -> SendMessageResult {
+        trace!("trying to send a message");
+
         use prost::Message;
 
         let mut content = content_body.clone().into_proto();
