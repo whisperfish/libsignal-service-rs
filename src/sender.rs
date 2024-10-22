@@ -406,7 +406,7 @@ where
             debug!("sending multi-device sync message");
             let sync_message =
                 Self::create_multi_device_sent_transcript_content(
-                    Some(&recipient),
+                    Some(recipient),
                     content_body,
                     timestamp,
                     Some(&result),
