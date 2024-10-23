@@ -6,7 +6,7 @@ use libsignal_protocol::{
     ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
 use zkgroup::GROUP_IDENTIFIER_LEN;
@@ -553,7 +553,9 @@ where
                 // this can happen for example when a device is primary, without any secondaries
                 // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
                 // addressed to self
-                debug!("no messages were encrypted: this should rarely happen");
+                warn!(
+                    "no messages were encrypted: this should not really happen and most likely implies a logic error."
+                );
                 break;
             };
 
