@@ -545,7 +545,7 @@ where
             }) = self
                 .create_encrypted_messages(
                     &recipient,
-                    uDnidentified_access.map(|x| &x.certificate),
+                    unidentified_access.map(|x| &x.certificate),
                     &content_bytes,
                 )
                 .await?
