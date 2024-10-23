@@ -131,6 +131,9 @@ pub enum MessageSenderError {
 
     #[error("Recipient not found: {addr:?}")]
     NotFound { addr: ServiceAddress },
+
+    #[error("no messages were encrypted: this should not really happen and most likely implies a logic error")]
+    NoMessagesToSend,
 }
 
 pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
@@ -553,10 +556,7 @@ where
                 // this can happen for example when a device is primary, without any secondaries
                 // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
                 // addressed to self
-                warn!(
-                    "no messages were encrypted: this should not really happen and most likely implies a logic error."
-                );
-                break;
+                return Err(MessageSenderError::NoMessagesToSend);
             };
 
             let messages = OutgoingPushMessages {
@@ -908,32 +908,24 @@ where
                         messages.push(message);
                         break;
                     },
-                    Err(
-                        e @ MessageSenderError::ServiceError(
-                            ServiceError::SignalProtocolError(
-                                SignalProtocolError::SessionNotFound(_),
-                            ),
+                    Err(MessageSenderError::ServiceError(
+                        ServiceError::SignalProtocolError(
+                            SignalProtocolError::SessionNotFound(addr),
                         ),
-                    ) => {
-                        let MessageSenderError::ServiceError(
-                            ServiceError::SignalProtocolError(
-                                SignalProtocolError::SessionNotFound(addr),
-                            ),
-                        ) = &e
-                        else {
-                            // We can't bind to addr above, because we move into `e`.
-                            unreachable!()
-                        };
+                    )) => {
                         // SessionNotFound is returned on certain session corruption.
                         // Since delete_session *creates* a session if it doesn't exist,
                         // the NotFound error is an indicator of session corruption.
                         // Try to delete this session, if it gets succesfully deleted, retry.  Otherwise, fail.
                         tracing::warn!("Potential session corruption for {}, deleting session", addr);
-                        match self.protocol_store.delete_session(addr).await {
+                        match self.protocol_store.delete_session(&addr).await {
                             Ok(()) => continue,
-                            Err(_e) => {
-                                tracing::warn!("Failed to delete session for {}, failing message. {}", addr, _e);
-                                return Err(e);
+                            Err(error) => {
+                                tracing::warn!(%error, %addr, "failed to delete session");
+                                return Err(
+                                    SignalProtocolError::SessionNotFound(addr)
+                                        .into(),
+                                );
                             },
                         }
                     },
