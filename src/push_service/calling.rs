@@ -31,4 +31,28 @@ impl PushService {
             .json()
             .await?)
     }
+
+    pub async fn get_turn_server_info_v2(
+        &mut self,
+    ) -> Result<Vec<TurnServerInfo>, ServiceError> {
+        #[derive(Debug, Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct GetRelaysResponse {
+            relays: Vec<TurnServerInfo>,
+        }
+
+        Ok(self
+            .request(
+                Method::GET,
+                Endpoint::service("/v2/calling/relays"),
+                HttpAuthOverride::NoOverride,
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json::<GetRelaysResponse>()
+            .await?
+            .relays)
+    }
 }
