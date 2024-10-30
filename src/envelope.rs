@@ -90,7 +90,7 @@ impl Envelope {
             r#type: Some(entity.r#type),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
-            server_guid: entity.source_uuid,
+            server_guid: Some(entity.guid),
             content: entity.content,
             ..Default::default()
         }
@@ -102,6 +102,7 @@ impl Envelope {
             source_device: Some(entity.source_device),
             timestamp: Some(entity.timestamp),
             server_timestamp: Some(entity.server_timestamp),
+            server_guid: Some(entity.guid),
             source_service_id: Some(source.uuid.to_string()),
             content: entity.content,
             ..Default::default()
