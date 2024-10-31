@@ -7,7 +7,7 @@ use libsignal_protocol::{
     SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
 use zkgroup::GROUP_IDENTIFIER_LEN;
@@ -132,8 +132,11 @@ pub enum MessageSenderError {
     #[error("Proof of type {options:?} required using token {token}")]
     ProofRequired { token: String, options: Vec<String> },
 
-    #[error("Recipient not found: {addr:?}")]
-    NotFound { addr: ServiceId },
+    #[error("Recipient not found: {service_id:?}")]
+    NotFound { service_id: ServiceId },
+
+    #[error("no messages were encrypted: this should not really happen and most likely implies a logic error")]
+    NoMessagesToSend,
 }
 
 pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
@@ -142,6 +145,12 @@ pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
 pub enum ThreadIdentifier {
     Aci(Uuid),
     Group(GroupV2Id),
+}
+
+#[derive(Debug)]
+pub struct EncryptedMessages {
+    messages: Vec<OutgoingPushMessage>,
+    used_identity_key: IdentityKey,
 }
 
 impl<S, R> MessageSender<S, R>
@@ -350,6 +359,8 @@ where
         online: bool,
     ) -> SendMessageResult {
         let content_body = message.into();
+        let message_to_self = recipient == &self.local_aci;
+        let is_multi_device = self.is_multi_device().await;
 
         use crate::proto::data_message::Flags;
 
@@ -360,8 +371,30 @@ where
             _ => false,
         };
 
-        // don't send anything to self nor session enders to others as sealed sender
-        if recipient == &self.local_aci || end_session {
+        // only send a sync message when sending to self and skip the rest of the process
+        if message_to_self && is_multi_device {
+            debug!("sending note to self");
+            let sync_message =
+                Self::create_multi_device_sent_transcript_content(
+                    Some(recipient),
+                    content_body,
+                    timestamp,
+                    None,
+                );
+            return self
+                .try_send_message(
+                    *recipient,
+                    None,
+                    &sync_message,
+                    timestamp,
+                    include_pni_signature,
+                    online,
+                )
+                .await;
+        }
+
+        // don't send session enders as sealed sender
+        if end_session {
             unidentified_access.take();
         }
 
@@ -382,21 +415,12 @@ where
             _ => false,
         };
 
-        if needs_sync || self.is_multi_device().await {
-            let data_message = match &content_body {
-                ContentBody::DataMessage(m) => Some(m.clone()),
-                _ => None,
-            };
-            let edit_message = match &content_body {
-                ContentBody::EditMessage(m) => Some(m.clone()),
-                _ => None,
-            };
-            tracing::debug!("sending multi-device sync message");
-            let sync_message = self
-                .create_multi_device_sent_transcript_content(
+        if needs_sync || is_multi_device {
+            debug!("sending multi-device sync message");
+            let sync_message =
+                Self::create_multi_device_sent_transcript_content(
                     Some(recipient),
-                    data_message,
-                    edit_message,
+                    content_body,
                     timestamp,
                     Some(&result),
                 );
@@ -443,19 +467,10 @@ where
         let content_body: ContentBody = message.into();
         let mut results = vec![];
 
-        let data_message = match &content_body {
-            ContentBody::DataMessage(m) => Some(m.clone()),
-            _ => None,
-        };
-        let edit_message = match &content_body {
-            ContentBody::EditMessage(m) => Some(m.clone()),
-            _ => None,
-        };
-
         let mut needs_sync_in_results = false;
 
         for (recipient, unidentified_access, include_pni_signature) in
-            recipients.as_ref().iter()
+            recipients.as_ref()
         {
             let result = self
                 .try_send_message(
@@ -478,24 +493,12 @@ where
             results.push(result);
         }
 
-        if needs_sync_in_results
-            && data_message.is_none()
-            && edit_message.is_none()
-        {
-            // XXX: does this happen?
-            tracing::warn!(
-                "Server claims need sync, but not sending data message or edit message"
-            );
-            return results;
-        }
-
         // we only need to send a synchronization message once
         if needs_sync_in_results || self.is_multi_device().await {
-            let sync_message = self
-                .create_multi_device_sent_transcript_content(
+            let sync_message =
+                Self::create_multi_device_sent_transcript_content(
                     None,
-                    data_message,
-                    edit_message,
+                    content_body,
                     timestamp,
                     &results,
                 );
@@ -534,6 +537,8 @@ where
         include_pni_signature: bool,
         online: bool,
     ) -> SendMessageResult {
+        trace!("trying to send a message");
+
         use prost::Message;
 
         let mut content = content_body.clone().into_proto();
@@ -544,13 +549,22 @@ where
         let content_bytes = content.encode_to_vec();
 
         for _ in 0..4u8 {
-            let (messages, used_identity_key) = self
+            let Some(EncryptedMessages {
+                messages,
+                used_identity_key,
+            }) = self
                 .create_encrypted_messages(
                     &recipient,
                     unidentified_access.map(|x| &x.certificate),
                     &content_bytes,
                 )
-                .await?;
+                .await?
+            else {
+                // this can happen for example when a device is primary, without any secondaries
+                // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
+                // addressed to self
+                return Err(MessageSenderError::NoMessagesToSend);
+            };
 
             let messages = OutgoingPushMessages {
                 destination: recipient,
@@ -654,7 +668,7 @@ where
                 Err(ServiceError::NotFoundError) => {
                     tracing::debug!("Not found when sending a message");
                     return Err(MessageSenderError::NotFound {
-                        addr: recipient,
+                        service_id: recipient,
                     });
                 },
                 Err(e) => {
@@ -850,8 +864,7 @@ where
         recipient: &ServiceId,
         unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
-    ) -> Result<(Vec<OutgoingPushMessage>, IdentityKey), MessageSenderError>
-    {
+    ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
         let mut messages = vec![];
 
         let mut devices: HashSet<DeviceId> = self
@@ -898,32 +911,24 @@ where
                         messages.push(message);
                         break;
                     },
-                    Err(
-                        e @ MessageSenderError::ServiceError(
-                            ServiceError::SignalProtocolError(
-                                SignalProtocolError::SessionNotFound(_),
-                            ),
+                    Err(MessageSenderError::ServiceError(
+                        ServiceError::SignalProtocolError(
+                            SignalProtocolError::SessionNotFound(addr),
                         ),
-                    ) => {
-                        let MessageSenderError::ServiceError(
-                            ServiceError::SignalProtocolError(
-                                SignalProtocolError::SessionNotFound(addr),
-                            ),
-                        ) = &e
-                        else {
-                            // We can't bind to addr above, because we move into `e`.
-                            unreachable!()
-                        };
+                    )) => {
                         // SessionNotFound is returned on certain session corruption.
                         // Since delete_session *creates* a session if it doesn't exist,
                         // the NotFound error is an indicator of session corruption.
                         // Try to delete this session, if it gets succesfully deleted, retry.  Otherwise, fail.
                         tracing::warn!("Potential session corruption for {}, deleting session", addr);
-                        match self.protocol_store.delete_session(addr).await {
+                        match self.protocol_store.delete_session(&addr).await {
                             Ok(()) => continue,
-                            Err(_e) => {
-                                tracing::warn!("Failed to delete session for {}, failing message. {}", addr, _e);
-                                return Err(e);
+                            Err(error) => {
+                                tracing::warn!(%error, %addr, "failed to delete session");
+                                return Err(
+                                    SignalProtocolError::SessionNotFound(addr)
+                                        .into(),
+                                );
                             },
                         }
                     },
@@ -932,15 +937,22 @@ where
             }
         }
 
-        let identity_key = self
-            .protocol_store
-            .get_identity(&recipient.to_protocol_address(DEFAULT_DEVICE_ID))
-            .await?
-            .ok_or(MessageSenderError::UntrustedIdentity {
-                address: *recipient,
-            })?;
-
-        Ok((messages, identity_key))
+        if messages.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(EncryptedMessages {
+                messages,
+                used_identity_key: self
+                    .protocol_store
+                    .get_identity(
+                        &recipient.to_protocol_address(DEFAULT_DEVICE_ID),
+                    )
+                    .await?
+                    .ok_or(MessageSenderError::UntrustedIdentity {
+                        address: *recipient,
+                    })?,
+            }))
+        }
     }
 
     /// Equivalent to `getEncryptedMessage`
@@ -989,7 +1001,7 @@ where
                 },
                 Err(ServiceError::NotFoundError) => {
                     return Err(MessageSenderError::NotFound {
-                        addr: *recipient,
+                        service_id: *recipient,
                     });
                 },
                 Err(e) => Err(e)?,
@@ -1032,14 +1044,17 @@ where
     }
 
     fn create_multi_device_sent_transcript_content<'a>(
-        &self,
         recipient: Option<&ServiceId>,
-        data_message: Option<crate::proto::DataMessage>,
-        edit_message: Option<crate::proto::EditMessage>,
+        content_body: ContentBody,
         timestamp: u64,
         send_message_results: impl IntoIterator<Item = &'a SendMessageResult>,
     ) -> ContentBody {
         use sync_message::sent::UnidentifiedDeliveryStatus;
+        let (data_message, edit_message) = match content_body {
+            ContentBody::DataMessage(m) => (Some(m), None),
+            ContentBody::EditMessage(m) => (None, Some(m)),
+            _ => (None, None),
+        };
         let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
             send_message_results
                 .into_iter()
@@ -1070,8 +1085,7 @@ where
                 expiration_start_timestamp: data_message
                     .as_ref()
                     .and_then(|m| m.expire_timer)
-                    .is_some()
-                    .then_some(timestamp),
+                    .map(|_| timestamp),
                 message: data_message,
                 edit_message,
                 timestamp: Some(timestamp),
