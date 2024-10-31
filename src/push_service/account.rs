@@ -14,27 +14,6 @@ use crate::{
     utils::{serde_optional_base64, serde_phone_number},
 };
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum ServiceIdType {
-    /// Account Identity (ACI)
-    ///
-    /// An account UUID without an associated phone number, probably in the future to a username
-    AccountIdentity,
-    /// Phone number identity (PNI)
-    ///
-    /// A UUID associated with a phone number
-    PhoneNumberIdentity,
-}
-
-impl fmt::Display for ServiceIdType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ServiceIdType::AccountIdentity => f.write_str("aci"),
-            ServiceIdType::PhoneNumberIdentity => f.write_str("pni"),
-        }
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ServiceIds {
     #[serde(rename = "uuid")]

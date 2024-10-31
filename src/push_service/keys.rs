@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use libsignal_protocol::{
-    IdentityKey, PreKeyBundle, SenderCertificate, ServiceId,
+    IdentityKey, PreKeyBundle, SenderCertificate, ServiceId, ServiceIdKind,
 };
 use reqwest::Method;
 use serde::Deserialize;
@@ -16,7 +16,7 @@ use crate::{
 
 use super::{
     response::ReqwestExt, HttpAuthOverride, PushService, SenderCertificateJson,
-    ServiceError, ServiceIdType, VerifyAccountResponse,
+    ServiceError, VerifyAccountResponse,
 };
 
 #[derive(Debug, Deserialize, Default)]
@@ -29,11 +29,11 @@ pub struct PreKeyStatus {
 impl PushService {
     pub async fn get_pre_key_status(
         &mut self,
-        service_id_type: ServiceIdType,
+        service_id_kind: ServiceIdKind,
     ) -> Result<PreKeyStatus, ServiceError> {
         self.request(
             Method::GET,
-            Endpoint::service(format!("/v2/keys?identity={}", service_id_type)),
+            Endpoint::service(format!("/v2/keys?identity={}", service_id_kind)),
             HttpAuthOverride::NoOverride,
         )?
         .send()
@@ -47,12 +47,12 @@ impl PushService {
 
     pub async fn register_pre_keys(
         &mut self,
-        service_id_type: ServiceIdType,
+        service_id_kind: ServiceIdKind,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         self.request(
             Method::PUT,
-            Endpoint::service(format!("/v2/keys?identity={}", service_id_type)),
+            Endpoint::service(format!("/v2/keys?identity={}", service_id_kind)),
             HttpAuthOverride::NoOverride,
         )?
         .json(&pre_key_state)

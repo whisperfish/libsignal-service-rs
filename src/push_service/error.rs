@@ -1,12 +1,11 @@
 use aes::cipher::block_padding::UnpadError;
-use libsignal_protocol::SignalProtocolError;
+use libsignal_protocol::{ServiceIdKind, SignalProtocolError};
 use zkgroup::ZkGroupDeserializationFailure;
 
 use crate::groups_v2::GroupDecodingError;
 
 use super::{
-    MismatchedDevices, ProofRequired, RegistrationLockFailure, ServiceIdType,
-    StaleDevices,
+    MismatchedDevices, ProofRequired, RegistrationLockFailure, StaleDevices,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -18,7 +17,7 @@ pub enum ServiceError {
     InvalidUrl(#[from] url::ParseError),
 
     #[error("wrong address type: {0}")]
-    InvalidAddressType(ServiceIdType),
+    InvalidAddressType(ServiceIdKind),
 
     #[error("Error sending request: {reason}")]
     SendError { reason: String },

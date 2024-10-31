@@ -10,7 +10,7 @@ use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair,
     IdentityKeyStore, KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore,
-    PublicKey, SenderKeyStore, SignedPreKeyRecord, Timestamp,
+    PublicKey, SenderKeyStore, ServiceIdKind, SignedPreKeyRecord, Timestamp,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -30,8 +30,8 @@ use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{
     AvatarWrite, DeviceActivationRequest, DeviceInfo, HttpAuthOverride,
-    RecaptchaAttributes, RegistrationMethod, ReqwestExt, ServiceIdType,
-    VerifyAccountResponse, DEFAULT_DEVICE_ID,
+    RecaptchaAttributes, RegistrationMethod, ReqwestExt, VerifyAccountResponse,
+    DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
 use crate::service_address::ServiceIdExt;
@@ -94,13 +94,13 @@ impl AccountManager {
     >(
         &mut self,
         protocol_store: &mut P,
-        service_id_type: ServiceIdType,
+        service_id_kind: ServiceIdKind,
         csprng: &mut R,
         use_last_resort_key: bool,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .service
-            .get_pre_key_status(service_id_type)
+            .get_pre_key_status(service_id_kind)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Fetching pre key status"
@@ -202,7 +202,7 @@ impl AccountManager {
         };
 
         self.service
-            .register_pre_keys(service_id_type, pre_key_state)
+            .register_pre_keys(service_id_kind, pre_key_state)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Uploading pre keys"
