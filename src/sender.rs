@@ -5,7 +5,6 @@ use libsignal_protocol::{
     process_prekey_bundle, DeviceId, IdentityKey, IdentityKeyPair,
     ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
 };
-use rand::{CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
@@ -83,12 +82,11 @@ pub struct AttachmentSpec {
 }
 
 #[derive(Clone)]
-pub struct MessageSender<S, R> {
+pub struct MessageSender<S> {
     identified_ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
     service: PushService,
-    cipher: ServiceCipher<S, R>,
-    csprng: R,
+    cipher: ServiceCipher<S>,
     protocol_store: S,
     local_aci: ServiceAddress,
     local_pni: ServiceAddress,
@@ -150,18 +148,16 @@ pub struct EncryptedMessages {
     used_identity_key: IdentityKey,
 }
 
-impl<S, R> MessageSender<S, R>
+impl<S> MessageSender<S>
 where
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
-    R: Rng + CryptoRng,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         identified_ws: SignalWebSocket,
         unidentified_ws: SignalWebSocket,
         service: PushService,
-        cipher: ServiceCipher<S, R>,
-        csprng: R,
+        cipher: ServiceCipher<S>,
         protocol_store: S,
         local_aci: impl Into<ServiceAddress>,
         local_pni: impl Into<ServiceAddress>,
@@ -174,7 +170,6 @@ where
             identified_ws,
             unidentified_ws,
             cipher,
-            csprng,
             protocol_store,
             local_aci: local_aci.into(),
             local_pni: local_pni.into(),
@@ -625,7 +620,7 @@ where
                             &mut self.protocol_store,
                             &pre_key,
                             SystemTime::now(),
-                            &mut self.csprng,
+                            &mut rand::thread_rng(),
                         )
                         .await
                         .map_err(|e| {
@@ -838,7 +833,7 @@ where
             .expect("PNI key set when PNI signature requested")
             .sign_alternate_identity(
                 self.aci_identity.identity_key(),
-                &mut self.csprng,
+                &mut rand::thread_rng(),
             )?;
         Ok(crate::proto::PniSignatureMessage {
             pni: Some(self.local_pni.uuid.as_bytes().to_vec()),
@@ -1025,7 +1020,7 @@ where
                     &mut self.protocol_store,
                     &pre_key_bundle,
                     SystemTime::now(),
-                    &mut self.csprng,
+                    &mut rand::thread_rng(),
                 )
                 .await?;
             }
