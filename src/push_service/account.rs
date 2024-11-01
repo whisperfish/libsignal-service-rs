@@ -99,7 +99,8 @@ pub struct DeviceCapabilities {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WhoAmIResponse {
-    pub uuid: Uuid,
+    #[serde(rename = "uuid")]
+    pub aci: Uuid,
     #[serde(default)] // nil when not present (yet)
     pub pni: Uuid,
     #[serde(with = "serde_phone_number")]

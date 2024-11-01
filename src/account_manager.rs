@@ -29,8 +29,8 @@ use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{
-    AvatarWrite, DeviceActivationRequest, DeviceInfo, HttpAuthOverride,
-    RecaptchaAttributes, RegistrationMethod, ReqwestExt, VerifyAccountResponse,
+    AvatarWrite, CaptchaAttributes, DeviceActivationRequest, DeviceInfo,
+    HttpAuthOverride, RegistrationMethod, ReqwestExt, VerifyAccountResponse,
     DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
@@ -623,10 +623,10 @@ impl AccountManager {
                 Endpoint::service("/v1/challenge"),
                 HttpAuthOverride::NoOverride,
             )?
-            .json(&RecaptchaAttributes {
-                r#type: String::from("recaptcha"),
-                token: String::from(token),
-                captcha: String::from(captcha),
+            .json(&CaptchaAttributes {
+                challenge_type: "captcha",
+                token,
+                captcha,
             })
             .send()
             .await?

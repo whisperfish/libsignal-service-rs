@@ -81,11 +81,12 @@ pub struct DeviceActivationRequest {
     pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RecaptchaAttributes {
-    pub r#type: String,
-    pub token: String,
-    pub captcha: String,
+#[derive(Debug, Serialize)]
+pub struct CaptchaAttributes<'a> {
+    #[serde(rename = "type")]
+    pub challenge_type: &'a str,
+    pub token: &'a str,
+    pub captcha: &'a str,
 }
 
 #[derive(Debug, Clone, Deserialize)]
