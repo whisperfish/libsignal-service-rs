@@ -7,6 +7,7 @@ use futures::{
     },
     prelude::*,
 };
+use libsignal_protocol::KeyPair;
 use rand::{CryptoRng, Rng};
 use url::Url;
 
@@ -36,13 +37,14 @@ pub enum ProvisioningStep {
 
 impl ProvisioningPipe {
     pub fn from_socket<R: Rng + CryptoRng>(
-        csprng: &mut R,
         ws: SignalWebSocket,
-    ) -> Result<Self, ProvisioningError> {
-        Ok(ProvisioningPipe {
+        csprng: &mut R,
+    ) -> Self {
+        let key_pair = KeyPair::generate(csprng);
+        ProvisioningPipe {
             ws,
-            provisioning_cipher: ProvisioningCipher::generate(csprng)?,
-        })
+            provisioning_cipher: ProvisioningCipher::from_key_pair(key_pair),
+        }
     }
 
     /// Worker task that

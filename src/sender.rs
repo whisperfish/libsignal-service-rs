@@ -87,7 +87,7 @@ pub struct MessageSender<S, R> {
     identified_ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
     service: PushService,
-    cipher: ServiceCipher<S, R>,
+    cipher: ServiceCipher<S>,
     csprng: R,
     protocol_store: S,
     local_aci: ServiceAddress,
@@ -160,7 +160,7 @@ where
         identified_ws: SignalWebSocket,
         unidentified_ws: SignalWebSocket,
         service: PushService,
-        cipher: ServiceCipher<S, R>,
+        cipher: ServiceCipher<S>,
         csprng: R,
         protocol_store: S,
         local_aci: impl Into<ServiceAddress>,
@@ -1031,7 +1031,12 @@ where
 
         let message = self
             .cipher
-            .encrypt(&recipient_protocol_address, unidentified_access, content)
+            .encrypt(
+                &recipient_protocol_address,
+                unidentified_access,
+                content,
+                &mut self.csprng,
+            )
             .instrument(tracing::trace_span!("encrypting message"))
             .await?;
 

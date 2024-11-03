@@ -52,8 +52,7 @@ use crate::{
 
 type Aes256Ctr128BE = ctr::Ctr128BE<aes::Aes256>;
 
-pub struct AccountManager<R: Rng + CryptoRng> {
-    csprng: R,
+pub struct AccountManager {
     service: PushService,
     profile_key: Option<ProfileKey>,
 }
@@ -74,14 +73,9 @@ pub struct Profile {
     pub avatar: Option<String>,
 }
 
-impl<R: Rng + CryptoRng> AccountManager<R> {
-    pub fn new(
-        csprng: R,
-        service: PushService,
-        profile_key: Option<ProfileKey>,
-    ) -> Self {
+impl AccountManager {
+    pub fn new(service: PushService, profile_key: Option<ProfileKey>) -> Self {
         Self {
-            csprng,
             service,
             profile_key,
         }
@@ -94,9 +88,10 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
     ///
     /// Equivalent to Java's RefreshPreKeysJob
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, protocol_store))]
-    pub async fn update_pre_key_bundle<P: PreKeysStore>(
+    #[tracing::instrument(skip(self, csprng, protocol_store))]
+    pub async fn update_pre_key_bundle<R: Rng + CryptoRng, P: PreKeysStore>(
         &mut self,
+        csprng: &mut R,
         protocol_store: &mut P,
         service_id_type: ServiceIdType,
         use_last_resort_key: bool,
@@ -156,8 +151,8 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
             crate::pre_keys::replenish_pre_keys(
                 protocol_store,
+                csprng,
                 &identity_key_pair,
-                &mut self.csprng,
                 use_last_resort_key && !has_last_resort_key,
                 PRE_KEY_BATCH_SIZE,
                 PRE_KEY_BATCH_SIZE,
@@ -283,8 +278,9 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
     /// ```java
     /// TextSecurePreferences.setIsUnidentifiedDeliveryEnabled(context, false);
     /// ```
-    pub async fn link_device(
+    pub async fn link_device<R: Rng + CryptoRng>(
         &mut self,
+        csprng: &mut R,
         url: url::Url,
         aci_identity_store: &dyn IdentityKeyStore,
         pni_identity_store: &dyn IdentityKeyStore,
@@ -346,7 +342,7 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
 
         let cipher = ProvisioningCipher::from_public(pub_key);
 
-        let encrypted = cipher.encrypt(&mut self.csprng, msg)?;
+        let encrypted = cipher.encrypt(csprng, msg)?;
         self.send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
@@ -382,10 +378,12 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
     }
 
     pub async fn register_account<
+        R: Rng + CryptoRng,
         Aci: PreKeysStore + IdentityKeyStore,
         Pni: PreKeysStore + IdentityKeyStore,
     >(
         &mut self,
+        csprng: &mut R,
         registration_method: RegistrationMethod<'_>,
         account_attributes: AccountAttributes,
         aci_protocol_store: &mut Aci,
@@ -408,8 +406,8 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
             aci_last_resort_kyber_prekey,
         ) = crate::pre_keys::replenish_pre_keys(
             aci_protocol_store,
+            csprng,
             &aci_identity_key_pair,
-            &mut self.csprng,
             true,
             0,
             0,
@@ -423,8 +421,8 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
             pni_last_resort_kyber_prekey,
         ) = crate::pre_keys::replenish_pre_keys(
             pni_protocol_store,
+            csprng,
             &pni_identity_key_pair,
-            &mut self.csprng,
             true,
             0,
             0,
@@ -470,15 +468,19 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
     /// ```
     /// in which the `retain_avatar` parameter sets whether to remove (`false`) or retain (`true`) the
     /// currently set avatar.
-    pub async fn upload_versioned_profile_without_avatar<S: AsRef<str>>(
+    pub async fn upload_versioned_profile_without_avatar<
+        R: Rng + CryptoRng,
+        S: AsRef<str>,
+    >(
         &mut self,
         aci: libsignal_protocol::Aci,
         name: ProfileName<S>,
         about: Option<String>,
         about_emoji: Option<String>,
         retain_avatar: bool,
+        csprng: &mut R,
     ) -> Result<(), ProfileManagerError> {
-        self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(
+        self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _, _>(
             aci,
             name,
             about,
@@ -488,6 +490,7 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
             } else {
                 AvatarWrite::NoAvatar
             },
+            csprng,
         )
         .await?;
         Ok(())
@@ -505,8 +508,8 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
             .retrieve_profile_by_id(address, Some(profile_key))
             .await?;
 
-        let profile_cipher = ProfileCipher::new(&mut self.csprng, profile_key);
-        Ok(encrypted_profile.decrypt(profile_cipher)?)
+        let profile_cipher = ProfileCipher::new(profile_key);
+        Ok(profile_cipher.decrypt(encrypted_profile)?)
     }
 
     /// Upload a profile
@@ -517,6 +520,7 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
     pub async fn upload_versioned_profile<
         's,
         C: std::io::Read + Send + 's,
+        R: Rng + CryptoRng,
         S: AsRef<str>,
     >(
         &mut self,
@@ -525,18 +529,18 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
         about: Option<String>,
         about_emoji: Option<String>,
         avatar: AvatarWrite<&'s mut C>,
+        csprng: &mut R,
     ) -> Result<Option<String>, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
-        let mut profile_cipher =
-            ProfileCipher::new(&mut self.csprng, profile_key);
+        let profile_cipher = ProfileCipher::new(profile_key);
 
         // Profile encryption
-        let name = profile_cipher.encrypt_name(name.as_ref())?;
+        let name = profile_cipher.encrypt_name(name.as_ref(), csprng)?;
         let about = about.unwrap_or_default();
-        let about = profile_cipher.encrypt_about(about)?;
+        let about = profile_cipher.encrypt_about(about, csprng)?;
         let about_emoji = about_emoji.unwrap_or_default();
-        let about_emoji = profile_cipher.encrypt_emoji(about_emoji)?;
+        let about_emoji = profile_cipher.encrypt_emoji(about_emoji, csprng)?;
 
         // If avatar -> upload
         if matches!(avatar, AvatarWrite::NewAvatar(_)) {
@@ -573,13 +577,14 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
     }
 
     /// Update (encrypted) device name
-    pub async fn update_device_name(
+    pub async fn update_device_name<R: Rng + CryptoRng>(
         &mut self,
         device_name: &str,
         public_key: &IdentityKey,
+        csprng: &mut R,
     ) -> Result<(), ServiceError> {
         let encrypted_device_name =
-            encrypt_device_name(&mut self.csprng, device_name, public_key)?;
+            encrypt_device_name(csprng, device_name, public_key)?;
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -640,9 +645,9 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
     /// Should be called as the primary device to migrate from pre-PNI to PNI.
     ///
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
-    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci), fields(local_aci = %local_aci))]
+    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = %local_aci))]
     pub async fn pnp_initialize_devices<
-        // XXX So many constraints here, all imposed by the MessageSender
+        R: Rng + CryptoRng,
         Aci: PreKeysStore + SessionStoreExt,
         Pni: PreKeysStore,
         AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
@@ -653,6 +658,7 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
         mut sender: MessageSender<AciOrPni, R>,
         local_aci: ServiceAddress,
         e164: PhoneNumber,
+        csprng: &mut R,
     ) -> Result<(), MessageSenderError> {
         let pni_identity_key_pair =
             pni_protocol_store.get_identity_key_pair().await?;
@@ -709,8 +715,8 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
             ) = if local_device_id == DEFAULT_DEVICE_ID {
                 crate::pre_keys::replenish_pre_keys(
                     pni_protocol_store,
+                    csprng,
                     &pni_identity_key_pair,
-                    &mut self.csprng,
                     true,
                     0,
                     0,
@@ -718,16 +724,16 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
                 .await?
             } else {
                 // Generate a signed prekey
-                let signed_pre_key_pair = KeyPair::generate(&mut self.csprng);
+                let signed_pre_key_pair = KeyPair::generate(csprng);
                 let signed_pre_key_public = signed_pre_key_pair.public_key;
                 let signed_pre_key_signature =
                     pni_identity_key_pair.private_key().calculate_signature(
                         &signed_pre_key_public.serialize(),
-                        &mut self.csprng,
+                        csprng,
                     )?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
-                    self.csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
                     Timestamp::now(),
                     &signed_pre_key_pair,
                     &signed_pre_key_signature,
@@ -736,7 +742,7 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
                 // Generate a last-resort Kyber prekey
                 let kyber_pre_key_record = KyberPreKeyRecord::generate(
                     kem::KeyType::Kyber1024,
-                    self.csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
                     pni_identity_key_pair.private_key(),
                 )?;
                 (
@@ -751,7 +757,7 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
                 pni_protocol_store.get_local_registration_id().await?
             } else {
                 loop {
-                    let regid = generate_registration_id(&mut self.csprng);
+                    let regid = generate_registration_id(csprng);
                     if !pni_registration_ids.iter().any(|(_k, v)| *v == regid) {
                         break regid;
                     }
@@ -799,7 +805,7 @@ impl<R: Rng + CryptoRng> AccountManager<R> {
                         e164.format().mode(phonenumber::Mode::E164).to_string(),
                     ),
                 }),
-                padding: Some(random_length_padding(&mut self.csprng, 512)),
+                padding: Some(random_length_padding(csprng, 512)),
                 ..SyncMessage::default()
             };
             let content: ContentBody = msg.into();

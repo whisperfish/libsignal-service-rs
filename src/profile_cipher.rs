@@ -4,7 +4,9 @@ use aes_gcm::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
 use rand::{CryptoRng, Rng};
 use zkgroup::profiles::ProfileKey;
 
-use crate::profile_name::ProfileName;
+use crate::{
+    profile_name::ProfileName, push_service::SignalServiceProfile, Profile,
+};
 
 /// Encrypt and decrypt a [`ProfileName`] and other profile information.
 ///
@@ -26,8 +28,7 @@ use crate::profile_name::ProfileName;
 /// let decrypted = cipher.decrypt_name(&encrypted).unwrap().unwrap();
 /// assert_eq!(decrypted.as_ref(), name);
 /// ```
-pub struct ProfileCipher<R: Rng + CryptoRng> {
-    csprng: R,
+pub struct ProfileCipher {
     profile_key: ProfileKey,
 }
 
@@ -73,27 +74,25 @@ fn pad_plaintext(
     Ok(len)
 }
 
-impl<R: Rng + CryptoRng> ProfileCipher<R> {
-    pub fn new(csprng: R, profile_key: ProfileKey) -> Self {
-        Self {
-            csprng,
-            profile_key,
-        }
+impl ProfileCipher {
+    pub fn new(profile_key: ProfileKey) -> Self {
+        Self { profile_key }
     }
 
     pub fn into_inner(self) -> ProfileKey {
         self.profile_key
     }
 
-    fn pad_and_encrypt(
-        &mut self,
+    fn pad_and_encrypt<R: Rng + CryptoRng>(
+        &self,
         mut bytes: Vec<u8>,
         padding_brackets: &[usize],
+        csprng: &mut R,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let _len = pad_plaintext(&mut bytes, padding_brackets)?;
 
         let cipher = Aes256Gcm::new(&self.profile_key.get_bytes().into());
-        let nonce = Aes256Gcm::generate_nonce(&mut self.csprng);
+        let nonce = Aes256Gcm::generate_nonce(csprng);
 
         cipher
             .encrypt_in_place(&nonce, b"", &mut bytes)
@@ -132,6 +131,35 @@ impl<R: Rng + CryptoRng> ProfileCipher<R> {
         Ok(plaintext)
     }
 
+    pub fn decrypt(
+        &self,
+        encrypted_profile: SignalServiceProfile,
+    ) -> Result<Profile, ProfileCipherError> {
+        let name = encrypted_profile
+            .name
+            .as_ref()
+            .map(|data| self.decrypt_name(data))
+            .transpose()?
+            .flatten();
+        let about = encrypted_profile
+            .about
+            .as_ref()
+            .map(|data| self.decrypt_about(data))
+            .transpose()?;
+        let about_emoji = encrypted_profile
+            .about_emoji
+            .as_ref()
+            .map(|data| self.decrypt_emoji(data))
+            .transpose()?;
+
+        Ok(Profile {
+            name,
+            about,
+            about_emoji,
+            avatar: encrypted_profile.avatar,
+        })
+    }
+
     pub fn decrypt_avatar(
         &self,
         bytes: &[u8],
@@ -139,13 +167,14 @@ impl<R: Rng + CryptoRng> ProfileCipher<R> {
         self.decrypt_and_unpad(bytes)
     }
 
-    pub fn encrypt_name<'inp>(
-        &mut self,
+    pub fn encrypt_name<'inp, R: Rng + CryptoRng>(
+        &self,
         name: impl std::borrow::Borrow<ProfileName<&'inp str>>,
+        csprng: &mut R,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let name = name.borrow();
         let bytes = name.serialize();
-        self.pad_and_encrypt(bytes, NAME_PADDING_BRACKETS)
+        self.pad_and_encrypt(bytes, NAME_PADDING_BRACKETS, csprng)
     }
 
     pub fn decrypt_name(
@@ -159,12 +188,13 @@ impl<R: Rng + CryptoRng> ProfileCipher<R> {
         Ok(ProfileName::<String>::deserialize(&plaintext)?)
     }
 
-    pub fn encrypt_about(
-        &mut self,
+    pub fn encrypt_about<R: Rng + CryptoRng>(
+        &self,
         about: String,
+        csprng: &mut R,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let bytes = about.into_bytes();
-        self.pad_and_encrypt(bytes, ABOUT_PADDING_BRACKETS)
+        self.pad_and_encrypt(bytes, ABOUT_PADDING_BRACKETS, csprng)
     }
 
     pub fn decrypt_about(
@@ -179,12 +209,13 @@ impl<R: Rng + CryptoRng> ProfileCipher<R> {
         Ok(std::str::from_utf8(&plaintext)?.into())
     }
 
-    pub fn encrypt_emoji(
-        &mut self,
+    pub fn encrypt_emoji<R: Rng + CryptoRng>(
+        &self,
         emoji: String,
+        csprng: &mut R,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let bytes = emoji.into_bytes();
-        self.pad_and_encrypt(bytes, &[EMOJI_PADDED_LENGTH])
+        self.pad_and_encrypt(bytes, &[EMOJI_PADDED_LENGTH], csprng)
     }
 
     pub fn decrypt_emoji(
@@ -225,14 +256,15 @@ mod tests {
         let mut rng = rand::thread_rng();
         let some_randomness = rng.gen();
         let profile_key = ProfileKey::generate(some_randomness);
-        let mut cipher = ProfileCipher::new(rng, profile_key);
+        let cipher = ProfileCipher::new(profile_key);
         for name in &names {
             let profile_name = ProfileName::<&str> {
                 given_name: name,
                 family_name: None,
             };
             assert_eq!(profile_name.serialize().len(), name.len());
-            let encrypted = cipher.encrypt_name(&profile_name).unwrap();
+            let encrypted =
+                cipher.encrypt_name(&profile_name, &mut rng).unwrap();
             let decrypted = cipher.decrypt_name(encrypted).unwrap().unwrap();
 
             assert_eq!(decrypted.as_ref(), profile_name);
@@ -250,10 +282,11 @@ mod tests {
         let mut rng = rand::thread_rng();
         let some_randomness = rng.gen();
         let profile_key = ProfileKey::generate(some_randomness);
-        let mut cipher = ProfileCipher::new(rng, profile_key);
+        let cipher = ProfileCipher::new(profile_key);
 
         for &about in &abouts {
-            let encrypted = cipher.encrypt_about(about.into()).unwrap();
+            let encrypted =
+                cipher.encrypt_about(about.into(), &mut rng).unwrap();
             let decrypted = cipher.decrypt_about(encrypted).unwrap();
 
             assert_eq!(decrypted, about);
@@ -267,10 +300,11 @@ mod tests {
         let mut rng = rand::thread_rng();
         let some_randomness = rng.gen();
         let profile_key = ProfileKey::generate(some_randomness);
-        let mut cipher = ProfileCipher::new(rng, profile_key);
+        let cipher = ProfileCipher::new(profile_key);
 
         for &emoji in &emojii {
-            let encrypted = cipher.encrypt_emoji(emoji.into()).unwrap();
+            let encrypted =
+                cipher.encrypt_emoji(emoji.into(), &mut rng).unwrap();
             let decrypted = cipher.decrypt_emoji(encrypted).unwrap();
 
             assert_eq!(decrypted, emoji);

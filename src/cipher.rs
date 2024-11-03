@@ -29,19 +29,17 @@ use crate::{
 ///
 /// Equivalent of SignalServiceCipher in Java.
 #[derive(Clone)]
-pub struct ServiceCipher<S, R> {
+pub struct ServiceCipher<S> {
     protocol_store: S,
-    csprng: R,
     trust_root: PublicKey,
     local_uuid: Uuid,
     local_device_id: u32,
 }
 
-impl<S, R> fmt::Debug for ServiceCipher<S, R> {
+impl<S> fmt::Debug for ServiceCipher<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ServiceCipher")
             .field("protocol_store", &"...")
-            .field("csprng", &"...")
             .field("trust_root", &"...")
             .field("local_uuid", &self.local_uuid)
             .field("local_device_id", &self.local_device_id)
@@ -70,21 +68,18 @@ fn debug_envelope(envelope: &Envelope) -> String {
     }
 }
 
-impl<S, R> ServiceCipher<S, R>
+impl<S> ServiceCipher<S>
 where
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Clone,
-    R: Rng + CryptoRng,
 {
     pub fn new(
         protocol_store: S,
-        csprng: R,
         trust_root: PublicKey,
         local_uuid: Uuid,
         local_device_id: u32,
     ) -> Self {
         Self {
             protocol_store,
-            csprng,
             trust_root,
             local_uuid,
             local_device_id,
@@ -94,13 +89,14 @@ where
     /// Opens ("decrypts") an envelope.
     ///
     /// Envelopes may be empty, in which case this method returns `Ok(None)`
-    #[tracing::instrument(skip(envelope), fields(envelope = debug_envelope(&envelope)))]
-    pub async fn open_envelope(
+    #[tracing::instrument(skip(envelope, csprng), fields(envelope = debug_envelope(&envelope)))]
+    pub async fn open_envelope<R: Rng + CryptoRng>(
         &mut self,
         envelope: Envelope,
+        csprng: &mut R,
     ) -> Result<Option<Content>, ServiceError> {
         if envelope.content.is_some() {
-            let plaintext = self.decrypt(&envelope).await?;
+            let plaintext = self.decrypt(&envelope, csprng).await?;
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
             if let Some(bytes) = message.sender_key_distribution_message {
@@ -126,10 +122,11 @@ where
     /// Triage of legacy messages happens inside this method, as opposed to the
     /// Java implementation, because it makes the borrow checker and the
     /// author happier.
-    #[tracing::instrument(skip(envelope), fields(envelope = debug_envelope(envelope)))]
-    async fn decrypt(
+    #[tracing::instrument(skip(envelope, csprng), fields(envelope = debug_envelope(envelope)))]
+    async fn decrypt<R: Rng + CryptoRng>(
         &mut self,
         envelope: &Envelope,
+        csprng: &mut R,
     ) -> Result<Plaintext, ServiceError> {
         let ciphertext = if let Some(msg) = envelope.content.as_ref() {
             msg
@@ -180,7 +177,7 @@ where
                     &mut self.protocol_store.clone(),
                     &self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
-                    &mut self.csprng,
+                    csprng,
                 )
                 .await?
                 .as_slice()
@@ -236,7 +233,7 @@ where
                     &sender,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
-                    &mut self.csprng,
+                    csprng,
                 )
                 .await?
                 .as_slice()
@@ -319,18 +316,19 @@ where
     }
 
     #[tracing::instrument(
-        skip(address, unidentified_access, content),
+        skip(address, unidentified_access, content, csprng),
         fields(
             address = %address,
             with_unidentified_access = unidentified_access.is_some(),
             content_length = content.len(),
         )
     )]
-    pub(crate) async fn encrypt(
+    pub(crate) async fn encrypt<R: Rng + CryptoRng>(
         &mut self,
         address: &ProtocolAddress,
         unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
+        csprng: &mut R,
     ) -> Result<OutgoingPushMessage, ServiceError> {
         let session_record = self
             .protocol_store
@@ -354,7 +352,7 @@ where
                 &mut self.protocol_store.clone(),
                 &mut self.protocol_store,
                 SystemTime::now(),
-                &mut self.csprng,
+                csprng,
             )
             .await?;
 

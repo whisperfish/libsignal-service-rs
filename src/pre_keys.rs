@@ -12,6 +12,7 @@ use libsignal_protocol::{
     SignedPreKeyRecord, SignedPreKeyStore, Timestamp,
 };
 
+use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 
@@ -175,13 +176,10 @@ pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
 pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
-pub(crate) async fn replenish_pre_keys<
-    R: rand::Rng + rand::CryptoRng,
-    P: PreKeysStore,
->(
+pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     protocol_store: &mut P,
-    identity_key_pair: &IdentityKeyPair,
     csprng: &mut R,
+    identity_key_pair: &IdentityKeyPair,
     use_last_resort_key: bool,
     pre_key_count: u32,
     kyber_pre_key_count: u32,

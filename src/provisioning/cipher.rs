@@ -54,16 +54,6 @@ pub struct ProvisioningCipher {
 }
 
 impl ProvisioningCipher {
-    /// Generate a random key pair
-    pub fn generate<R: Rng + CryptoRng>(
-        mut csprng: R,
-    ) -> Result<Self, ProvisioningError> {
-        let key_pair = libsignal_protocol::KeyPair::generate(&mut csprng);
-        Ok(Self {
-            key_material: CipherMode::DecryptAndEncrypt(key_pair),
-        })
-    }
-
     pub fn from_public(key: PublicKey) -> Self {
         Self {
             key_material: CipherMode::EncryptOnly(key),
@@ -185,8 +175,9 @@ mod tests {
     #[test]
     fn encrypt_provisioning_roundtrip() -> anyhow::Result<()> {
         let mut rng = rand::thread_rng();
-        let cipher = ProvisioningCipher::generate(&mut rng)?;
-        let encrypt_cipher =
+        let key_pair = KeyPair::generate(&mut rng);
+        let cipher = ProvisioningCipher::from_key_pair(key_pair);
+        let encrypt_cipher: ProvisioningCipher =
             ProvisioningCipher::from_public(*cipher.public_key());
 
         assert_eq!(

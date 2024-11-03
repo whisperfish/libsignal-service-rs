@@ -158,7 +158,7 @@ pub async fn link_device<
     let registration_id = csprng.gen_range(1..256);
     let pni_registration_id = csprng.gen_range(1..256);
 
-    let provisioning_pipe = ProvisioningPipe::from_socket(csprng, ws)?;
+    let provisioning_pipe = ProvisioningPipe::from_socket(ws, csprng);
     let provision_stream = provisioning_pipe.stream();
     pin_mut!(provision_stream);
 
@@ -237,8 +237,8 @@ pub async fn link_device<
             aci_pq_last_resort_pre_key,
         ) = crate::pre_keys::replenish_pre_keys(
             aci_store,
-            &aci_key_pair,
             csprng,
+            &aci_key_pair,
             true,
             0,
             0,
@@ -257,8 +257,8 @@ pub async fn link_device<
             pni_pq_last_resort_pre_key,
         ) = crate::pre_keys::replenish_pre_keys(
             pni_store,
-            &pni_key_pair,
             csprng,
+            &pni_key_pair,
             true,
             0,
             0,
