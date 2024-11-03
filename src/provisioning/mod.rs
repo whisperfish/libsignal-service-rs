@@ -158,7 +158,7 @@ pub async fn link_device<
     let registration_id = csprng.gen_range(1..256);
     let pni_registration_id = csprng.gen_range(1..256);
 
-    let provisioning_pipe = ProvisioningPipe::from_socket(ws)?;
+    let provisioning_pipe = ProvisioningPipe::from_socket(csprng, ws)?;
     let provision_stream = provisioning_pipe.stream();
     pin_mut!(provision_stream);
 

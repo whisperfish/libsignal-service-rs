@@ -7,7 +7,7 @@ use bytes::Bytes;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{KeyPair, PublicKey};
 use prost::Message;
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use sha2::Sha256;
 
 pub use crate::proto::{ProvisionEnvelope, ProvisionMessage};
@@ -55,11 +55,10 @@ pub struct ProvisioningCipher {
 
 impl ProvisioningCipher {
     /// Generate a random key pair
-    pub fn generate<R>(rng: &mut R) -> Result<Self, ProvisioningError>
-    where
-        R: rand::Rng + rand::CryptoRng,
-    {
-        let key_pair = libsignal_protocol::KeyPair::generate(rng);
+    pub fn generate<R: Rng + CryptoRng>(
+        mut csprng: R,
+    ) -> Result<Self, ProvisioningError> {
+        let key_pair = libsignal_protocol::KeyPair::generate(&mut csprng);
         Ok(Self {
             key_material: CipherMode::DecryptAndEncrypt(key_pair),
         })
@@ -81,14 +80,14 @@ impl ProvisioningCipher {
         self.key_material.public()
     }
 
-    pub fn encrypt(
+    pub fn encrypt<R: Rng + CryptoRng>(
         &self,
+        csprng: &mut R,
         msg: ProvisionMessage,
     ) -> Result<ProvisionEnvelope, ProvisioningError> {
         let msg = msg.encode_to_vec();
 
-        let mut rng = rand::thread_rng();
-        let our_key_pair = libsignal_protocol::KeyPair::generate(&mut rng);
+        let our_key_pair = libsignal_protocol::KeyPair::generate(csprng);
         let agreement = our_key_pair.calculate_agreement(self.public_key())?;
 
         let mut shared_secrets = [0; 64];
@@ -98,7 +97,7 @@ impl ProvisioningCipher {
 
         let aes_key = &shared_secrets[0..32];
         let mac_key = &shared_secrets[32..];
-        let iv: [u8; IV_LENGTH] = rng.gen();
+        let iv: [u8; IV_LENGTH] = csprng.gen();
 
         let cipher = cbc::Encryptor::<Aes256>::new(aes_key.into(), &iv.into());
         let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&msg);
@@ -197,7 +196,7 @@ mod tests {
         );
 
         let msg = ProvisionMessage::default();
-        let encrypted = encrypt_cipher.encrypt(msg.clone())?;
+        let encrypted = encrypt_cipher.encrypt(&mut rng, msg.clone())?;
 
         assert!(matches!(
             encrypt_cipher.decrypt(encrypted.clone()),

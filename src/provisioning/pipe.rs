@@ -7,6 +7,7 @@ use futures::{
     },
     prelude::*,
 };
+use rand::{CryptoRng, Rng};
 use url::Url;
 
 pub use crate::proto::{ProvisionEnvelope, ProvisionMessage};
@@ -34,12 +35,13 @@ pub enum ProvisioningStep {
 }
 
 impl ProvisioningPipe {
-    pub fn from_socket(ws: SignalWebSocket) -> Result<Self, ProvisioningError> {
+    pub fn from_socket<R: Rng + CryptoRng>(
+        csprng: &mut R,
+        ws: SignalWebSocket,
+    ) -> Result<Self, ProvisioningError> {
         Ok(ProvisioningPipe {
             ws,
-            provisioning_cipher: ProvisioningCipher::generate(
-                &mut rand::thread_rng(),
-            )?,
+            provisioning_cipher: ProvisioningCipher::generate(csprng)?,
         })
     }
 

@@ -1,5 +1,6 @@
 use base64::prelude::*;
 use phonenumber::PhoneNumber;
+use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -51,7 +52,8 @@ use crate::{
 
 type Aes256Ctr128BE = ctr::Ctr128BE<aes::Aes256>;
 
-pub struct AccountManager {
+pub struct AccountManager<R: Rng + CryptoRng> {
+    csprng: R,
     service: PushService,
     profile_key: Option<ProfileKey>,
 }
@@ -72,9 +74,14 @@ pub struct Profile {
     pub avatar: Option<String>,
 }
 
-impl AccountManager {
-    pub fn new(service: PushService, profile_key: Option<ProfileKey>) -> Self {
+impl<R: Rng + CryptoRng> AccountManager<R> {
+    pub fn new(
+        csprng: R,
+        service: PushService,
+        profile_key: Option<ProfileKey>,
+    ) -> Self {
         Self {
+            csprng,
             service,
             profile_key,
         }
@@ -87,15 +94,11 @@ impl AccountManager {
     ///
     /// Equivalent to Java's RefreshPreKeysJob
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, protocol_store, csprng))]
-    pub async fn update_pre_key_bundle<
-        R: rand::Rng + rand::CryptoRng,
-        P: PreKeysStore,
-    >(
+    #[tracing::instrument(skip(self, protocol_store))]
+    pub async fn update_pre_key_bundle<P: PreKeysStore>(
         &mut self,
         protocol_store: &mut P,
         service_id_type: ServiceIdType,
-        csprng: &mut R,
         use_last_resort_key: bool,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
@@ -154,7 +157,7 @@ impl AccountManager {
             crate::pre_keys::replenish_pre_keys(
                 protocol_store,
                 &identity_key_pair,
-                csprng,
+                &mut self.csprng,
                 use_last_resort_key && !has_last_resort_key,
                 PRE_KEY_BATCH_SIZE,
                 PRE_KEY_BATCH_SIZE,
@@ -343,7 +346,7 @@ impl AccountManager {
 
         let cipher = ProvisioningCipher::from_public(pub_key);
 
-        let encrypted = cipher.encrypt(msg)?;
+        let encrypted = cipher.encrypt(&mut self.csprng, msg)?;
         self.send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
@@ -379,12 +382,10 @@ impl AccountManager {
     }
 
     pub async fn register_account<
-        R: rand::Rng + rand::CryptoRng,
         Aci: PreKeysStore + IdentityKeyStore,
         Pni: PreKeysStore + IdentityKeyStore,
     >(
         &mut self,
-        csprng: &mut R,
         registration_method: RegistrationMethod<'_>,
         account_attributes: AccountAttributes,
         aci_protocol_store: &mut Aci,
@@ -408,7 +409,7 @@ impl AccountManager {
         ) = crate::pre_keys::replenish_pre_keys(
             aci_protocol_store,
             &aci_identity_key_pair,
-            csprng,
+            &mut self.csprng,
             true,
             0,
             0,
@@ -423,7 +424,7 @@ impl AccountManager {
         ) = crate::pre_keys::replenish_pre_keys(
             pni_protocol_store,
             &pni_identity_key_pair,
-            csprng,
+            &mut self.csprng,
             true,
             0,
             0,
@@ -504,7 +505,7 @@ impl AccountManager {
             .retrieve_profile_by_id(address, Some(profile_key))
             .await?;
 
-        let profile_cipher = ProfileCipher::from(profile_key);
+        let profile_cipher = ProfileCipher::new(&mut self.csprng, profile_key);
         Ok(encrypted_profile.decrypt(profile_cipher)?)
     }
 
@@ -527,7 +528,8 @@ impl AccountManager {
     ) -> Result<Option<String>, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
-        let profile_cipher = ProfileCipher::from(profile_key);
+        let mut profile_cipher =
+            ProfileCipher::new(&mut self.csprng, profile_key);
 
         // Profile encryption
         let name = profile_cipher.encrypt_name(name.as_ref())?;
@@ -576,11 +578,8 @@ impl AccountManager {
         device_name: &str,
         public_key: &IdentityKey,
     ) -> Result<(), ServiceError> {
-        let encrypted_device_name = encrypt_device_name(
-            &mut rand::thread_rng(),
-            device_name,
-            public_key,
-        )?;
+        let encrypted_device_name =
+            encrypt_device_name(&mut self.csprng, device_name, public_key)?;
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -641,10 +640,9 @@ impl AccountManager {
     /// Should be called as the primary device to migrate from pre-PNI to PNI.
     ///
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
-    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = %local_aci))]
+    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci), fields(local_aci = %local_aci))]
     pub async fn pnp_initialize_devices<
         // XXX So many constraints here, all imposed by the MessageSender
-        R: rand::Rng + rand::CryptoRng,
         Aci: PreKeysStore + SessionStoreExt,
         Pni: PreKeysStore,
         AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
@@ -655,7 +653,6 @@ impl AccountManager {
         mut sender: MessageSender<AciOrPni, R>,
         local_aci: ServiceAddress,
         e164: PhoneNumber,
-        csprng: &mut R,
     ) -> Result<(), MessageSenderError> {
         let pni_identity_key_pair =
             pni_protocol_store.get_identity_key_pair().await?;
@@ -713,7 +710,7 @@ impl AccountManager {
                 crate::pre_keys::replenish_pre_keys(
                     pni_protocol_store,
                     &pni_identity_key_pair,
-                    csprng,
+                    &mut self.csprng,
                     true,
                     0,
                     0,
@@ -721,16 +718,16 @@ impl AccountManager {
                 .await?
             } else {
                 // Generate a signed prekey
-                let signed_pre_key_pair = KeyPair::generate(csprng);
+                let signed_pre_key_pair = KeyPair::generate(&mut self.csprng);
                 let signed_pre_key_public = signed_pre_key_pair.public_key;
                 let signed_pre_key_signature =
                     pni_identity_key_pair.private_key().calculate_signature(
                         &signed_pre_key_public.serialize(),
-                        csprng,
+                        &mut self.csprng,
                     )?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    self.csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
                     Timestamp::now(),
                     &signed_pre_key_pair,
                     &signed_pre_key_signature,
@@ -739,7 +736,7 @@ impl AccountManager {
                 // Generate a last-resort Kyber prekey
                 let kyber_pre_key_record = KyberPreKeyRecord::generate(
                     kem::KeyType::Kyber1024,
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    self.csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
                     pni_identity_key_pair.private_key(),
                 )?;
                 (
@@ -754,7 +751,7 @@ impl AccountManager {
                 pni_protocol_store.get_local_registration_id().await?
             } else {
                 loop {
-                    let regid = generate_registration_id(csprng);
+                    let regid = generate_registration_id(&mut self.csprng);
                     if !pni_registration_ids.iter().any(|(_k, v)| *v == regid) {
                         break regid;
                     }
@@ -802,7 +799,7 @@ impl AccountManager {
                         e164.format().mode(phonenumber::Mode::E164).to_string(),
                     ),
                 }),
-                padding: Some(random_length_padding(csprng, 512)),
+                padding: Some(random_length_padding(&mut self.csprng, 512)),
                 ..SyncMessage::default()
             };
             let content: ContentBody = msg.into();

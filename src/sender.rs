@@ -196,12 +196,10 @@ where
         let len = contents.len();
         // Encrypt
         let (key, iv) = {
-            use rand::RngCore;
             let mut key = [0u8; 64];
             let mut iv = [0u8; 16];
-            // thread_rng is guaranteed to be cryptographically secure
-            rand::thread_rng().fill_bytes(&mut key);
-            rand::thread_rng().fill_bytes(&mut iv);
+            self.csprng.fill_bytes(&mut key);
+            self.csprng.fill_bytes(&mut iv);
             (key, iv)
         };
 
@@ -371,8 +369,8 @@ where
         // only send a sync message when sending to self and skip the rest of the process
         if message_to_self && is_multi_device {
             debug!("sending note to self");
-            let sync_message =
-                Self::create_multi_device_sent_transcript_content(
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
@@ -414,8 +412,8 @@ where
 
         if needs_sync || is_multi_device {
             debug!("sending multi-device sync message");
-            let sync_message =
-                Self::create_multi_device_sent_transcript_content(
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
@@ -488,8 +486,8 @@ where
 
         // we only need to send a synchronization message once
         if needs_sync_in_results || self.is_multi_device().await {
-            let sync_message =
-                Self::create_multi_device_sent_transcript_content(
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
                     None,
                     content_body,
                     timestamp,
@@ -703,7 +701,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         self.send_message(
@@ -728,7 +726,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             configuration: Some(configuration),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -775,7 +773,7 @@ where
 
         let msg = SyncMessage {
             message_request_response,
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -794,7 +792,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             keys: Some(keys),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -819,7 +817,7 @@ where
             request: Some(sync_message::Request {
                 r#type: Some(request_type.into()),
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -1041,6 +1039,7 @@ where
     }
 
     fn create_multi_device_sent_transcript_content<'a>(
+        &mut self,
         recipient: Option<&ServiceAddress>,
         content_body: ContentBody,
         timestamp: u64,
@@ -1088,7 +1087,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         })
     }
 }

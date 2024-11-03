@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use aes_gcm::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
+use rand::{CryptoRng, Rng};
 use zkgroup::profiles::ProfileKey;
 
 use crate::profile_name::ProfileName;
@@ -25,14 +26,9 @@ use crate::profile_name::ProfileName;
 /// let decrypted = cipher.decrypt_name(&encrypted).unwrap().unwrap();
 /// assert_eq!(decrypted.as_ref(), name);
 /// ```
-pub struct ProfileCipher {
+pub struct ProfileCipher<R: Rng + CryptoRng> {
+    csprng: R,
     profile_key: ProfileKey,
-}
-
-impl From<ProfileKey> for ProfileCipher {
-    fn from(profile_key: ProfileKey) -> Self {
-        ProfileCipher { profile_key }
-    }
 }
 
 const NAME_PADDED_LENGTH_1: usize = 53;
@@ -77,20 +73,27 @@ fn pad_plaintext(
     Ok(len)
 }
 
-impl ProfileCipher {
+impl<R: Rng + CryptoRng> ProfileCipher<R> {
+    pub fn new(csprng: R, profile_key: ProfileKey) -> Self {
+        Self {
+            csprng,
+            profile_key,
+        }
+    }
+
     pub fn into_inner(self) -> ProfileKey {
         self.profile_key
     }
 
     fn pad_and_encrypt(
-        &self,
+        &mut self,
         mut bytes: Vec<u8>,
         padding_brackets: &[usize],
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let _len = pad_plaintext(&mut bytes, padding_brackets)?;
 
         let cipher = Aes256Gcm::new(&self.profile_key.get_bytes().into());
-        let nonce = Aes256Gcm::generate_nonce(rand::thread_rng());
+        let nonce = Aes256Gcm::generate_nonce(&mut self.csprng);
 
         cipher
             .encrypt_in_place(&nonce, b"", &mut bytes)
@@ -137,7 +140,7 @@ impl ProfileCipher {
     }
 
     pub fn encrypt_name<'inp>(
-        &self,
+        &mut self,
         name: impl std::borrow::Borrow<ProfileName<&'inp str>>,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let name = name.borrow();
@@ -157,7 +160,7 @@ impl ProfileCipher {
     }
 
     pub fn encrypt_about(
-        &self,
+        &mut self,
         about: String,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let bytes = about.into_bytes();
@@ -177,7 +180,7 @@ impl ProfileCipher {
     }
 
     pub fn encrypt_emoji(
-        &self,
+        &mut self,
         emoji: String,
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let bytes = emoji.into_bytes();
@@ -222,7 +225,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let some_randomness = rng.gen();
         let profile_key = ProfileKey::generate(some_randomness);
-        let cipher = ProfileCipher::from(profile_key);
+        let mut cipher = ProfileCipher::new(rng, profile_key);
         for name in &names {
             let profile_name = ProfileName::<&str> {
                 given_name: name,
@@ -247,7 +250,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let some_randomness = rng.gen();
         let profile_key = ProfileKey::generate(some_randomness);
-        let cipher = ProfileCipher::from(profile_key);
+        let mut cipher = ProfileCipher::new(rng, profile_key);
 
         for &about in &abouts {
             let encrypted = cipher.encrypt_about(about.into()).unwrap();
@@ -264,7 +267,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let some_randomness = rng.gen();
         let profile_key = ProfileKey::generate(some_randomness);
-        let cipher = ProfileCipher::from(profile_key);
+        let mut cipher = ProfileCipher::new(rng, profile_key);
 
         for &emoji in &emojii {
             let encrypted = cipher.encrypt_emoji(emoji.into()).unwrap();

@@ -1,3 +1,4 @@
+use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
@@ -38,9 +39,9 @@ pub struct SignalServiceProfile {
 }
 
 impl SignalServiceProfile {
-    pub fn decrypt(
+    pub fn decrypt<R: Rng + CryptoRng>(
         &self,
-        profile_cipher: crate::profile_cipher::ProfileCipher,
+        profile_cipher: crate::profile_cipher::ProfileCipher<R>,
     ) -> Result<Profile, ProfileCipherError> {
         // Profile decryption
         let name = self

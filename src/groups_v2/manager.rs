@@ -16,7 +16,7 @@ use base64::prelude::*;
 use bytes::Bytes;
 use chrono::{Days, NaiveDate, NaiveTime, Utc};
 use futures::AsyncReadExt;
-use rand::RngCore;
+use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use serde::Deserialize;
 use zkgroup::{
@@ -152,8 +152,9 @@ impl<C: CredentialsCache> GroupsManager<C> {
         }
     }
 
-    pub async fn get_authorization_for_today(
+    pub async fn get_authorization_for_today<R: Rng + CryptoRng>(
         &mut self,
+        csprng: &mut R,
         group_secret_params: GroupSecretParams,
     ) -> Result<HttpAuth, ServiceError> {
         let (today, today_plus_7_days) = current_days_seconds();
@@ -190,14 +191,16 @@ impl<C: CredentialsCache> GroupsManager<C> {
         };
 
         self.get_authorization_string(
+            csprng,
             group_secret_params,
             auth_credential_response.clone(),
             today,
         )
     }
 
-    fn get_authorization_string(
+    fn get_authorization_string<R: Rng + CryptoRng>(
         &self,
+        csprng: &mut R,
         group_secret_params: GroupSecretParams,
         credential_response: AuthCredentialWithPniResponse,
         today: u64,
@@ -219,7 +222,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             })?;
 
         let mut random_bytes = [0u8; 32];
-        rand::thread_rng().fill_bytes(&mut random_bytes);
+        csprng.fill_bytes(&mut random_bytes);
 
         let auth_credential_presentation = self
             .server_public_params
@@ -241,21 +244,9 @@ impl<C: CredentialsCache> GroupsManager<C> {
         Ok(HttpAuth { username, password })
     }
 
-    #[deprecated = "please use fetch_encrypted_group and decrypt_group separately, which hide more of the implementation details"]
-    pub async fn get_group(
+    pub async fn fetch_encrypted_group<R: Rng + CryptoRng>(
         &mut self,
-        group_secret_params: GroupSecretParams,
-        credentials: HttpAuth,
-    ) -> Result<Group, ServiceError> {
-        let encrypted_group = self.push_service.get_group(credentials).await?;
-        let decrypted_group = GroupOperations::new(group_secret_params)
-            .decrypt_group(encrypted_group)?;
-
-        Ok(decrypted_group)
-    }
-
-    pub async fn fetch_encrypted_group(
-        &mut self,
+        csprng: &mut R,
         master_key_bytes: &[u8],
     ) -> Result<crate::proto::Group, ServiceError> {
         let group_master_key = GroupMasterKey::new(
@@ -266,7 +257,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         let group_secret_params =
             GroupSecretParams::derive_from_master_key(group_master_key);
         let authorization = self
-            .get_authorization_for_today(group_secret_params)
+            .get_authorization_for_today(csprng, group_secret_params)
             .await?;
         self.push_service.get_group(authorization).await
     }

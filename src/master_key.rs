@@ -1,3 +1,5 @@
+use rand::{CryptoRng, Rng};
+
 const MASTER_KEY_LEN: usize = 32;
 const STORAGE_KEY_LEN: usize = 32;
 
@@ -7,13 +9,10 @@ pub struct MasterKey {
 }
 
 impl MasterKey {
-    pub fn generate() -> Self {
-        use rand::Rng;
-
+    pub fn generate<R: Rng + CryptoRng>(csprng: &mut R) -> Self {
         // Create random bytes
-        let mut rng = rand::thread_rng();
         let mut inner = [0_u8; MASTER_KEY_LEN];
-        rng.fill(&mut inner);
+        csprng.fill(&mut inner);
         Self { inner }
     }
 
