@@ -1,4 +1,4 @@
-use libsignal_protocol::ProtocolAddress;
+use libsignal_protocol::{ProtocolAddress, ServiceId};
 use std::fmt;
 use uuid::Uuid;
 
@@ -12,6 +12,7 @@ pub use crate::{
         SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
+    ServiceIdExt,
 };
 
 mod data_message;
@@ -19,8 +20,8 @@ mod story_message;
 
 #[derive(Clone, Debug)]
 pub struct Metadata {
-    pub sender: crate::ServiceAddress,
-    pub destination: crate::ServiceAddress,
+    pub sender: ServiceId,
+    pub destination: ServiceId,
     pub sender_device: u32,
     pub timestamp: u64,
     pub needs_receipt: bool,
@@ -37,7 +38,7 @@ impl fmt::Display for Metadata {
         write!(
             f,
             "Metadata {{ sender: {}, guid: {} }}",
-            self.sender.to_service_id(),
+            self.sender.service_id_string(),
             // XXX: should this still be optional?
             self.server_guid
                 .map(|u| u.to_string())

@@ -9,8 +9,8 @@ use libsignal_protocol::{
     CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
     PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
     PublicKey, SealedSenderDecryptionResult, SenderCertificate,
-    SenderKeyDistributionMessage, SenderKeyStore, SessionStore, SignalMessage,
-    SignalProtocolError, SignedPreKeyStore, Timestamp,
+    SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
+    SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
 };
 use prost::Message;
 use rand::{CryptoRng, Rng};
@@ -23,7 +23,7 @@ use crate::{
     sender::OutgoingPushMessage,
     session_store::SessionStoreExt,
     utils::BASE64_RELAXED,
-    ServiceAddress,
+    ServiceIdExt,
 };
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
@@ -273,13 +273,16 @@ where
                 )
                 .await?;
 
-                let sender = ServiceAddress::try_from(sender_uuid.as_str())
-                    .map_err(|e| {
-                        tracing::error!("{:?}", e);
+                let Some(sender) =
+                    ServiceId::parse_from_service_id_string(&sender_uuid)
+                else {
+                    return Err(
                         SignalProtocolError::InvalidSealedSenderMessage(
                             "invalid sender UUID".to_string(),
                         )
-                    })?;
+                        .into(),
+                    );
+                };
 
                 let needs_receipt = if envelope.source_service_id.is_some() {
                     tracing::warn!(?envelope, "Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
@@ -449,7 +452,7 @@ fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
 /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
 pub async fn get_preferred_protocol_address<S: SessionStore>(
     session_store: &S,
-    address: &ServiceAddress,
+    address: &ServiceId,
     device_id: DeviceId,
 ) -> Result<ProtocolAddress, libsignal_protocol::error::SignalProtocolError> {
     let address = address.to_protocol_address(device_id);

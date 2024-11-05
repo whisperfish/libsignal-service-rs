@@ -2,8 +2,9 @@ use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
 use libsignal_protocol::{
-    process_prekey_bundle, DeviceId, IdentityKey, IdentityKeyPair,
-    ProtocolStore, SenderCertificate, SenderKeyStore, SignalProtocolError,
+    process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
+    ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
+    SignalProtocolError,
 };
 use rand::{CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
@@ -24,10 +25,11 @@ use crate::{
         AttachmentPointer, SyncMessage,
     },
     push_service::*,
+    service_address::ServiceIdExt,
     session_store::SessionStoreExt,
     unidentified_access::UnidentifiedAccess,
+    utils::serde_service_id,
     websocket::SignalWebSocket,
-    ServiceAddress,
 };
 
 pub use crate::proto::{ContactDetails, GroupDetails};
@@ -43,7 +45,8 @@ pub struct OutgoingPushMessage {
 
 #[derive(serde::Serialize, Debug)]
 pub struct OutgoingPushMessages {
-    pub destination: uuid::Uuid,
+    #[serde(with = "serde_service_id")]
+    pub destination: ServiceId,
     pub timestamp: u64,
     pub messages: Vec<OutgoingPushMessage>,
     pub online: bool,
@@ -59,7 +62,7 @@ pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
 
 #[derive(Debug, Clone)]
 pub struct SentMessage {
-    pub recipient: ServiceAddress,
+    pub recipient: ServiceId,
     pub used_identity_key: IdentityKey,
     pub unidentified: bool,
     pub needs_sync: bool,
@@ -90,8 +93,8 @@ pub struct MessageSender<S, R> {
     cipher: ServiceCipher<S>,
     csprng: R,
     protocol_store: S,
-    local_aci: ServiceAddress,
-    local_pni: ServiceAddress,
+    local_aci: Aci,
+    local_pni: Pni,
     aci_identity: IdentityKeyPair,
     pni_identity: Option<IdentityKeyPair>,
     device_id: DeviceId,
@@ -121,7 +124,7 @@ pub enum MessageSenderError {
     SendSyncMessageError(sync_message::request::Type),
 
     #[error("Untrusted identity key with {address:?}")]
-    UntrustedIdentity { address: ServiceAddress },
+    UntrustedIdentity { address: ServiceId },
 
     #[error("Exceeded maximum number of retries")]
     MaximumRetriesLimitExceeded,
@@ -129,8 +132,8 @@ pub enum MessageSenderError {
     #[error("Proof of type {options:?} required using token {token}")]
     ProofRequired { token: String, options: Vec<String> },
 
-    #[error("Recipient not found: {addr:?}")]
-    NotFound { addr: ServiceAddress },
+    #[error("Recipient not found: {service_id:?}")]
+    NotFound { service_id: ServiceId },
 
     #[error("no messages were encrypted: this should not really happen and most likely implies a logic error")]
     NoMessagesToSend,
@@ -163,8 +166,8 @@ where
         cipher: ServiceCipher<S>,
         csprng: R,
         protocol_store: S,
-        local_aci: impl Into<ServiceAddress>,
-        local_pni: impl Into<ServiceAddress>,
+        local_aci: impl Into<Aci>,
+        local_pni: impl Into<Pni>,
         aci_identity: IdentityKeyPair,
         pni_identity: Option<IdentityKeyPair>,
         device_id: DeviceId,
@@ -331,7 +334,7 @@ where
     async fn is_multi_device(&self) -> bool {
         if self.device_id == DEFAULT_DEVICE_ID.into() {
             self.protocol_store
-                .get_sub_device_sessions(&self.local_aci)
+                .get_sub_device_sessions(&self.local_aci.into())
                 .await
                 .map_or(false, |s| !s.is_empty())
         } else {
@@ -341,12 +344,12 @@ where
 
     /// Send a message `content` to a single `recipient`.
     #[tracing::instrument(
-        skip(self, unidentified_access, message, recipient),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
+        skip(self, unidentified_access, message),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
     )]
     pub async fn send_message(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         mut unidentified_access: Option<UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
@@ -420,7 +423,7 @@ where
                     Some(&result),
                 );
             self.try_send_message(
-                self.local_aci,
+                self.local_aci.into(),
                 None,
                 &sync_message,
                 timestamp,
@@ -432,7 +435,11 @@ where
 
         if end_session {
             let n = self.protocol_store.delete_all_sessions(recipient).await?;
-            tracing::debug!("ended {} sessions with {}", n, recipient.uuid);
+            tracing::debug!(
+                "ended {} sessions with {}",
+                n,
+                recipient.raw_uuid()
+            );
         }
 
         result
@@ -450,7 +457,7 @@ where
     )]
     pub async fn send_message_to_group(
         &mut self,
-        recipients: impl AsRef<[(ServiceAddress, Option<UnidentifiedAccess>, bool)]>,
+        recipients: impl AsRef<[(ServiceId, Option<UnidentifiedAccess>, bool)]>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
@@ -497,7 +504,7 @@ where
             // See Signal Android `SignalServiceMessageSender.java:2817`
             if let Err(error) = self
                 .try_send_message(
-                    self.local_aci,
+                    self.local_aci.into(),
                     None,
                     &sync_message,
                     timestamp,
@@ -516,12 +523,12 @@ where
     /// Send a message (`content`) to an address (`recipient`).
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
+        skip(self, unidentified_access, content_body, recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
     )]
     async fn try_send_message(
         &mut self,
-        recipient: ServiceAddress,
+        recipient: ServiceId,
         mut unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
         timestamp: u64,
@@ -558,7 +565,7 @@ where
             };
 
             let messages = OutgoingPushMessages {
-                destination: recipient.uuid,
+                destination: recipient,
                 timestamp,
                 messages,
                 online,
@@ -659,7 +666,7 @@ where
                 Err(ServiceError::NotFoundError) => {
                     tracing::debug!("Not found when sending a message");
                     return Err(MessageSenderError::NotFound {
-                        addr: recipient,
+                        service_id: recipient,
                     });
                 },
                 Err(e) => {
@@ -678,11 +685,11 @@ where
     /// Upload contact details to the CDN and send a sync message
     #[tracing::instrument(
         skip(self, unidentified_access, contacts, recipient),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
     )]
     pub async fn send_contact_details<Contacts>(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         unidentified_access: Option<UnidentifiedAccess>,
         // XXX It may be interesting to use an intermediary type,
         //     instead of ContactDetails directly,
@@ -718,10 +725,10 @@ where
     }
 
     /// Send `Configuration` synchronization message
-    #[tracing::instrument(skip(self, recipient), fields(recipient = %recipient))]
+    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
     pub async fn send_configuration(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         configuration: sync_message::Configuration,
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
@@ -737,10 +744,10 @@ where
     }
 
     /// Send `MessageRequestResponse` synchronization message with either a recipient ACI or a GroupV2 ID
-    #[tracing::instrument(skip(self, recipient), fields(recipient = %recipient))]
+    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
     pub async fn send_message_request_response(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         thread: &ThreadIdentifier,
         action: message_request_response::Type,
     ) -> Result<(), MessageSenderError> {
@@ -784,10 +791,10 @@ where
     }
 
     /// Send `Keys` synchronization message
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
     pub async fn send_keys(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         keys: sync_message::Keys,
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
@@ -806,7 +813,7 @@ where
     #[tracing::instrument(skip(self))]
     pub async fn send_sync_message_request(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         request_type: sync_message::request::Type,
     ) -> Result<(), MessageSenderError> {
         if self.device_id == DEFAULT_DEVICE_ID.into() {
@@ -839,7 +846,7 @@ where
                 &mut self.csprng,
             )?;
         Ok(crate::proto::PniSignatureMessage {
-            pni: Some(self.local_pni.uuid.as_bytes().to_vec()),
+            pni: Some(self.local_pni.service_id_binary()),
             signature: Some(signature.into()),
         })
     }
@@ -847,12 +854,12 @@ where
     // Equivalent with `getEncryptedMessages`
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content, recipient),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
     )]
     async fn create_encrypted_messages(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         unidentified_access: Option<&SenderCertificate>,
         content: &[u8],
     ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
@@ -870,18 +877,14 @@ where
         devices.insert(DEFAULT_DEVICE_ID.into());
 
         // never try to send messages to the sender device
-        match recipient.identity {
-            ServiceIdType::AccountIdentity => {
-                if recipient.aci().is_some()
-                    && recipient.aci() == self.local_aci.aci()
-                {
+        match recipient {
+            ServiceId::Aci(aci) => {
+                if *aci == self.local_aci {
                     devices.remove(&self.device_id);
                 }
             },
-            ServiceIdType::PhoneNumberIdentity => {
-                if recipient.pni().is_some()
-                    && recipient.pni() == self.local_aci.pni()
-                {
+            ServiceId::Pni(pni) => {
+                if *pni == self.local_pni {
                     devices.remove(&self.device_id);
                 }
             },
@@ -955,12 +958,12 @@ where
     /// When no session with the recipient exists, we need to create one.
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content, recipient),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = %recipient),
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
     )]
     pub(crate) async fn create_encrypted_message(
         &mut self,
-        recipient: &ServiceAddress,
+        recipient: &ServiceId,
         unidentified_access: Option<&SenderCertificate>,
         device_id: DeviceId,
         content: &[u8],
@@ -996,7 +999,7 @@ where
                 },
                 Err(ServiceError::NotFoundError) => {
                     return Err(MessageSenderError::NotFound {
-                        addr: *recipient,
+                        service_id: *recipient,
                     });
                 },
                 Err(e) => Err(e)?,
@@ -1045,7 +1048,7 @@ where
 
     fn create_multi_device_sent_transcript_content<'a>(
         &mut self,
-        recipient: Option<&ServiceAddress>,
+        recipient: Option<&ServiceId>,
         content_body: ContentBody,
         timestamp: u64,
         send_message_results: impl IntoIterator<Item = &'a SendMessageResult>,
@@ -1069,7 +1072,7 @@ where
                     } = sent;
                     UnidentifiedDeliveryStatus {
                         destination_service_id: Some(
-                            recipient.uuid.to_string(),
+                            recipient.service_id_string(),
                         ),
                         unidentified: Some(*unidentified),
                         destination_identity_key: Some(
@@ -1080,7 +1083,8 @@ where
                 .collect();
         ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
-                destination_service_id: recipient.map(|r| r.uuid.to_string()),
+                destination_service_id: recipient
+                    .map(ServiceId::service_id_string),
                 destination_e164: None,
                 expiration_start_timestamp: data_message
                     .as_ref()

@@ -9,9 +9,9 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    kem, GenericSignedPreKey, IdentityKey, IdentityKeyPair, IdentityKeyStore,
-    KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore, PublicKey,
-    SenderKeyStore, SignedPreKeyRecord, Timestamp,
+    kem, Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair,
+    IdentityKeyStore, KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore,
+    PublicKey, SenderKeyStore, ServiceIdKind, SignedPreKeyRecord, Timestamp,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -30,15 +30,15 @@ use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{
-    AvatarWrite, DeviceActivationRequest, DeviceInfo, HttpAuthOverride,
-    RecaptchaAttributes, RegistrationMethod, ReqwestExt, ServiceIdType,
-    VerifyAccountResponse, DEFAULT_DEVICE_ID,
+    AvatarWrite, CaptchaAttributes, DeviceActivationRequest, DeviceInfo,
+    HttpAuthOverride, RegistrationMethod, ReqwestExt, VerifyAccountResponse,
+    DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
+use crate::service_address::ServiceIdExt;
 use crate::session_store::SessionStoreExt;
 use crate::timestamp::TimestampExt as _;
 use crate::utils::{random_length_padding, BASE64_RELAXED};
-use crate::ServiceAddress;
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::PreKeyState,
@@ -91,14 +91,14 @@ impl AccountManager {
     #[tracing::instrument(skip(self, csprng, protocol_store))]
     pub async fn update_pre_key_bundle<R: Rng + CryptoRng, P: PreKeysStore>(
         &mut self,
-        csprng: &mut R,
         protocol_store: &mut P,
-        service_id_type: ServiceIdType,
+        service_id_kind: ServiceIdKind,
         use_last_resort_key: bool,
+        csprng: &mut R,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .service
-            .get_pre_key_status(service_id_type)
+            .get_pre_key_status(service_id_kind)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Fetching pre key status"
@@ -200,7 +200,7 @@ impl AccountManager {
         };
 
         self.service
-            .register_pre_keys(service_id_type, pre_key_state)
+            .register_pre_keys(service_id_kind, pre_key_state)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Uploading pre keys"
@@ -498,7 +498,7 @@ impl AccountManager {
 
     pub async fn retrieve_profile(
         &mut self,
-        address: ServiceAddress,
+        address: Aci,
     ) -> Result<Profile, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
@@ -627,10 +627,10 @@ impl AccountManager {
                 Endpoint::service("/v1/challenge"),
                 HttpAuthOverride::NoOverride,
             )?
-            .json(&RecaptchaAttributes {
-                r#type: String::from("recaptcha"),
-                token: String::from(token),
-                captcha: String::from(captcha),
+            .json(&CaptchaAttributes {
+                challenge_type: "captcha",
+                token,
+                captcha,
             })
             .send()
             .await?
@@ -645,18 +645,18 @@ impl AccountManager {
     /// Should be called as the primary device to migrate from pre-PNI to PNI.
     ///
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
-    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = %local_aci))]
+    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = local_aci.service_id_string()))]
     pub async fn pnp_initialize_devices<
         R: Rng + CryptoRng,
-        Aci: PreKeysStore + SessionStoreExt,
-        Pni: PreKeysStore,
+        AciStore: PreKeysStore + SessionStoreExt,
+        PniStore: PreKeysStore,
         AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
     >(
         &mut self,
-        aci_protocol_store: &mut Aci,
-        pni_protocol_store: &mut Pni,
+        aci_protocol_store: &mut AciStore,
+        pni_protocol_store: &mut PniStore,
         mut sender: MessageSender<AciOrPni, R>,
-        local_aci: ServiceAddress,
+        local_aci: Aci,
         e164: PhoneNumber,
         csprng: &mut R,
     ) -> Result<(), MessageSenderError> {
@@ -667,7 +667,7 @@ impl AccountManager {
 
         // For every linked device, we generate a new set of pre-keys, and send them to the device.
         let local_device_ids = aci_protocol_store
-            .get_sub_device_sessions(&local_aci)
+            .get_sub_device_sessions(&local_aci.into())
             .await?;
 
         let mut device_messages =
@@ -811,7 +811,7 @@ impl AccountManager {
             let content: ContentBody = msg.into();
             let msg = sender
                 .create_encrypted_message(
-                    &local_aci,
+                    &local_aci.into(),
                     None,
                     local_device_id.into(),
                     &content.into_proto().encode_to_vec(),

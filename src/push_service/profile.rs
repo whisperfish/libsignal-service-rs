@@ -1,3 +1,4 @@
+use libsignal_protocol::Aci;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
@@ -7,7 +8,6 @@ use crate::{
     content::ServiceError,
     push_service::AvatarWrite,
     utils::{serde_base64, serde_optional_base64},
-    ServiceAddress,
 };
 
 use super::{DeviceCapabilities, HttpAuthOverride, PushService, ReqwestExt};
@@ -56,18 +56,17 @@ struct SignalServiceProfileWrite<'s> {
 impl PushService {
     pub async fn retrieve_profile_by_id(
         &mut self,
-        address: ServiceAddress,
+        address: Aci,
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
         let path = if let Some(key) = profile_key {
-            let version = bincode::serialize(&key.get_profile_key_version(
-                address.aci().expect("profile by ACI ProtocolAddress"),
-            ))?;
+            let version =
+                bincode::serialize(&key.get_profile_key_version(address))?;
             let version = std::str::from_utf8(&version)
                 .expect("hex encoded profile key version");
-            format!("/v1/profile/{}/{}", address.uuid, version)
+            format!("/v1/profile/{}/{}", address.service_id_string(), version)
         } else {
-            format!("/v1/profile/{}", address.uuid)
+            format!("/v1/profile/{}", address.service_id_string())
         };
         // TODO: set locale to en_US
         self.request(
