@@ -3,10 +3,7 @@ use aes::cipher::{BlockDecryptMut, KeyIvInit};
 use libsignal_protocol::ServiceId;
 use prost::Message;
 
-use crate::{
-    configuration::SignalingKey, push_service::ServiceError,
-    utils::serde_optional_base64,
-};
+use crate::{configuration::SignalingKey, push_service::ServiceError};
 
 pub use crate::proto::Envelope;
 
@@ -114,37 +111,6 @@ impl Envelope {
             None => panic!("destination_address is set"),
         }
     }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EnvelopeEntity {
-    pub r#type: i32,
-    pub timestamp: u64,
-    pub source: Option<String>,
-    pub source_uuid: Option<String>,
-    pub source_device: u32,
-    #[serde(default)]
-    pub destination_uuid: Option<String>,
-    #[serde(default, with = "serde_optional_base64")]
-    pub content: Option<Vec<u8>>,
-    pub server_timestamp: u64,
-    pub guid: String,
-    #[serde(default = "default_true")]
-    pub urgent: bool,
-    #[serde(default)]
-    pub story: bool,
-    #[serde(default, with = "serde_optional_base64")]
-    pub report_spam_token: Option<Vec<u8>>,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct EnvelopeEntityList {
-    pub messages: Vec<EnvelopeEntity>,
 }
 
 pub(crate) const SUPPORTED_VERSION: u8 = 1;
