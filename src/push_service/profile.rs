@@ -6,10 +6,8 @@ use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 use crate::{
     configuration::Endpoint,
     content::ServiceError,
-    profile_cipher::ProfileCipherError,
     push_service::AvatarWrite,
     utils::{serde_base64, serde_optional_base64},
-    Profile,
 };
 
 use super::{DeviceCapabilities, HttpAuthOverride, PushService, ReqwestExt};
@@ -36,38 +34,6 @@ pub struct SignalServiceProfile {
     pub unrestricted_unidentified_access: bool,
 
     pub capabilities: DeviceCapabilities,
-}
-
-impl SignalServiceProfile {
-    pub fn decrypt(
-        &self,
-        profile_cipher: crate::profile_cipher::ProfileCipher,
-    ) -> Result<Profile, ProfileCipherError> {
-        // Profile decryption
-        let name = self
-            .name
-            .as_ref()
-            .map(|data| profile_cipher.decrypt_name(data))
-            .transpose()?
-            .flatten();
-        let about = self
-            .about
-            .as_ref()
-            .map(|data| profile_cipher.decrypt_about(data))
-            .transpose()?;
-        let about_emoji = self
-            .about_emoji
-            .as_ref()
-            .map(|data| profile_cipher.decrypt_emoji(data))
-            .transpose()?;
-
-        Ok(Profile {
-            name,
-            about,
-            about_emoji,
-            avatar: self.avatar.clone(),
-        })
-    }
 }
 
 #[derive(Debug, Serialize)]

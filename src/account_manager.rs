@@ -1,6 +1,6 @@
 use base64::prelude::*;
 use phonenumber::PhoneNumber;
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -88,16 +88,13 @@ impl AccountManager {
     ///
     /// Equivalent to Java's RefreshPreKeysJob
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, protocol_store, csprng))]
-    pub async fn update_pre_key_bundle<
-        R: rand::Rng + rand::CryptoRng,
-        P: PreKeysStore,
-    >(
+    #[tracing::instrument(skip(self, csprng, protocol_store))]
+    pub async fn update_pre_key_bundle<R: Rng + CryptoRng, P: PreKeysStore>(
         &mut self,
         protocol_store: &mut P,
         service_id_kind: ServiceIdKind,
-        csprng: &mut R,
         use_last_resort_key: bool,
+        csprng: &mut R,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .service
@@ -154,8 +151,8 @@ impl AccountManager {
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
             crate::pre_keys::replenish_pre_keys(
                 protocol_store,
-                &identity_key_pair,
                 csprng,
+                &identity_key_pair,
                 use_last_resort_key && !has_last_resort_key,
                 PRE_KEY_BATCH_SIZE,
                 PRE_KEY_BATCH_SIZE,
@@ -281,8 +278,9 @@ impl AccountManager {
     /// ```java
     /// TextSecurePreferences.setIsUnidentifiedDeliveryEnabled(context, false);
     /// ```
-    pub async fn link_device(
+    pub async fn link_device<R: Rng + CryptoRng>(
         &mut self,
+        csprng: &mut R,
         url: url::Url,
         aci_identity_store: &dyn IdentityKeyStore,
         pni_identity_store: &dyn IdentityKeyStore,
@@ -344,7 +342,7 @@ impl AccountManager {
 
         let cipher = ProvisioningCipher::from_public(pub_key);
 
-        let encrypted = cipher.encrypt(msg)?;
+        let encrypted = cipher.encrypt(csprng, msg)?;
         self.send_provisioning_message(ephemeral_id, encrypted)
             .await?;
         Ok(())
@@ -380,7 +378,7 @@ impl AccountManager {
     }
 
     pub async fn register_account<
-        R: rand::Rng + rand::CryptoRng,
+        R: Rng + CryptoRng,
         Aci: PreKeysStore + IdentityKeyStore,
         Pni: PreKeysStore + IdentityKeyStore,
     >(
@@ -408,8 +406,8 @@ impl AccountManager {
             aci_last_resort_kyber_prekey,
         ) = crate::pre_keys::replenish_pre_keys(
             aci_protocol_store,
-            &aci_identity_key_pair,
             csprng,
+            &aci_identity_key_pair,
             true,
             0,
             0,
@@ -423,8 +421,8 @@ impl AccountManager {
             pni_last_resort_kyber_prekey,
         ) = crate::pre_keys::replenish_pre_keys(
             pni_protocol_store,
-            &pni_identity_key_pair,
             csprng,
+            &pni_identity_key_pair,
             true,
             0,
             0,
@@ -470,15 +468,19 @@ impl AccountManager {
     /// ```
     /// in which the `retain_avatar` parameter sets whether to remove (`false`) or retain (`true`) the
     /// currently set avatar.
-    pub async fn upload_versioned_profile_without_avatar<S: AsRef<str>>(
+    pub async fn upload_versioned_profile_without_avatar<
+        R: Rng + CryptoRng,
+        S: AsRef<str>,
+    >(
         &mut self,
         aci: libsignal_protocol::Aci,
         name: ProfileName<S>,
         about: Option<String>,
         about_emoji: Option<String>,
         retain_avatar: bool,
+        csprng: &mut R,
     ) -> Result<(), ProfileManagerError> {
-        self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(
+        self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _, _>(
             aci,
             name,
             about,
@@ -488,6 +490,7 @@ impl AccountManager {
             } else {
                 AvatarWrite::NoAvatar
             },
+            csprng,
         )
         .await?;
         Ok(())
@@ -505,8 +508,8 @@ impl AccountManager {
             .retrieve_profile_by_id(address, Some(profile_key))
             .await?;
 
-        let profile_cipher = ProfileCipher::from(profile_key);
-        Ok(encrypted_profile.decrypt(profile_cipher)?)
+        let profile_cipher = ProfileCipher::new(profile_key);
+        Ok(profile_cipher.decrypt(encrypted_profile)?)
     }
 
     /// Upload a profile
@@ -517,6 +520,7 @@ impl AccountManager {
     pub async fn upload_versioned_profile<
         's,
         C: std::io::Read + Send + 's,
+        R: Rng + CryptoRng,
         S: AsRef<str>,
     >(
         &mut self,
@@ -525,17 +529,18 @@ impl AccountManager {
         about: Option<String>,
         about_emoji: Option<String>,
         avatar: AvatarWrite<&'s mut C>,
+        csprng: &mut R,
     ) -> Result<Option<String>, ProfileManagerError> {
         let profile_key =
             self.profile_key.expect("set profile key in AccountManager");
-        let profile_cipher = ProfileCipher::from(profile_key);
+        let profile_cipher = ProfileCipher::new(profile_key);
 
         // Profile encryption
-        let name = profile_cipher.encrypt_name(name.as_ref())?;
+        let name = profile_cipher.encrypt_name(name.as_ref(), csprng)?;
         let about = about.unwrap_or_default();
-        let about = profile_cipher.encrypt_about(about)?;
+        let about = profile_cipher.encrypt_about(about, csprng)?;
         let about_emoji = about_emoji.unwrap_or_default();
-        let about_emoji = profile_cipher.encrypt_emoji(about_emoji)?;
+        let about_emoji = profile_cipher.encrypt_emoji(about_emoji, csprng)?;
 
         // If avatar -> upload
         if matches!(avatar, AvatarWrite::NewAvatar(_)) {
@@ -572,16 +577,14 @@ impl AccountManager {
     }
 
     /// Update (encrypted) device name
-    pub async fn update_device_name(
+    pub async fn update_device_name<R: Rng + CryptoRng>(
         &mut self,
         device_name: &str,
         public_key: &IdentityKey,
+        csprng: &mut R,
     ) -> Result<(), ServiceError> {
-        let encrypted_device_name = encrypt_device_name(
-            &mut rand::thread_rng(),
-            device_name,
-            public_key,
-        )?;
+        let encrypted_device_name =
+            encrypt_device_name(csprng, device_name, public_key)?;
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -642,10 +645,9 @@ impl AccountManager {
     /// Should be called as the primary device to migrate from pre-PNI to PNI.
     ///
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
-    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci), fields(local_aci = %local_aci.service_id_string()))]
+    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = local_aci.service_id_string()))]
     pub async fn pnp_initialize_devices<
-        // XXX So many constraints here, all imposed by the MessageSender
-        R: rand::Rng + rand::CryptoRng,
+        R: Rng + CryptoRng,
         AciStore: PreKeysStore + SessionStoreExt,
         PniStore: PreKeysStore,
         AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
@@ -653,11 +655,11 @@ impl AccountManager {
         &mut self,
         aci_protocol_store: &mut AciStore,
         pni_protocol_store: &mut PniStore,
-        mut sender: MessageSender<AciOrPni>,
+        mut sender: MessageSender<AciOrPni, R>,
         local_aci: Aci,
         e164: PhoneNumber,
+        csprng: &mut R,
     ) -> Result<(), MessageSenderError> {
-        let mut csprng = rand::thread_rng();
         let pni_identity_key_pair =
             pni_protocol_store.get_identity_key_pair().await?;
 
@@ -713,8 +715,8 @@ impl AccountManager {
             ) = if local_device_id == DEFAULT_DEVICE_ID {
                 crate::pre_keys::replenish_pre_keys(
                     pni_protocol_store,
+                    csprng,
                     &pni_identity_key_pair,
-                    &mut csprng,
                     true,
                     0,
                     0,
@@ -722,12 +724,12 @@ impl AccountManager {
                 .await?
             } else {
                 // Generate a signed prekey
-                let signed_pre_key_pair = KeyPair::generate(&mut csprng);
+                let signed_pre_key_pair = KeyPair::generate(csprng);
                 let signed_pre_key_public = signed_pre_key_pair.public_key;
                 let signed_pre_key_signature =
                     pni_identity_key_pair.private_key().calculate_signature(
                         &signed_pre_key_public.serialize(),
-                        &mut csprng,
+                        csprng,
                     )?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
@@ -755,7 +757,7 @@ impl AccountManager {
                 pni_protocol_store.get_local_registration_id().await?
             } else {
                 loop {
-                    let regid = generate_registration_id(&mut csprng);
+                    let regid = generate_registration_id(csprng);
                     if !pni_registration_ids.iter().any(|(_k, v)| *v == regid) {
                         break regid;
                     }
@@ -803,7 +805,7 @@ impl AccountManager {
                         e164.format().mode(phonenumber::Mode::E164).to_string(),
                     ),
                 }),
-                padding: Some(random_length_padding(&mut csprng, 512)),
+                padding: Some(random_length_padding(csprng, 512)),
                 ..SyncMessage::default()
             };
             let content: ContentBody = msg.into();

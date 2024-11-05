@@ -6,6 +6,7 @@ use libsignal_protocol::{
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
     SignalProtocolError,
 };
+use rand::{CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
@@ -85,11 +86,12 @@ pub struct AttachmentSpec {
 }
 
 #[derive(Clone)]
-pub struct MessageSender<S> {
+pub struct MessageSender<S, R> {
     identified_ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
     service: PushService,
     cipher: ServiceCipher<S>,
+    csprng: R,
     protocol_store: S,
     local_aci: Aci,
     local_pni: Pni,
@@ -151,9 +153,10 @@ pub struct EncryptedMessages {
     used_identity_key: IdentityKey,
 }
 
-impl<S> MessageSender<S>
+impl<S, R> MessageSender<S, R>
 where
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
+    R: Rng + CryptoRng,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -161,6 +164,7 @@ where
         unidentified_ws: SignalWebSocket,
         service: PushService,
         cipher: ServiceCipher<S>,
+        csprng: R,
         protocol_store: S,
         local_aci: impl Into<Aci>,
         local_pni: impl Into<Pni>,
@@ -173,6 +177,7 @@ where
             identified_ws,
             unidentified_ws,
             cipher,
+            csprng,
             protocol_store,
             local_aci: local_aci.into(),
             local_pni: local_pni.into(),
@@ -194,12 +199,10 @@ where
         let len = contents.len();
         // Encrypt
         let (key, iv) = {
-            use rand::RngCore;
             let mut key = [0u8; 64];
             let mut iv = [0u8; 16];
-            // thread_rng is guaranteed to be cryptographically secure
-            rand::thread_rng().fill_bytes(&mut key);
-            rand::thread_rng().fill_bytes(&mut iv);
+            self.csprng.fill_bytes(&mut key);
+            self.csprng.fill_bytes(&mut iv);
             (key, iv)
         };
 
@@ -369,8 +372,8 @@ where
         // only send a sync message when sending to self and skip the rest of the process
         if message_to_self && is_multi_device {
             debug!("sending note to self");
-            let sync_message =
-                Self::create_multi_device_sent_transcript_content(
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
@@ -412,8 +415,8 @@ where
 
         if needs_sync || is_multi_device {
             debug!("sending multi-device sync message");
-            let sync_message =
-                Self::create_multi_device_sent_transcript_content(
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
@@ -490,8 +493,8 @@ where
 
         // we only need to send a synchronization message once
         if needs_sync_in_results || self.is_multi_device().await {
-            let sync_message =
-                Self::create_multi_device_sent_transcript_content(
+            let sync_message = self
+                .create_multi_device_sent_transcript_content(
                     None,
                     content_body,
                     timestamp,
@@ -627,7 +630,7 @@ where
                             &mut self.protocol_store,
                             &pre_key,
                             SystemTime::now(),
-                            &mut rand::thread_rng(),
+                            &mut self.csprng,
                         )
                         .await
                         .map_err(|e| {
@@ -705,7 +708,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         self.send_message(
@@ -730,7 +733,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             configuration: Some(configuration),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -777,7 +780,7 @@ where
 
         let msg = SyncMessage {
             message_request_response,
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -796,7 +799,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             keys: Some(keys),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -821,7 +824,7 @@ where
             request: Some(sync_message::Request {
                 r#type: Some(request_type.into()),
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -840,7 +843,7 @@ where
             .expect("PNI key set when PNI signature requested")
             .sign_alternate_identity(
                 self.aci_identity.identity_key(),
-                &mut rand::thread_rng(),
+                &mut self.csprng,
             )?;
         Ok(crate::proto::PniSignatureMessage {
             pni: Some(self.local_pni.service_id_binary()),
@@ -1023,7 +1026,7 @@ where
                     &mut self.protocol_store,
                     &pre_key_bundle,
                     SystemTime::now(),
-                    &mut rand::thread_rng(),
+                    &mut self.csprng,
                 )
                 .await?;
             }
@@ -1031,7 +1034,12 @@ where
 
         let message = self
             .cipher
-            .encrypt(&recipient_protocol_address, unidentified_access, content)
+            .encrypt(
+                &recipient_protocol_address,
+                unidentified_access,
+                content,
+                &mut self.csprng,
+            )
             .instrument(tracing::trace_span!("encrypting message"))
             .await?;
 
@@ -1039,6 +1047,7 @@ where
     }
 
     fn create_multi_device_sent_transcript_content<'a>(
+        &mut self,
         recipient: Option<&ServiceId>,
         content_body: ContentBody,
         timestamp: u64,
@@ -1087,7 +1096,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut self.csprng)
         })
     }
 }
