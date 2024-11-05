@@ -1,5 +1,6 @@
 use base64::prelude::*;
 use phonenumber::PhoneNumber;
+use rand::Rng;
 use reqwest::Method;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -641,7 +642,7 @@ impl AccountManager {
     /// Should be called as the primary device to migrate from pre-PNI to PNI.
     ///
     /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
-    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = %local_aci.service_id_string()))]
+    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci), fields(local_aci = %local_aci.service_id_string()))]
     pub async fn pnp_initialize_devices<
         // XXX So many constraints here, all imposed by the MessageSender
         R: rand::Rng + rand::CryptoRng,
@@ -652,11 +653,11 @@ impl AccountManager {
         &mut self,
         aci_protocol_store: &mut AciStore,
         pni_protocol_store: &mut PniStore,
-        mut sender: MessageSender<AciOrPni, R>,
+        mut sender: MessageSender<AciOrPni>,
         local_aci: Aci,
         e164: PhoneNumber,
-        csprng: &mut R,
     ) -> Result<(), MessageSenderError> {
+        let mut csprng = rand::thread_rng();
         let pni_identity_key_pair =
             pni_protocol_store.get_identity_key_pair().await?;
 
@@ -713,7 +714,7 @@ impl AccountManager {
                 crate::pre_keys::replenish_pre_keys(
                     pni_protocol_store,
                     &pni_identity_key_pair,
-                    csprng,
+                    &mut csprng,
                     true,
                     0,
                     0,
@@ -721,12 +722,12 @@ impl AccountManager {
                 .await?
             } else {
                 // Generate a signed prekey
-                let signed_pre_key_pair = KeyPair::generate(csprng);
+                let signed_pre_key_pair = KeyPair::generate(&mut csprng);
                 let signed_pre_key_public = signed_pre_key_pair.public_key;
                 let signed_pre_key_signature =
                     pni_identity_key_pair.private_key().calculate_signature(
                         &signed_pre_key_public.serialize(),
-                        csprng,
+                        &mut csprng,
                     )?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
@@ -754,7 +755,7 @@ impl AccountManager {
                 pni_protocol_store.get_local_registration_id().await?
             } else {
                 loop {
-                    let regid = generate_registration_id(csprng);
+                    let regid = generate_registration_id(&mut csprng);
                     if !pni_registration_ids.iter().any(|(_k, v)| *v == regid) {
                         break regid;
                     }
@@ -802,7 +803,7 @@ impl AccountManager {
                         e164.format().mode(phonenumber::Mode::E164).to_string(),
                     ),
                 }),
-                padding: Some(random_length_padding(csprng, 512)),
+                padding: Some(random_length_padding(&mut csprng, 512)),
                 ..SyncMessage::default()
             };
             let content: ContentBody = msg.into();

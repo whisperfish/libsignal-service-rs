@@ -13,7 +13,6 @@ use libsignal_protocol::{
     SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
 };
 use prost::Message;
-use rand::{CryptoRng, Rng};
 use uuid::Uuid;
 
 use crate::{
@@ -29,15 +28,14 @@ use crate::{
 ///
 /// Equivalent of SignalServiceCipher in Java.
 #[derive(Clone)]
-pub struct ServiceCipher<S, R> {
+pub struct ServiceCipher<S> {
     protocol_store: S,
-    csprng: R,
     trust_root: PublicKey,
     local_uuid: Uuid,
     local_device_id: u32,
 }
 
-impl<S, R> fmt::Debug for ServiceCipher<S, R> {
+impl<S> fmt::Debug for ServiceCipher<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ServiceCipher")
             .field("protocol_store", &"...")
@@ -70,21 +68,18 @@ fn debug_envelope(envelope: &Envelope) -> String {
     }
 }
 
-impl<S, R> ServiceCipher<S, R>
+impl<S> ServiceCipher<S>
 where
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Clone,
-    R: Rng + CryptoRng,
 {
     pub fn new(
         protocol_store: S,
-        csprng: R,
         trust_root: PublicKey,
         local_uuid: Uuid,
         local_device_id: u32,
     ) -> Self {
         Self {
             protocol_store,
-            csprng,
             trust_root,
             local_uuid,
             local_device_id,
@@ -180,7 +175,7 @@ where
                     &mut self.protocol_store.clone(),
                     &self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
-                    &mut self.csprng,
+                    &mut rand::thread_rng(),
                 )
                 .await?
                 .as_slice()
@@ -236,7 +231,7 @@ where
                     &sender,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
-                    &mut self.csprng,
+                    &mut rand::thread_rng(),
                 )
                 .await?
                 .as_slice()
@@ -357,7 +352,7 @@ where
                 &mut self.protocol_store.clone(),
                 &mut self.protocol_store,
                 SystemTime::now(),
-                &mut self.csprng,
+                &mut rand::thread_rng(),
             )
             .await?;
 
