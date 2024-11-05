@@ -276,16 +276,16 @@ where
                 )
                 .await?;
 
-                let sender =
+                let Some(sender) =
                     ServiceId::parse_from_service_id_string(&sender_uuid)
-                        .ok_or_else(|| {
-                            tracing::error!(
-                                "failed to parse ServiceId from string"
-                            );
-                            SignalProtocolError::InvalidSealedSenderMessage(
-                                "invalid sender UUID".to_string(),
-                            )
-                        })?;
+                else {
+                    return Err(
+                        SignalProtocolError::InvalidSealedSenderMessage(
+                            "invalid sender UUID".to_string(),
+                        )
+                        .into(),
+                    );
+                };
 
                 let needs_receipt = if envelope.source_service_id.is_some() {
                     tracing::warn!(?envelope, "Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
