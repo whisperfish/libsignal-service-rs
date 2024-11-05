@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use libsignal_protocol::{IdentityKey, PreKeyBundle, SenderCertificate};
+use libsignal_protocol::{
+    IdentityKey, PreKeyBundle, SenderCertificate, ServiceId, ServiceIdKind,
+};
 use reqwest::Method;
 use serde::Deserialize;
 
@@ -10,12 +12,11 @@ use crate::{
     push_service::PreKeyResponse,
     sender::OutgoingPushMessage,
     utils::serde_base64,
-    ServiceAddress,
 };
 
 use super::{
     response::ReqwestExt, HttpAuthOverride, PushService, SenderCertificateJson,
-    ServiceError, ServiceIdType, VerifyAccountResponse,
+    ServiceError, VerifyAccountResponse,
 };
 
 #[derive(Debug, Deserialize, Default)]
@@ -28,11 +29,11 @@ pub struct PreKeyStatus {
 impl PushService {
     pub async fn get_pre_key_status(
         &mut self,
-        service_id_type: ServiceIdType,
+        service_id_kind: ServiceIdKind,
     ) -> Result<PreKeyStatus, ServiceError> {
         self.request(
             Method::GET,
-            Endpoint::service(format!("/v2/keys?identity={}", service_id_type)),
+            Endpoint::service(format!("/v2/keys?identity={}", service_id_kind)),
             HttpAuthOverride::NoOverride,
         )?
         .send()
@@ -46,12 +47,12 @@ impl PushService {
 
     pub async fn register_pre_keys(
         &mut self,
-        service_id_type: ServiceIdType,
+        service_id_kind: ServiceIdKind,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
         self.request(
             Method::PUT,
-            Endpoint::service(format!("/v2/keys?identity={}", service_id_type)),
+            Endpoint::service(format!("/v2/keys?identity={}", service_id_kind)),
             HttpAuthOverride::NoOverride,
         )?
         .json(&pre_key_state)
@@ -65,11 +66,14 @@ impl PushService {
 
     pub async fn get_pre_key(
         &mut self,
-        destination: &ServiceAddress,
+        destination: &ServiceId,
         device_id: u32,
     ) -> Result<PreKeyBundle, ServiceError> {
-        let path =
-            format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id);
+        let path = format!(
+            "/v2/keys/{}/{}",
+            destination.service_id_string(),
+            device_id
+        );
 
         let mut pre_key_response: PreKeyResponse = self
             .request(
@@ -93,13 +97,17 @@ impl PushService {
 
     pub(crate) async fn get_pre_keys(
         &mut self,
-        destination: &ServiceAddress,
+        destination: &ServiceId,
         device_id: u32,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
         let path = if device_id == 1 {
-            format!("/v2/keys/{}/*?pq=true", destination.uuid)
+            format!("/v2/keys/{}/*", destination.service_id_string())
         } else {
-            format!("/v2/keys/{}/{}?pq=true", destination.uuid, device_id)
+            format!(
+                "/v2/keys/{}/{}",
+                destination.service_id_string(),
+                device_id
+            )
         };
         let pre_key_response: PreKeyResponse = self
             .request(

@@ -1,11 +1,10 @@
 use std::{convert::TryFrom, convert::TryInto};
 
 use derivative::Derivative;
+use libsignal_protocol::ServiceId;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
-
-use crate::ServiceAddress;
 
 use super::GroupDecodingError;
 
@@ -34,7 +33,7 @@ impl PartialEq for Member {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PendingMember {
-    pub address: ServiceAddress,
+    pub address: ServiceId,
     pub role: Role,
     pub added_by_uuid: Uuid,
     pub timestamp: u64,

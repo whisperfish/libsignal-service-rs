@@ -1,29 +1,11 @@
-use std::convert::{TryFrom, TryInto};
-
 use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockDecryptMut, KeyIvInit};
+use libsignal_protocol::ServiceId;
 use prost::Message;
 
-use crate::{
-    configuration::SignalingKey, push_service::ServiceError,
-    utils::serde_optional_base64, ParseServiceAddressError, ServiceAddress,
-};
+use crate::{configuration::SignalingKey, push_service::ServiceError};
 
 pub use crate::proto::Envelope;
-
-impl TryFrom<EnvelopeEntity> for Envelope {
-    type Error = ParseServiceAddressError;
-
-    fn try_from(entity: EnvelopeEntity) -> Result<Self, Self::Error> {
-        match entity.source_uuid.as_deref() {
-            Some(uuid) => {
-                let address = uuid.try_into()?;
-                Ok(Envelope::new_with_source(entity, address))
-            },
-            None => Ok(Envelope::new_from_entity(entity)),
-        }
-    }
-}
 
 impl Envelope {
     #[tracing::instrument(skip(input, signaling_key), fields(signaling_key_present = signaling_key.is_some(), input_size = input.len()))]
@@ -85,30 +67,6 @@ impl Envelope {
         }
     }
 
-    fn new_from_entity(entity: EnvelopeEntity) -> Self {
-        Envelope {
-            r#type: Some(entity.r#type),
-            timestamp: Some(entity.timestamp),
-            server_timestamp: Some(entity.server_timestamp),
-            server_guid: Some(entity.guid),
-            content: entity.content,
-            ..Default::default()
-        }
-    }
-
-    fn new_with_source(entity: EnvelopeEntity, source: ServiceAddress) -> Self {
-        Envelope {
-            r#type: Some(entity.r#type),
-            source_device: Some(entity.source_device),
-            timestamp: Some(entity.timestamp),
-            server_timestamp: Some(entity.server_timestamp),
-            server_guid: Some(entity.guid),
-            source_service_id: Some(source.uuid.to_string()),
-            content: entity.content,
-            ..Default::default()
-        }
-    }
-
     pub fn is_unidentified_sender(&self) -> bool {
         self.r#type() == crate::proto::envelope::Type::UnidentifiedSender
     }
@@ -134,52 +92,25 @@ impl Envelope {
         self.story.unwrap_or(false)
     }
 
-    pub fn source_address(&self) -> ServiceAddress {
+    pub fn source_address(&self) -> ServiceId {
         match self.source_service_id.as_deref() {
-            Some(service_id) => ServiceAddress::try_from(service_id)
-                .expect("invalid source ProtocolAddress UUID or prefix"),
+            Some(service_id) => {
+                ServiceId::parse_from_service_id_string(service_id)
+                    .expect("invalid source ProtocolAddress UUID or prefix")
+            },
             None => panic!("source_service_id is set"),
         }
     }
 
-    pub fn destination_address(&self) -> ServiceAddress {
+    pub fn destination_address(&self) -> ServiceId {
         match self.destination_service_id.as_deref() {
-            Some(service_id) => ServiceAddress::try_from(service_id)
-                .expect("invalid destination ProtocolAddress UUID or prefix"),
+            Some(service_id) => ServiceId::parse_from_service_id_string(
+                service_id,
+            )
+            .expect("invalid destination ProtocolAddress UUID or prefix"),
             None => panic!("destination_address is set"),
         }
     }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EnvelopeEntity {
-    pub r#type: i32,
-    pub timestamp: u64,
-    pub source: Option<String>,
-    pub source_uuid: Option<String>,
-    pub source_device: u32,
-    #[serde(default)]
-    pub destination_uuid: Option<String>,
-    #[serde(default, with = "serde_optional_base64")]
-    pub content: Option<Vec<u8>>,
-    pub server_timestamp: u64,
-    pub guid: String,
-    #[serde(default = "default_true")]
-    pub urgent: bool,
-    #[serde(default)]
-    pub story: bool,
-    #[serde(default, with = "serde_optional_base64")]
-    pub report_spam_token: Option<Vec<u8>>,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct EnvelopeEntityList {
-    pub messages: Vec<EnvelopeEntity>,
 }
 
 pub(crate) const SUPPORTED_VERSION: u8 = 1;
