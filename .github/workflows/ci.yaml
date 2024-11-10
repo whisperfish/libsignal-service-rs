@@ -37,7 +37,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: ["stable", "beta", "nightly", "1.75"]
+        toolchain: ["stable", "beta", "1.75"]
+        include:
+          - toolchain: nightly
+            coverage: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -51,6 +54,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
+          components: llvm-tools
 
       - name: Configure CI cache
         uses: Swatinem/rust-cache@v2
@@ -67,13 +71,14 @@ jobs:
         run: cargo +${{ steps.rustc.outputs.name }} test --all-targets --no-fail-fast
         env:
           CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+          LLVM_PROFILE_FILE: 'libsignal-service-%p-%m.profraw'
+          RUSTFLAGS: '-Cinstrument-coverage'
+          RUSTDOCFLAGS: '-Cinstrument-coverage'
 
       - name: Generate code coverage
         uses: actions-rs/grcov@v0.1
-        if: ${{ matrix.coverage }}
+        if: matrix.toolchain == 'nightly'
 
       - name: Upload coverage reports to Codecov with GitHub Action
         uses: codecov/codecov-action@v3
-        if: ${{ matrix.coverage }}
+        if: matrix.toolchain == 'nightly'
