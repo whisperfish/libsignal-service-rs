@@ -157,6 +157,8 @@ impl ProfileCipher {
             about,
             about_emoji,
             avatar: encrypted_profile.avatar,
+            unrestricted_unidentified_access: encrypted_profile
+                .unrestricted_unidentified_access,
         })
     }
 
