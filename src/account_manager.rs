@@ -71,6 +71,7 @@ pub struct Profile {
     pub about: Option<String>,
     pub about_emoji: Option<String>,
     pub avatar: Option<String>,
+    pub unrestricted_unidentified_access: bool,
 }
 
 impl AccountManager {
