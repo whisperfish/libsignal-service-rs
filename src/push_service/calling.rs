@@ -15,6 +15,9 @@ pub struct TurnServerInfo {
 }
 
 impl PushService {
+    #[deprecated(
+        note = "Use get_turn_server_info_v2 instead. This method is still used by the Android and iOS clients, and will be kept in as long as that's the case."
+    )]
     pub async fn get_turn_server_info(
         &mut self,
     ) -> Result<TurnServerInfo, ServiceError> {
