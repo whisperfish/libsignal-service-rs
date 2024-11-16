@@ -25,7 +25,6 @@ use crate::{
         AttachmentPointer, SyncMessage,
     },
     push_service::*,
-    service_address::ServiceIdExt,
     session_store::SessionStoreExt,
     unidentified_access::UnidentifiedAccess,
     utils::serde_service_id,
@@ -600,28 +599,30 @@ where
                 Err(ServiceError::MismatchedDevicesException(ref m)) => {
                     tracing::debug!("{:?}", m);
                     for extra_device_id in &m.extra_devices {
+                        let extra_device_id = DeviceId::from(*extra_device_id);
                         tracing::debug!(
                             "dropping session with device {}",
                             extra_device_id
                         );
                         self.protocol_store
                             .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id),
+                                &recipient.to_protocol_address(extra_device_id),
                             )
                             .await?;
                     }
 
                     for missing_device_id in &m.missing_devices {
+                        let missing_device_id =
+                            DeviceId::from(*missing_device_id);
                         tracing::debug!(
                             "creating session with missing device {}",
                             missing_device_id
                         );
                         let remote_address =
-                            recipient.to_protocol_address(*missing_device_id);
+                            recipient.to_protocol_address(missing_device_id);
                         let pre_key = self
                             .service
-                            .get_pre_key(&recipient, *missing_device_id)
+                            .get_pre_key(&recipient, missing_device_id)
                             .await?;
 
                         process_prekey_bundle(
@@ -644,14 +645,14 @@ where
                 Err(ServiceError::StaleDevices(ref m)) => {
                     tracing::debug!("{:?}", m);
                     for extra_device_id in &m.stale_devices {
+                        let stale_device_id = DeviceId::from(*extra_device_id);
                         tracing::debug!(
                             "dropping session with device {}",
-                            extra_device_id
+                            stale_device_id
                         );
                         self.protocol_store
                             .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id),
+                                &recipient.to_protocol_address(stale_device_id),
                             )
                             .await?;
                     }
@@ -943,7 +944,8 @@ where
                 used_identity_key: self
                     .protocol_store
                     .get_identity(
-                        &recipient.to_protocol_address(DEFAULT_DEVICE_ID),
+                        &recipient
+                            .to_protocol_address(DEFAULT_DEVICE_ID.into()),
                     )
                     .await?
                     .ok_or(MessageSenderError::UntrustedIdentity {

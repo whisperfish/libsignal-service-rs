@@ -23,7 +23,6 @@ use crate::{
     sender::OutgoingPushMessage,
     session_store::SessionStoreExt,
     utils::BASE64_RELAXED,
-    ServiceIdExt,
 };
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///

@@ -9,9 +9,10 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::digest::Output;
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    kem, Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair,
+    kem, Aci, DeviceId, GenericSignedPreKey, IdentityKey, IdentityKeyPair,
     IdentityKeyStore, KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore,
-    PublicKey, SenderKeyStore, ServiceIdKind, SignedPreKeyRecord, Timestamp,
+    PublicKey, SenderKeyStore, ServiceId, ServiceIdKind, SignedPreKeyRecord,
+    Timestamp,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -35,7 +36,6 @@ use crate::push_service::{
     DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
-use crate::service_address::ServiceIdExt;
 use crate::session_store::SessionStoreExt;
 use crate::timestamp::TimestampExt as _;
 use crate::utils::{random_length_padding, BASE64_RELAXED};
@@ -685,17 +685,20 @@ impl AccountManager {
             HashMap::<String, u32>::with_capacity(local_device_ids.len());
 
         let signature_valid_on_each_signed_pre_key = true;
-        for local_device_id in
-            std::iter::once(DEFAULT_DEVICE_ID).chain(local_device_ids)
+        for local_device_id in std::iter::once(DEFAULT_DEVICE_ID)
+            .chain(local_device_ids)
+            .map(DeviceId::from)
         {
+            let is_default_device_id =
+                local_device_id == DeviceId::from(DEFAULT_DEVICE_ID);
             let local_protocol_address =
-                local_aci.to_protocol_address(local_device_id);
+                ServiceId::from(local_aci).to_protocol_address(local_device_id);
             let span = tracing::trace_span!(
                 "filtering devices",
                 address = %local_protocol_address
             );
             // Skip if we don't have a session with the device
-            if (local_device_id != DEFAULT_DEVICE_ID)
+            if is_default_device_id
                 && aci_protocol_store
                     .load_session(&local_protocol_address)
                     .instrument(span)
@@ -713,7 +716,7 @@ impl AccountManager {
                 signed_pre_key,
                 _kyber_pre_keys,
                 last_resort_kyber_prekey,
-            ) = if local_device_id == DEFAULT_DEVICE_ID {
+            ) = if is_default_device_id {
                 crate::pre_keys::replenish_pre_keys(
                     pni_protocol_store,
                     csprng,
@@ -754,7 +757,7 @@ impl AccountManager {
                 )
             };
 
-            let registration_id = if local_device_id == DEFAULT_DEVICE_ID {
+            let registration_id = if is_default_device_id {
                 pni_protocol_store.get_local_registration_id().await?
             } else {
                 loop {
@@ -784,7 +787,7 @@ impl AccountManager {
             assert!(_pre_keys.is_empty());
             assert!(_kyber_pre_keys.is_empty());
 
-            if local_device_id == DEFAULT_DEVICE_ID {
+            if is_default_device_id {
                 // This is the primary device
                 // We don't need to send a message to the primary device
                 continue;

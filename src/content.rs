@@ -12,7 +12,6 @@ pub use crate::{
         SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
-    ServiceIdExt,
 };
 
 mod data_message;
@@ -50,7 +49,7 @@ impl fmt::Display for Metadata {
 
 impl Metadata {
     pub(crate) fn protocol_address(&self) -> ProtocolAddress {
-        self.sender.to_protocol_address(self.sender_device)
+        self.sender.to_protocol_address(self.sender_device.into())
     }
 }
 
