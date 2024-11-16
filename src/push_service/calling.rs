@@ -15,27 +15,7 @@ pub struct TurnServerInfo {
 }
 
 impl PushService {
-    #[deprecated(
-        note = "Use get_turn_server_info_v2 instead. This method is still used by the Android and iOS clients, and will be kept in as long as that's the case."
-    )]
     pub async fn get_turn_server_info(
-        &mut self,
-    ) -> Result<TurnServerInfo, ServiceError> {
-        Ok(self
-            .request(
-                Method::GET,
-                Endpoint::service("/v1/calling/relays"),
-                HttpAuthOverride::NoOverride,
-            )?
-            .send()
-            .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await?)
-    }
-
-    pub async fn get_turn_server_info_v2(
         &mut self,
     ) -> Result<Vec<TurnServerInfo>, ServiceError> {
         #[derive(Debug, Deserialize)]
