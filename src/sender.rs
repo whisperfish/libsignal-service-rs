@@ -358,6 +358,8 @@ where
     ) -> SendMessageResult {
         let content_body = message.into();
         let message_to_self = recipient == &self.local_aci;
+        let sync_message =
+            matches!(content_body, ContentBody::SynchronizeMessage(..));
         let is_multi_device = self.is_multi_device().await;
 
         use crate::proto::data_message::Flags;
@@ -370,7 +372,7 @@ where
         };
 
         // only send a sync message when sending to self and skip the rest of the process
-        if message_to_self && is_multi_device {
+        if message_to_self && is_multi_device && !sync_message {
             debug!("sending note to self");
             let sync_message = self
                 .create_multi_device_sent_transcript_content(
@@ -392,7 +394,7 @@ where
         }
 
         // don't send session enders as sealed sender
-        if end_session {
+        if end_session || sync_message {
             unidentified_access.take();
         }
 
