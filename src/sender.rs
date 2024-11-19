@@ -394,6 +394,7 @@ where
         }
 
         // don't send session enders as sealed sender
+        // sync messages are never sent as unidentified (reasons unclear), see: https://github.com/signalapp/Signal-Android/blob/main/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java#L779
         if end_session || sync_message {
             unidentified_access.take();
         }
