@@ -201,7 +201,7 @@ impl SignalWebSocketProcess {
             futures::select! {
                 _ = ka_interval.tick().fuse() => {
                     use prost::Message;
-                    if self.outgoing_keep_alive_set.len() > 6 {
+                    if self.outgoing_keep_alive_set.len() > 0 {
                         tracing::warn!("Websocket will be closed due to failed keepalives.");
                         if let Err(e) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
                             tracing::debug!("Could not close WebSocket: {:?}", e);
