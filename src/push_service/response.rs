@@ -70,6 +70,27 @@ where
             })?;
             Err(ServiceError::ProofRequiredError(proof_required))
         },
+        StatusCode::LENGTH_REQUIRED => {
+            #[derive(Debug, serde::Deserialize)]
+            struct LinkedDeviceNumberError {
+                current: u32,
+                max: u32,
+            }
+            let error: LinkedDeviceNumberError =
+                response.json().await.map_err(|error| {
+                    tracing::warn!(
+                        %error,
+                        "failed to decode linked device HTTP 411 status"
+                    );
+                    ServiceError::UnhandledResponseCode {
+                        http_code: StatusCode::LENGTH_REQUIRED.as_u16(),
+                    }
+                })?;
+            Err(ServiceError::DeviceLimitReached {
+                current: error.current,
+                max: error.max,
+            })
+        },
         // XXX: fill in rest from PushServiceSocket
         code => {
             let response_text = response.text().await?;
