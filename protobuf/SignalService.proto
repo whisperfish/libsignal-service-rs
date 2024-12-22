@@ -177,7 +177,8 @@ message DataMessage {
       optional string prefix      = 3;
       optional string suffix      = 4;
       optional string middleName  = 5;
-      optional string displayName = 6;
+      reserved      /*displayName*/ 6;
+      optional string nickname    = 7;
     }
 
     message Phone {
@@ -545,7 +546,10 @@ message SyncMessage {
   message Keys {
     // @deprecated
     optional bytes storageService = 1;
-    optional bytes master         = 2;
+    // @deprecated
+    optional bytes master = 2;
+    optional string accountEntropyPool = 3;
+    optional bytes mediaRootBackupKey = 4;
   }
 
   message MessageRequestResponse {
@@ -703,6 +707,11 @@ message SyncMessage {
     repeated AttachmentDelete attachmentDeletes = 4;
   }
 
+  message DeviceNameChange {
+    reserved          /*name*/ 1;
+    optional uint32 deviceId = 2;
+  }
+
   optional Sent                   sent                   = 1;
   optional Contacts               contacts               = 2;
   reserved                      /*groups*/                 3;
@@ -725,6 +734,7 @@ message SyncMessage {
   optional CallLinkUpdate         callLinkUpdate         = 20;
   optional CallLogEvent           callLogEvent           = 21;
   optional DeleteForMe            deleteForMe            = 22;
+  optional DeviceNameChange       deviceNameChange       = 23;
 }
 
 message AttachmentPointer {
