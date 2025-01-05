@@ -158,6 +158,7 @@ impl PushService {
     ) -> Self {
         let cfg = cfg.into();
         let client = reqwest::ClientBuilder::new()
+            .tls_built_in_root_certs(false)
             .add_root_certificate(
                 reqwest::Certificate::from_pem(
                     cfg.certificate_authority.as_bytes(),
