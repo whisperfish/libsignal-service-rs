@@ -12,10 +12,14 @@ use sha2::Sha256;
 
 pub use crate::proto::{ProvisionEnvelope, ProvisionMessage};
 
-use crate::{
-    envelope::{CIPHER_KEY_SIZE, IV_LENGTH, IV_OFFSET},
-    provisioning::ProvisioningError,
-};
+use crate::provisioning::ProvisioningError;
+
+pub(crate) const CIPHER_KEY_SIZE: usize = 32;
+
+pub(crate) const VERSION_OFFSET: usize = 0;
+pub(crate) const VERSION_LENGTH: usize = 1;
+pub(crate) const IV_OFFSET: usize = VERSION_OFFSET + VERSION_LENGTH;
+pub(crate) const IV_LENGTH: usize = 16;
 
 enum CipherMode {
     DecryptAndEncrypt(KeyPair),
