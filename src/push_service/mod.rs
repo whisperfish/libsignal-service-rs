@@ -219,18 +219,14 @@ impl PushService {
         let mut url = Endpoint::service(path).into_url(&self.cfg)?;
         url.set_scheme("wss").expect("valid https base url");
 
-        if let Some(credentials) = credentials {
-            url.query_pairs_mut()
-                .append_pair("login", &credentials.login())
-                .append_pair(
-                    "password",
-                    credentials.password.as_ref().expect("a password"),
-                );
-        }
-
         let mut builder = self.client.get(url);
         for (key, value) in additional_headers {
             builder = builder.header(*key, *value);
+        }
+
+        if let Some(credentials) = credentials {
+            builder =
+                builder.basic_auth(credentials.login(), credentials.password);
         }
 
         let ws = builder
