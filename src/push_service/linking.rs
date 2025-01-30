@@ -24,6 +24,12 @@ pub struct LinkAccountAttributes {
 pub struct LinkCapabilities {
     pub delete_sync: bool,
     pub versioned_expiration_timer: bool,
+    /// It is currently unclear what this field is.
+    ///
+    /// Signal Server refers to the field as `STORAGE_SERVICE_RECORD_KEY_ROTATION` [here](https://github.com/signalapp/Signal-Server/blob/5cc76f48aa4028f5001a51409a3a0e4e6ce2d7f2/service/src/main/java/org/whispersystems/textsecuregcm/storage/DeviceCapability.java#L15).
+    /// Signal Android refers to the field as `storageServiceEncryptionV2` [here](https://github.com/signalapp/Signal-Android/blob/ec840726fcbb5440e1337274f791d17a6fe59598/libsignal-service/src/main/java/org/whispersystems/signalservice/api/account/AccountAttributes.kt#L60).
+    /// It is therefore possibly related to backup
+    pub ssre2: bool,
 }
 
 // https://github.com/signalapp/Signal-Desktop/blob/1e57db6aa4786dcddc944349e4894333ac2ffc9e/ts/textsecure/WebAPI.ts#L1287
@@ -32,6 +38,7 @@ impl Default for LinkCapabilities {
         Self {
             delete_sync: true,
             versioned_expiration_timer: true,
+            ssre2: true,
         }
     }
 }
