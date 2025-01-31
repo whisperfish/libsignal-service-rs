@@ -99,6 +99,10 @@ where
             let plaintext = self.decrypt(&envelope, csprng).await?;
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
+
+            tracing::Span::current()
+                .record("envelope_metadata", plaintext.metadata.to_string());
+
             if let Some(bytes) = message.sender_key_distribution_message {
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
