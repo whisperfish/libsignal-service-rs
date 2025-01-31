@@ -97,8 +97,40 @@ where
     ) -> Result<Option<Content>, ServiceError> {
         if envelope.content.is_some() {
             let plaintext = self.decrypt(&envelope, csprng).await?;
+            let was_plaintext = plaintext.metadata.was_plaintext;
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
+
+            // Sanity test: if the envelope was plaintext, the message should *only* be a
+            // decryption failure error
+            if was_plaintext {
+                if let crate::proto::Content {
+                    data_message: None,
+                    sync_message: None,
+                    call_message: None,
+                    null_message: None,
+                    receipt_message: None,
+                    typing_message: None,
+                    sender_key_distribution_message: None,
+                    decryption_error_message: Some(decryption_error_message),
+                    story_message: None,
+                    pni_signature_message: None,
+                    edit_message: None,
+                } = &message
+                {
+                    tracing::warn!(
+                        ?envelope,
+                        "Received a decryption error message: {}.",
+                        String::from_utf8_lossy(decryption_error_message)
+                    );
+                } else {
+                    tracing::error!(
+                        ?envelope,
+                        "Received a plaintext envelope with a non-decryption error message."
+                    );
+                    return Ok(None);
+                }
+            }
             if let Some(bytes) = message.sender_key_distribution_message {
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
@@ -166,6 +198,8 @@ where
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
+                    was_plaintext: false,
+
                     server_guid,
                 };
 
@@ -204,6 +238,8 @@ where
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
+                    was_plaintext: true,
+
                     server_guid,
                 };
                 Plaintext {
@@ -225,6 +261,8 @@ where
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
+                    was_plaintext: false,
+
                     server_guid,
                 };
 
@@ -298,6 +336,8 @@ where
                     timestamp: envelope.timestamp(),
                     unidentified_sender: true,
                     needs_receipt,
+                    was_plaintext: false,
+
                     server_guid,
                 };
 
