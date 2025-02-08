@@ -23,8 +23,8 @@ use crate::{
 ///     given_name: "Bill",
 ///     family_name: None,
 /// };
-/// let cipher = ProfileCipher::from(profile_key);
-/// let encrypted = cipher.encrypt_name(&name).unwrap();
+/// let cipher = ProfileCipher::new(profile_key);
+/// let encrypted = cipher.encrypt_name(&name, &mut rng).unwrap();
 /// let decrypted = cipher.decrypt_name(&encrypted).unwrap().unwrap();
 /// assert_eq!(decrypted.as_ref(), name);
 /// ```
