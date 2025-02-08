@@ -182,7 +182,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
                 .await?;
             self.credentials_cache
                 .write(credentials_response.parse()?)?;
-            self.credentials_cache.get(&today)?.ok_or_else(|| {
+            self.credentials_cache.get(&today)?.ok_or({
                 ServiceError::InvalidFrame {
                     reason:
                         "credentials received did not contain requested day",

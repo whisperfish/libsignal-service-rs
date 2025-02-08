@@ -153,7 +153,7 @@ impl PushService {
             .await?
             .headers()
             .get("location")
-            .ok_or_else(|| ServiceError::InvalidFrame {
+            .ok_or(ServiceError::InvalidFrame {
                 reason: "missing location header in HTTP response",
             })?
             .to_str()
@@ -195,9 +195,9 @@ impl PushService {
                         .map_err(|_| ServiceError::InvalidFrame {
                             reason: "invalid format for Range HTTP header",
                         })?
-                        .split("-")
+                        .split('-')
                         .nth(1)
-                        .ok_or_else(|| ServiceError::InvalidFrame {
+                        .ok_or(ServiceError::InvalidFrame {
                             reason:
                                 "invalid value format for Range HTTP header",
                         })?
