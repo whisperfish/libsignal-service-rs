@@ -2,7 +2,7 @@ use reqwest::StatusCode;
 
 use crate::proto::WebSocketResponseMessage;
 
-use super::ServiceError;
+use super::{MismatchedDevices, ServiceError, UsernameTaken};
 
 async fn service_error_for_status<R>(response: R) -> Result<R, ServiceError>
 where
@@ -26,17 +26,19 @@ where
             Err(ServiceError::RateLimitExceeded)
         },
         StatusCode::CONFLICT => {
-            let mismatched_devices =
-                response.json().await.map_err(|error| {
-                    tracing::error!(
-                        %error,
-                        "failed to decode HTTP 409 status"
-                    );
-                    ServiceError::UnhandledResponseCode {
-                        http_code: StatusCode::CONFLICT.as_u16(),
-                    }
-                })?;
-            Err(ServiceError::MismatchedDevicesException(mismatched_devices))
+            let text = response.text().await?;
+            if let Ok(devices) =
+                serde_json::from_str::<MismatchedDevices>(&text)
+            {
+                Err(ServiceError::MismatchedDevicesException(devices))
+            } else if let Ok(username_taken) =
+                serde_json::from_str::<UsernameTaken>(&text)
+            {
+                Err(ServiceError::UsernameTaken(username_taken))
+            } else {
+                tracing::error!("Failed to decode HTTP 409 response: {text}");
+                Err(ServiceError::UnhandledResponseCode { http_code: 409 })
+            }
         },
         StatusCode::GONE => {
             let stale_devices = response.json().await.map_err(|error| {

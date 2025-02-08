@@ -139,6 +139,12 @@ pub struct MismatchedDevices {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UsernameTaken {
+    pub username_hash: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
     pub stale_devices: Vec<u32>,
 }

@@ -1,6 +1,7 @@
 use libsignal_protocol::Aci;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 use crate::{
@@ -51,6 +52,27 @@ struct SignalServiceProfileWrite<'s> {
     same_avatar: bool,
     #[serde(with = "serde_base64")]
     commitment: &'s [u8],
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetAciByUsernameResponse {
+    #[serde(default)]
+    pub uuid: Uuid,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReserveUsernameRequest {
+    #[serde(default)]
+    pub username_hashes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReserveUsernameResponse {
+    #[serde(default)]
+    pub username_hash: String,
 }
 
 impl PushService {
@@ -168,5 +190,47 @@ impl PushService {
                 Ok(None)
             },
         }
+    }
+
+    pub async fn get_aci_by_username_hash(
+        &mut self,
+        username_hash: String,
+    ) -> Result<Uuid, ServiceError> {
+        self.request(
+            Method::GET,
+            Endpoint::service(&format!(
+                "/v1/accounts/username_hash/{}",
+                username_hash
+            )),
+            HttpAuthOverride::NoOverride,
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json::<GetAciByUsernameResponse>()
+        .await
+        .map_err(Into::into)
+        .map(|res| res.uuid)
+    }
+
+    pub async fn reserve_username(
+        &mut self,
+        username_hashes: ReserveUsernameRequest,
+    ) -> Result<String, ServiceError> {
+        self.request(
+            Method::PUT,
+            Endpoint::service("/v1/accounts/username_hash/reserve"),
+            HttpAuthOverride::NoOverride,
+        )?
+        .json(&username_hashes)
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json::<ReserveUsernameResponse>()
+        .await
+        .map_err(Into::into)
+        .map(|res| res.username_hash)
     }
 }

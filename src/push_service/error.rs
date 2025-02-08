@@ -6,6 +6,7 @@ use crate::groups_v2::GroupDecodingError;
 
 use super::{
     MismatchedDevices, ProofRequired, RegistrationLockFailure, StaleDevices,
+    UsernameTaken,
 };
 
 #[derive(thiserror::Error, Debug)]
@@ -98,4 +99,7 @@ pub enum ServiceError {
 
     #[error("HTTP reqwest error: {0}")]
     Http(#[from] reqwest::Error),
+
+    #[error("username taken: {0:?}")]
+    UsernameTaken(UsernameTaken),
 }
