@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use base64::prelude::*;
 use bytes::Bytes;
-use libsignal_protocol::{Aci, ServiceId};
+use libsignal_protocol::{Aci, Pni, ServiceId};
 use prost::Message;
 use zkgroup::{
     groups::GroupSecretParams,
@@ -19,7 +19,9 @@ use crate::{
 };
 
 use super::{
-    model::{Member, PendingMember, RequestingMember},
+    model::{
+        BannedMember, Member, PendingMember, PromotedMember, RequestingMember,
+    },
     Group, GroupChange, GroupChanges,
 };
 
@@ -43,6 +45,8 @@ pub enum GroupDecodingError {
     WrongEnumValue,
     #[error("wrong service ID type: should be ACI")]
     NotAci,
+    #[error("wrong service ID type: should be PNI")]
+    NotPni,
 }
 
 impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecodingError {
@@ -84,6 +88,19 @@ impl GroupOperations {
         }
     }
 
+    fn decrypt_pni(
+        &self,
+        ciphertext: &[u8],
+    ) -> Result<Pni, GroupDecodingError> {
+        match self
+            .group_secret_params
+            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+        {
+            ServiceId::Pni(pni) => Ok(pni),
+            ServiceId::Aci(_aci) => Err(GroupDecodingError::NotPni),
+        }
+    }
+
     fn decrypt_profile_key(
         &self,
         encrypted_profile_key: &[u8],
@@ -116,6 +133,20 @@ impl GroupOperations {
             },
             _ => Err(GroupDecodingError::NotAci),
         }
+    }
+
+    fn decrypt_pni_aci_promotion_presentation(
+        &self,
+        member: &proto::group_change::actions::PromotePendingPniAciMemberProfileKeyAction,
+    ) -> Result<PromotedMember, GroupDecodingError> {
+        let aci = self.decrypt_aci(&member.user_id)?;
+        let pni = self.decrypt_pni(&member.pni)?;
+        let profile_key = self.decrypt_profile_key(&member.profile_key, aci)?;
+        Ok(PromotedMember {
+            aci,
+            pni,
+            profile_key,
+        })
     }
 
     fn decrypt_member(
@@ -169,7 +200,18 @@ impl GroupOperations {
         };
         Ok(RequestingMember {
             profile_key,
-            uuid: aci.into(),
+            aci: aci.into(),
+            timestamp: member.timestamp,
+        })
+    }
+
+    fn decrypt_banned_member(
+        &self,
+        member: proto::BannedMember,
+    ) -> Result<BannedMember, GroupDecodingError> {
+        let aci = self.decrypt_aci(&member.user_id)?;
+        Ok(BannedMember {
+            aci: aci.into(),
             timestamp: member.timestamp,
         })
     }
@@ -338,7 +380,7 @@ impl GroupOperations {
                 let (aci, profile_key) =
                     self.decrypt_profile_key_presentation(&m.presentation)?;
                 Ok(GroupChange::PromotePendingMember {
-                    uuid: aci.into(),
+                    address: aci.into(),
                     profile_key,
                 })
             });
@@ -381,6 +423,32 @@ impl GroupOperations {
                 Ok(GroupChange::MemberAccess(m.members_access.try_into()?))
             });
 
+        let add_banned_members = actions
+            .add_banned_members
+            .into_iter()
+            .filter_map(|m| m.added)
+            .map(|added| {
+                Ok(GroupChange::AddBannedMember(
+                    self.decrypt_banned_member(added)?,
+                ))
+            });
+
+        let delete_banned_members =
+            actions.delete_banned_members.into_iter().map(|added| {
+                Ok(GroupChange::DeleteBannedMember(
+                    self.decrypt_aci(&added.deleted_user_id)?.into(),
+                ))
+            });
+
+        let promote_pending_member = actions
+            .promote_pending_pni_aci_members
+            .into_iter()
+            .map(|m| {
+                let promoted =
+                    self.decrypt_pni_aci_promotion_presentation(&m)?;
+                Ok(GroupChange::PromotePendingPniAciMemberProfileKey(promoted))
+            });
+
         let modify_add_from_invite_link_access = actions
             .modify_add_from_invite_link_access
             .into_iter()
@@ -403,14 +471,14 @@ impl GroupOperations {
         let delete_requesting_members =
             actions.delete_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::DeleteRequestingMember(
-                    self.decrypt_aci(&m.deleted_user_id)?.into(),
+                    self.decrypt_aci(&m.deleted_user_id)?,
                 ))
             });
 
         let promote_requesting_members =
             actions.promote_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::PromoteRequestingMember {
-                    uuid: self.decrypt_aci(&m.user_id)?.into(),
+                    aci: self.decrypt_aci(&m.user_id)?.into(),
                     role: m.role.try_into()?,
                 })
             });
@@ -440,6 +508,9 @@ impl GroupOperations {
             .chain(modify_attributes_access)
             .chain(modify_description)
             .chain(modify_member_access)
+            .chain(add_banned_members)
+            .chain(delete_banned_members)
+            .chain(promote_pending_member)
             .chain(modify_add_from_invite_link_access)
             .chain(add_requesting_members)
             .chain(delete_requesting_members)
