@@ -26,6 +26,7 @@ pub struct Metadata {
     pub timestamp: u64,
     pub needs_receipt: bool,
     pub unidentified_sender: bool,
+    pub was_plaintext: bool,
 
     /// A unique UUID for this specific message, produced by the Signal servers.
     ///
