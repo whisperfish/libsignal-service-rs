@@ -101,6 +101,9 @@ where
             let message =
                 crate::proto::Content::decode(plaintext.data.as_slice())?;
 
+            tracing::Span::current()
+                .record("envelope_metadata", plaintext.metadata.to_string());
+
             // Sanity test: if the envelope was plaintext, the message should *only* be a
             // decryption failure error
             if was_plaintext {
@@ -131,6 +134,16 @@ where
                     return Ok(None);
                 }
             }
+
+            if message.sync_message.is_some() {
+                if plaintext.metadata.sender.aci().map(Into::into)
+                    != Some(self.local_uuid)
+                {
+                    tracing::warn!("Source is not ourself.");
+                    return Ok(None);
+                }
+            }
+
             if let Some(bytes) = message.sender_key_distribution_message {
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
