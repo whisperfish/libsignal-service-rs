@@ -426,9 +426,11 @@ impl PushService {
         .header("Upload-Offset", resume_info.content_start)
         .header("Upload-Length", buf.len())
         .header(CONTENT_TYPE, content_type)
+        .header("Authorization", headers["Authorization"].clone())
         .body(buf)
         .send()
-        .await?;
+        .await?
+        .error_for_status()?;
 
         trace!("attachment uploaded");
 
