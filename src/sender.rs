@@ -249,7 +249,6 @@ where
             .upload_attachment_v4(
                 attachment_upload_form.cdn,
                 &resumable_upload_url,
-                &spec.content_type,
                 contents.len() as u64,
                 attachment_upload_form.headers,
                 &mut std::io::Cursor::new(&contents),

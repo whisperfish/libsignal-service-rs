@@ -275,7 +275,6 @@ impl PushService {
         &mut self,
         cdn_id: u32,
         resumable_url: &Url,
-        content_type: &str,
         content_length: u64,
         headers: HashMap<String, String>,
         content: impl std::io::Read + std::io::Seek + Send,
@@ -287,7 +286,6 @@ impl PushService {
             self.upload_to_cdn3(
                 resumable_url,
                 &headers,
-                content_type,
                 content_length,
                 content,
             )
@@ -386,7 +384,6 @@ impl PushService {
         &mut self,
         resumable_url: &Url,
         headers: &HashMap<String, String>,
-        content_type: &str,
         content_length: u64,
         mut content: impl std::io::Read + std::io::Seek + Send,
     ) -> Result<AttachmentDigest, ServiceError> {
@@ -431,7 +428,7 @@ impl PushService {
             .header("Tus-Resumable", "1.0.0")
             .header("Upload-Offset", resume_info.content_start)
             .header("Upload-Length", buf.len())
-            .header(CONTENT_TYPE, content_type)
+            .header(CONTENT_TYPE, "application/offset+octet-stream")
             .body(buf)
             .send()
             .await?
