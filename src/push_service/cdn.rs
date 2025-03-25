@@ -417,20 +417,25 @@ impl PushService {
 
         trace!("digested content");
 
-        self.request(
+        let mut request = self.request(
             Method::PATCH,
             Endpoint::cdn(3, resumable_url.path()),
             HttpAuthOverride::Unidentified,
-        )?
-        .header("Tus-Resumable", "1.0.0")
-        .header("Upload-Offset", resume_info.content_start)
-        .header("Upload-Length", buf.len())
-        .header(CONTENT_TYPE, content_type)
-        .header("Authorization", headers["Authorization"].clone())
-        .body(buf)
-        .send()
-        .await?
-        .error_for_status()?;
+        )?;
+
+        for (key, value) in headers {
+            request = request.header(key, value);
+        }
+
+        request
+            .header("Tus-Resumable", "1.0.0")
+            .header("Upload-Offset", resume_info.content_start)
+            .header("Upload-Length", buf.len())
+            .header(CONTENT_TYPE, content_type)
+            .body(buf)
+            .send()
+            .await?
+            .error_for_status()?;
 
         trace!("attachment uploaded");
 
