@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use libsignal_protocol::{
-    IdentityKey, PreKeyBundle, SenderCertificate, ServiceId, ServiceIdKind,
+    DeviceId, IdentityKey, PreKeyBundle, SenderCertificate, ServiceId,
+    ServiceIdKind,
 };
 use reqwest::Method;
 use serde::Deserialize;
@@ -67,12 +68,12 @@ impl PushService {
     pub async fn get_pre_key(
         &mut self,
         destination: &ServiceId,
-        device_id: u32,
+        device_id: DeviceId,
     ) -> Result<PreKeyBundle, ServiceError> {
         let path = format!(
             "/v2/keys/{}/{}",
             destination.service_id_string(),
-            device_id
+            u32::from(device_id),
         );
 
         let mut pre_key_response: PreKeyResponse = self
