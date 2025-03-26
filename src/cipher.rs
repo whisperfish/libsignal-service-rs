@@ -135,13 +135,12 @@ where
                 }
             }
 
-            if message.sync_message.is_some() {
-                if plaintext.metadata.sender.aci().map(Into::into)
+            if message.sync_message.is_some()
+                && plaintext.metadata.sender.aci().map(Into::into)
                     != Some(self.local_uuid)
-                {
-                    tracing::warn!("Source is not ourself.");
-                    return Ok(None);
-                }
+            {
+                tracing::warn!("Source is not ourself.");
+                return Ok(None);
             }
 
             if let Some(bytes) = message.sender_key_distribution_message {

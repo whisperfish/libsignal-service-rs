@@ -90,8 +90,7 @@ impl PushService {
             )?
             .send()
             .await?
-            .service_error_for_status()
-            .await?
+            .error_for_status()?
             .bytes_stream()
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
             .into_async_read();
@@ -149,8 +148,7 @@ impl PushService {
         Ok(request
             .send()
             .await?
-            .service_error_for_status()
-            .await?
+            .error_for_status()?
             .headers()
             .get("location")
             .ok_or(ServiceError::InvalidFrame {
@@ -244,7 +242,7 @@ impl PushService {
             request = request.header(key, value);
         }
 
-        let response = request.send().await?.service_error_for_status().await?;
+        let response = request.send().await?.error_for_status()?;
 
         let upload_offset = response
             .headers()
@@ -333,8 +331,7 @@ impl PushService {
             .multipart(form)
             .send()
             .await?
-            .service_error_for_status()
-            .await?;
+            .error_for_status()?;
 
         debug!("HyperPushService::PUT response: {:?}", response);
 
