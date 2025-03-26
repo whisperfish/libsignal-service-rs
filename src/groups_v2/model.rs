@@ -1,7 +1,7 @@
 use std::{convert::TryFrom, convert::TryInto};
 
 use derivative::Derivative;
-use libsignal_protocol::ServiceId;
+use libsignal_protocol::{Aci, Pni, ServiceId};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
@@ -51,6 +51,34 @@ pub struct RequestingMember {
 impl PartialEq for RequestingMember {
     fn eq(&self, other: &Self) -> bool {
         self.uuid == other.uuid
+    }
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub struct BannedMember {
+    pub uuid: Uuid,
+    pub timestamp: u64,
+}
+
+impl PartialEq for BannedMember {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid
+    }
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub struct PromotedMember {
+    pub aci: Aci,
+    pub pni: Pni,
+    #[derivative(Debug = "ignore")]
+    pub profile_key: ProfileKey,
+}
+
+impl PartialEq for PromotedMember {
+    fn eq(&self, other: &Self) -> bool {
+        self.aci == other.aci && self.pni == other.pni
     }
 }
 
@@ -105,7 +133,6 @@ pub enum GroupChange {
         #[derivative(Debug = "ignore")]
         profile_key: ProfileKey,
     },
-    // for open groups
     NewPendingMember(PendingMember),
     DeletePendingMember(Uuid),
     PromotePendingMember {
@@ -113,23 +140,24 @@ pub enum GroupChange {
         #[derivative(Debug = "ignore")]
         profile_key: ProfileKey,
     },
-    // when admin control is enabled
+    Title(String),
+    Avatar(String),
+    Timer(Option<Timer>),
+    AttributeAccess(AccessRequired),
+    MemberAccess(AccessRequired),
+    InviteLinkAccess(AccessRequired),
     NewRequestingMember(RequestingMember),
     DeleteRequestingMember(Uuid),
     PromoteRequestingMember {
         uuid: Uuid,
         role: Role,
     },
-    // group metadata
-    Title(String),
-    Avatar(String),
-    Timer(Option<Timer>),
-    Description(Option<String>),
-    AttributeAccess(AccessRequired),
-    MemberAccess(AccessRequired),
-    InviteLinkAccess(AccessRequired),
     InviteLinkPassword(String),
+    Description(Option<String>),
     AnnouncementOnly(bool),
+    AddBannedMember(BannedMember),
+    DeleteBannedMember(Uuid),
+    PromotePendingPniAciMemberProfileKey(PromotedMember),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
