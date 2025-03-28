@@ -7,7 +7,7 @@ pub struct DigestingReader<'r, R> {
     digest: Sha256,
 }
 
-impl<'r, R: Read + Seek> Read for DigestingReader<'r, R> {
+impl<R: Read + Seek> Read for DigestingReader<'_, R> {
     fn read(&mut self, tgt: &mut [u8]) -> Result<usize, std::io::Error> {
         let amount = self.inner.read(tgt)?;
         self.digest.update(&tgt[..amount]);

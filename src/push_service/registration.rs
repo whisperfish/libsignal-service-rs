@@ -122,9 +122,9 @@ impl RegistrationSessionMetadataResponse {
 }
 
 impl PushService {
-    pub async fn submit_registration_request<'a>(
+    pub async fn submit_registration_request(
         &mut self,
-        registration_method: RegistrationMethod<'a>,
+        registration_method: RegistrationMethod<'_>,
         account_attributes: AccountAttributes,
         skip_device_transfer: bool,
         aci_identity_key: &IdentityKey,
