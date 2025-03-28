@@ -445,6 +445,5 @@ impl SignalWebSocket {
             .await?
             .json()
             .await
-            .map_err(Into::into)
     }
 }

@@ -259,7 +259,6 @@ impl PushService {
         .await?
         .protobuf()
         .await
-        .map_err(Into::into)
     }
 }
 
