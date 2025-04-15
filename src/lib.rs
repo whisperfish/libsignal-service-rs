@@ -25,7 +25,6 @@ pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
 pub mod sender;
-pub mod service_address;
 pub mod session_store;
 mod timestamp;
 pub mod unidentified_access;
@@ -35,7 +34,6 @@ pub mod websocket;
 pub use crate::account_manager::{
     decrypt_device_name, AccountManager, Profile, ProfileManagerError,
 };
-pub use crate::service_address::*;
 
 pub const USER_AGENT: &str =
     concat!(env!("CARGO_PKG_NAME"), "-rs-", env!("CARGO_PKG_VERSION"));
