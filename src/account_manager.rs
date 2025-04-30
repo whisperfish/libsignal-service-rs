@@ -165,12 +165,21 @@ impl AccountManager {
         };
         tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
 
+        let check_pre_keys = self
+            .check_pre_keys(protocol_store, service_id_kind)
+            .instrument(tracing::span!(
+                tracing::Level::DEBUG,
+                "Checking pre keys"
+            ))
+            .await?;
+
         // XXX We should honestly compare the pre-key count with the number of pre-keys we have
         // locally. If we have more than the server, we should upload them.
         // Currently the trait doesn't allow us to do that, so we just upload the batch size and
         // pray.
-        if prekey_status.count >= PRE_KEY_MINIMUM
-            && prekey_status.pq_count >= PRE_KEY_MINIMUM
+        if check_pre_keys
+            && (prekey_status.count >= PRE_KEY_MINIMUM
+                && prekey_status.pq_count >= PRE_KEY_MINIMUM)
         {
             if protocol_store.signed_pre_keys_count().await? > 0
                 && protocol_store.kyber_pre_keys_count(true).await? > 0
