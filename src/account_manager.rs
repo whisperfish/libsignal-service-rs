@@ -172,6 +172,13 @@ impl AccountManager {
                 "Checking pre keys"
             ))
             .await?;
+        if !check_pre_keys {
+            tracing::info!(
+                "Last resort pre-keys are not up to date; refreshing."
+            );
+        } else {
+            tracing::debug!("Last resort pre-keys are up to date.");
+        }
 
         // XXX We should honestly compare the pre-key count with the number of pre-keys we have
         // locally. If we have more than the server, we should upload them.
