@@ -15,7 +15,7 @@ use libsignal_protocol::{
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
@@ -80,6 +80,51 @@ impl AccountManager {
             service,
             profile_key,
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(skip(self, protocol_store))]
+    pub async fn check_pre_keys<P: PreKeysStore>(
+        &mut self,
+        protocol_store: &mut P,
+        service_id_kind: ServiceIdKind,
+    ) -> Result<bool, ServiceError> {
+        let Some(signed_prekey_id) = protocol_store.signed_prekey_id().await?
+        else {
+            tracing::warn!("No signed prekey found");
+            return Ok(false);
+        };
+        // XXX: should we instead use the `load_last_resort_kyber_pre_keys` method? Or refactor
+        //      those whole traits?
+        let Some(kyber_prekey_id) =
+            protocol_store.last_resort_kyber_prekey_id().await?
+        else {
+            tracing::warn!("No last resort kyber prekey found");
+            return Ok(false);
+        };
+
+        let signed_prekey =
+            protocol_store.get_signed_pre_key(signed_prekey_id).await?;
+        let kyber_prekey =
+            protocol_store.get_kyber_pre_key(kyber_prekey_id).await?;
+
+        // `SHA256(identityKeyBytes || signedEcPreKeyId || signedEcPreKeyIdBytes || lastResortKeyId || lastResortKeyBytes)`
+        let mut hash = Sha256::default();
+        hash.update(
+            protocol_store
+                .get_identity_key_pair()
+                .await?
+                .public_key()
+                .serialize(),
+        );
+        hash.update((u32::from(signed_prekey_id) as u64).to_be_bytes());
+        hash.update(signed_prekey.public_key()?.serialize());
+        hash.update((u32::from(kyber_prekey_id) as u64).to_be_bytes());
+        hash.update(kyber_prekey.public_key()?.serialize());
+
+        self.service
+            .check_pre_keys(service_id_kind, hash.finalize().as_ref())
+            .await
     }
 
     /// Checks the availability of pre-keys, and updates them as necessary.
