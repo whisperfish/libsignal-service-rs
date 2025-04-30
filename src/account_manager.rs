@@ -183,6 +183,11 @@ impl AccountManager {
         {
             if protocol_store.signed_pre_keys_count().await? > 0
                 && protocol_store.kyber_pre_keys_count(true).await? > 0
+                && protocol_store.signed_prekey_id().await?.is_some()
+                && protocol_store
+                    .last_resort_kyber_prekey_id()
+                    .await?
+                    .is_some()
             {
                 tracing::debug!("Available keys sufficient");
                 return Ok(());
