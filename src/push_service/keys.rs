@@ -45,6 +45,52 @@ impl PushService {
         .map_err(Into::into)
     }
 
+    /// Checks for consistency of the repeated-use keys
+    ///
+    /// Supply the digest as follows:
+    /// `SHA256(identityKeyBytes || signedEcPreKeyId || signedEcPreKeyIdBytes || lastResortKeyId ||
+    /// lastResortKeyBytes)`
+    ///
+    /// The IDs are represented as 8-byte big endian ints.
+    ///
+    /// Retuns `Ok(true)` if the view is consistent, `Ok(false)` if the view is inconsistent.
+    pub async fn check_pre_keys(
+        &mut self,
+        service_id_kind: ServiceIdKind,
+        digest: &[u8; 32],
+    ) -> Result<bool, ServiceError> {
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct CheckPreKeysRequest<'a> {
+            identity_type: String,
+            #[serde(with = "serde_base64")]
+            digest: &'a [u8; 32],
+        }
+
+        let req = CheckPreKeysRequest {
+            identity_type: service_id_kind.to_string(),
+            digest,
+        };
+
+        let res = self
+            .request(
+                Method::POST,
+                Endpoint::service("/v2/keys/check"),
+                HttpAuthOverride::NoOverride,
+            )?
+            .json(&req)
+            .send()
+            .await?;
+
+        if res.status() == reqwest::StatusCode::CONFLICT {
+            return Ok(false);
+        }
+
+        res.service_error_for_status().await?;
+
+        Ok(true)
+    }
+
     pub async fn register_pre_keys(
         &mut self,
         service_id_kind: ServiceIdKind,
