@@ -339,7 +339,7 @@ where
             self.protocol_store
                 .get_sub_device_sessions(&self.local_aci.into())
                 .await
-                .map_or(false, |s| !s.is_empty())
+                .is_ok_and(|s| !s.is_empty())
         } else {
             true
         }
