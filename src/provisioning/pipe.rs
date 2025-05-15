@@ -15,7 +15,7 @@ pub use crate::proto::{ProvisionEnvelope, ProvisionMessage};
 
 use crate::{
     proto::{
-        ProvisioningUuid, WebSocketRequestMessage, WebSocketResponseMessage,
+        ProvisioningAddress, WebSocketRequestMessage, WebSocketResponseMessage,
     },
     provisioning::ProvisioningError,
     utils::BASE64_RELAXED,
@@ -29,6 +29,7 @@ pub struct ProvisioningPipe {
     provisioning_cipher: ProvisioningCipher,
 }
 
+#[expect(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum ProvisioningStep {
     Url(Url),
@@ -92,21 +93,19 @@ impl ProvisioningPipe {
             } if verb == Some("PUT".into())
                 && path == Some("/v1/address".into()) =>
             {
-                let uuid: ProvisioningUuid =
+                // TODO: This is most likely wrong, check the SD code
+                let address: ProvisioningAddress =
                     prost::Message::decode(Bytes::from(body.unwrap()))?;
-                let mut provisioning_url = Url::parse("sgnl://linkdevice")
+                let mut provisioning_url = Url::parse(address.address())
                     .map_err(|e| ProvisioningError::WsError {
                         reason: e.to_string(),
                     })?;
-                provisioning_url
-                    .query_pairs_mut()
-                    .append_pair("uuid", &uuid.uuid.unwrap())
-                    .append_pair(
-                        "pub_key",
-                        &BASE64_RELAXED.encode(
-                            self.provisioning_cipher.public_key().serialize(),
-                        ),
-                    );
+                provisioning_url.query_pairs_mut().append_pair(
+                    "pub_key",
+                    &BASE64_RELAXED.encode(
+                        self.provisioning_cipher.public_key().serialize(),
+                    ),
+                );
 
                 // acknowledge
                 responder

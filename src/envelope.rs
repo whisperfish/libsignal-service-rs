@@ -76,7 +76,7 @@ impl Envelope {
     }
 
     pub fn is_receipt(&self) -> bool {
-        self.r#type() == crate::proto::envelope::Type::Receipt
+        self.r#type() == crate::proto::envelope::Type::ServerDeliveryReceipt
     }
 
     pub fn is_signal_message(&self) -> bool {

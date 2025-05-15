@@ -336,6 +336,9 @@ impl AccountManager {
             read_receipts: None,
             user_agent: None,
             master_key: master_key.map(|x| x.into()),
+            ephemeral_backup_key: None,
+            account_entropy_pool: None,
+            media_root_backup_key: None,
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);

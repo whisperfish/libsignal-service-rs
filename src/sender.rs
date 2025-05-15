@@ -33,7 +33,7 @@ use crate::{
     websocket::SignalWebSocket,
 };
 
-pub use crate::proto::{ContactDetails, GroupDetails};
+pub use crate::proto::ContactDetails;
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -1082,7 +1082,7 @@ where
                             recipient.service_id_string(),
                         ),
                         unidentified: Some(*unidentified),
-                        destination_identity_key: Some(
+                        destination_pni_identity_key: Some(
                             used_identity_key.serialize().into(),
                         ),
                     }
