@@ -10,6 +10,7 @@ use base64::Engine;
 use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
+use libsignal_core::curve::CurveError;
 use libsignal_protocol::{
     DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey,
 };
@@ -85,6 +86,10 @@ pub enum ProvisioningError {
     EncryptOnlyProvisioningCipher,
     #[error("invalid profile key bytes")]
     InvalidProfileKey(TryFromSliceError),
+    #[error(transparent)]
+    Curve(#[from] CurveError),
+    #[error(transparent)]
+    Base64(#[from] base64::DecodeError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -184,31 +189,27 @@ pub async fn link_device<
             &message
                 .aci_identity_key_public
                 .ok_or(ProvisioningError::MissingPublicKey)?,
-        )
-        .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
+        )?;
         let aci_public_key = IdentityKey::new(aci_public_key);
 
         let aci_private_key = PrivateKey::deserialize(
             &message
                 .aci_identity_key_private
                 .ok_or(ProvisioningError::MissingPrivateKey)?,
-        )
-        .map_err(|e| ProvisioningError::InvalidPrivateKey(e.into()))?;
+        )?;
 
         let pni_public_key = PublicKey::deserialize(
             &message
                 .pni_identity_key_public
                 .ok_or(ProvisioningError::MissingPublicKey)?,
-        )
-        .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
+        )?;
         let pni_public_key = IdentityKey::new(pni_public_key);
 
         let pni_private_key = PrivateKey::deserialize(
             &message
                 .pni_identity_key_private
                 .ok_or(ProvisioningError::MissingPrivateKey)?,
-        )
-        .map_err(|e| ProvisioningError::InvalidPrivateKey(e.into()))?;
+        )?;
 
         let profile_key = message
             .profile_key

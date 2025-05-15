@@ -294,11 +294,8 @@ impl AccountManager {
         let pub_key = query
             .get("pub_key")
             .ok_or(ProvisioningError::MissingPublicKey)?;
-        let pub_key = BASE64_RELAXED
-            .decode(&**pub_key)
-            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
-        let pub_key = PublicKey::deserialize(&pub_key)
-            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
+        let pub_key = BASE64_RELAXED.decode(&**pub_key)?;
+        let pub_key = PublicKey::deserialize(&pub_key)?;
 
         let aci_identity_key_pair =
             aci_identity_store.get_identity_key_pair().await?;

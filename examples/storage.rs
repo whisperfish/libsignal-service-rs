@@ -1,3 +1,4 @@
+use libsignal_protocol::IdentityChange;
 use libsignal_service::pre_keys::{KyberPreKeyStoreExt, PreKeysStore};
 use libsignal_service::protocol::{
     Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore, KyberPreKeyId,
@@ -170,7 +171,7 @@ impl IdentityKeyStore for ExampleStore {
         &mut self,
         _address: &ProtocolAddress,
         _identity: &IdentityKey,
-    ) -> Result<bool, SignalProtocolError> {
+    ) -> Result<IdentityChange, SignalProtocolError> {
         todo!()
     }
 
