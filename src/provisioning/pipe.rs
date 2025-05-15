@@ -96,16 +96,22 @@ impl ProvisioningPipe {
                 // TODO: This is most likely wrong, check the SD code
                 let address: ProvisioningAddress =
                     prost::Message::decode(Bytes::from(body.unwrap()))?;
-                let mut provisioning_url = Url::parse(address.address())
-                    .map_err(|e| ProvisioningError::WsError {
-                        reason: e.to_string(),
+
+                let mut provisioning_url =
+                    Url::parse("sgnl://rereg").map_err(|e| {
+                        ProvisioningError::WsError {
+                            reason: e.to_string(),
+                        }
                     })?;
-                provisioning_url.query_pairs_mut().append_pair(
-                    "pub_key",
-                    &BASE64_RELAXED.encode(
-                        self.provisioning_cipher.public_key().serialize(),
-                    ),
-                );
+                provisioning_url
+                    .query_pairs_mut()
+                    .append_pair("uuid", address.address())
+                    .append_pair(
+                        "pub_key",
+                        &BASE64_RELAXED.encode(
+                            self.provisioning_cipher.public_key().serialize(),
+                        ),
+                    );
 
                 // acknowledge
                 responder
