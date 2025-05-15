@@ -261,11 +261,6 @@ impl<T: rand_core::RngCore> rand_core_06::RngCore for Rng06Shiv<'_, T> {
 
 impl<T: rand_core::CryptoRng> rand_core_06::CryptoRng for Rng06Shiv<'_, T> {}
 
-// impl<T: rand_core::RngCore + rand_core::CryptoRng + Send + Sync> Random
-//     for Rng06<'_, T>
-// {
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
