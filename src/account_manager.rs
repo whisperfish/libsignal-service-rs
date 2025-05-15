@@ -731,7 +731,7 @@ impl AccountManager {
                     )?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
                     Timestamp::now(),
                     &signed_pre_key_pair,
                     &signed_pre_key_signature,
@@ -740,7 +740,7 @@ impl AccountManager {
                 // Generate a last-resort Kyber prekey
                 let kyber_pre_key_record = KyberPreKeyRecord::generate(
                     kem::KeyType::Kyber1024,
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
                     pni_identity_key_pair.private_key(),
                 )?;
                 (
@@ -939,7 +939,7 @@ mod tests {
     #[test]
     fn encrypt_device_name() -> anyhow::Result<()> {
         let input_device_name = "Nokia 3310 Millenial Edition";
-        let mut csprng = rand::thread_rng();
+        let mut csprng = rand::rng();
         let identity = IdentityKeyPair::generate(&mut csprng);
 
         let device_name = super::encrypt_device_name(

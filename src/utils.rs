@@ -15,7 +15,7 @@ pub fn random_length_padding<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
     max_len: usize,
 ) -> Vec<u8> {
-    let length = csprng.gen_range(0..max_len);
+    let length = csprng.random_range(0..max_len);
     let mut padding = vec![0u8; length];
     csprng.fill_bytes(&mut padding);
     padding

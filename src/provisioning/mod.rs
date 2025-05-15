@@ -103,7 +103,7 @@ pub enum InvalidKeyError {
 pub fn generate_registration_id<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
 ) -> u32 {
-    csprng.gen_range(1..16380)
+    csprng.random_range(1..16380)
 }
 
 #[derive(Debug, Deserialize)]
@@ -160,8 +160,8 @@ pub async fn link_device<
         )
         .await?;
 
-    let registration_id = csprng.gen_range(1..256);
-    let pni_registration_id = csprng.gen_range(1..256);
+    let registration_id = csprng.random_range(1..256);
+    let pni_registration_id = csprng.random_range(1..256);
 
     let provisioning_pipe = ProvisioningPipe::from_socket(ws, csprng);
     let provision_stream = provisioning_pipe.stream();

@@ -16,8 +16,8 @@ use crate::{
 /// # use libsignal_service::{profile_name::ProfileName, profile_cipher::ProfileCipher};
 /// # use zkgroup::profiles::ProfileKey;
 /// # use rand::Rng;
-/// # let mut rng = rand::thread_rng();
-/// # let some_randomness = rng.gen();
+/// # let mut rng = rand::rng();
+/// # let some_randomness = rng.random();
 /// let profile_key = ProfileKey::generate(some_randomness);
 /// let name = ProfileName::<&str> {
 ///     given_name: "Bill",
@@ -288,8 +288,8 @@ mod tests {
         assert_eq!(names[2].len(), NAME_PADDED_LENGTH_1);
         assert_eq!(names[3].len(), NAME_PADDED_LENGTH_1 + 1);
 
-        let mut rng = rand::thread_rng();
-        let some_randomness = rng.gen();
+        let mut rng = rand::rng();
+        let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
         for name in &names {
@@ -314,8 +314,8 @@ mod tests {
             "Me and my guitar", // shorter that 53
         ];
 
-        let mut rng = rand::thread_rng();
-        let some_randomness = rng.gen();
+        let mut rng = rand::rng();
+        let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
 
@@ -332,8 +332,8 @@ mod tests {
     fn roundtrip_emoji() {
         let emojii = ["❤️", "💩", "🤣", "😲", "🐠"];
 
-        let mut rng = rand::thread_rng();
-        let some_randomness = rng.gen();
+        let mut rng = rand::rng();
+        let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
 
