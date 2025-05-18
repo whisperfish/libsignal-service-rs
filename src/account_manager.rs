@@ -360,11 +360,8 @@ impl AccountManager {
         let pub_key = query
             .get("pub_key")
             .ok_or(ProvisioningError::MissingPublicKey)?;
-        let pub_key = BASE64_RELAXED
-            .decode(&**pub_key)
-            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
-        let pub_key = PublicKey::deserialize(&pub_key)
-            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
+        let pub_key = BASE64_RELAXED.decode(&**pub_key)?;
+        let pub_key = PublicKey::deserialize(&pub_key)?;
 
         let aci_identity_key_pair =
             aci_identity_store.get_identity_key_pair().await?;
@@ -405,6 +402,9 @@ impl AccountManager {
             read_receipts: None,
             user_agent: None,
             master_key: master_key.map(|x| x.into()),
+            ephemeral_backup_key: None,
+            account_entropy_pool: None,
+            media_root_backup_key: None,
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);
@@ -800,7 +800,7 @@ impl AccountManager {
                     )?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
                     Timestamp::now(),
                     &signed_pre_key_pair,
                     &signed_pre_key_signature,
@@ -809,7 +809,7 @@ impl AccountManager {
                 // Generate a last-resort Kyber prekey
                 let kyber_pre_key_record = KyberPreKeyRecord::generate(
                     kem::KeyType::Kyber1024,
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
                     pni_identity_key_pair.private_key(),
                 )?;
                 (
@@ -1008,7 +1008,7 @@ mod tests {
     #[test]
     fn encrypt_device_name() -> anyhow::Result<()> {
         let input_device_name = "Nokia 3310 Millenial Edition";
-        let mut csprng = rand::thread_rng();
+        let mut csprng = rand::rng();
         let identity = IdentityKeyPair::generate(&mut csprng);
 
         let device_name = super::encrypt_device_name(

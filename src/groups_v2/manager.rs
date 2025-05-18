@@ -20,7 +20,7 @@ use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use serde::Deserialize;
 use zkgroup::{
-    auth::AuthCredentialWithPniResponse,
+    auth::{AuthCredentialWithPni, AuthCredentialWithPniResponse},
     groups::{GroupMasterKey, GroupSecretParams},
     ServerPublicParams,
 };
@@ -205,32 +205,29 @@ impl<C: CredentialsCache> GroupsManager<C> {
         credential_response: AuthCredentialWithPniResponse,
         today: u64,
     ) -> Result<HttpAuth, ServiceError> {
-        let auth_credential = self
-            .server_public_params
-            .receive_auth_credential_with_pni_as_service_id(
+        let redemption_time = zkgroup::Timestamp::from_epoch_seconds(today);
+
+        let auth_credential_bytes =
+            zkgroup::serialize(&credential_response.receive(
+                &self.server_public_params,
                 self.service_ids.aci(),
                 self.service_ids.pni(),
-                zkgroup::Timestamp::from_epoch_seconds(today),
-                credential_response,
-            )
-            .map_err(|e| {
-                tracing::error!(
-                    "failed to receive auth credentials with PNI: {:?}",
-                    e
-                );
-                ServiceError::GroupsV2Error
-            })?;
+                redemption_time,
+            )?);
 
         let mut random_bytes = [0u8; 32];
         csprng.fill_bytes(&mut random_bytes);
 
-        let auth_credential_presentation = self
-            .server_public_params
-            .create_auth_credential_with_pni_presentation(
+        let auth_credential =
+            AuthCredentialWithPni::new(&auth_credential_bytes)
+                .expect("just validated");
+
+        let auth_credential_presentation =
+            zkgroup::serialize(&auth_credential.present(
+                &self.server_public_params,
+                &group_secret_params,
                 random_bytes,
-                group_secret_params,
-                auth_credential,
-            );
+            ));
 
         // see simpleapi.rs GroupSecretParams_getPublicParams, everything is bincode encoded
         // across the boundary of Rust/Java

@@ -100,8 +100,8 @@ mod tests {
     fn attachment_encrypt_decrypt() -> Result<(), AttachmentCipherError> {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
-        rand::thread_rng().fill_bytes(&mut key);
-        rand::thread_rng().fill_bytes(&mut iv);
+        rand::rng().fill_bytes(&mut key);
+        rand::rng().fill_bytes(&mut iv);
 
         let plaintext = b"Peter Parker";
         let mut buf = Vec::from(plaintext as &[u8]);
@@ -116,8 +116,8 @@ mod tests {
     fn attachment_encrypt_decrypt_empty() -> Result<(), AttachmentCipherError> {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
-        rand::thread_rng().fill_bytes(&mut key);
-        rand::thread_rng().fill_bytes(&mut iv);
+        rand::rng().fill_bytes(&mut key);
+        rand::rng().fill_bytes(&mut iv);
         let plaintext = b"";
         let mut buf = Vec::from(plaintext as &[u8]);
         encrypt_in_place(iv, key, &mut buf);
@@ -131,14 +131,14 @@ mod tests {
     fn attachment_encrypt_decrypt_bad_key() {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
-        rand::thread_rng().fill_bytes(&mut key);
-        rand::thread_rng().fill_bytes(&mut iv);
+        rand::rng().fill_bytes(&mut key);
+        rand::rng().fill_bytes(&mut iv);
         let plaintext = b"Peter Parker";
         let mut buf = Vec::from(plaintext as &[u8]);
         encrypt_in_place(iv, key, &mut buf);
 
         // Generate bad key
-        rand::thread_rng().fill_bytes(&mut key);
+        rand::rng().fill_bytes(&mut key);
         assert_eq!(
             decrypt_in_place(key, &mut buf).unwrap_err(),
             AttachmentCipherError::MacError
