@@ -285,9 +285,9 @@ pub(crate) mod protobuf {
     #[async_trait::async_trait]
     pub(crate) trait ProtobufResponseExt {
         /// Get the response body decoded from Protobuf
-        async fn protobuf<T: prost::Message + Default>(
-            self,
-        ) -> Result<T, ServiceError>;
+        async fn protobuf<T>(self) -> Result<T, ServiceError>
+        where
+            T: prost::Message + Default;
     }
 
     impl ProtobufRequestBuilderExt for RequestBuilder {
@@ -305,9 +305,10 @@ pub(crate) mod protobuf {
 
     #[async_trait]
     impl ProtobufResponseExt for Response {
-        async fn protobuf<T: Message + Default>(
-            self,
-        ) -> Result<T, ServiceError> {
+        async fn protobuf<T>(self) -> Result<T, ServiceError>
+        where
+            T: Message + Default,
+        {
             let body = self.bytes().await?;
             let decoded = T::decode(body)?;
             Ok(decoded)

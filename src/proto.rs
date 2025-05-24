@@ -1,6 +1,6 @@
 #![allow(clippy::all)]
 
-use rand::{CryptoRng, Rng};
+use rand::{thread_rng, Rng, RngCore};
 include!(concat!(env!("OUT_DIR"), "/signalservice.rs"));
 include!(concat!(env!("OUT_DIR"), "/signal.rs"));
 
@@ -69,10 +69,11 @@ impl WebSocketResponseMessage {
 }
 
 impl SyncMessage {
-    pub fn with_padding<R: Rng + CryptoRng>(csprng: &mut R) -> Self {
-        let random_size = csprng.gen_range(1..=512);
+    pub fn with_padding() -> Self {
+        let mut rng = thread_rng();
+        let random_size = rng.gen_range(1..=512);
         let mut padding: Vec<u8> = vec![0; random_size];
-        csprng.fill_bytes(&mut padding);
+        rng.fill_bytes(&mut padding);
 
         Self {
             padding: Some(padding),
