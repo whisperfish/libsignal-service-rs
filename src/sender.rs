@@ -709,7 +709,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         self.send_message(
@@ -734,7 +734,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             configuration: Some(configuration),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -781,7 +781,7 @@ where
 
         let msg = SyncMessage {
             message_request_response,
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -800,7 +800,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             keys: Some(keys),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -825,7 +825,7 @@ where
             request: Some(sync_message::Request {
                 r#type: Some(request_type.into()),
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -1100,7 +1100,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..SyncMessage::with_padding()
+            ..SyncMessage::with_padding(&mut thread_rng())
         })
     }
 }
