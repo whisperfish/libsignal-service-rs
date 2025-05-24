@@ -92,7 +92,7 @@ impl PushService {
             .await?
             .error_for_status()?
             .bytes_stream()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
+            .map_err(io::Error::other)
             .into_async_read();
 
         Ok(response_stream)
