@@ -200,7 +200,7 @@ impl GroupOperations {
         };
         Ok(RequestingMember {
             profile_key,
-            aci: aci.into(),
+            aci,
             timestamp: member.timestamp,
         })
     }
@@ -209,9 +209,8 @@ impl GroupOperations {
         &self,
         member: proto::BannedMember,
     ) -> Result<BannedMember, GroupDecodingError> {
-        let aci = self.decrypt_aci(&member.user_id)?;
         Ok(BannedMember {
-            aci: aci.into(),
+            aci: self.decrypt_aci(&member.user_id)?,
             timestamp: member.timestamp,
         })
     }
@@ -478,7 +477,7 @@ impl GroupOperations {
         let promote_requesting_members =
             actions.promote_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::PromoteRequestingMember {
-                    aci: self.decrypt_aci(&m.user_id)?.into(),
+                    aci: self.decrypt_aci(&m.user_id)?,
                     role: m.role.try_into()?,
                 })
             });
