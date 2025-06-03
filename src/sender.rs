@@ -6,7 +6,7 @@ use libsignal_protocol::{
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
     SignalProtocolError,
 };
-use rand::{CryptoRng, Rng};
+use rand::{thread_rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
@@ -86,12 +86,11 @@ pub struct AttachmentSpec {
 }
 
 #[derive(Clone)]
-pub struct MessageSender<S, R> {
+pub struct MessageSender<S> {
     identified_ws: SignalWebSocket,
     unidentified_ws: SignalWebSocket,
     service: PushService,
     cipher: ServiceCipher<S>,
-    csprng: R,
     protocol_store: S,
     local_aci: Aci,
     local_pni: Pni,
@@ -153,10 +152,9 @@ pub struct EncryptedMessages {
     used_identity_key: IdentityKey,
 }
 
-impl<S, R> MessageSender<S, R>
+impl<S> MessageSender<S>
 where
     S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
-    R: Rng + CryptoRng,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -164,7 +162,6 @@ where
         unidentified_ws: SignalWebSocket,
         service: PushService,
         cipher: ServiceCipher<S>,
-        csprng: R,
         protocol_store: S,
         local_aci: impl Into<Aci>,
         local_pni: impl Into<Pni>,
@@ -177,7 +174,6 @@ where
             identified_ws,
             unidentified_ws,
             cipher,
-            csprng,
             protocol_store,
             local_aci: local_aci.into(),
             local_pni: local_pni.into(),
@@ -190,19 +186,20 @@ where
     /// Encrypts and uploads an attachment
     ///
     /// Contents are accepted as an owned, plain text Vec, because encryption happens in-place.
-    #[tracing::instrument(skip(self, contents), fields(size = contents.len()))]
-    pub async fn upload_attachment(
+    #[tracing::instrument(skip(self, contents, csprng), fields(size = contents.len()))]
+    pub async fn upload_attachment<R: Rng + CryptoRng>(
         &mut self,
         spec: AttachmentSpec,
         mut contents: Vec<u8>,
+        csprng: &mut R,
     ) -> Result<AttachmentPointer, AttachmentUploadError> {
         let len = contents.len();
         // Encrypt
         let (key, iv) = {
             let mut key = [0u8; 64];
             let mut iv = [0u8; 16];
-            self.csprng.fill_bytes(&mut key);
-            self.csprng.fill_bytes(&mut iv);
+            csprng.fill_bytes(&mut key);
+            csprng.fill_bytes(&mut iv);
             (key, iv)
         };
 
@@ -323,7 +320,7 @@ where
             caption: None,
             blur_hash: None,
         };
-        self.upload_attachment(spec, out).await
+        self.upload_attachment(spec, out, &mut thread_rng()).await
     }
 
     /// Return whether we have to prepare sync messages for other devices
@@ -548,6 +545,8 @@ where
 
         let content_bytes = content.encode_to_vec();
 
+        let mut rng = thread_rng();
+
         for _ in 0..4u8 {
             let Some(EncryptedMessages {
                 messages,
@@ -632,7 +631,7 @@ where
                             &mut self.protocol_store,
                             &pre_key,
                             SystemTime::now(),
-                            &mut self.csprng,
+                            &mut rng,
                         )
                         .await
                         .map_err(|e| {
@@ -710,7 +709,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..SyncMessage::with_padding(&mut self.csprng)
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         self.send_message(
@@ -735,7 +734,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             configuration: Some(configuration),
-            ..SyncMessage::with_padding(&mut self.csprng)
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -782,7 +781,7 @@ where
 
         let msg = SyncMessage {
             message_request_response,
-            ..SyncMessage::with_padding(&mut self.csprng)
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -801,7 +800,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             keys: Some(keys),
-            ..SyncMessage::with_padding(&mut self.csprng)
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -826,7 +825,7 @@ where
             request: Some(sync_message::Request {
                 r#type: Some(request_type.into()),
             }),
-            ..SyncMessage::with_padding(&mut self.csprng)
+            ..SyncMessage::with_padding(&mut thread_rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -840,12 +839,13 @@ where
     fn create_pni_signature(
         &mut self,
     ) -> Result<crate::proto::PniSignatureMessage, MessageSenderError> {
+        let mut rng = thread_rng();
         let signature = self
             .pni_identity
             .expect("PNI key set when PNI signature requested")
             .sign_alternate_identity(
                 self.aci_identity.identity_key(),
-                &mut self.csprng,
+                &mut rng,
             )?;
         Ok(crate::proto::PniSignatureMessage {
             pni: Some(self.local_pni.service_id_binary()),
@@ -1007,6 +1007,8 @@ where
                 Err(e) => Err(e)?,
             };
 
+            let mut rng = thread_rng();
+
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_aci
                     && self.device_id == pre_key_bundle.device_id()?
@@ -1028,7 +1030,7 @@ where
                     &mut self.protocol_store,
                     &pre_key_bundle,
                     SystemTime::now(),
-                    &mut self.csprng,
+                    &mut rng,
                 )
                 .await?;
             }
@@ -1040,7 +1042,7 @@ where
                 &recipient_protocol_address,
                 unidentified_access,
                 content,
-                &mut self.csprng,
+                &mut thread_rng(),
             )
             .instrument(tracing::trace_span!("encrypting message"))
             .await?;
@@ -1098,7 +1100,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..SyncMessage::with_padding(&mut self.csprng)
+            ..SyncMessage::with_padding(&mut thread_rng())
         })
     }
 }
