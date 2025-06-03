@@ -13,7 +13,7 @@ use libsignal_protocol::{
     SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
 };
 use prost::Message;
-use rand::{CryptoRng, Rng};
+use rand::{rng, CryptoRng, Rng};
 use uuid::Uuid;
 
 use crate::{
@@ -574,7 +574,7 @@ async fn sealed_sender_decrypt(
         return Err(SignalProtocolError::SealedSenderSelfSend);
     }
 
-    let mut rng = rand::rngs::OsRng;
+    let mut rng = rng();
 
     let remote_address = ProtocolAddress::new(
         usmc.sender()?.sender_uuid()?.to_string(),

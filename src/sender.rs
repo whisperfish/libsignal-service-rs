@@ -1,6 +1,7 @@
 use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
+use libsignal_core::curve::CurveError;
 use libsignal_protocol::{
     process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
@@ -32,7 +33,7 @@ use crate::{
     websocket::SignalWebSocket,
 };
 
-pub use crate::proto::{ContactDetails, GroupDetails};
+pub use crate::proto::ContactDetails;
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -136,6 +137,9 @@ pub enum MessageSenderError {
 
     #[error("no messages were encrypted: this should not really happen and most likely implies a logic error")]
     NoMessagesToSend,
+
+    #[error(transparent)]
+    Curve(#[from] CurveError),
 }
 
 pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
@@ -945,7 +949,8 @@ where
                 used_identity_key: self
                     .protocol_store
                     .get_identity(
-                        &recipient.to_protocol_address(DEFAULT_DEVICE_ID),
+                        &recipient
+                            .to_protocol_address(DEFAULT_DEVICE_ID.into()),
                     )
                     .await?
                     .ok_or(MessageSenderError::UntrustedIdentity {
@@ -1079,7 +1084,7 @@ where
                             recipient.service_id_string(),
                         ),
                         unidentified: Some(*unidentified),
-                        destination_identity_key: Some(
+                        destination_pni_identity_key: Some(
                             used_identity_key.serialize().into(),
                         ),
                     }
