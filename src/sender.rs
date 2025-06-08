@@ -854,7 +854,6 @@ where
         Ok(())
     }
 
-    #[expect(clippy::result_large_err)]
     #[tracing::instrument(level = "trace", skip(self))]
     fn create_pni_signature(
         &mut self,
