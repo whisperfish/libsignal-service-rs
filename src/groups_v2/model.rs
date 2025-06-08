@@ -83,13 +83,13 @@ impl PartialEq for RequestingMember {
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub struct BannedMember {
-    pub aci: Aci,
+    pub service_id: ServiceId,
     pub timestamp: u64,
 }
 
 impl PartialEq for BannedMember {
     fn eq(&self, other: &Self) -> bool {
-        self.aci == other.aci
+        self.service_id == other.service_id
     }
 }
 
@@ -182,7 +182,7 @@ pub enum GroupChange {
     Description(Option<String>),
     AnnouncementOnly(bool),
     AddBannedMember(BannedMember),
-    DeleteBannedMember(Uuid),
+    DeleteBannedMember(ServiceId),
     PromotePendingPniAciMemberProfileKey(PromotedMember),
 }
 
