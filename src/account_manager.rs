@@ -902,7 +902,6 @@ impl AccountManager {
     }
 }
 
-#[expect(clippy::result_large_err)]
 fn calculate_hmac256(
     mac_key: &[u8],
     ciphertext: &[u8],
@@ -913,7 +912,6 @@ fn calculate_hmac256(
     Ok(mac.finalize().into_bytes())
 }
 
-#[expect(clippy::result_large_err)]
 pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
     device_name: &str,
@@ -950,7 +948,6 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     Ok(device_name)
 }
 
-#[expect(clippy::result_large_err)]
 fn decrypt_device_name_from_device_info(
     string: &str,
     aci: &IdentityKeyPair,
@@ -960,7 +957,6 @@ fn decrypt_device_name_from_device_info(
     crate::decrypt_device_name(aci.private_key(), &name)
 }
 
-#[expect(clippy::result_large_err)]
 pub fn decrypt_device_name(
     private_key: &PrivateKey,
     device_name: &DeviceName,
