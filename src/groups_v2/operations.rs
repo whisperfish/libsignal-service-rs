@@ -211,7 +211,7 @@ impl GroupOperations {
     ) -> Result<BannedMember, GroupDecodingError> {
         let aci = self.decrypt_aci(&member.user_id)?;
         Ok(BannedMember {
-            aci: aci.into(),
+            service_id: self.decrypt_service_id(&member.user_id)?,
             timestamp: member.timestamp,
         })
     }
@@ -434,9 +434,9 @@ impl GroupOperations {
             });
 
         let delete_banned_members =
-            actions.delete_banned_members.into_iter().map(|added| {
+            actions.delete_banned_members.into_iter().map(|m| {
                 Ok(GroupChange::DeleteBannedMember(
-                    self.decrypt_aci(&added.deleted_user_id)?.into(),
+                    self.decrypt_service_id(&m.deleted_user_id)?,
                 ))
             });
 
