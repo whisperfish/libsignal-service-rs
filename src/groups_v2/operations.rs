@@ -84,7 +84,13 @@ impl GroupOperations {
             .decrypt_service_id(bincode::deserialize(ciphertext)?)?
         {
             ServiceId::Aci(aci) => Ok(aci),
-            ServiceId::Pni(_pni) => Err(GroupDecodingError::NotAci),
+            ServiceId::Pni(pni) => {
+                tracing::error!(
+                    "Expected Aci, got Pni: {}",
+                    pni.service_id_string()
+                );
+                Err(GroupDecodingError::NotAci)
+            },
         }
     }
 
@@ -97,7 +103,13 @@ impl GroupOperations {
             .decrypt_service_id(bincode::deserialize(ciphertext)?)?
         {
             ServiceId::Pni(pni) => Ok(pni),
-            ServiceId::Aci(_aci) => Err(GroupDecodingError::NotPni),
+            ServiceId::Aci(aci) => {
+                tracing::error!(
+                    "Expected Pni, got Aci: {}",
+                    aci.service_id_string()
+                );
+                Err(GroupDecodingError::NotPni)
+            },
         }
     }
 
