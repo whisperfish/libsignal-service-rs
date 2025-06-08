@@ -810,6 +810,25 @@ where
         Ok(())
     }
 
+    /// Send `Blocked` synchronization message
+    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
+    pub async fn send_blocked(
+        &mut self,
+        recipient: &ServiceId,
+        blocked: sync_message::Blocked,
+    ) -> Result<(), MessageSenderError> {
+        let msg = SyncMessage {
+            blocked: Some(blocked),
+            ..SyncMessage::with_padding(&mut thread_rng())
+        };
+
+        let ts = Utc::now().timestamp_millis() as u64;
+        self.send_message(recipient, None, msg, ts, false, false)
+            .await?;
+
+        Ok(())
+    }
+
     /// Send a `Keys` request message
     #[tracing::instrument(skip(self))]
     pub async fn send_sync_message_request(
