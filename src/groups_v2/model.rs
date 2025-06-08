@@ -3,7 +3,6 @@ use std::{convert::TryFrom, convert::TryInto};
 use derivative::Derivative;
 use libsignal_protocol::{Aci, Pni, ServiceId};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
 
 use super::GroupDecodingError;
@@ -140,7 +139,7 @@ pub struct Group {
 
 #[derive(Debug, Clone)]
 pub struct GroupChanges {
-    pub editor: Uuid,
+    pub editor: Aci,
     pub revision: u32,
     pub changes: Vec<GroupChange>,
 }
@@ -149,13 +148,13 @@ pub struct GroupChanges {
 #[derivative(Debug)]
 pub enum GroupChange {
     NewMember(Member),
-    DeleteMember(Uuid),
+    DeleteMember(Aci),
     ModifyMemberRole {
-        uuid: Uuid,
+        aci: Aci,
         role: Role,
     },
     ModifyMemberProfileKey {
-        uuid: Uuid,
+        aci: Aci,
         #[derivative(Debug = "ignore")]
         profile_key: ProfileKey,
     },
