@@ -162,7 +162,7 @@ impl GroupOperations {
             self.decrypt_profile_key_presentation(&member.presentation)?
         };
         Ok(Member {
-            uuid: aci.into(),
+            aci,
             profile_key,
             role: member.role.try_into()?,
             joined_at_revision: member.joined_at_revision,
@@ -176,12 +176,12 @@ impl GroupOperations {
         let inner_member =
             member.member.ok_or(GroupDecodingError::WrongBlob)?;
         let service_id = self.decrypt_service_id(&inner_member.user_id)?;
-        let added_by_uuid = self.decrypt_aci(&member.added_by_user_id)?;
+        let added_by_aci = self.decrypt_aci(&member.added_by_user_id)?;
 
         Ok(PendingMember {
             address: service_id,
             role: inner_member.role.try_into()?,
-            added_by_uuid: added_by_uuid.into(),
+            added_by_aci,
             timestamp: member.timestamp,
         })
     }

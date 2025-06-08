@@ -18,7 +18,8 @@ pub enum Role {
 #[derive(Derivative, Clone, Deserialize, Serialize)]
 #[derivative(Debug)]
 pub struct Member {
-    pub uuid: Uuid,
+    #[serde(with = "aci_serde")]
+    pub aci: Aci,
     pub role: Role,
     #[derivative(Debug = "ignore")]
     pub profile_key: ProfileKey,
@@ -27,7 +28,32 @@ pub struct Member {
 
 impl PartialEq for Member {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid
+        self.aci == other.aci
+    }
+}
+
+mod aci_serde {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(p: &Aci, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        s.serialize_str(&p.service_id_string())
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<Aci, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // We have to go through String deserialization,
+        // because Aci does not implement Deserialize (duh).
+        let s = std::borrow::Cow::<str>::deserialize(d)?;
+        match Aci::parse_from_service_id_string(&s) {
+            Some(aci) => Ok(aci),
+            None => Err(serde::de::Error::custom("Invalid ACI string")),
+        }
     }
 }
 
@@ -35,7 +61,7 @@ impl PartialEq for Member {
 pub struct PendingMember {
     pub address: ServiceId,
     pub role: Role,
-    pub added_by_uuid: Uuid,
+    pub added_by_aci: Aci,
     pub timestamp: u64,
 }
 
