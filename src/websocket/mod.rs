@@ -19,6 +19,8 @@ use crate::proto::{
 };
 use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
+mod http;
+pub mod keys;
 mod request;
 mod sender;
 
@@ -405,7 +407,7 @@ impl SignalWebSocket {
         r
     }
 
-    pub fn request(
+    pub fn send(
         &mut self,
         r: WebSocketRequestMessage,
     ) -> impl Future<Output = Result<WebSocketResponseMessage, ServiceError>>
@@ -439,7 +441,7 @@ impl SignalWebSocket {
     where
         for<'de> T: serde::Deserialize<'de>,
     {
-        self.request(r)
+        self.send(r)
             .await?
             .service_error_for_status()
             .await?
