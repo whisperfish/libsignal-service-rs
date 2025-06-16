@@ -108,22 +108,6 @@ pub struct WhoAmIResponse {
 }
 
 impl PushService {
-    /// Method used to check our own UUID
-    pub async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
-        self.request(
-            Method::GET,
-            Endpoint::service("/v1/accounts/whoami"),
-            HttpAuthOverride::NoOverride,
-        )?
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
-    }
-
     /// Fetches a list of all devices tied to the authenticated account.
     ///
     /// This list include the device that sends the request.

@@ -5,7 +5,7 @@ use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeyEntity, SignedPreKeyEntity},
     prelude::ServiceConfiguration,
     utils::serde_base64,
-    websocket::SignalWebSocket,
+    websocket::{SignalWebSocket, WebSocketType},
 };
 
 use derivative::Derivative;
@@ -207,13 +207,13 @@ impl PushService {
         Ok(builder)
     }
 
-    pub async fn ws(
+    pub async fn ws<C: WebSocketType>(
         &mut self,
         path: &str,
         keepalive_path: &str,
         additional_headers: &[(&'static str, &str)],
         credentials: Option<ServiceCredentials>,
-    ) -> Result<SignalWebSocket, ServiceError> {
+    ) -> Result<SignalWebSocket<C>, ServiceError> {
         let span = debug_span!("websocket");
 
         let mut url = Endpoint::service(path).into_url(&self.cfg)?;

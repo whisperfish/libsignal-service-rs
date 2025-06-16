@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::future::Future;
@@ -19,6 +20,7 @@ use crate::proto::{
 };
 use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
+pub mod account;
 mod request;
 mod sender;
 
@@ -46,12 +48,25 @@ impl Stream for SignalRequestStream {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Identified;
+
+#[derive(Debug, Clone)]
+pub struct Unidentified;
+
+pub trait WebSocketType: 'static {}
+
+impl WebSocketType for Identified {}
+
+impl WebSocketType for Unidentified {}
+
 /// A dispatching web socket client for the Signal web socket API.
 ///
 /// This structure can be freely cloned, since this acts as a *facade* for multiple entry and exit
 /// points.
 #[derive(Clone)]
-pub struct SignalWebSocket {
+pub struct SignalWebSocket<C: WebSocketType> {
+    _type: PhantomData<C>,
     inner: Arc<Mutex<SignalWebSocketInner>>,
     request_sink: mpsc::Sender<(
         WebSocketRequestMessage,
@@ -320,7 +335,7 @@ impl SignalWebSocketProcess {
     }
 }
 
-impl SignalWebSocket {
+impl<C: WebSocketType> SignalWebSocket<C> {
     fn inner_locked(&self) -> MutexGuard<'_, SignalWebSocketInner> {
         self.inner.lock().unwrap()
     }
@@ -357,6 +372,7 @@ impl SignalWebSocket {
 
         (
             Self {
+                _type: PhantomData::default(),
                 request_sink: outgoing_request_sink,
                 inner: Arc::new(Mutex::new(SignalWebSocketInner {
                     stream: Some(SignalRequestStream {

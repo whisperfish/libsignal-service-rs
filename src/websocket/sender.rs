@@ -7,7 +7,7 @@ use crate::{
 use super::*;
 use base64::Engine;
 
-impl SignalWebSocket {
+impl<C: WebSocketType> SignalWebSocket<C> {
     pub async fn send_messages(
         &mut self,
         messages: OutgoingPushMessages,

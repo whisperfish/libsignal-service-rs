@@ -19,13 +19,13 @@ use crate::{
     },
     provisioning::ProvisioningError,
     utils::BASE64_RELAXED,
-    websocket::SignalWebSocket,
+    websocket::{self, SignalWebSocket},
 };
 
 use super::cipher::ProvisioningCipher;
 
 pub struct ProvisioningPipe {
-    ws: SignalWebSocket,
+    ws: SignalWebSocket<websocket::Unidentified>,
     provisioning_cipher: ProvisioningCipher,
 }
 
@@ -37,7 +37,7 @@ pub enum ProvisioningStep {
 
 impl ProvisioningPipe {
     pub fn from_socket<R: Rng + CryptoRng>(
-        ws: SignalWebSocket,
+        ws: SignalWebSocket<websocket::Unidentified>,
         csprng: &mut R,
     ) -> Self {
         let key_pair = KeyPair::generate(csprng);
