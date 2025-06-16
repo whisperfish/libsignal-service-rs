@@ -159,4 +159,13 @@ impl WebSocketResponseMessage {
     pub async fn service_error_for_status(self) -> Result<Self, ServiceError> {
         service_error_for_status(self).await
     }
+
+    pub async fn json<T: for<'a> serde::Deserialize<'a>>(
+        &self,
+    ) -> Result<T, ServiceError> {
+        self.body
+            .as_ref()
+            .ok_or(ServiceError::UnsupportedContent)
+            .and_then(|b| serde_json::from_slice(b).map_err(Into::into))
+    }
 }

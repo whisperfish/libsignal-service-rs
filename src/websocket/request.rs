@@ -1,7 +1,11 @@
 use reqwest::Method;
 use serde::Serialize;
 
-use crate::proto::WebSocketRequestMessage;
+use crate::{
+    content::ServiceError,
+    proto::{WebSocketRequestMessage, WebSocketResponseMessage},
+    websocket::{SignalWebSocket, WebSocketType},
+};
 
 #[derive(Debug)]
 pub struct WebSocketRequestMessageBuilder {
@@ -48,5 +52,33 @@ impl WebSocketRequestMessageBuilder {
 
     pub fn build(self) -> WebSocketRequestMessage {
         self.request
+    }
+}
+
+pub(crate) struct WebSocketRequestBuilder<'a, C: WebSocketType> {
+    ws: &'a mut SignalWebSocket<C>,
+    message_builder: WebSocketRequestMessageBuilder,
+}
+
+impl<C: WebSocketType> SignalWebSocket<C> {
+    #[tracing::instrument(skip(self))]
+    pub fn http_request(
+        &mut self,
+        method: Method,
+        path: &str,
+    ) -> Result<WebSocketRequestBuilder<'_, C>, ServiceError> {
+        Ok(WebSocketRequestBuilder {
+            ws: self,
+            message_builder: WebSocketRequestMessage::new(method).path(path),
+        })
+    }
+}
+
+impl<C: WebSocketType> WebSocketRequestBuilder<'_, C> {
+    pub(crate) async fn send(
+        self,
+    ) -> Result<WebSocketResponseMessage, ServiceError> {
+        let request = self.message_builder.build();
+        self.ws.request(request).await
     }
 }
