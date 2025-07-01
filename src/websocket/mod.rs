@@ -14,6 +14,7 @@ use reqwest::Method;
 use reqwest_websocket::WebSocket;
 use tokio::time::Instant;
 
+use crate::prelude::PushService;
 use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
     WebSocketResponseMessage,
@@ -22,6 +23,7 @@ use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
 pub mod account;
 pub mod keys;
+pub mod profile;
 mod request;
 mod sender;
 
@@ -68,6 +70,8 @@ impl WebSocketType for Unidentified {}
 #[derive(Clone)]
 pub struct SignalWebSocket<C: WebSocketType> {
     _type: PhantomData<C>,
+    // XXX: at the end of the migration, this should be CDN operations only
+    pub(crate) unidentified_push_service: PushService,
     inner: Arc<Mutex<SignalWebSocketInner>>,
     request_sink: mpsc::Sender<(
         WebSocketRequestMessage,
@@ -341,9 +345,10 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         self.inner.lock().unwrap()
     }
 
-    pub fn from_socket(
+    pub fn new(
         ws: WebSocket,
         keep_alive_path: String,
+        unidentified_push_service: PushService,
     ) -> (Self, impl Future<Output = ()>) {
         // Create process
         let (incoming_request_sink, incoming_request_stream) = mpsc::channel(1);
@@ -375,6 +380,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
             Self {
                 _type: PhantomData::default(),
                 request_sink: outgoing_request_sink,
+                unidentified_push_service,
                 inner: Arc::new(Mutex::new(SignalWebSocketInner {
                     stream: Some(SignalRequestStream {
                         inner: incoming_request_stream,

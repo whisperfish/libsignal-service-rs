@@ -20,16 +20,13 @@ mod account;
 mod cdn;
 mod error;
 mod linking;
-mod profile;
 mod registration;
 mod response;
-mod stickers;
 
 pub use account::*;
 pub use cdn::*;
 pub use error::*;
 pub use linking::*;
-pub use profile::*;
 pub use registration::*;
 pub(crate) use response::{ReqwestExt, SignalServiceResponse};
 
@@ -168,8 +165,16 @@ impl PushService {
             .instrument(span.clone())
             .await?;
 
-        let (ws, task) =
-            SignalWebSocket::from_socket(ws, keepalive_path.to_owned());
+        let unidentified_push_service = PushService {
+            cfg: self.cfg.clone(),
+            credentials: None,
+            client: self.client.clone(),
+        };
+        let (ws, task) = SignalWebSocket::new(
+            ws,
+            keepalive_path.to_owned(),
+            unidentified_push_service,
+        );
         let task = task.instrument(span);
         tokio::task::spawn(task);
         Ok(ws)

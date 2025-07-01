@@ -4,14 +4,11 @@ use serde::{Deserialize, Serialize};
 use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 use crate::{
-    configuration::Endpoint,
     content::ServiceError,
     push_service::AvatarWrite,
     utils::{serde_base64, serde_optional_base64},
-    websocket::account::DeviceCapabilities,
+    websocket::{self, account::DeviceCapabilities, SignalWebSocket},
 };
-
-use super::{HttpAuthOverride, PushService, ReqwestExt};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -54,7 +51,7 @@ struct SignalServiceProfileWrite<'s> {
     commitment: &'s [u8],
 }
 
-impl PushService {
+impl SignalWebSocket<websocket::Identified> {
     pub async fn retrieve_profile_by_id(
         &mut self,
         address: Aci,
@@ -70,32 +67,28 @@ impl PushService {
             format!("/v1/profile/{}", address.service_id_string())
         };
         // TODO: set locale to en_US
-        self.request(
-            Method::GET,
-            Endpoint::service(path),
-            HttpAuthOverride::NoOverride,
-        )?
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        self.http_request(Method::GET, path)?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn retrieve_profile_avatar(
         &mut self,
         path: &str,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        self.get_from_cdn(0, path).await
+        self.unidentified_push_service.get_from_cdn(0, path).await
     }
 
     pub async fn retrieve_groups_v2_profile_avatar(
         &mut self,
         path: &str,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        self.get_from_cdn(0, path).await
+        self.unidentified_push_service.get_from_cdn(0, path).await
     }
 
     /// Writes a profile and returns the avatar URL, if one was provided.
@@ -135,13 +128,8 @@ impl PushService {
 
         // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
         let upload_url: Result<String, _> = self
-            .request(
-                Method::PUT,
-                Endpoint::service("/v1/profile"),
-                HttpAuthOverride::NoOverride,
-            )?
-            .json(&command)
-            .send()
+            .http_request(Method::PUT, "/v1/profile")?
+            .send_json(&command)
             .await?
             .service_error_for_status()
             .await?

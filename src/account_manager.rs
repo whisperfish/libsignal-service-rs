@@ -580,7 +580,7 @@ impl AccountManager {
             self.profile_key.expect("set profile key in AccountManager");
 
         let encrypted_profile = self
-            .service
+            .websocket
             .retrieve_profile_by_id(address, Some(profile_key))
             .await?;
 
@@ -630,7 +630,7 @@ impl AccountManager {
         let profile_key_version = profile_key.get_profile_key_version(aci);
 
         Ok(self
-            .service
+            .websocket
             .write_profile::<C, S>(
                 &profile_key_version,
                 &name,
