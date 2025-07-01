@@ -19,14 +19,13 @@ pub const DEFAULT_DEVICE_ID: u32 = 1;
 mod account;
 mod cdn;
 mod error;
-mod linking;
+pub mod linking;
 mod registration;
 mod response;
 
 pub use account::*;
 pub use cdn::*;
 pub use error::*;
-pub use linking::*;
 pub use registration::*;
 pub(crate) use response::{ReqwestExt, SignalServiceResponse};
 

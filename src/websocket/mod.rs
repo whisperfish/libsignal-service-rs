@@ -23,9 +23,11 @@ use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
 pub mod account;
 pub mod keys;
+pub mod linking;
 pub mod profile;
 mod request;
 mod sender;
+pub mod stickers;
 
 pub use request::WebSocketRequestMessageBuilder;
 

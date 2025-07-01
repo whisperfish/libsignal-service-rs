@@ -22,15 +22,15 @@ use zkgroup::profiles::ProfileKey;
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
 use crate::prelude::ServiceError;
+use crate::push_service::linking::{
+    LinkAccountAttributes, LinkCapabilities, LinkRequest, LinkResponse,
+};
 use crate::push_service::DeviceActivationRequest;
 use crate::utils::BASE64_RELAXED;
 use crate::{
     account_manager::encrypt_device_name,
     pre_keys::PreKeysStore,
-    push_service::{
-        HttpAuth, LinkAccountAttributes, LinkCapabilities, LinkRequest,
-        LinkResponse, PushService, ServiceIds,
-    },
+    push_service::{HttpAuth, PushService, ServiceIds},
 };
 
 pub use crate::proto::{

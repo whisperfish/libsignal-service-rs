@@ -81,18 +81,4 @@ impl PushService {
         .await
         .map_err(Into::into)
     }
-
-    pub async fn unlink_device(&mut self, id: i64) -> Result<(), ServiceError> {
-        self.request(
-            Method::DELETE,
-            Endpoint::service(format!("/v1/devices/{}", id)),
-            HttpAuthOverride::NoOverride,
-        )?
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?;
-
-        Ok(())
-    }
 }

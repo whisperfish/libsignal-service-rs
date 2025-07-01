@@ -1,6 +1,6 @@
 use crate::websocket::{self, SignalWebSocket};
 
-use super::{PushService, ServiceError};
+use super::ServiceError;
 
 impl<C: websocket::WebSocketType> SignalWebSocket<C> {
     pub async fn get_sticker_pack_manifest(
