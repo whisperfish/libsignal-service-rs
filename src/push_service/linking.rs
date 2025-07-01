@@ -2,11 +2,12 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::configuration::Endpoint;
+use crate::{
+    configuration::Endpoint, websocket::registration::DeviceActivationRequest,
+};
 
 use super::{
-    response::ReqwestExt, DeviceActivationRequest, HttpAuth, HttpAuthOverride,
-    PushService, ServiceError,
+    response::ReqwestExt, HttpAuth, HttpAuthOverride, PushService, ServiceError,
 };
 
 #[derive(Debug, Serialize)]

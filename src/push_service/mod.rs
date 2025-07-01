@@ -20,13 +20,11 @@ mod account;
 mod cdn;
 mod error;
 pub mod linking;
-mod registration;
-mod response;
+pub(crate) mod response;
 
 pub use account::*;
 pub use cdn::*;
 pub use error::*;
-pub use registration::*;
 pub(crate) use response::{ReqwestExt, SignalServiceResponse};
 
 #[derive(Debug, Serialize, Deserialize)]

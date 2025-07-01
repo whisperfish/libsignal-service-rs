@@ -25,8 +25,8 @@ use crate::prelude::ServiceError;
 use crate::push_service::linking::{
     LinkAccountAttributes, LinkCapabilities, LinkRequest, LinkResponse,
 };
-use crate::push_service::DeviceActivationRequest;
 use crate::utils::BASE64_RELAXED;
+use crate::websocket::registration::DeviceActivationRequest;
 use crate::{
     account_manager::encrypt_device_name,
     pre_keys::PreKeysStore,

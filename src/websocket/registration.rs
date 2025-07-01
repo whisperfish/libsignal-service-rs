@@ -4,13 +4,11 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{PushService, ServiceError};
+use super::ServiceError;
 use crate::{
-    configuration::Endpoint,
     pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
-    push_service::{response::ReqwestExt, HttpAuthOverride},
     utils::serde_base64,
-    websocket::account::AccountAttributes,
+    websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
 
 /// This type is used in registration lock handling.
@@ -122,62 +120,7 @@ impl RegistrationSessionMetadataResponse {
     }
 }
 
-impl PushService {
-    pub async fn submit_registration_request(
-        &mut self,
-        registration_method: RegistrationMethod<'_>,
-        account_attributes: AccountAttributes,
-        skip_device_transfer: bool,
-        aci_identity_key: &IdentityKey,
-        pni_identity_key: &IdentityKey,
-        device_activation_request: DeviceActivationRequest,
-    ) -> Result<VerifyAccountResponse, ServiceError> {
-        #[derive(serde::Serialize, Debug)]
-        #[serde(rename_all = "camelCase")]
-        struct RegistrationSessionRequestBody<'a> {
-            // Unhandled response 422 with body:
-            // {"errors":["deviceActivationRequest.pniSignedPreKey must not be
-            // null","deviceActivationRequest.pniPqLastResortPreKey must not be
-            // null","everySignedKeyValid must be true","aciIdentityKey must not be
-            // null","pniIdentityKey must not be null","deviceActivationRequest.aciSignedPreKey
-            // must not be null","deviceActivationRequest.aciPqLastResortPreKey must not be null"]}
-            session_id: Option<&'a str>,
-            recovery_password: Option<&'a str>,
-            account_attributes: AccountAttributes,
-            skip_device_transfer: bool,
-            every_signed_key_valid: bool,
-            #[serde(default, with = "serde_base64")]
-            pni_identity_key: Vec<u8>,
-            #[serde(default, with = "serde_base64")]
-            aci_identity_key: Vec<u8>,
-            #[serde(flatten)]
-            device_activation_request: DeviceActivationRequest,
-        }
-
-        self.request(
-            Method::POST,
-            Endpoint::service("/v1/registration"),
-            HttpAuthOverride::NoOverride,
-        )?
-        .json(&RegistrationSessionRequestBody {
-            session_id: registration_method.session_id(),
-            recovery_password: registration_method.recovery_password(),
-            account_attributes,
-            skip_device_transfer,
-            aci_identity_key: aci_identity_key.serialize().into(),
-            pni_identity_key: pni_identity_key.serialize().into(),
-            device_activation_request,
-            every_signed_key_valid: true,
-        })
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
-    }
-
+impl SignalWebSocket<websocket::Unidentified> {
     // Equivalent of Java's
     // RegistrationSessionMetadataResponse createVerificationSession(@Nullable String pushToken, @Nullable String mcc, @Nullable String mnc)
     pub async fn create_verification_session<'a>(
@@ -197,25 +140,20 @@ impl PushService {
             push_token_type: Option<&'a str>,
         }
 
-        self.request(
-            Method::POST,
-            Endpoint::service("/v1/verification/session"),
-            HttpAuthOverride::Unidentified,
-        )?
-        .json(&VerificationSessionMetadataRequestBody {
-            number,
-            push_token_type: push_token.as_ref().map(|_| "fcm"),
-            push_token,
-            mcc,
-            mnc,
-        })
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        self.http_request(Method::POST, "/v1/verification/session")?
+            .send_json(&VerificationSessionMetadataRequestBody {
+                number,
+                push_token_type: push_token.as_ref().map(|_| "fcm"),
+                push_token,
+                mcc,
+                mnc,
+            })
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn patch_verification_session<'a>(
@@ -238,15 +176,11 @@ impl PushService {
             push_token_type: Option<&'a str>,
         }
 
-        self.request(
+        self.http_request(
             Method::PATCH,
-            Endpoint::service(format!(
-                "/v1/verification/session/{}",
-                session_id
-            )),
-            HttpAuthOverride::Unidentified,
+            format!("/v1/verification/session/{}", session_id),
         )?
-        .json(&UpdateVerificationSessionRequestBody {
+        .send_json(&UpdateVerificationSessionRequestBody {
             captcha,
             push_token_type: push_token.as_ref().map(|_| "fcm"),
             push_token,
@@ -254,7 +188,6 @@ impl PushService {
             mnc,
             push_challenge,
         })
-        .send()
         .await?
         .service_error_for_status()
         .await?
@@ -289,16 +222,11 @@ impl PushService {
             client: &'a str,
         }
 
-        self.request(
+        self.http_request(
             Method::POST,
-            Endpoint::service(format!(
-                "/v1/verification/session/{}/code",
-                session_id
-            )),
-            HttpAuthOverride::Unidentified,
+            format!("/v1/verification/session/{}/code", session_id),
         )?
-        .json(&VerificationCodeRequest { transport, client })
-        .send()
+        .send_json(&VerificationCodeRequest { transport, client })
         .await?
         .service_error_for_status()
         .await?
@@ -317,23 +245,70 @@ impl PushService {
             code: &'a str,
         }
 
-        self.request(
+        self.http_request(
             Method::PUT,
-            Endpoint::service(format!(
-                "/v1/verification/session/{}/code",
-                session_id
-            )),
-            HttpAuthOverride::Unidentified,
+            format!("/v1/verification/session/{}/code", session_id),
         )?
-        .json(&VerificationCode {
+        .send_json(&VerificationCode {
             code: verification_code,
         })
-        .send()
         .await?
         .service_error_for_status()
         .await?
         .json()
         .await
         .map_err(Into::into)
+    }
+}
+
+impl SignalWebSocket<websocket::Identified> {
+    pub async fn submit_registration_request(
+        &mut self,
+        registration_method: RegistrationMethod<'_>,
+        account_attributes: AccountAttributes,
+        skip_device_transfer: bool,
+        aci_identity_key: &IdentityKey,
+        pni_identity_key: &IdentityKey,
+        device_activation_request: DeviceActivationRequest,
+    ) -> Result<VerifyAccountResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct RegistrationSessionRequestBody<'a> {
+            // Unhandled response 422 with body:
+            // {"errors":["deviceActivationRequest.pniSignedPreKey must not be
+            // null","deviceActivationRequest.pniPqLastResortPreKey must not be
+            // null","everySignedKeyValid must be true","aciIdentityKey must not be
+            // null","pniIdentityKey must not be null","deviceActivationRequest.aciSignedPreKey
+            // must not be null","deviceActivationRequest.aciPqLastResortPreKey must not be null"]}
+            session_id: Option<&'a str>,
+            recovery_password: Option<&'a str>,
+            account_attributes: AccountAttributes,
+            skip_device_transfer: bool,
+            every_signed_key_valid: bool,
+            #[serde(default, with = "serde_base64")]
+            pni_identity_key: Vec<u8>,
+            #[serde(default, with = "serde_base64")]
+            aci_identity_key: Vec<u8>,
+            #[serde(flatten)]
+            device_activation_request: DeviceActivationRequest,
+        }
+
+        self.http_request(Method::POST, "/v1/registration")?
+            .send_json(&RegistrationSessionRequestBody {
+                session_id: registration_method.session_id(),
+                recovery_password: registration_method.recovery_password(),
+                account_attributes,
+                skip_device_transfer,
+                aci_identity_key: aci_identity_key.serialize().into(),
+                pni_identity_key: pni_identity_key.serialize().into(),
+                device_activation_request,
+                every_signed_key_valid: true,
+            })
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
+            .map_err(Into::into)
     }
 }

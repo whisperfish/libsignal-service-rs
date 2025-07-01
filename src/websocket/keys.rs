@@ -12,10 +12,9 @@ use crate::{
     pre_keys::{
         KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
     },
-    push_service::VerifyAccountResponse,
     sender::OutgoingPushMessage,
     utils::serde_base64,
-    websocket::{self, SignalWebSocket},
+    websocket::{self, registration::VerifyAccountResponse, SignalWebSocket},
 };
 
 use super::ServiceError;

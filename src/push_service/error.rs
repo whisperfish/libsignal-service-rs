@@ -2,11 +2,12 @@ use aes::cipher::block_padding::UnpadError;
 use libsignal_protocol::{ServiceIdKind, SignalProtocolError};
 use zkgroup::ZkGroupDeserializationFailure;
 
-use crate::groups_v2::GroupDecodingError;
-
-use super::{
-    MismatchedDevices, ProofRequired, RegistrationLockFailure, StaleDevices,
+use crate::{
+    groups_v2::GroupDecodingError,
+    websocket::registration::RegistrationLockFailure,
 };
+
+use super::{MismatchedDevices, ProofRequired, StaleDevices};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {

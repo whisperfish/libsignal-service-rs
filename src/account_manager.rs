@@ -30,8 +30,7 @@ use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{
-    AvatarWrite, CaptchaAttributes, DeviceActivationRequest, HttpAuthOverride,
-    RegistrationMethod, ReqwestExt, VerifyAccountResponse, DEFAULT_DEVICE_ID,
+    AvatarWrite, HttpAuthOverride, ReqwestExt, DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
 use crate::service_address::ServiceIdExt;
@@ -40,6 +39,10 @@ use crate::timestamp::TimestampExt as _;
 use crate::utils::{random_length_padding, BASE64_RELAXED};
 use crate::websocket::account::DeviceInfo;
 use crate::websocket::keys::PreKeyStatus;
+use crate::websocket::registration::{
+    CaptchaAttributes, DeviceActivationRequest, RegistrationMethod,
+    VerifyAccountResponse,
+};
 use crate::websocket::{self, SignalWebSocket};
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -520,7 +523,7 @@ impl AccountManager {
         };
 
         let result = self
-            .service
+            .websocket
             .submit_registration_request(
                 registration_method,
                 account_attributes,
