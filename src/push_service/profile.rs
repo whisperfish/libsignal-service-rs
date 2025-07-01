@@ -8,9 +8,10 @@ use crate::{
     content::ServiceError,
     push_service::AvatarWrite,
     utils::{serde_base64, serde_optional_base64},
+    websocket::account::DeviceCapabilities,
 };
 
-use super::{DeviceCapabilities, HttpAuthOverride, PushService, ReqwestExt};
+use super::{HttpAuthOverride, PushService, ReqwestExt};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]

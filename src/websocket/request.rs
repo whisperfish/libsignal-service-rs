@@ -1,3 +1,5 @@
+use std::fmt;
+
 use reqwest::Method;
 use serde::Serialize;
 
@@ -65,7 +67,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
     pub fn http_request(
         &mut self,
         method: Method,
-        path: &str,
+        path: impl Into<String> + fmt::Debug,
     ) -> Result<WebSocketRequestBuilder<'_, C>, ServiceError> {
         Ok(WebSocketRequestBuilder {
             ws: self,
@@ -75,6 +77,14 @@ impl<C: WebSocketType> SignalWebSocket<C> {
 }
 
 impl<C: WebSocketType> WebSocketRequestBuilder<'_, C> {
+    pub(crate) async fn send_json<B: Serialize>(
+        self,
+        value: B,
+    ) -> Result<WebSocketResponseMessage, ServiceError> {
+        let request = self.message_builder.json(value)?;
+        self.ws.request(request).await
+    }
+
     pub(crate) async fn send(
         self,
     ) -> Result<WebSocketResponseMessage, ServiceError> {

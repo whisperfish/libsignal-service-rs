@@ -1,23 +1,24 @@
 use std::collections::HashMap;
 
 use libsignal_protocol::{
-    IdentityKey, PreKeyBundle, SenderCertificate, ServiceId, ServiceIdKind,
+    kem::{Key, Public},
+    IdentityKey, PreKeyBundle, PublicKey, SenderCertificate, ServiceId,
+    ServiceIdKind, SignalProtocolError,
 };
 use reqwest::Method;
 use serde::Deserialize;
 
 use crate::{
-    configuration::Endpoint,
-    pre_keys::{KyberPreKeyEntity, PreKeyState, SignedPreKeyEntity},
-    push_service::PreKeyResponse,
+    pre_keys::{
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
+    },
+    push_service::VerifyAccountResponse,
     sender::OutgoingPushMessage,
     utils::serde_base64,
+    websocket::{self, SignalWebSocket},
 };
 
-use super::{
-    response::ReqwestExt, HttpAuthOverride, PushService, SenderCertificateJson,
-    ServiceError, VerifyAccountResponse,
-};
+use super::ServiceError;
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -26,15 +27,74 @@ pub struct PreKeyStatus {
     pub pq_count: u32,
 }
 
-impl PushService {
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreKeyResponse {
+    #[serde(with = "serde_base64")]
+    pub identity_key: Vec<u8>,
+    pub devices: Vec<PreKeyResponseItem>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreKeyResponseItem {
+    pub device_id: u32,
+    pub registration_id: u32,
+    pub signed_pre_key: SignedPreKeyEntity,
+    pub pre_key: Option<PreKeyEntity>,
+    pub pq_pre_key: Option<KyberPreKeyEntity>,
+}
+
+impl PreKeyResponseItem {
+    pub(crate) fn into_bundle(
+        self,
+        identity: IdentityKey,
+    ) -> Result<PreKeyBundle, SignalProtocolError> {
+        let b = PreKeyBundle::new(
+            self.registration_id,
+            self.device_id.into(),
+            self.pre_key
+                .map(|pk| -> Result<_, SignalProtocolError> {
+                    Ok((
+                        pk.key_id.into(),
+                        PublicKey::deserialize(&pk.public_key)?,
+                    ))
+                })
+                .transpose()?,
+            // pre_key: Option<(u32, PublicKey)>,
+            self.signed_pre_key.key_id.into(),
+            PublicKey::deserialize(&self.signed_pre_key.public_key)?,
+            self.signed_pre_key.signature,
+            identity,
+        )?;
+
+        if let Some(pq_pk) = self.pq_pre_key {
+            Ok(b.with_kyber_pre_key(
+                pq_pk.key_id.into(),
+                Key::<Public>::deserialize(&pq_pk.public_key)?,
+                pq_pk.signature,
+            ))
+        } else {
+            Ok(b)
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SenderCertificateJson {
+    #[serde(with = "serde_base64")]
+    certificate: Vec<u8>,
+}
+
+impl SignalWebSocket<websocket::Identified> {
     pub async fn get_pre_key_status(
         &mut self,
         service_id_kind: ServiceIdKind,
     ) -> Result<PreKeyStatus, ServiceError> {
-        self.request(
+        self.http_request(
             Method::GET,
-            Endpoint::service(format!("/v2/keys?identity={}", service_id_kind)),
-            HttpAuthOverride::NoOverride,
+            format!("/v2/keys?identity={}", service_id_kind),
         )?
         .send()
         .await?
@@ -73,16 +133,11 @@ impl PushService {
         };
 
         let res = self
-            .request(
-                Method::POST,
-                Endpoint::service("/v2/keys/check"),
-                HttpAuthOverride::NoOverride,
-            )?
-            .json(&req)
-            .send()
+            .http_request(Method::POST, "/v2/keys/check")?
+            .send_json(&req)
             .await?;
 
-        if res.status() == reqwest::StatusCode::CONFLICT {
+        if res.status_code() == Some(reqwest::StatusCode::CONFLICT) {
             return Ok(false);
         }
 
@@ -96,13 +151,11 @@ impl PushService {
         service_id_kind: ServiceIdKind,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
-        self.request(
+        self.http_request(
             Method::PUT,
-            Endpoint::service(format!("/v2/keys?identity={}", service_id_kind)),
-            HttpAuthOverride::NoOverride,
+            format!("/v2/keys?identity={}", service_id_kind),
         )?
-        .json(&pre_key_state)
-        .send()
+        .send_json(&pre_key_state)
         .await?
         .service_error_for_status()
         .await?;
@@ -122,11 +175,7 @@ impl PushService {
         );
 
         let mut pre_key_response: PreKeyResponse = self
-            .request(
-                Method::GET,
-                Endpoint::service(path),
-                HttpAuthOverride::NoOverride,
-            )?
+            .http_request(Method::GET, path)?
             .send()
             .await?
             .service_error_for_status()
@@ -156,11 +205,7 @@ impl PushService {
             )
         };
         let pre_key_response: PreKeyResponse = self
-            .request(
-                Method::GET,
-                Endpoint::service(path),
-                HttpAuthOverride::NoOverride,
-            )?
+            .http_request(Method::GET, path)?
             .send()
             .await?
             .service_error_for_status()
@@ -179,11 +224,7 @@ impl PushService {
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
         let cert: SenderCertificateJson = self
-            .request(
-                Method::GET,
-                Endpoint::service("/v1/certificate/delivery"),
-                HttpAuthOverride::NoOverride,
-            )?
+            .http_request(Method::GET, "/v1/certificate/delivery")?
             .send()
             .await?
             .service_error_for_status()
@@ -197,10 +238,9 @@ impl PushService {
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
         let cert: SenderCertificateJson = self
-            .request(
+            .http_request(
                 Method::GET,
-                Endpoint::service("/v1/certificate/delivery?includeE164=false"),
-                HttpAuthOverride::NoOverride,
+                "/v1/certificate/delivery?includeE164=false",
             )?
             .send()
             .await?
@@ -236,14 +276,11 @@ impl PushService {
             pni_registration_ids: HashMap<String, u32>,
             signature_valid_on_each_signed_pre_key: bool,
         }
-        self.request(
+        self.http_request(
             Method::PUT,
-            Endpoint::service(
-                "/v2/accounts/phone_number_identity_key_distribution",
-            ),
-            HttpAuthOverride::NoOverride,
+            "/v2/accounts/phone_number_identity_key_distribution",
         )?
-        .json(&PniKeyDistributionRequest {
+        .send_json(&PniKeyDistributionRequest {
             pni_identity_key: pni_identity_key.serialize().into(),
             device_messages,
             device_pni_signed_prekeys,
@@ -251,7 +288,6 @@ impl PushService {
             pni_registration_ids,
             signature_valid_on_each_signed_pre_key,
         })
-        .send()
         .await?
         .service_error_for_status()
         .await?

@@ -1,6 +1,7 @@
 #![allow(clippy::all)]
 
 use rand::{CryptoRng, Rng};
+use reqwest::StatusCode;
 include!(concat!(env!("OUT_DIR"), "/signalservice.rs"));
 include!(concat!(env!("OUT_DIR"), "/signal.rs"));
 
@@ -65,6 +66,10 @@ impl WebSocketResponseMessage {
                 ..Default::default()
             }
         }
+    }
+
+    pub fn status_code(&self) -> Option<reqwest::StatusCode> {
+        StatusCode::from_u16(self.status().try_into().ok()?).ok()
     }
 }
 

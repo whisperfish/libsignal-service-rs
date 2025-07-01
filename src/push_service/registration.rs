@@ -4,12 +4,13 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{AccountAttributes, PushService, ServiceError};
+use super::{PushService, ServiceError};
 use crate::{
     configuration::Endpoint,
     pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
     push_service::{response::ReqwestExt, HttpAuthOverride},
     utils::serde_base64,
+    websocket::account::AccountAttributes,
 };
 
 /// This type is used in registration lock handling.

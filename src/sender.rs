@@ -621,7 +621,7 @@ where
                         let remote_address =
                             recipient.to_protocol_address(*missing_device_id);
                         let pre_key = self
-                            .service
+                            .identified_ws
                             .get_pre_key(&recipient, *missing_device_id)
                             .await?;
 
@@ -991,7 +991,7 @@ where
                 recipient_protocol_address
             );
             let pre_keys = match self
-                .service
+                .identified_ws
                 .get_pre_keys(recipient, device_id.into())
                 .await
             {

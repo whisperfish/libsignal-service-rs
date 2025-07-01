@@ -2,18 +2,11 @@ use std::time::Duration;
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
-    pre_keys::{KyberPreKeyEntity, PreKeyEntity, SignedPreKeyEntity},
     prelude::ServiceConfiguration,
-    utils::serde_base64,
     websocket::{SignalWebSocket, WebSocketType},
 };
 
 use derivative::Derivative;
-use libsignal_protocol::{
-    error::SignalProtocolError,
-    kem::{Key, Public},
-    IdentityKey, PreKeyBundle, PublicKey,
-};
 use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
@@ -26,7 +19,6 @@ pub const DEFAULT_DEVICE_ID: u32 = 1;
 mod account;
 mod cdn;
 mod error;
-mod keys;
 mod linking;
 mod profile;
 mod registration;
@@ -36,7 +28,6 @@ mod stickers;
 pub use account::*;
 pub use cdn::*;
 pub use error::*;
-pub use keys::*;
 pub use linking::*;
 pub use profile::*;
 pub use registration::*;
@@ -68,66 +59,6 @@ pub enum AvatarWrite<C> {
     NewAvatar(C),
     RetainAvatar,
     NoAvatar,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SenderCertificateJson {
-    #[serde(with = "serde_base64")]
-    certificate: Vec<u8>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PreKeyResponse {
-    #[serde(with = "serde_base64")]
-    pub identity_key: Vec<u8>,
-    pub devices: Vec<PreKeyResponseItem>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PreKeyResponseItem {
-    pub device_id: u32,
-    pub registration_id: u32,
-    pub signed_pre_key: SignedPreKeyEntity,
-    pub pre_key: Option<PreKeyEntity>,
-    pub pq_pre_key: Option<KyberPreKeyEntity>,
-}
-
-impl PreKeyResponseItem {
-    pub(crate) fn into_bundle(
-        self,
-        identity: IdentityKey,
-    ) -> Result<PreKeyBundle, SignalProtocolError> {
-        let b = PreKeyBundle::new(
-            self.registration_id,
-            self.device_id.into(),
-            self.pre_key
-                .map(|pk| -> Result<_, SignalProtocolError> {
-                    Ok((
-                        pk.key_id.into(),
-                        PublicKey::deserialize(&pk.public_key)?,
-                    ))
-                })
-                .transpose()?,
-            // pre_key: Option<(u32, PublicKey)>,
-            self.signed_pre_key.key_id.into(),
-            PublicKey::deserialize(&self.signed_pre_key.public_key)?,
-            self.signed_pre_key.signature,
-            identity,
-        )?;
-
-        if let Some(pq_pk) = self.pq_pre_key {
-            Ok(b.with_kyber_pre_key(
-                pq_pk.key_id.into(),
-                Key::<Public>::deserialize(&pq_pk.public_key)?,
-                pq_pk.signature,
-            ))
-        } else {
-            Ok(b)
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]

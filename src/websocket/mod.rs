@@ -21,6 +21,7 @@ use crate::proto::{
 use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
 pub mod account;
+pub mod keys;
 mod request;
 mod sender;
 
