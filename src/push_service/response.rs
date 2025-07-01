@@ -4,7 +4,9 @@ use crate::proto::WebSocketResponseMessage;
 
 use super::ServiceError;
 
-async fn service_error_for_status<R>(response: R) -> Result<R, ServiceError>
+pub(crate) async fn service_error_for_status<R>(
+    response: R,
+) -> Result<R, ServiceError>
 where
     R: SignalServiceResponse,
     ServiceError: From<<R as SignalServiceResponse>::Error>,
@@ -151,12 +153,6 @@ impl ReqwestExt for reqwest::Response {
     async fn service_error_for_status(
         self,
     ) -> Result<reqwest::Response, ServiceError> {
-        service_error_for_status(self).await
-    }
-}
-
-impl WebSocketResponseMessage {
-    pub async fn service_error_for_status(self) -> Result<Self, ServiceError> {
         service_error_for_status(self).await
     }
 }
