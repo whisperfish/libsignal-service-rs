@@ -287,47 +287,66 @@ impl GroupOperations {
         &self,
         group: proto::Group,
     ) -> Result<Group, GroupDecodingError> {
-        let title = self.decrypt_title(&group.title);
+        // Destructuring to catch any future changes
+        let proto::Group {
+            public_key: _,
+            title,
+            avatar,
+            disappearing_messages_timer,
+            access_control,
+            revision,
+            members,
+            pending_members,
+            requesting_members,
+            invite_link_password,
+            description,
+            announcements_only,
+            banned_members,
+        } = group;
 
-        let description = self.decrypt_description(&group.description);
+        let title = self.decrypt_title(&title);
+
+        let description = self.decrypt_description(&description);
 
         let disappearing_messages_timer = self
-            .decrypt_disappearing_message_timer(
-                &group.disappearing_messages_timer,
-            );
+            .decrypt_disappearing_message_timer(&disappearing_messages_timer);
 
-        let members = group
-            .members
+        let members = members
             .into_iter()
             .map(|m| self.decrypt_member(m))
             .collect::<Result<_, _>>()?;
 
-        let pending_members = group
-            .pending_members
+        let pending_members = pending_members
             .into_iter()
             .map(|m| self.decrypt_pending_member(m))
             .collect::<Result<_, _>>()?;
 
-        let requesting_members = group
-            .requesting_members
+        let requesting_members = requesting_members
             .into_iter()
             .map(|m| self.decrypt_requesting_member(m))
             .collect::<Result<_, _>>()?;
 
+        let banned_members = banned_members
+            .into_iter()
+            .map(|m| self.decrypt_banned_member(m))
+            .collect::<Result<_, _>>()?;
+
+        let access_control =
+            access_control.map(TryInto::try_into).transpose()?;
+
         Ok(Group {
             title,
-            avatar: group.avatar,
+            avatar,
             disappearing_messages_timer,
-            access_control: group
-                .access_control
-                .map(TryInto::try_into)
-                .transpose()?,
-            revision: group.revision,
+            access_control,
+            revision,
             members,
             pending_members,
             requesting_members,
-            invite_link_password: group.invite_link_password,
+            invite_link_password,
             description,
+            announcements_only,
+            banned_members,
         })
     }
 
