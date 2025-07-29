@@ -144,6 +144,7 @@ pub struct GroupChanges {
     pub editor: Aci,
     pub revision: u32,
     pub changes: Vec<GroupChange>,
+    pub change_epoch: u32,
 }
 
 #[derive(Derivative, Clone)]
