@@ -135,6 +135,8 @@ pub struct Group {
     pub requesting_members: Vec<RequestingMember>,
     pub invite_link_password: Vec<u8>,
     pub description: Option<String>,
+    pub announcements_only: bool,
+    pub banned_members: Vec<BannedMember>,
 }
 
 #[derive(Debug, Clone)]
@@ -142,6 +144,7 @@ pub struct GroupChanges {
     pub editor: Aci,
     pub revision: u32,
     pub changes: Vec<GroupChange>,
+    pub change_epoch: u32,
 }
 
 #[derive(Derivative, Clone)]
