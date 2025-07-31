@@ -36,9 +36,9 @@ If you're using a Cargo workspace, you should add the `[patch.crates.io]` sectio
 
 ### Note on supported Rust versions
 
-`libsignal-service-rs` is the at the core of [Whisperfish][whisperfish], a SailfishOS application. The SailfishOS Rust compiler updates seldomly, and therefore the MSRV maps on the compiler for that operating system. At moment of writing, this is **Rust 1.75**.
+`libsignal-protocol` is the core library that implements the Signal protocol, and it has a minimum supported Rust version (MSRV) of **Rust 1.83** and therefore dictates the MSRV of `libsignal-service-rs`.
 
-For other platforms, we don't mandate MSRV. In practice, however, it is **Rust 1.75**.
+`libsignal-service-rs` is also at the core of [Whisperfish][whisperfish], a SailfishOS application. The SailfishOS Rust compiler updates seldomly, and since it currently is **Rust 1.75**, we have to support that version as well by the mean of a fork of `libsignal-protocol` that is compatible with Rust 1.75.
 
 ## Contributing
 

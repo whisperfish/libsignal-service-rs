@@ -1,3 +1,4 @@
+use libsignal_core::DeviceId;
 use libsignal_protocol::{ProtocolAddress, ServiceId};
 use std::fmt;
 use uuid::Uuid;
@@ -6,10 +7,9 @@ pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
-        group_context::Type as GroupType, sync_message, AttachmentPointer,
-        CallMessage, DataMessage, EditMessage, GroupContext, GroupContextV2,
-        NullMessage, PniSignatureMessage, ReceiptMessage, StoryMessage,
-        SyncMessage, TypingMessage,
+        sync_message, AttachmentPointer, CallMessage, DataMessage, EditMessage,
+        GroupContextV2, NullMessage, PniSignatureMessage, ReceiptMessage,
+        StoryMessage, SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
     ServiceIdExt,
@@ -22,7 +22,7 @@ mod story_message;
 pub struct Metadata {
     pub sender: ServiceId,
     pub destination: ServiceId,
-    pub sender_device: u32,
+    pub sender_device: DeviceId,
     pub timestamp: u64,
     pub needs_receipt: bool,
     pub unidentified_sender: bool,
@@ -50,7 +50,9 @@ impl fmt::Display for Metadata {
 }
 
 impl Metadata {
-    pub(crate) fn protocol_address(&self) -> ProtocolAddress {
+    pub(crate) fn protocol_address(
+        &self,
+    ) -> Result<ProtocolAddress, libsignal_core::InvalidDeviceId> {
         self.sender.to_protocol_address(self.sender_device)
     }
 }

@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: ["stable", "beta", "1.75"]
+        toolchain: ["stable", "beta", "1.83"]
         include:
           - toolchain: nightly
             coverage: true

@@ -10,6 +10,7 @@ use base64::Engine;
 use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
+use libsignal_core::curve::CurveError;
 use libsignal_protocol::{
     DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey,
 };
@@ -81,14 +82,28 @@ pub enum ProvisioningError {
     ServiceError(#[from] ServiceError),
     #[error("libsignal-protocol error: {0}")]
     ProtocolError(#[from] libsignal_protocol::SignalProtocolError),
+    #[error("invalid device ID: {0}")]
+    InvalidDeviceId(#[from] libsignal_core::InvalidDeviceId),
     #[error("ProvisioningCipher in encrypt-only mode")]
     EncryptOnlyProvisioningCipher,
     #[error("invalid profile key bytes")]
     InvalidProfileKey(TryFromSliceError),
 }
 
+impl ProvisioningError {
+    pub fn invalid_public_key(e: impl Into<InvalidKeyError>) -> Self {
+        ProvisioningError::InvalidPublicKey(e.into())
+    }
+
+    pub fn invalid_private_key(e: impl Into<InvalidKeyError>) -> Self {
+        ProvisioningError::InvalidPrivateKey(e.into())
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum InvalidKeyError {
+    #[error("curve error: {0}")]
+    Curve(#[from] CurveError),
     #[error("base64 decoding error: {0}")]
     Base64(#[from] base64::DecodeError),
     #[error("protocol error: {0}")]
@@ -98,7 +113,7 @@ pub enum InvalidKeyError {
 pub fn generate_registration_id<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
 ) -> u32 {
-    csprng.gen_range(1..16380)
+    csprng.random_range(1..16380)
 }
 
 #[derive(Debug, Deserialize)]
@@ -155,8 +170,8 @@ pub async fn link_device<
         )
         .await?;
 
-    let registration_id = csprng.gen_range(1..256);
-    let pni_registration_id = csprng.gen_range(1..256);
+    let registration_id = csprng.random_range(1..256);
+    let pni_registration_id = csprng.random_range(1..256);
 
     let provisioning_pipe = ProvisioningPipe::from_socket(ws, csprng);
     let provision_stream = provisioning_pipe.stream();
@@ -185,7 +200,7 @@ pub async fn link_device<
                 .aci_identity_key_public
                 .ok_or(ProvisioningError::MissingPublicKey)?,
         )
-        .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
+        .map_err(ProvisioningError::invalid_public_key)?;
         let aci_public_key = IdentityKey::new(aci_public_key);
 
         let aci_private_key = PrivateKey::deserialize(
@@ -193,14 +208,14 @@ pub async fn link_device<
                 .aci_identity_key_private
                 .ok_or(ProvisioningError::MissingPrivateKey)?,
         )
-        .map_err(|e| ProvisioningError::InvalidPrivateKey(e.into()))?;
+        .map_err(ProvisioningError::invalid_private_key)?;
 
         let pni_public_key = PublicKey::deserialize(
             &message
                 .pni_identity_key_public
                 .ok_or(ProvisioningError::MissingPublicKey)?,
         )
-        .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
+        .map_err(ProvisioningError::invalid_public_key)?;
         let pni_public_key = IdentityKey::new(pni_public_key);
 
         let pni_private_key = PrivateKey::deserialize(
@@ -208,7 +223,7 @@ pub async fn link_device<
                 .pni_identity_key_private
                 .ok_or(ProvisioningError::MissingPrivateKey)?,
         )
-        .map_err(|e| ProvisioningError::InvalidPrivateKey(e.into()))?;
+        .map_err(ProvisioningError::invalid_private_key)?;
 
         let profile_key = message
             .profile_key
@@ -319,7 +334,7 @@ pub async fn link_device<
             NewDeviceRegistration {
                 phone_number,
                 service_ids: ServiceIds { aci, pni },
-                device_id: device_id.into(),
+                device_id: device_id.try_into()?,
                 registration_id,
                 pni_registration_id,
                 aci_private_key,

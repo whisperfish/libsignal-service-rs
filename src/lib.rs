@@ -77,6 +77,7 @@ pub mod prelude {
         profiles::ProfileKey,
     };
 
+    pub use libsignal_core::InvalidDeviceId;
     pub use libsignal_protocol::{DeviceId, IdentityKeyStore};
 }
 

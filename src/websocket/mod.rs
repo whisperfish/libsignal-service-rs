@@ -182,9 +182,9 @@ impl SignalWebSocketProcess {
 
     fn next_request_id(&self) -> u64 {
         use rand::Rng;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         loop {
-            let id = rng.gen();
+            let id = rng.random();
             if !self.outgoing_requests.contains_key(&id) {
                 return id;
             }

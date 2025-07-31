@@ -362,6 +362,7 @@ impl GroupOperations {
         } = group_change;
 
         let proto::group_change::Actions {
+            group_id,
             source_service_id,
             revision,
             add_members,
@@ -564,6 +565,9 @@ impl GroupOperations {
             .collect();
 
         Ok(GroupChanges {
+            group_id: group_id
+                .try_into()
+                .map_err(|_| GroupDecodingError::WrongBlob)?,
             editor,
             revision,
             changes: changes?,

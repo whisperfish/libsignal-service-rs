@@ -1,6 +1,7 @@
 use aes::cipher::block_padding::UnpadError;
+use libsignal_core::curve::CurveError;
 use libsignal_protocol::{ServiceIdKind, SignalProtocolError};
-use zkgroup::ZkGroupDeserializationFailure;
+use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
 use crate::groups_v2::GroupDecodingError;
 
@@ -63,6 +64,9 @@ pub enum ServiceError {
     #[error("Protocol error: {0}")]
     SignalProtocolError(#[from] SignalProtocolError),
 
+    #[error("invalid device id: {0}")]
+    InvalidDeviceId(#[from] libsignal_core::InvalidDeviceId),
+
     #[error("Proof required: {0:?}")]
     ProofRequiredError(ProofRequired),
 
@@ -84,6 +88,9 @@ pub enum ServiceError {
     #[error(transparent)]
     ZkGroupDeserializationFailure(#[from] ZkGroupDeserializationFailure),
 
+    #[error(transparent)]
+    ZkGroupVerificationFailure(#[from] ZkGroupVerificationFailure),
+
     #[error("unsupported content")]
     UnsupportedContent,
 
@@ -98,4 +105,7 @@ pub enum ServiceError {
 
     #[error("HTTP reqwest error: {0}")]
     Http(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    Curve(#[from] CurveError),
 }
