@@ -10,6 +10,7 @@ use crate::{
     proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride, ReqwestExt, ServiceIds},
     utils::BASE64_RELAXED,
+    websocket::{self, SignalWebSocket},
 };
 
 use base64::prelude::*;
@@ -134,6 +135,7 @@ impl<T: CredentialsCache> CredentialsCache for &mut T {
 pub struct GroupsManager<C: CredentialsCache> {
     service_ids: ServiceIds,
     push_service: PushService,
+    websocket: SignalWebSocket<websocket::Identified>,
     credentials_cache: C,
     server_public_params: ServerPublicParams,
 }
@@ -142,12 +144,14 @@ impl<C: CredentialsCache> GroupsManager<C> {
     pub fn new(
         service_ids: ServiceIds,
         push_service: PushService,
+        websocket: SignalWebSocket<websocket::Identified>,
         credentials_cache: C,
         server_public_params: ServerPublicParams,
     ) -> Self {
         Self {
             service_ids,
             push_service,
+            websocket,
             credentials_cache,
             server_public_params,
         }
@@ -274,7 +278,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         group_secret_params: GroupSecretParams,
     ) -> Result<Option<Vec<u8>>, ServiceError> {
         let mut encrypted_avatar = self
-            .push_service
+            .websocket
             .retrieve_groups_v2_profile_avatar(path)
             .await?;
         let mut result = Vec::with_capacity(10 * 1024 * 1024);

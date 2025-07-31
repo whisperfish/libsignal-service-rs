@@ -29,7 +29,7 @@ use crate::{
     session_store::SessionStoreExt,
     unidentified_access::UnidentifiedAccess,
     utils::serde_service_id,
-    websocket::SignalWebSocket,
+    websocket::{self, SignalWebSocket},
 };
 
 pub use crate::proto::{ContactDetails, GroupDetails};
@@ -87,8 +87,8 @@ pub struct AttachmentSpec {
 
 #[derive(Clone)]
 pub struct MessageSender<S> {
-    identified_ws: SignalWebSocket,
-    unidentified_ws: SignalWebSocket,
+    identified_ws: SignalWebSocket<websocket::Identified>,
+    unidentified_ws: SignalWebSocket<websocket::Unidentified>,
     service: PushService,
     cipher: ServiceCipher<S>,
     protocol_store: S,
@@ -158,8 +158,8 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        identified_ws: SignalWebSocket,
-        unidentified_ws: SignalWebSocket,
+        identified_ws: SignalWebSocket<websocket::Identified>,
+        unidentified_ws: SignalWebSocket<websocket::Unidentified>,
         service: PushService,
         cipher: ServiceCipher<S>,
         protocol_store: S,
@@ -621,7 +621,7 @@ where
                         let remote_address =
                             recipient.to_protocol_address(*missing_device_id);
                         let pre_key = self
-                            .service
+                            .identified_ws
                             .get_pre_key(&recipient, *missing_device_id)
                             .await?;
 
@@ -1011,7 +1011,7 @@ where
                 recipient_protocol_address
             );
             let pre_keys = match self
-                .service
+                .identified_ws
                 .get_pre_keys(recipient, device_id.into())
                 .await
             {
