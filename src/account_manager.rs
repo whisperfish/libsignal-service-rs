@@ -360,8 +360,12 @@ impl AccountManager {
         let pub_key = query
             .get("pub_key")
             .ok_or(ProvisioningError::MissingPublicKey)?;
-        let pub_key = BASE64_RELAXED.decode(&**pub_key)?;
-        let pub_key = PublicKey::deserialize(&pub_key)?;
+
+        let pub_key = BASE64_RELAXED
+            .decode(&**pub_key)
+            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
+        let pub_key = PublicKey::deserialize(&pub_key)
+            .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
 
         let aci_identity_key_pair =
             aci_identity_store.get_identity_key_pair().await?;
@@ -794,11 +798,13 @@ impl AccountManager {
                 // Generate a signed prekey
                 let signed_pre_key_pair = KeyPair::generate(csprng);
                 let signed_pre_key_public = signed_pre_key_pair.public_key;
-                let signed_pre_key_signature =
-                    pni_identity_key_pair.private_key().calculate_signature(
+                let signed_pre_key_signature = pni_identity_key_pair
+                    .private_key()
+                    .calculate_signature(
                         &signed_pre_key_public.serialize(),
                         csprng,
-                    )?;
+                    )
+                    .map_err(MessageSenderError::InvalidPrivateKey)?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
                     csprng.random_range::<u32, _>(0..0xFFFFFF).into(),

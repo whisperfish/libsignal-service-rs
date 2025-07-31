@@ -7,7 +7,7 @@ use libsignal_protocol::{
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
     SignalProtocolError, UsePQRatchet,
 };
-use rand::{thread_rng, CryptoRng, Rng};
+use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
@@ -117,6 +117,9 @@ pub enum MessageSenderError {
     #[error("protocol error: {0}")]
     ProtocolError(#[from] SignalProtocolError),
 
+    #[error("invalid private key: {0}")]
+    InvalidPrivateKey(#[from] CurveError),
+
     #[error("invalid device ID: {0}")]
     InvalidDeviceId(#[from] InvalidDeviceId),
 
@@ -140,9 +143,6 @@ pub enum MessageSenderError {
 
     #[error("no messages were encrypted: this should not really happen and most likely implies a logic error")]
     NoMessagesToSend,
-
-    #[error(transparent)]
-    Curve(#[from] CurveError),
 }
 
 pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
@@ -327,7 +327,7 @@ where
             caption: None,
             blur_hash: None,
         };
-        self.upload_attachment(spec, out, &mut thread_rng()).await
+        self.upload_attachment(spec, out, &mut rng()).await
     }
 
     /// Return whether we have to prepare sync messages for other devices
@@ -552,7 +552,7 @@ where
 
         let content_bytes = content.encode_to_vec();
 
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
         for _ in 0..4u8 {
             let Some(EncryptedMessages {
@@ -717,7 +717,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         self.send_message(
@@ -742,7 +742,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             configuration: Some(configuration),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -789,7 +789,7 @@ where
 
         let msg = SyncMessage {
             message_request_response,
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -808,7 +808,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             keys: Some(keys),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -827,7 +827,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             blocked: Some(blocked),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -852,7 +852,7 @@ where
             request: Some(sync_message::Request {
                 r#type: Some(request_type.into()),
             }),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -867,7 +867,7 @@ where
     fn create_pni_signature(
         &mut self,
     ) -> Result<crate::proto::PniSignatureMessage, MessageSenderError> {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let signature = self
             .pni_identity
             .expect("PNI key set when PNI signature requested")
@@ -1035,7 +1035,7 @@ where
                 Err(e) => Err(e)?,
             };
 
-            let mut rng = thread_rng();
+            let mut rng = rng();
 
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_aci
@@ -1071,7 +1071,7 @@ where
                 &recipient_protocol_address,
                 unidentified_access,
                 content,
-                &mut thread_rng(),
+                &mut rng(),
             )
             .instrument(tracing::trace_span!("encrypting message"))
             .await?;
@@ -1129,7 +1129,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         })
     }
 }

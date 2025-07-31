@@ -5,6 +5,8 @@ use libsignal_protocol::{Aci, Pni, ServiceId};
 use serde::{Deserialize, Serialize};
 use zkgroup::profiles::ProfileKey;
 
+use crate::sender::GroupV2Id;
+
 use super::GroupDecodingError;
 
 #[derive(Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -141,6 +143,7 @@ pub struct Group {
 
 #[derive(Debug, Clone)]
 pub struct GroupChanges {
+    pub group_id: GroupV2Id,
     pub editor: Aci,
     pub revision: u32,
     pub changes: Vec<GroupChange>,

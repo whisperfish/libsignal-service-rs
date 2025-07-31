@@ -88,14 +88,22 @@ pub enum ProvisioningError {
     EncryptOnlyProvisioningCipher,
     #[error("invalid profile key bytes")]
     InvalidProfileKey(TryFromSliceError),
-    #[error(transparent)]
-    Curve(#[from] CurveError),
-    #[error(transparent)]
-    Base64(#[from] base64::DecodeError),
+}
+
+impl ProvisioningError {
+    pub fn invalid_public_key(e: impl Into<InvalidKeyError>) -> Self {
+        ProvisioningError::InvalidPublicKey(e.into())
+    }
+
+    pub fn invalid_private_key(e: impl Into<InvalidKeyError>) -> Self {
+        ProvisioningError::InvalidPrivateKey(e.into())
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum InvalidKeyError {
+    #[error("curve error: {0}")]
+    Curve(#[from] CurveError),
     #[error("base64 decoding error: {0}")]
     Base64(#[from] base64::DecodeError),
     #[error("protocol error: {0}")]
@@ -191,27 +199,31 @@ pub async fn link_device<
             &message
                 .aci_identity_key_public
                 .ok_or(ProvisioningError::MissingPublicKey)?,
-        )?;
+        )
+        .map_err(ProvisioningError::invalid_public_key)?;
         let aci_public_key = IdentityKey::new(aci_public_key);
 
         let aci_private_key = PrivateKey::deserialize(
             &message
                 .aci_identity_key_private
                 .ok_or(ProvisioningError::MissingPrivateKey)?,
-        )?;
+        )
+        .map_err(ProvisioningError::invalid_private_key)?;
 
         let pni_public_key = PublicKey::deserialize(
             &message
                 .pni_identity_key_public
                 .ok_or(ProvisioningError::MissingPublicKey)?,
-        )?;
+        )
+        .map_err(ProvisioningError::invalid_public_key)?;
         let pni_public_key = IdentityKey::new(pni_public_key);
 
         let pni_private_key = PrivateKey::deserialize(
             &message
                 .pni_identity_key_private
                 .ok_or(ProvisioningError::MissingPrivateKey)?,
-        )?;
+        )
+        .map_err(ProvisioningError::invalid_private_key)?;
 
         let profile_key = message
             .profile_key
