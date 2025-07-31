@@ -34,7 +34,7 @@ pub struct ServiceCipher<S> {
     protocol_store: S,
     trust_root: PublicKey,
     local_uuid: Uuid,
-    local_device_id: u32,
+    local_device_id: DeviceId,
 }
 
 impl<S> fmt::Debug for ServiceCipher<S> {
@@ -77,7 +77,7 @@ where
         protocol_store: S,
         trust_root: PublicKey,
         local_uuid: Uuid,
-        local_device_id: u32,
+        local_device_id: DeviceId,
     ) -> Self {
         Self {
             protocol_store,
@@ -207,7 +207,7 @@ where
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device(),
+                    sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -248,7 +248,7 @@ where
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device(),
+                    sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -271,7 +271,7 @@ where
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device(),
+                    sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -315,7 +315,7 @@ where
                     Timestamp::from_epoch_millis(envelope.timestamp()),
                     None,
                     self.local_uuid.to_string(),
-                    self.local_device_id.try_into()?,
+                    self.local_device_id,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),

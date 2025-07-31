@@ -1,3 +1,4 @@
+use libsignal_core::DeviceId;
 use libsignal_protocol::{ProtocolAddress, ServiceId};
 use std::fmt;
 use uuid::Uuid;
@@ -21,7 +22,7 @@ mod story_message;
 pub struct Metadata {
     pub sender: ServiceId,
     pub destination: ServiceId,
-    pub sender_device: u32,
+    pub sender_device: DeviceId,
     pub timestamp: u64,
     pub needs_receipt: bool,
     pub unidentified_sender: bool,

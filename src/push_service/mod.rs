@@ -18,6 +18,7 @@ use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 use tracing::{debug_span, Instrument};
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
@@ -132,6 +133,7 @@ pub struct MismatchedDevices {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde_as]
 #[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
     pub stale_devices: Vec<u32>,
