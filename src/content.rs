@@ -71,6 +71,7 @@ impl Content {
     }
 
     /// Converts a proto::Content into a public Content, including metadata.
+    #[expect(clippy::result_large_err)]
     pub fn from_proto(
         p: crate::proto::Content,
         metadata: Metadata,
@@ -114,7 +115,7 @@ impl fmt::Display for ContentBody {
             Self::DataMessage(m) => {
                 match (&m.body, &m.reaction, m.attachments.len()) {
                     (Some(body), _, 0) => {
-                        write!(f, "DataMessage({}", body)
+                        write!(f, "DataMessage({})", body)
                     },
                     (Some(body), _, n) => {
                         write!(f, "DataMessage({}, attachments: {n})", body)

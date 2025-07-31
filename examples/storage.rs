@@ -224,6 +224,18 @@ impl PreKeysStore for ExampleStore {
     ) -> Result<usize, SignalProtocolError> {
         todo!()
     }
+
+    async fn signed_prekey_id(
+        &self,
+    ) -> Result<Option<SignedPreKeyId>, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn last_resort_kyber_prekey_id(
+        &self,
+    ) -> Result<Option<KyberPreKeyId>, SignalProtocolError> {
+        todo!()
+    }
 }
 
 #[allow(dead_code)]

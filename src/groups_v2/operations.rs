@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use base64::prelude::*;
 use bytes::Bytes;
-use libsignal_protocol::{Aci, ServiceId};
+use libsignal_protocol::{Aci, Pni, ServiceId};
 use prost::Message;
 use zkgroup::{
     groups::GroupSecretParams,
@@ -19,7 +19,9 @@ use crate::{
 };
 
 use super::{
-    model::{Member, PendingMember, RequestingMember},
+    model::{
+        BannedMember, Member, PendingMember, PromotedMember, RequestingMember,
+    },
     Group, GroupChange, GroupChanges,
 };
 
@@ -43,6 +45,8 @@ pub enum GroupDecodingError {
     WrongEnumValue,
     #[error("wrong service ID type: should be ACI")]
     NotAci,
+    #[error("wrong service ID type: should be PNI")]
+    NotPni,
 }
 
 impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecodingError {
@@ -80,7 +84,32 @@ impl GroupOperations {
             .decrypt_service_id(bincode::deserialize(ciphertext)?)?
         {
             ServiceId::Aci(aci) => Ok(aci),
-            ServiceId::Pni(_pni) => Err(GroupDecodingError::NotAci),
+            ServiceId::Pni(pni) => {
+                tracing::error!(
+                    "Expected Aci, got Pni: {}",
+                    pni.service_id_string()
+                );
+                Err(GroupDecodingError::NotAci)
+            },
+        }
+    }
+
+    fn decrypt_pni(
+        &self,
+        ciphertext: &[u8],
+    ) -> Result<Pni, GroupDecodingError> {
+        match self
+            .group_secret_params
+            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+        {
+            ServiceId::Pni(pni) => Ok(pni),
+            ServiceId::Aci(aci) => {
+                tracing::error!(
+                    "Expected Pni, got Aci: {}",
+                    aci.service_id_string()
+                );
+                Err(GroupDecodingError::NotPni)
+            },
         }
     }
 
@@ -118,6 +147,20 @@ impl GroupOperations {
         }
     }
 
+    fn decrypt_pni_aci_promotion_presentation(
+        &self,
+        member: &proto::group_change::actions::PromotePendingPniAciMemberProfileKeyAction,
+    ) -> Result<PromotedMember, GroupDecodingError> {
+        let aci = self.decrypt_aci(&member.user_id)?;
+        let pni = self.decrypt_pni(&member.pni)?;
+        let profile_key = self.decrypt_profile_key(&member.profile_key, aci)?;
+        Ok(PromotedMember {
+            aci,
+            pni,
+            profile_key,
+        })
+    }
+
     fn decrypt_member(
         &self,
         member: EncryptedMember,
@@ -131,7 +174,7 @@ impl GroupOperations {
             self.decrypt_profile_key_presentation(&member.presentation)?
         };
         Ok(Member {
-            uuid: aci.into(),
+            aci,
             profile_key,
             role: member.role.try_into()?,
             joined_at_revision: member.joined_at_revision,
@@ -145,12 +188,12 @@ impl GroupOperations {
         let inner_member =
             member.member.ok_or(GroupDecodingError::WrongBlob)?;
         let service_id = self.decrypt_service_id(&inner_member.user_id)?;
-        let added_by_uuid = self.decrypt_aci(&member.added_by_user_id)?;
+        let added_by_aci = self.decrypt_aci(&member.added_by_user_id)?;
 
         Ok(PendingMember {
             address: service_id,
             role: inner_member.role.try_into()?,
-            added_by_uuid: added_by_uuid.into(),
+            added_by_aci,
             timestamp: member.timestamp,
         })
     }
@@ -169,7 +212,17 @@ impl GroupOperations {
         };
         Ok(RequestingMember {
             profile_key,
-            uuid: aci.into(),
+            aci,
+            timestamp: member.timestamp,
+        })
+    }
+
+    fn decrypt_banned_member(
+        &self,
+        member: proto::BannedMember,
+    ) -> Result<BannedMember, GroupDecodingError> {
+        Ok(BannedMember {
+            service_id: self.decrypt_service_id(&member.user_id)?,
             timestamp: member.timestamp,
         })
     }
@@ -234,47 +287,66 @@ impl GroupOperations {
         &self,
         group: proto::Group,
     ) -> Result<Group, GroupDecodingError> {
-        let title = self.decrypt_title(&group.title);
+        // Destructuring to catch any future changes
+        let proto::Group {
+            public_key: _,
+            title,
+            avatar,
+            disappearing_messages_timer,
+            access_control,
+            revision,
+            members,
+            pending_members,
+            requesting_members,
+            invite_link_password,
+            description,
+            announcements_only,
+            banned_members,
+        } = group;
 
-        let description = self.decrypt_description(&group.description);
+        let title = self.decrypt_title(&title);
+
+        let description = self.decrypt_description(&description);
 
         let disappearing_messages_timer = self
-            .decrypt_disappearing_message_timer(
-                &group.disappearing_messages_timer,
-            );
+            .decrypt_disappearing_message_timer(&disappearing_messages_timer);
 
-        let members = group
-            .members
+        let members = members
             .into_iter()
             .map(|m| self.decrypt_member(m))
             .collect::<Result<_, _>>()?;
 
-        let pending_members = group
-            .pending_members
+        let pending_members = pending_members
             .into_iter()
             .map(|m| self.decrypt_pending_member(m))
             .collect::<Result<_, _>>()?;
 
-        let requesting_members = group
-            .requesting_members
+        let requesting_members = requesting_members
             .into_iter()
             .map(|m| self.decrypt_requesting_member(m))
             .collect::<Result<_, _>>()?;
 
+        let banned_members = banned_members
+            .into_iter()
+            .map(|m| self.decrypt_banned_member(m))
+            .collect::<Result<_, _>>()?;
+
+        let access_control =
+            access_control.map(TryInto::try_into).transpose()?;
+
         Ok(Group {
             title,
-            avatar: group.avatar,
+            avatar,
             disappearing_messages_timer,
-            access_control: group
-                .access_control
-                .map(TryInto::try_into)
-                .transpose()?,
-            revision: group.revision,
+            access_control,
+            revision,
             members,
             pending_members,
             requesting_members,
-            invite_link_password: group.invite_link_password,
+            invite_link_password,
             description,
+            announcements_only,
+            banned_members,
         })
     }
 
@@ -282,42 +354,71 @@ impl GroupOperations {
         &self,
         group_change: proto::GroupChange,
     ) -> Result<GroupChanges, GroupDecodingError> {
-        let actions: proto::group_change::Actions =
-            Message::decode(Bytes::from(group_change.actions))?;
+        // Destructuring to catch any future changes
+        let proto::GroupChange {
+            actions,
+            server_signature: _,
+            change_epoch,
+        } = group_change;
 
-        let aci = self.decrypt_aci(&actions.source_service_id)?;
+        let proto::group_change::Actions {
+            source_service_id,
+            revision,
+            add_members,
+            delete_members,
+            modify_member_roles,
+            modify_member_profile_keys,
+            add_pending_members,
+            delete_pending_members,
+            promote_pending_members,
+            modify_title,
+            modify_avatar,
+            modify_disappearing_messages_timer,
+            modify_attributes_access,
+            modify_member_access,
+            modify_add_from_invite_link_access,
+            add_requesting_members,
+            delete_requesting_members,
+            promote_requesting_members,
+            modify_invite_link_password,
+            modify_description,
+            modify_announcements_only,
+            add_banned_members,
+            delete_banned_members,
+            promote_pending_pni_aci_members,
+        } = Message::decode(Bytes::from(actions))?;
+
+        let editor = self.decrypt_aci(&source_service_id)?;
 
         let new_members =
-            actions.add_members.into_iter().filter_map(|m| m.added).map(
-                |added| Ok(GroupChange::NewMember(self.decrypt_member(added)?)),
-            );
+            add_members
+                .into_iter()
+                .filter_map(|m| m.added)
+                .map(|added| {
+                    Ok(GroupChange::NewMember(self.decrypt_member(added)?))
+                });
 
-        let delete_members = actions.delete_members.into_iter().map(|c| {
+        let delete_members = delete_members.into_iter().map(|c| {
             Ok(GroupChange::DeleteMember(
-                self.decrypt_aci(&c.deleted_user_id)?.into(),
+                self.decrypt_aci(&c.deleted_user_id)?,
             ))
         });
 
-        let modify_member_roles =
-            actions.modify_member_roles.into_iter().map(|m| {
-                Ok(GroupChange::ModifyMemberRole {
-                    uuid: self.decrypt_aci(&m.user_id)?.into(),
-                    role: m.role.try_into()?,
-                })
-            });
+        let modify_member_roles = modify_member_roles.into_iter().map(|m| {
+            Ok(GroupChange::ModifyMemberRole {
+                aci: self.decrypt_aci(&m.user_id)?,
+                role: m.role.try_into()?,
+            })
+        });
 
         let modify_member_profile_keys =
-            actions.modify_member_profile_keys.into_iter().map(|m| {
+            modify_member_profile_keys.into_iter().map(|m| {
                 let (aci, profile_key) =
                     self.decrypt_profile_key_presentation(&m.presentation)?;
-                Ok(GroupChange::ModifyMemberProfileKey {
-                    uuid: aci.into(),
-                    profile_key,
-                })
+                Ok(GroupChange::ModifyMemberProfileKey { aci, profile_key })
             });
 
-        let add_pending_members = actions
-            .add_pending_members
+        let add_pending_members = add_pending_members
             .into_iter()
             .filter_map(|m| m.added)
             .map(|added| {
@@ -327,71 +428,83 @@ impl GroupOperations {
             });
 
         let delete_pending_members =
-            actions.delete_pending_members.into_iter().map(|m| {
+            delete_pending_members.into_iter().map(|m| {
                 Ok(GroupChange::DeletePendingMember(
-                    self.decrypt_aci(&m.deleted_user_id)?.into(),
+                    self.decrypt_service_id(&m.deleted_user_id)?,
                 ))
             });
 
         let promote_pending_members =
-            actions.promote_pending_members.into_iter().map(|m| {
+            promote_pending_members.into_iter().map(|m| {
                 let (aci, profile_key) =
                     self.decrypt_profile_key_presentation(&m.presentation)?;
                 Ok(GroupChange::PromotePendingMember {
-                    uuid: aci.into(),
+                    address: aci.into(),
                     profile_key,
                 })
             });
 
-        let modify_title = actions
-            .modify_title
+        let modify_title = modify_title
             .into_iter()
             .map(|m| Ok(GroupChange::Title(self.decrypt_title(&m.title))));
 
-        let modify_avatar = actions
-            .modify_avatar
+        let modify_avatar = modify_avatar
             .into_iter()
             .map(|m| Ok(GroupChange::Avatar(m.avatar)));
 
-        let modify_description =
-            actions.modify_description.into_iter().map(|m| {
-                Ok(GroupChange::Description(
-                    self.decrypt_description(&m.description),
-                ))
-            });
+        let modify_description = modify_description.into_iter().map(|m| {
+            Ok(GroupChange::Description(
+                self.decrypt_description(&m.description),
+            ))
+        });
 
-        let modify_disappearing_messages_timer = actions
-            .modify_disappearing_messages_timer
-            .into_iter()
-            .map(|m| {
+        let modify_disappearing_messages_timer =
+            modify_disappearing_messages_timer.into_iter().map(|m| {
                 Ok(GroupChange::Timer(
                     self.decrypt_disappearing_message_timer(&m.timer),
                 ))
             });
 
         let modify_attributes_access =
-            actions.modify_attributes_access.into_iter().map(|m| {
+            modify_attributes_access.into_iter().map(|m| {
                 Ok(GroupChange::AttributeAccess(
                     m.attributes_access.try_into()?,
                 ))
             });
 
-        let modify_member_access =
-            actions.modify_member_access.into_iter().map(|m| {
-                Ok(GroupChange::MemberAccess(m.members_access.try_into()?))
+        let modify_member_access = modify_member_access.into_iter().map(|m| {
+            Ok(GroupChange::MemberAccess(m.members_access.try_into()?))
+        });
+
+        let add_banned_members = add_banned_members
+            .into_iter()
+            .filter_map(|m| m.added)
+            .map(|m| {
+                Ok(GroupChange::AddBannedMember(self.decrypt_banned_member(m)?))
             });
 
-        let modify_add_from_invite_link_access = actions
-            .modify_add_from_invite_link_access
-            .into_iter()
-            .map(|m| {
+        let delete_banned_members =
+            delete_banned_members.into_iter().map(|m| {
+                Ok(GroupChange::DeleteBannedMember(
+                    self.decrypt_service_id(&m.deleted_user_id)?,
+                ))
+            });
+
+        let promote_pending_member =
+            promote_pending_pni_aci_members.into_iter().map(|m| {
+                let promoted =
+                    self.decrypt_pni_aci_promotion_presentation(&m)?;
+                Ok(GroupChange::PromotePendingPniAciMemberProfileKey(promoted))
+            });
+
+        let modify_add_from_invite_link_access =
+            modify_add_from_invite_link_access.into_iter().map(|m| {
                 Ok(GroupChange::InviteLinkAccess(
                     m.add_from_invite_link_access.try_into()?,
                 ))
             });
 
-        let add_requesting_members = actions
-            .add_requesting_members
+        let add_requesting_members = add_requesting_members
             .into_iter()
             .filter_map(|m| m.added)
             .map(|added| {
@@ -401,29 +514,28 @@ impl GroupOperations {
             });
 
         let delete_requesting_members =
-            actions.delete_requesting_members.into_iter().map(|m| {
+            delete_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::DeleteRequestingMember(
-                    self.decrypt_aci(&m.deleted_user_id)?.into(),
+                    self.decrypt_aci(&m.deleted_user_id)?,
                 ))
             });
 
         let promote_requesting_members =
-            actions.promote_requesting_members.into_iter().map(|m| {
+            promote_requesting_members.into_iter().map(|m| {
                 Ok(GroupChange::PromoteRequestingMember {
-                    uuid: self.decrypt_aci(&m.user_id)?.into(),
+                    aci: self.decrypt_aci(&m.user_id)?,
                     role: m.role.try_into()?,
                 })
             });
 
         let modify_invite_link_password =
-            actions.modify_invite_link_password.into_iter().map(|m| {
+            modify_invite_link_password.into_iter().map(|m| {
                 Ok(GroupChange::InviteLinkPassword(
                     BASE64_RELAXED.encode(m.invite_link_password),
                 ))
             });
 
-        let modify_announcements_only = actions
-            .modify_announcements_only
+        let modify_announcements_only = modify_announcements_only
             .into_iter()
             .map(|m| Ok(GroupChange::AnnouncementOnly(m.announcements_only)));
 
@@ -440,6 +552,9 @@ impl GroupOperations {
             .chain(modify_attributes_access)
             .chain(modify_description)
             .chain(modify_member_access)
+            .chain(add_banned_members)
+            .chain(delete_banned_members)
+            .chain(promote_pending_member)
             .chain(modify_add_from_invite_link_access)
             .chain(add_requesting_members)
             .chain(delete_requesting_members)
@@ -449,9 +564,10 @@ impl GroupOperations {
             .collect();
 
         Ok(GroupChanges {
-            editor: aci.into(),
-            revision: actions.revision,
+            editor,
+            revision,
             changes: changes?,
+            change_epoch,
         })
     }
 

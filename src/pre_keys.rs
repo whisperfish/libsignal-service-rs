@@ -9,7 +9,7 @@ use libsignal_protocol::{
     error::SignalProtocolError, kem, GenericSignedPreKey, IdentityKey,
     IdentityKeyPair, IdentityKeyStore, KeyPair, KyberPreKeyId,
     KyberPreKeyRecord, KyberPreKeyStore, PreKeyRecord, PreKeyStore,
-    SignedPreKeyRecord, SignedPreKeyStore, Timestamp,
+    SignedPreKeyId, SignedPreKeyRecord, SignedPreKeyStore, Timestamp,
 };
 
 use rand::{CryptoRng, Rng};
@@ -79,6 +79,14 @@ pub trait PreKeysStore:
         &self,
         last_resort: bool,
     ) -> Result<usize, SignalProtocolError>;
+
+    async fn signed_prekey_id(
+        &self,
+    ) -> Result<Option<SignedPreKeyId>, SignalProtocolError>;
+
+    async fn last_resort_kyber_prekey_id(
+        &self,
+    ) -> Result<Option<KyberPreKeyId>, SignalProtocolError>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]

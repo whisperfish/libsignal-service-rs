@@ -15,7 +15,7 @@ use libsignal_protocol::{
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
@@ -82,6 +82,51 @@ impl AccountManager {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    #[tracing::instrument(skip(self, protocol_store))]
+    pub async fn check_pre_keys<P: PreKeysStore>(
+        &mut self,
+        protocol_store: &mut P,
+        service_id_kind: ServiceIdKind,
+    ) -> Result<bool, ServiceError> {
+        let Some(signed_prekey_id) = protocol_store.signed_prekey_id().await?
+        else {
+            tracing::warn!("No signed prekey found");
+            return Ok(false);
+        };
+        // XXX: should we instead use the `load_last_resort_kyber_pre_keys` method? Or refactor
+        //      those whole traits?
+        let Some(kyber_prekey_id) =
+            protocol_store.last_resort_kyber_prekey_id().await?
+        else {
+            tracing::warn!("No last resort kyber prekey found");
+            return Ok(false);
+        };
+
+        let signed_prekey =
+            protocol_store.get_signed_pre_key(signed_prekey_id).await?;
+        let kyber_prekey =
+            protocol_store.get_kyber_pre_key(kyber_prekey_id).await?;
+
+        // `SHA256(identityKeyBytes || signedEcPreKeyId || signedEcPreKeyIdBytes || lastResortKeyId || lastResortKeyBytes)`
+        let mut hash = Sha256::default();
+        hash.update(
+            protocol_store
+                .get_identity_key_pair()
+                .await?
+                .public_key()
+                .serialize(),
+        );
+        hash.update((u32::from(signed_prekey_id) as u64).to_be_bytes());
+        hash.update(signed_prekey.public_key()?.serialize());
+        hash.update((u32::from(kyber_prekey_id) as u64).to_be_bytes());
+        hash.update(kyber_prekey.public_key()?.serialize());
+
+        self.service
+            .check_pre_keys(service_id_kind, hash.finalize().as_ref())
+            .await
+    }
+
     /// Checks the availability of pre-keys, and updates them as necessary.
     ///
     /// Parameters are the protocol's `StoreContext`, and the offsets for the next pre-key and
@@ -120,15 +165,36 @@ impl AccountManager {
         };
         tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
 
+        let check_pre_keys = self
+            .check_pre_keys(protocol_store, service_id_kind)
+            .instrument(tracing::span!(
+                tracing::Level::DEBUG,
+                "Checking pre keys"
+            ))
+            .await?;
+        if !check_pre_keys {
+            tracing::info!(
+                "Last resort pre-keys are not up to date; refreshing."
+            );
+        } else {
+            tracing::debug!("Last resort pre-keys are up to date.");
+        }
+
         // XXX We should honestly compare the pre-key count with the number of pre-keys we have
         // locally. If we have more than the server, we should upload them.
         // Currently the trait doesn't allow us to do that, so we just upload the batch size and
         // pray.
-        if prekey_status.count >= PRE_KEY_MINIMUM
-            && prekey_status.pq_count >= PRE_KEY_MINIMUM
+        if check_pre_keys
+            && (prekey_status.count >= PRE_KEY_MINIMUM
+                && prekey_status.pq_count >= PRE_KEY_MINIMUM)
         {
             if protocol_store.signed_pre_keys_count().await? > 0
                 && protocol_store.kyber_pre_keys_count(true).await? > 0
+                && protocol_store.signed_prekey_id().await?.is_some()
+                && protocol_store
+                    .last_resort_kyber_prekey_id()
+                    .await?
+                    .is_some()
             {
                 tracing::debug!("Available keys sufficient");
                 return Ok(());
@@ -656,7 +722,7 @@ impl AccountManager {
         &mut self,
         aci_protocol_store: &mut AciStore,
         pni_protocol_store: &mut PniStore,
-        mut sender: MessageSender<AciOrPni, R>,
+        mut sender: MessageSender<AciOrPni>,
         local_aci: Aci,
         e164: PhoneNumber,
         csprng: &mut R,
@@ -837,6 +903,7 @@ impl AccountManager {
     }
 }
 
+#[expect(clippy::result_large_err)]
 fn calculate_hmac256(
     mac_key: &[u8],
     ciphertext: &[u8],
@@ -847,6 +914,7 @@ fn calculate_hmac256(
     Ok(mac.finalize().into_bytes())
 }
 
+#[expect(clippy::result_large_err)]
 pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
     device_name: &str,
@@ -883,6 +951,7 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     Ok(device_name)
 }
 
+#[expect(clippy::result_large_err)]
 fn decrypt_device_name_from_device_info(
     string: &str,
     aci: &IdentityKeyPair,
@@ -892,6 +961,7 @@ fn decrypt_device_name_from_device_info(
     crate::decrypt_device_name(aci.private_key(), &name)
 }
 
+#[expect(clippy::result_large_err)]
 pub fn decrypt_device_name(
     private_key: &PrivateKey,
     device_name: &DeviceName,

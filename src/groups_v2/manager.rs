@@ -38,6 +38,7 @@ pub struct CredentialResponse {
     credentials: Vec<TemporalCredential>,
 }
 
+#[expect(clippy::result_large_err)]
 impl CredentialResponse {
     pub fn parse(
         self,
@@ -198,6 +199,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         )
     }
 
+    #[expect(clippy::result_large_err)]
     fn get_authorization_string<R: Rng + CryptoRng>(
         &self,
         csprng: &mut R,
@@ -300,6 +302,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
     }
 }
 
+#[expect(clippy::result_large_err)]
 pub fn decrypt_group(
     master_key_bytes: &[u8],
     encrypted_group: crate::proto::Group,

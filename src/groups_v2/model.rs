@@ -1,9 +1,8 @@
 use std::{convert::TryFrom, convert::TryInto};
 
 use derivative::Derivative;
-use libsignal_protocol::ServiceId;
+use libsignal_protocol::{Aci, Pni, ServiceId};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
 
 use super::GroupDecodingError;
@@ -18,7 +17,8 @@ pub enum Role {
 #[derive(Derivative, Clone, Deserialize, Serialize)]
 #[derivative(Debug)]
 pub struct Member {
-    pub uuid: Uuid,
+    #[serde(with = "aci_serde")]
+    pub aci: Aci,
     pub role: Role,
     #[derivative(Debug = "ignore")]
     pub profile_key: ProfileKey,
@@ -27,7 +27,32 @@ pub struct Member {
 
 impl PartialEq for Member {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid
+        self.aci == other.aci
+    }
+}
+
+mod aci_serde {
+    use super::*;
+    use serde::{Deserializer, Serializer};
+
+    pub fn serialize<S>(p: &Aci, s: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        s.serialize_str(&p.service_id_string())
+    }
+
+    pub fn deserialize<'de, D>(d: D) -> Result<Aci, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        // We have to go through String deserialization,
+        // because Aci does not implement Deserialize (duh).
+        let s = std::borrow::Cow::<str>::deserialize(d)?;
+        match Aci::parse_from_service_id_string(&s) {
+            Some(aci) => Ok(aci),
+            None => Err(serde::de::Error::custom("Invalid ACI string")),
+        }
     }
 }
 
@@ -35,14 +60,14 @@ impl PartialEq for Member {
 pub struct PendingMember {
     pub address: ServiceId,
     pub role: Role,
-    pub added_by_uuid: Uuid,
+    pub added_by_aci: Aci,
     pub timestamp: u64,
 }
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub struct RequestingMember {
-    pub uuid: Uuid,
+    pub aci: Aci,
     #[derivative(Debug = "ignore")]
     pub profile_key: ProfileKey,
     pub timestamp: u64,
@@ -50,7 +75,35 @@ pub struct RequestingMember {
 
 impl PartialEq for RequestingMember {
     fn eq(&self, other: &Self) -> bool {
-        self.uuid == other.uuid
+        self.aci == other.aci
+    }
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub struct BannedMember {
+    pub service_id: ServiceId,
+    pub timestamp: u64,
+}
+
+impl PartialEq for BannedMember {
+    fn eq(&self, other: &Self) -> bool {
+        self.service_id == other.service_id
+    }
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub struct PromotedMember {
+    pub aci: Aci,
+    pub pni: Pni,
+    #[derivative(Debug = "ignore")]
+    pub profile_key: ProfileKey,
+}
+
+impl PartialEq for PromotedMember {
+    fn eq(&self, other: &Self) -> bool {
+        self.aci == other.aci && self.pni == other.pni
     }
 }
 
@@ -82,54 +135,57 @@ pub struct Group {
     pub requesting_members: Vec<RequestingMember>,
     pub invite_link_password: Vec<u8>,
     pub description: Option<String>,
+    pub announcements_only: bool,
+    pub banned_members: Vec<BannedMember>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GroupChanges {
-    pub editor: Uuid,
+    pub editor: Aci,
     pub revision: u32,
     pub changes: Vec<GroupChange>,
+    pub change_epoch: u32,
 }
 
 #[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub enum GroupChange {
     NewMember(Member),
-    DeleteMember(Uuid),
+    DeleteMember(Aci),
     ModifyMemberRole {
-        uuid: Uuid,
+        aci: Aci,
         role: Role,
     },
     ModifyMemberProfileKey {
-        uuid: Uuid,
+        aci: Aci,
         #[derivative(Debug = "ignore")]
         profile_key: ProfileKey,
     },
-    // for open groups
     NewPendingMember(PendingMember),
-    DeletePendingMember(Uuid),
+    DeletePendingMember(ServiceId),
     PromotePendingMember {
-        uuid: Uuid,
+        address: ServiceId,
         #[derivative(Debug = "ignore")]
         profile_key: ProfileKey,
     },
-    // when admin control is enabled
-    NewRequestingMember(RequestingMember),
-    DeleteRequestingMember(Uuid),
-    PromoteRequestingMember {
-        uuid: Uuid,
-        role: Role,
-    },
-    // group metadata
     Title(String),
     Avatar(String),
     Timer(Option<Timer>),
-    Description(Option<String>),
     AttributeAccess(AccessRequired),
     MemberAccess(AccessRequired),
     InviteLinkAccess(AccessRequired),
+    NewRequestingMember(RequestingMember),
+    DeleteRequestingMember(Aci),
+    PromoteRequestingMember {
+        aci: Aci,
+        role: Role,
+    },
     InviteLinkPassword(String),
+    Description(Option<String>),
     AnnouncementOnly(bool),
+    AddBannedMember(BannedMember),
+    DeleteBannedMember(ServiceId),
+    PromotePendingPniAciMemberProfileKey(PromotedMember),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
