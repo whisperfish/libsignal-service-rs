@@ -64,6 +64,9 @@ pub enum ServiceError {
     #[error("Protocol error: {0}")]
     SignalProtocolError(#[from] SignalProtocolError),
 
+    #[error("invalid device id: {0}")]
+    InvalidDeviceId(#[from] libsignal_core::InvalidDeviceId),
+
     #[error("Proof required: {0:?}")]
     ProofRequiredError(ProofRequired),
 

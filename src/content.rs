@@ -49,7 +49,9 @@ impl fmt::Display for Metadata {
 }
 
 impl Metadata {
-    pub(crate) fn protocol_address(&self) -> ProtocolAddress {
+    pub(crate) fn protocol_address(
+        &self,
+    ) -> Result<ProtocolAddress, libsignal_core::InvalidDeviceId> {
         self.sender.to_protocol_address(self.sender_device)
     }
 }

@@ -1,11 +1,11 @@
 use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
-use libsignal_core::curve::CurveError;
+use libsignal_core::{curve::CurveError, InvalidDeviceId};
 use libsignal_protocol::{
     process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
-    SignalProtocolError,
+    SignalProtocolError, UsePQRatchet,
 };
 use rand::{CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
@@ -117,6 +117,9 @@ pub enum MessageSenderError {
 
     #[error("protocol error: {0}")]
     ProtocolError(#[from] SignalProtocolError),
+
+    #[error("invalid device ID: {0}")]
+    InvalidDeviceId(#[from] InvalidDeviceId),
 
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
@@ -335,7 +338,7 @@ where
     /// - If we are the main registered device, and there are established sub-device sessions (linked clients), return true
     /// - If we are a secondary linked device, return true
     async fn is_multi_device(&self) -> bool {
-        if self.device_id == DEFAULT_DEVICE_ID.into() {
+        if self.device_id == *DEFAULT_DEVICE_ID {
             self.protocol_store
                 .get_sub_device_sessions(&self.local_aci.into())
                 .await
@@ -613,7 +616,7 @@ where
                         self.protocol_store
                             .delete_service_addr_device_session(
                                 &recipient
-                                    .to_protocol_address(*extra_device_id),
+                                    .to_protocol_address(*extra_device_id)?,
                             )
                             .await?;
                     }
@@ -623,8 +626,8 @@ where
                             "creating session with missing device {}",
                             missing_device_id
                         );
-                        let remote_address =
-                            recipient.to_protocol_address(*missing_device_id);
+                        let remote_address = recipient
+                            .to_protocol_address(*missing_device_id)?;
                         let pre_key = self
                             .service
                             .get_pre_key(&recipient, *missing_device_id)
@@ -637,6 +640,7 @@ where
                             &pre_key,
                             SystemTime::now(),
                             &mut self.csprng,
+                            UsePQRatchet::Yes,
                         )
                         .await
                         .map_err(|e| {
@@ -657,7 +661,7 @@ where
                         self.protocol_store
                             .delete_service_addr_device_session(
                                 &recipient
-                                    .to_protocol_address(*extra_device_id),
+                                    .to_protocol_address(*extra_device_id)?,
                             )
                             .await?;
                     }
@@ -822,7 +826,7 @@ where
         recipient: &ServiceId,
         request_type: sync_message::request::Type,
     ) -> Result<(), MessageSenderError> {
-        if self.device_id == DEFAULT_DEVICE_ID.into() {
+        if self.device_id == *DEFAULT_DEVICE_ID {
             return Err(MessageSenderError::SendSyncMessageError(request_type));
         }
 
@@ -876,11 +880,11 @@ where
             .get_sub_device_sessions(recipient)
             .await?
             .into_iter()
-            .map(DeviceId::from)
-            .collect();
+            .map(DeviceId::try_from)
+            .collect::<Result<_, _>>()?;
 
         // always send to the primary device no matter what
-        devices.insert(DEFAULT_DEVICE_ID.into());
+        devices.insert(*DEFAULT_DEVICE_ID);
 
         // never try to send messages to the sender device
         match recipient {
@@ -949,8 +953,7 @@ where
                 used_identity_key: self
                     .protocol_store
                     .get_identity(
-                        &recipient
-                            .to_protocol_address(DEFAULT_DEVICE_ID.into()),
+                        &recipient.to_protocol_address(*DEFAULT_DEVICE_ID),
                     )
                     .await?
                     .ok_or(MessageSenderError::UntrustedIdentity {
@@ -1034,6 +1037,7 @@ where
                     &pre_key_bundle,
                     SystemTime::now(),
                     &mut self.csprng,
+                    UsePQRatchet::Yes,
                 )
                 .await?;
             }

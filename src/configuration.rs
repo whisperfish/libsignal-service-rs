@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
 use crate::utils::BASE64_RELAXED;
 use base64::prelude::*;
+use libsignal_core::DeviceId;
 use libsignal_protocol::PublicKey;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -61,7 +62,12 @@ impl ServiceCredentials {
         };
 
         match self.device_id {
-            None | Some(DEFAULT_DEVICE_ID) => identifier,
+            None => identifier,
+            Some(device_id)
+                if DeviceId::try_from(device_id) == Ok(*DEFAULT_DEVICE_ID) =>
+            {
+                identifier
+            },
             Some(id) => format!("{}.{}", identifier, id),
         }
     }

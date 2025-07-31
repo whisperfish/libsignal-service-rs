@@ -82,6 +82,8 @@ pub enum ProvisioningError {
     ServiceError(#[from] ServiceError),
     #[error("libsignal-protocol error: {0}")]
     ProtocolError(#[from] libsignal_protocol::SignalProtocolError),
+    #[error("invalid device ID: {0}")]
+    InvalidDeviceId(#[from] libsignal_core::InvalidDeviceId),
     #[error("ProvisioningCipher in encrypt-only mode")]
     EncryptOnlyProvisioningCipher,
     #[error("invalid profile key bytes")]
@@ -320,7 +322,7 @@ pub async fn link_device<
             NewDeviceRegistration {
                 phone_number,
                 service_ids: ServiceIds { aci, pni },
-                device_id: device_id.into(),
+                device_id: device_id.try_into()?,
                 registration_id,
                 pni_registration_id,
                 aci_private_key,

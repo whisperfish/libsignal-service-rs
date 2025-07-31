@@ -61,7 +61,7 @@ pub trait SessionStoreExt: SessionStore {
         let addr = crate::cipher::get_preferred_protocol_address(
             self,
             address,
-            DEFAULT_DEVICE_ID.into(),
+            *DEFAULT_DEVICE_ID,
         )
         .await?;
         let ident = self

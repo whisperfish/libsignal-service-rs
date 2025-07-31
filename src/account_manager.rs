@@ -685,17 +685,18 @@ impl AccountManager {
             HashMap::<String, u32>::with_capacity(local_device_ids.len());
 
         let signature_valid_on_each_signed_pre_key = true;
+        let default_device_id: u32 = (*DEFAULT_DEVICE_ID).into();
         for local_device_id in
-            std::iter::once(DEFAULT_DEVICE_ID).chain(local_device_ids)
+            std::iter::once(default_device_id).chain(local_device_ids)
         {
             let local_protocol_address =
-                local_aci.to_protocol_address(local_device_id);
+                local_aci.to_protocol_address(local_device_id)?;
             let span = tracing::trace_span!(
                 "filtering devices",
                 address = %local_protocol_address
             );
             // Skip if we don't have a session with the device
-            if (local_device_id != DEFAULT_DEVICE_ID)
+            if (local_device_id != default_device_id)
                 && aci_protocol_store
                     .load_session(&local_protocol_address)
                     .instrument(span)
@@ -713,7 +714,7 @@ impl AccountManager {
                 signed_pre_key,
                 _kyber_pre_keys,
                 last_resort_kyber_prekey,
-            ) = if local_device_id == DEFAULT_DEVICE_ID {
+            ) = if local_device_id == default_device_id {
                 crate::pre_keys::replenish_pre_keys(
                     pni_protocol_store,
                     csprng,
@@ -754,7 +755,7 @@ impl AccountManager {
                 )
             };
 
-            let registration_id = if local_device_id == DEFAULT_DEVICE_ID {
+            let registration_id = if local_device_id == default_device_id {
                 pni_protocol_store.get_local_registration_id().await?
             } else {
                 loop {
@@ -784,7 +785,7 @@ impl AccountManager {
             assert!(_pre_keys.is_empty());
             assert!(_kyber_pre_keys.is_empty());
 
-            if local_device_id == DEFAULT_DEVICE_ID {
+            if local_device_id == default_device_id {
                 // This is the primary device
                 // We don't need to send a message to the primary device
                 continue;
@@ -814,7 +815,7 @@ impl AccountManager {
                 .create_encrypted_message(
                     &local_aci.into(),
                     None,
-                    local_device_id.into(),
+                    local_device_id.try_into()?,
                     &content.into_proto().encode_to_vec(),
                 )
                 .await?;

@@ -11,6 +11,7 @@ use libsignal_protocol::{
     PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
     SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
+    UsePQRatchet,
 };
 use prost::Message;
 use rand::{rng, CryptoRng, Rng};
@@ -146,7 +147,7 @@ where
             if let Some(bytes) = message.sender_key_distribution_message {
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
-                    &plaintext.metadata.protocol_address(),
+                    &plaintext.metadata.protocol_address()?,
                     &skdm,
                     &mut self.protocol_store,
                 )
@@ -200,7 +201,7 @@ where
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &envelope.source_address(),
-                    envelope.source_device().into(),
+                    envelope.source_device().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
@@ -224,6 +225,7 @@ where
                     &self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     csprng,
+                    UsePQRatchet::Yes,
                 )
                 .await?
                 .as_slice()
@@ -263,7 +265,7 @@ where
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &envelope.source_address(),
-                    envelope.source_device().into(),
+                    envelope.source_device().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
@@ -313,7 +315,7 @@ where
                     Timestamp::from_epoch_millis(envelope.timestamp()),
                     None,
                     self.local_uuid.to_string(),
-                    self.local_device_id.into(),
+                    self.local_device_id.try_into()?,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
@@ -385,6 +387,8 @@ where
         content: &[u8],
         csprng: &mut R,
     ) -> Result<OutgoingPushMessage, ServiceError> {
+        let mut rng = rng();
+
         let session_record = self
             .protocol_store
             .load_session(address)
@@ -425,6 +429,7 @@ where
                 &mut self.protocol_store.clone(),
                 &mut self.protocol_store.clone(),
                 SystemTime::now(),
+                &mut rng,
             )
             .await?;
 
@@ -604,6 +609,7 @@ async fn sealed_sender_decrypt(
                 signed_pre_key_store,
                 kyber_pre_key_store,
                 &mut rng,
+                UsePQRatchet::Yes,
             )
             .await?
         },
