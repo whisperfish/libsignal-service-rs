@@ -641,7 +641,7 @@ where
                             &pre_key,
                             SystemTime::now(),
                             &mut rng,
-                            UsePQRatchet::Yes,
+                            UsePQRatchet::No,
                         )
                         .await
                         .map_err(|e| {
@@ -1061,7 +1061,7 @@ where
                     &pre_key_bundle,
                     SystemTime::now(),
                     &mut rng,
-                    UsePQRatchet::Yes,
+                    UsePQRatchet::No,
                 )
                 .await?;
             }

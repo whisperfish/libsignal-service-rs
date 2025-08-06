@@ -225,7 +225,7 @@ where
                     &self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     csprng,
-                    UsePQRatchet::Yes,
+                    UsePQRatchet::No,
                 )
                 .await?
                 .as_slice()
@@ -609,7 +609,7 @@ async fn sealed_sender_decrypt(
                 signed_pre_key_store,
                 kyber_pre_key_store,
                 &mut rng,
-                UsePQRatchet::Yes,
+                UsePQRatchet::No,
             )
             .await?
         },
