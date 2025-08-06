@@ -217,12 +217,12 @@ impl<C: CredentialsCache> GroupsManager<C> {
                 redemption_time,
             )?);
 
-        let mut random_bytes = [0u8; 32];
-        csprng.fill_bytes(&mut random_bytes);
-
         let auth_credential =
             AuthCredentialWithPni::new(&auth_credential_bytes)
                 .expect("just validated");
+
+        let mut random_bytes = [0u8; 32];
+        csprng.fill_bytes(&mut random_bytes);
 
         let auth_credential_presentation =
             zkgroup::serialize(&auth_credential.present(
@@ -237,8 +237,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             &group_secret_params.get_public_params(),
         )?);
 
-        let password =
-            hex::encode(bincode::serialize(&auth_credential_presentation)?);
+        let password = hex::encode(&auth_credential_presentation);
 
         Ok(HttpAuth { username, password })
     }
@@ -255,9 +254,10 @@ impl<C: CredentialsCache> GroupsManager<C> {
         );
         let group_secret_params =
             GroupSecretParams::derive_from_master_key(group_master_key);
-        let authorization = self
-            .get_authorization_for_today(csprng, group_secret_params)
-            .await?;
+        let authorization = dbg!(
+            self.get_authorization_for_today(csprng, group_secret_params)
+                .await?
+        );
         self.push_service.get_group(authorization).await
     }
 
