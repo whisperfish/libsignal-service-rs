@@ -254,10 +254,9 @@ impl<C: CredentialsCache> GroupsManager<C> {
         );
         let group_secret_params =
             GroupSecretParams::derive_from_master_key(group_master_key);
-        let authorization = dbg!(
-            self.get_authorization_for_today(csprng, group_secret_params)
-                .await?
-        );
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
         self.push_service.get_group(authorization).await
     }
 

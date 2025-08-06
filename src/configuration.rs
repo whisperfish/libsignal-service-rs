@@ -63,11 +63,7 @@ impl ServiceCredentials {
 
         match self.device_id {
             None => identifier,
-            Some(device_id)
-                if DeviceId::try_from(device_id) == Ok(*DEFAULT_DEVICE_ID) =>
-            {
-                identifier
-            },
+            Some(device_id) if device_id == *DEFAULT_DEVICE_ID => identifier,
             Some(id) => format!("{}.{}", identifier, id),
         }
     }

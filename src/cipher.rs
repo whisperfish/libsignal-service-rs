@@ -346,7 +346,7 @@ where
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender,
-                    sender_device: device_id.into(),
+                    sender_device: device_id,
                     timestamp: envelope.timestamp(),
                     unidentified_sender: true,
                     needs_receipt,

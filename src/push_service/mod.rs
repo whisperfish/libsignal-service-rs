@@ -1,4 +1,4 @@
-use std::{cell::LazyCell, time::Duration};
+use std::{sync::LazyLock, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -22,8 +22,8 @@ use serde_with::serde_as;
 use tracing::{debug_span, Instrument};
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
-pub const DEFAULT_DEVICE_ID: LazyCell<libsignal_core::DeviceId> =
-    LazyCell::new(|| libsignal_core::DeviceId::try_from(1).unwrap());
+pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
+    LazyLock::new(|| libsignal_core::DeviceId::try_from(1).unwrap());
 
 mod account;
 mod cdn;
@@ -98,6 +98,7 @@ pub struct PreKeyResponseItem {
 }
 
 impl PreKeyResponseItem {
+    #[allow(clippy::result_large_err)]
     pub(crate) fn into_bundle(
         self,
         identity: IdentityKey,
