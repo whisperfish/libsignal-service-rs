@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{sync::LazyLock, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
@@ -18,10 +18,12 @@ use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 use tracing::{debug_span, Instrument};
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
-pub const DEFAULT_DEVICE_ID: u32 = 1;
+pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
+    LazyLock::new(|| libsignal_core::DeviceId::try_from(1).unwrap());
 
 mod account;
 mod cdn;
@@ -92,17 +94,18 @@ pub struct PreKeyResponseItem {
     pub registration_id: u32,
     pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
-    pub pq_pre_key: Option<KyberPreKeyEntity>,
+    pub pq_pre_key: KyberPreKeyEntity,
 }
 
 impl PreKeyResponseItem {
+    #[allow(clippy::result_large_err)]
     pub(crate) fn into_bundle(
         self,
         identity: IdentityKey,
-    ) -> Result<PreKeyBundle, SignalProtocolError> {
-        let b = PreKeyBundle::new(
+    ) -> Result<PreKeyBundle, ServiceError> {
+        Ok(PreKeyBundle::new(
             self.registration_id,
-            self.device_id.into(),
+            self.device_id.try_into()?,
             self.pre_key
                 .map(|pk| -> Result<_, SignalProtocolError> {
                     Ok((
@@ -115,18 +118,11 @@ impl PreKeyResponseItem {
             self.signed_pre_key.key_id.into(),
             PublicKey::deserialize(&self.signed_pre_key.public_key)?,
             self.signed_pre_key.signature,
+            self.pq_pre_key.key_id.into(),
+            Key::<Public>::deserialize(&self.pq_pre_key.public_key)?,
+            self.pq_pre_key.signature,
             identity,
-        )?;
-
-        if let Some(pq_pk) = self.pq_pre_key {
-            Ok(b.with_kyber_pre_key(
-                pq_pk.key_id.into(),
-                Key::<Public>::deserialize(&pq_pk.public_key)?,
-                pq_pk.signature,
-            ))
-        } else {
-            Ok(b)
-        }
+        )?)
     }
 }
 
@@ -138,6 +134,7 @@ pub struct MismatchedDevices {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde_as]
 #[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
     pub stale_devices: Vec<u32>,

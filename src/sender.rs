@@ -1,12 +1,13 @@
 use std::{collections::HashSet, time::SystemTime};
 
 use chrono::prelude::*;
+use libsignal_core::{curve::CurveError, InvalidDeviceId};
 use libsignal_protocol::{
     process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
-    SignalProtocolError,
+    SignalProtocolError, UsePQRatchet,
 };
-use rand::{thread_rng, CryptoRng, Rng};
+use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
@@ -32,7 +33,7 @@ use crate::{
     websocket::SignalWebSocket,
 };
 
-pub use crate::proto::{ContactDetails, GroupDetails};
+pub use crate::proto::ContactDetails;
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -115,6 +116,12 @@ pub enum MessageSenderError {
 
     #[error("protocol error: {0}")]
     ProtocolError(#[from] SignalProtocolError),
+
+    #[error("invalid private key: {0}")]
+    InvalidPrivateKey(#[from] CurveError),
+
+    #[error("invalid device ID: {0}")]
+    InvalidDeviceId(#[from] InvalidDeviceId),
 
     #[error("Failed to upload attachment {0}")]
     AttachmentUploadError(#[from] AttachmentUploadError),
@@ -320,7 +327,7 @@ where
             caption: None,
             blur_hash: None,
         };
-        self.upload_attachment(spec, out, &mut thread_rng()).await
+        self.upload_attachment(spec, out, &mut rng()).await
     }
 
     /// Return whether we have to prepare sync messages for other devices
@@ -328,7 +335,7 @@ where
     /// - If we are the main registered device, and there are established sub-device sessions (linked clients), return true
     /// - If we are a secondary linked device, return true
     async fn is_multi_device(&self) -> bool {
-        if self.device_id == DEFAULT_DEVICE_ID.into() {
+        if self.device_id == *DEFAULT_DEVICE_ID {
             self.protocol_store
                 .get_sub_device_sessions(&self.local_aci.into())
                 .await
@@ -545,7 +552,7 @@ where
 
         let content_bytes = content.encode_to_vec();
 
-        let mut rng = thread_rng();
+        let mut rng = rng();
 
         for _ in 0..4u8 {
             let Some(EncryptedMessages {
@@ -607,8 +614,9 @@ where
                         );
                         self.protocol_store
                             .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id),
+                                &recipient.to_protocol_address(
+                                    (*extra_device_id).try_into()?,
+                                )?,
                             )
                             .await?;
                     }
@@ -618,8 +626,9 @@ where
                             "creating session with missing device {}",
                             missing_device_id
                         );
-                        let remote_address =
-                            recipient.to_protocol_address(*missing_device_id);
+                        let remote_address = recipient.to_protocol_address(
+                            (*missing_device_id).try_into()?,
+                        )?;
                         let pre_key = self
                             .service
                             .get_pre_key(&recipient, *missing_device_id)
@@ -632,6 +641,7 @@ where
                             &pre_key,
                             SystemTime::now(),
                             &mut rng,
+                            UsePQRatchet::No,
                         )
                         .await
                         .map_err(|e| {
@@ -651,8 +661,9 @@ where
                         );
                         self.protocol_store
                             .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id),
+                                &recipient.to_protocol_address(
+                                    (*extra_device_id).try_into()?,
+                                )?,
                             )
                             .await?;
                     }
@@ -709,7 +720,7 @@ where
                 blob: Some(ptr),
                 complete: Some(complete),
             }),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         self.send_message(
@@ -734,7 +745,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             configuration: Some(configuration),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -781,7 +792,7 @@ where
 
         let msg = SyncMessage {
             message_request_response,
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -800,7 +811,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             keys: Some(keys),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -819,7 +830,7 @@ where
     ) -> Result<(), MessageSenderError> {
         let msg = SyncMessage {
             blocked: Some(blocked),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -836,7 +847,7 @@ where
         recipient: &ServiceId,
         request_type: sync_message::request::Type,
     ) -> Result<(), MessageSenderError> {
-        if self.device_id == DEFAULT_DEVICE_ID.into() {
+        if self.device_id == *DEFAULT_DEVICE_ID {
             return Err(MessageSenderError::SendSyncMessageError(request_type));
         }
 
@@ -844,7 +855,7 @@ where
             request: Some(sync_message::Request {
                 r#type: Some(request_type.into()),
             }),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         };
 
         let ts = Utc::now().timestamp_millis() as u64;
@@ -859,7 +870,7 @@ where
     fn create_pni_signature(
         &mut self,
     ) -> Result<crate::proto::PniSignatureMessage, MessageSenderError> {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         let signature = self
             .pni_identity
             .expect("PNI key set when PNI signature requested")
@@ -892,11 +903,10 @@ where
             .get_sub_device_sessions(recipient)
             .await?
             .into_iter()
-            .map(DeviceId::from)
             .collect();
 
         // always send to the primary device no matter what
-        devices.insert(DEFAULT_DEVICE_ID.into());
+        devices.insert(*DEFAULT_DEVICE_ID);
 
         // never try to send messages to the sender device
         match recipient {
@@ -965,7 +975,7 @@ where
                 used_identity_key: self
                     .protocol_store
                     .get_identity(
-                        &recipient.to_protocol_address(DEFAULT_DEVICE_ID),
+                        &recipient.to_protocol_address(*DEFAULT_DEVICE_ID),
                     )
                     .await?
                     .ok_or(MessageSenderError::UntrustedIdentity {
@@ -1027,7 +1037,7 @@ where
                 Err(e) => Err(e)?,
             };
 
-            let mut rng = thread_rng();
+            let mut rng = rng();
 
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_aci
@@ -1051,6 +1061,7 @@ where
                     &pre_key_bundle,
                     SystemTime::now(),
                     &mut rng,
+                    UsePQRatchet::No,
                 )
                 .await?;
             }
@@ -1062,7 +1073,7 @@ where
                 &recipient_protocol_address,
                 unidentified_access,
                 content,
-                &mut thread_rng(),
+                &mut rng(),
             )
             .instrument(tracing::trace_span!("encrypting message"))
             .await?;
@@ -1099,7 +1110,7 @@ where
                             recipient.service_id_string(),
                         ),
                         unidentified: Some(*unidentified),
-                        destination_identity_key: Some(
+                        destination_pni_identity_key: Some(
                             used_identity_key.serialize().into(),
                         ),
                     }
@@ -1120,7 +1131,7 @@ where
                 unidentified_status,
                 ..Default::default()
             }),
-            ..SyncMessage::with_padding(&mut thread_rng())
+            ..SyncMessage::with_padding(&mut rng())
         })
     }
 }

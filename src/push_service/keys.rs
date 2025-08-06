@@ -138,7 +138,7 @@ impl PushService {
 
         let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         let device = pre_key_response.devices.remove(0);
-        Ok(device.into_bundle(identity)?)
+        device.into_bundle(identity)
     }
 
     pub(crate) async fn get_pre_keys(

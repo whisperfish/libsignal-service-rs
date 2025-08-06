@@ -11,9 +11,10 @@ use libsignal_protocol::{
     PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
     SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
+    UsePQRatchet,
 };
 use prost::Message;
-use rand::{CryptoRng, Rng};
+use rand::{rng, CryptoRng, Rng};
 use uuid::Uuid;
 
 use crate::{
@@ -33,7 +34,7 @@ pub struct ServiceCipher<S> {
     protocol_store: S,
     trust_root: PublicKey,
     local_uuid: Uuid,
-    local_device_id: u32,
+    local_device_id: DeviceId,
 }
 
 impl<S> fmt::Debug for ServiceCipher<S> {
@@ -76,7 +77,7 @@ where
         protocol_store: S,
         trust_root: PublicKey,
         local_uuid: Uuid,
-        local_device_id: u32,
+        local_device_id: DeviceId,
     ) -> Self {
         Self {
             protocol_store,
@@ -146,7 +147,7 @@ where
             if let Some(bytes) = message.sender_key_distribution_message {
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
-                    &plaintext.metadata.protocol_address(),
+                    &plaintext.metadata.protocol_address()?,
                     &skdm,
                     &mut self.protocol_store,
                 )
@@ -200,13 +201,13 @@ where
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &envelope.source_address(),
-                    envelope.source_device().into(),
+                    envelope.source_device().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device(),
+                    sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -224,6 +225,7 @@ where
                     &self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     csprng,
+                    UsePQRatchet::No,
                 )
                 .await?
                 .as_slice()
@@ -246,7 +248,7 @@ where
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device(),
+                    sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -263,13 +265,13 @@ where
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &envelope.source_address(),
-                    envelope.source_device().into(),
+                    envelope.source_device().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender: envelope.source_address(),
-                    sender_device: envelope.source_device(),
+                    sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -313,7 +315,7 @@ where
                     Timestamp::from_epoch_millis(envelope.timestamp()),
                     None,
                     self.local_uuid.to_string(),
-                    self.local_device_id.into(),
+                    self.local_device_id,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
@@ -344,7 +346,7 @@ where
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
                     sender,
-                    sender_device: device_id.into(),
+                    sender_device: device_id,
                     timestamp: envelope.timestamp(),
                     unidentified_sender: true,
                     needs_receipt,
@@ -385,6 +387,8 @@ where
         content: &[u8],
         csprng: &mut R,
     ) -> Result<OutgoingPushMessage, ServiceError> {
+        let mut rng = rng();
+
         let session_record = self
             .protocol_store
             .load_session(address)
@@ -425,6 +429,7 @@ where
                 &mut self.protocol_store.clone(),
                 &mut self.protocol_store.clone(),
                 SystemTime::now(),
+                &mut rng,
             )
             .await?;
 
@@ -574,7 +579,7 @@ async fn sealed_sender_decrypt(
         return Err(SignalProtocolError::SealedSenderSelfSend);
     }
 
-    let mut rng = rand::rngs::OsRng;
+    let mut rng = rng();
 
     let remote_address = ProtocolAddress::new(
         usmc.sender()?.sender_uuid()?.to_string(),
@@ -604,6 +609,7 @@ async fn sealed_sender_decrypt(
                 signed_pre_key_store,
                 kyber_pre_key_store,
                 &mut rng,
+                UsePQRatchet::No,
             )
             .await?
         },

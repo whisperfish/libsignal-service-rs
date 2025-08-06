@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use libsignal_core::DeviceId;
 use libsignal_protocol::{
     ProtocolAddress, ServiceId, SessionStore, SignalProtocolError,
 };
@@ -16,7 +17,7 @@ pub trait SessionStoreExt: SessionStore {
     async fn get_sub_device_sessions(
         &self,
         name: &ServiceId,
-    ) -> Result<Vec<u32>, SignalProtocolError>;
+    ) -> Result<Vec<DeviceId>, SignalProtocolError>;
 
     /// Remove a session record for a recipient ID + device ID tuple.
     async fn delete_session(
@@ -61,7 +62,7 @@ pub trait SessionStoreExt: SessionStore {
         let addr = crate::cipher::get_preferred_protocol_address(
             self,
             address,
-            DEFAULT_DEVICE_ID.into(),
+            *DEFAULT_DEVICE_ID,
         )
         .await?;
         let ident = self

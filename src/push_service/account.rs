@@ -47,7 +47,7 @@ pub struct DeviceId {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
-    pub id: i64,
+    pub id: u8,
     pub name: Option<String>,
     #[serde(with = "chrono::serde::ts_milliseconds")]
     pub created: DateTime<Utc>,
