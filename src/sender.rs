@@ -377,23 +377,30 @@ where
         // only send a sync message when sending to self and skip the rest of the process
         if message_to_self && is_multi_device && !sync_message {
             debug!("sending note to self");
-            let sync_message = self
+            if let Some(sync_message) = self
                 .create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
                     None,
-                );
-            return self
-                .try_send_message(
-                    *recipient,
-                    None,
-                    &sync_message,
-                    timestamp,
-                    include_pni_signature,
-                    online,
                 )
-                .await;
+            {
+                return self
+                    .try_send_message(
+                        *recipient,
+                        None,
+                        &sync_message,
+                        timestamp,
+                        include_pni_signature,
+                        online,
+                    )
+                    .await;
+            } else {
+                error!("could not create sync message from message to self");
+                return SendMessageResult::Err(
+                    MessageSenderError::NoMessagesToSend,
+                );
+            }
         }
 
         // don't send session enders as sealed sender
@@ -421,22 +428,28 @@ where
 
         if needs_sync || is_multi_device {
             debug!("sending multi-device sync message");
-            let sync_message = self
-                .create_multi_device_sent_transcript_content(
+            if let Some(sync) = if sync_message {
+                Some(content_body)
+            } else {
+                self.create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
                     Some(&result),
-                );
-            self.try_send_message(
-                self.local_aci.into(),
-                None,
-                &sync_message,
-                timestamp,
-                false,
-                false,
-            )
-            .await?;
+                )
+            } {
+                self.try_send_message(
+                    self.local_aci.into(),
+                    None,
+                    &sync,
+                    timestamp,
+                    false,
+                    false,
+                )
+                .await?;
+            } else {
+                error!("could not create sync message from a direct message");
+            }
         }
 
         if end_session {
@@ -499,27 +512,31 @@ where
 
         // we only need to send a synchronization message once
         if needs_sync_in_results || self.is_multi_device().await {
-            let sync_message = self
+            if let Some(sync_message) = self
                 .create_multi_device_sent_transcript_content(
                     None,
-                    content_body,
+                    content_body.clone(),
                     timestamp,
                     &results,
-                );
-            // Note: the result of sending a sync message is not included in results
-            // See Signal Android `SignalServiceMessageSender.java:2817`
-            if let Err(error) = self
-                .try_send_message(
-                    self.local_aci.into(),
-                    None,
-                    &sync_message,
-                    timestamp,
-                    false, // XXX: maybe the sync device does want a PNI signature?
-                    false,
                 )
-                .await
             {
-                error!(%error, "failed to send a synchronization message");
+                // Note: the result of sending a sync message is not included in results
+                // See Signal Android `SignalServiceMessageSender.java:2817`
+                if let Err(error) = self
+                    .try_send_message(
+                        self.local_aci.into(),
+                        None,
+                        &sync_message,
+                        timestamp,
+                        false, // XXX: maybe the sync device does want a PNI signature?
+                        false,
+                    )
+                    .await
+                {
+                    error!(%error, "failed to send a synchronization message");
+                }
+            } else {
+                error!("could not create sync message from a group message")
             }
         }
 
@@ -723,34 +740,7 @@ where
             ..SyncMessage::with_padding(&mut rng())
         };
 
-        self.send_message(
-            recipient,
-            unidentified_access,
-            msg,
-            Utc::now().timestamp_millis() as u64,
-            false,
-            online,
-        )
-        .await?;
-
-        Ok(())
-    }
-
-    /// Send `Configuration` synchronization message
-    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
-    pub async fn send_configuration(
-        &mut self,
-        recipient: &ServiceId,
-        configuration: sync_message::Configuration,
-    ) -> Result<(), MessageSenderError> {
-        let msg = SyncMessage {
-            configuration: Some(configuration),
-            ..SyncMessage::with_padding(&mut rng())
-        };
-
-        let ts = Utc::now().timestamp_millis() as u64;
-        self.send_message(recipient, None, msg, ts, false, false)
-            .await?;
+        self.send_sync_message(msg).await?;
 
         Ok(())
     }
@@ -802,45 +792,31 @@ where
         Ok(())
     }
 
-    /// Send `Keys` synchronization message
-    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
-    pub async fn send_keys(
+    /// Send a `SyncMessage` to own devices, if any.
+    pub async fn send_sync_message(
         &mut self,
-        recipient: &ServiceId,
-        keys: sync_message::Keys,
+        sync: SyncMessage,
     ) -> Result<(), MessageSenderError> {
-        let msg = SyncMessage {
-            keys: Some(keys),
-            ..SyncMessage::with_padding(&mut rng())
-        };
-
-        let ts = Utc::now().timestamp_millis() as u64;
-        self.send_message(recipient, None, msg, ts, false, false)
+        if self.is_multi_device().await {
+            let content = sync.into();
+            let timestamp = Utc::now().timestamp_millis() as u64;
+            debug!(
+                "sending multi-device sync message with content {content:?}"
+            );
+            self.try_send_message(
+                self.local_aci.into(),
+                None,
+                &content,
+                timestamp,
+                false,
+                false,
+            )
             .await?;
-
+        }
         Ok(())
     }
 
-    /// Send `Blocked` synchronization message
-    #[tracing::instrument(skip(self), fields(recipient = recipient.service_id_string()))]
-    pub async fn send_blocked(
-        &mut self,
-        recipient: &ServiceId,
-        blocked: sync_message::Blocked,
-    ) -> Result<(), MessageSenderError> {
-        let msg = SyncMessage {
-            blocked: Some(blocked),
-            ..SyncMessage::with_padding(&mut rng())
-        };
-
-        let ts = Utc::now().timestamp_millis() as u64;
-        self.send_message(recipient, None, msg, ts, false, false)
-            .await?;
-
-        Ok(())
-    }
-
-    /// Send a `Keys` request message
+    /// Send a `SyncMessage` request message
     #[tracing::instrument(skip(self))]
     pub async fn send_sync_message_request(
         &mut self,
@@ -857,10 +833,7 @@ where
             }),
             ..SyncMessage::with_padding(&mut rng())
         };
-
-        let ts = Utc::now().timestamp_millis() as u64;
-        self.send_message(recipient, None, msg, ts, false, false)
-            .await?;
+        self.send_sync_message(msg).await?;
 
         Ok(())
     }
@@ -1087,12 +1060,12 @@ where
         content_body: ContentBody,
         timestamp: u64,
         send_message_results: impl IntoIterator<Item = &'a SendMessageResult>,
-    ) -> ContentBody {
+    ) -> Option<ContentBody> {
         use sync_message::sent::UnidentifiedDeliveryStatus;
-        let (data_message, edit_message) = match content_body {
+        let (message, edit_message) = match content_body {
             ContentBody::DataMessage(m) => (Some(m), None),
             ContentBody::EditMessage(m) => (None, Some(m)),
-            _ => (None, None),
+            _ => return None,
         };
         let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
             send_message_results
@@ -1116,22 +1089,22 @@ where
                     }
                 })
                 .collect();
-        ContentBody::SynchronizeMessage(SyncMessage {
+        Some(ContentBody::SynchronizeMessage(SyncMessage {
             sent: Some(sync_message::Sent {
                 destination_service_id: recipient
                     .map(ServiceId::service_id_string),
                 destination_e164: None,
-                expiration_start_timestamp: data_message
+                expiration_start_timestamp: message
                     .as_ref()
                     .and_then(|m| m.expire_timer)
                     .map(|_| timestamp),
-                message: data_message,
+                message,
                 edit_message,
                 timestamp: Some(timestamp),
                 unidentified_status,
                 ..Default::default()
             }),
             ..SyncMessage::with_padding(&mut rng())
-        })
+        }))
     }
 }
