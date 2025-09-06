@@ -650,12 +650,23 @@ impl AccountManager {
     /// Update (encrypted) device name
     pub async fn update_device_name<R: Rng + CryptoRng>(
         &mut self,
+        device_id: u8,
         device_name: &str,
-        public_key: &IdentityKey,
+        aci: Aci,
+        aci_identity_store: &dyn IdentityKeyStore,
         csprng: &mut R,
     ) -> Result<(), ServiceError> {
+        let device_id = libsignal_core::DeviceId::new(device_id).unwrap();
+        let addr = aci.to_protocol_address(device_id).unwrap();
+        let public_key = aci_identity_store.get_identity(&addr).await?;
+        let Some(public_key) = public_key else {
+            return Err(ServiceError::SendError {
+                reason: format!("public key for device {addr:?} not found")
+                    .into(),
+            });
+        };
         let encrypted_device_name =
-            encrypt_device_name(csprng, device_name, public_key)?;
+            encrypt_device_name(csprng, device_name, &public_key)?;
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -667,7 +678,10 @@ impl AccountManager {
         self.service
             .request(
                 Method::PUT,
-                Endpoint::service("/v1/accounts/name"),
+                Endpoint::service(format!(
+                    "/v1/accounts/name?deviceId={}",
+                    device_id
+                )),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&Data {
