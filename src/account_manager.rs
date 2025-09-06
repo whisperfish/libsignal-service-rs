@@ -432,15 +432,18 @@ impl AccountManager {
             .map(|i| {
                 Ok(DeviceInfo {
                     id: i.id,
-                    name: i
-                        .name
-                        .map(|s| {
-                            decrypt_device_name_from_device_info(
-                                &s,
-                                &aci_identity_keypair,
-                            )
-                        })
-                        .transpose()?,
+                    name: i.name.map(|s| {
+                        match decrypt_device_name_from_device_info(
+                            &s,
+                            &aci_identity_keypair,
+                        ) {
+                            Ok(name) => name,
+                            Err(e) => {
+                                tracing::error!("{e}");
+                                String::from("N/A")
+                            },
+                        }
+                    }),
                     created: i.created,
                     last_seen: i.last_seen,
                 })
