@@ -432,15 +432,15 @@ impl AccountManager {
             .map(|i| {
                 Ok(DeviceInfo {
                     id: i.id,
-                    name: i.name.map(|s| {
+                    name: i.name.and_then(|s| {
                         match decrypt_device_name_from_device_info(
                             &s,
                             &aci_identity_keypair,
                         ) {
-                            Ok(name) => name,
+                            Ok(name) => Some(name),
                             Err(e) => {
                                 tracing::error!("{e}");
-                                String::from("N/A")
+                                None
                             },
                         }
                     }),
