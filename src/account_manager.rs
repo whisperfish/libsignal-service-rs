@@ -664,8 +664,7 @@ impl AccountManager {
         let public_key = aci_identity_store.get_identity(&addr).await?;
         let Some(public_key) = public_key else {
             return Err(ServiceError::SendError {
-                reason: format!("public key for device {addr:?} not found")
-                    .into(),
+                reason: format!("public key for device {addr:?} not found"),
             });
         };
         let encrypted_device_name =
