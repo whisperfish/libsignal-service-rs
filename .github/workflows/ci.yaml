@@ -72,22 +72,22 @@ jobs:
         run: cargo +${{ matrix.toolchain }} build --all-targets
 
       - name: Run tests
-        if: matrix.toolchain != 'nightly'
+        # if: matrix.toolchain != 'nightly'
         run: cargo +${{ matrix.toolchain }} test --all-targets --no-fail-fast
 
-      - name: Run tests with code coverage
-        if: matrix.toolchain == 'nightly'
-        run: cargo +${{ matrix.toolchain }} test --all-targets --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: '0'
-          LLVM_PROFILE_FILE: 'libsignal-service-%p-%m.profraw'
-          RUSTFLAGS: '-Cinstrument-coverage'
-          RUSTDOCFLAGS: '-Cinstrument-coverage'
+      # - name: Run tests with code coverage
+      #   if: matrix.toolchain == 'nightly'
+      #   run: cargo +${{ matrix.toolchain }} test --all-targets --no-fail-fast
+      #   env:
+      #     CARGO_INCREMENTAL: '0'
+      #     LLVM_PROFILE_FILE: 'libsignal-service-%p-%m.profraw'
+      #     RUSTFLAGS: '-Cinstrument-coverage'
+      #     RUSTDOCFLAGS: '-Cinstrument-coverage'
 
-      - name: Generate code coverage
-        uses: actions-rs/grcov@v0.1
-        if: matrix.toolchain == 'nightly'
+      # - name: Generate code coverage
+      #   uses: actions-rs/grcov@v0.1
+      #   if: matrix.toolchain == 'nightly'
 
-      - name: Upload coverage reports to Codecov with GitHub Action
-        uses: codecov/codecov-action@v3
-        if: matrix.toolchain == 'nightly'
+      # - name: Upload coverage reports to Codecov with GitHub Action
+      #   uses: codecov/codecov-action@v3
+      #   if: matrix.toolchain == 'nightly'
