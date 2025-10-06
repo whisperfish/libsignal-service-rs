@@ -22,11 +22,20 @@ jobs:
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      
       - name: Install protobuf
         run: |
           sudo apt-get update
           sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
+      
+      - name: Install clippy
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -37,7 +46,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: ["stable", "beta", "1.83"]
+        toolchain: ["stable", "beta", "1.89"]
         include:
           - toolchain: nightly
             coverage: true
@@ -51,7 +60,7 @@ jobs:
           sudo apt-get install -y libprotobuf-dev libprotobuf-c-dev protobuf-compiler protobuf-c-compiler
 
       - id: rustc
-        uses: dtolnay/rust-toolchain@master
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: ${{ matrix.toolchain }}
           components: llvm-tools
@@ -60,25 +69,25 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo +${{ steps.rustc.outputs.name }} build --all-targets
+        run: cargo +${{ matrix.toolchain }} build --all-targets
 
       - name: Run tests
-        if: matrix.toolchain != 'nightly'
-        run: cargo +${{ steps.rustc.outputs.name }} test --all-targets --no-fail-fast
+        # if: matrix.toolchain != 'nightly'
+        run: cargo +${{ matrix.toolchain }} test --all-targets --no-fail-fast
 
-      - name: Run tests with code coverage
-        if: matrix.toolchain == 'nightly'
-        run: cargo +${{ steps.rustc.outputs.name }} test --all-targets --no-fail-fast
-        env:
-          CARGO_INCREMENTAL: '0'
-          LLVM_PROFILE_FILE: 'libsignal-service-%p-%m.profraw'
-          RUSTFLAGS: '-Cinstrument-coverage'
-          RUSTDOCFLAGS: '-Cinstrument-coverage'
+      # - name: Run tests with code coverage
+      #   if: matrix.toolchain == 'nightly'
+      #   run: cargo +${{ matrix.toolchain }} test --all-targets --no-fail-fast
+      #   env:
+      #     CARGO_INCREMENTAL: '0'
+      #     LLVM_PROFILE_FILE: 'libsignal-service-%p-%m.profraw'
+      #     RUSTFLAGS: '-Cinstrument-coverage'
+      #     RUSTDOCFLAGS: '-Cinstrument-coverage'
 
-      - name: Generate code coverage
-        uses: actions-rs/grcov@v0.1
-        if: matrix.toolchain == 'nightly'
+      # - name: Generate code coverage
+      #   uses: actions-rs/grcov@v0.1
+      #   if: matrix.toolchain == 'nightly'
 
-      - name: Upload coverage reports to Codecov with GitHub Action
-        uses: codecov/codecov-action@v3
-        if: matrix.toolchain == 'nightly'
+      # - name: Upload coverage reports to Codecov with GitHub Action
+      #   uses: codecov/codecov-action@v3
+      #   if: matrix.toolchain == 'nightly'
