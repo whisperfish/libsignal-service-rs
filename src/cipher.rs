@@ -469,7 +469,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
         let message_length = contents.len();
         let message_length_with_terminator = contents.len() + 1;
         let mut message_part_count = message_length_with_terminator / 160;
-        if message_length_with_terminator % 160 != 0 {
+        if !message_length_with_terminator.is_multiple_of(160) {
             message_part_count += 1;
         }
 
