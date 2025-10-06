@@ -69,15 +69,15 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build
-        run: cargo +${{ steps.rustc.outputs.name }} build --all-targets
+        run: cargo +${{ matrix.toolchain }} build --all-targets
 
       - name: Run tests
         if: matrix.toolchain != 'nightly'
-        run: cargo +${{ steps.rustc.outputs.name }} test --all-targets --no-fail-fast
+        run: cargo +${{ matrix.toolchain }} test --all-targets --no-fail-fast
 
       - name: Run tests with code coverage
         if: matrix.toolchain == 'nightly'
-        run: cargo +${{ steps.rustc.outputs.name }} test --all-targets --no-fail-fast
+        run: cargo +${{ matrix.toolchain }} test --all-targets --no-fail-fast
         env:
           CARGO_INCREMENTAL: '0'
           LLVM_PROFILE_FILE: 'libsignal-service-%p-%m.profraw'
