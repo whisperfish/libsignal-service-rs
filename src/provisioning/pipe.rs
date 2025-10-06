@@ -97,11 +97,9 @@ impl ProvisioningPipe {
                 let address: ProvisioningAddress =
                     prost::Message::decode(Bytes::from(body.unwrap()))?;
 
-                let mut provisioning_url =
-                    Url::parse("sgnl://rereg").map_err(|e| {
-                        ProvisioningError::WsError {
-                            reason: e.to_string(),
-                        }
+                let mut provisioning_url = Url::parse("sgnl://linkdevice")
+                    .map_err(|e| ProvisioningError::WsError {
+                        reason: e.to_string(),
                     })?;
                 provisioning_url
                     .query_pairs_mut()
