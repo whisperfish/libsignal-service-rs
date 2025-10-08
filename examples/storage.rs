@@ -1,10 +1,9 @@
-use libsignal_protocol::IdentityChange;
 use libsignal_service::pre_keys::{KyberPreKeyStoreExt, PreKeysStore};
 use libsignal_service::protocol::{
-    Direction, IdentityKey, IdentityKeyPair, IdentityKeyStore, KyberPreKeyId,
-    KyberPreKeyRecord, KyberPreKeyStore, PreKeyId, PreKeyRecord, PreKeyStore,
-    ProtocolAddress, SignalProtocolError, SignedPreKeyId, SignedPreKeyRecord,
-    SignedPreKeyStore,
+    Direction, IdentityChange, IdentityKey, IdentityKeyPair, IdentityKeyStore,
+    KyberPreKeyId, KyberPreKeyRecord, KyberPreKeyStore, PreKeyId, PreKeyRecord,
+    PreKeyStore, ProtocolAddress, PublicKey, SignalProtocolError,
+    SignedPreKeyId, SignedPreKeyRecord, SignedPreKeyStore,
 };
 
 #[derive(Default)]
@@ -70,6 +69,8 @@ impl KyberPreKeyStore for ExampleStore {
     async fn mark_kyber_pre_key_used(
         &mut self,
         _kyber_prekey_id: KyberPreKeyId,
+        _ec_prekey_id: SignedPreKeyId,
+        _base_key: &PublicKey,
     ) -> Result<(), SignalProtocolError> {
         todo!()
     }
