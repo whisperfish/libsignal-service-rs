@@ -653,13 +653,12 @@ impl AccountManager {
     /// Update (encrypted) device name
     pub async fn update_device_name<R: Rng + CryptoRng>(
         &mut self,
-        device_id: u8,
+        device_id: libsignal_core::DeviceId,
         device_name: &str,
         aci: Aci,
         aci_identity_store: &dyn IdentityKeyStore,
         csprng: &mut R,
     ) -> Result<(), ServiceError> {
-        let device_id = libsignal_core::DeviceId::new(device_id).unwrap();
         let addr = aci.to_protocol_address(device_id).unwrap();
         let public_key = aci_identity_store.get_identity(&addr).await?;
         let Some(public_key) = public_key else {
