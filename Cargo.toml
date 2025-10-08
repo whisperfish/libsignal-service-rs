@@ -44,7 +44,6 @@ tracing = { version = "0.1", features = ["log"] }
 tracing-futures = "0.2"
 
 tokio = { version = "1.0", features = ["macros"] }
-serde_with = "3.14.0"
 
 [build-dependencies]
 prost-build = "0.13"
