@@ -23,7 +23,6 @@ The example below serves as an example of how this library can be included in `C
 ```toml
 [dependencies]
 libsignal-service = { git = "https://github.com/whisperfish/libsignal-service-rs", branch = "main" }
-libsignal-service-actix = { git = "https://github.com/whisperfish/libsignal-service-rs", branch = "main" }
 
 libsignal-protocol = { git = "https://github.com/signalapp/libsignal-client", branch = "main" }
 zkgroup = { version = "0.9.0", git = "https://github.com/signalapp/libsignal-client", branch = "main" }
