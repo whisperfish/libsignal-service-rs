@@ -4,7 +4,7 @@ use libsignal_protocol::{
     ProtocolAddress, ServiceId, SessionStore, SignalProtocolError,
 };
 
-use crate::push_service::DEFAULT_DEVICE_ID;
+use crate::{content::ServiceError, push_service::DEFAULT_DEVICE_ID};
 
 /// This is additional functions required to handle
 /// session deletion. It might be a candidate for inclusion into
@@ -55,7 +55,7 @@ pub trait SessionStoreExt: SessionStore {
         &self,
         local_address: &ServiceId,
         address: &ServiceId,
-    ) -> Result<String, SignalProtocolError>
+    ) -> Result<String, ServiceError>
     where
         Self: Sized + libsignal_protocol::IdentityKeyStore,
     {
@@ -81,6 +81,6 @@ pub trait SessionStoreExt: SessionStore {
             address.raw_uuid().as_bytes(),
             &ident,
         )?;
-        fp.display_string()
+        Ok(fp.display_string()?)
     }
 }

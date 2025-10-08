@@ -5,7 +5,7 @@ use libsignal_core::{curve::CurveError, InvalidDeviceId};
 use libsignal_protocol::{
     process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
-    SignalProtocolError, UsePQRatchet,
+    SignalProtocolError,
 };
 use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
@@ -658,7 +658,6 @@ where
                             &pre_key,
                             SystemTime::now(),
                             &mut rng,
-                            UsePQRatchet::No,
                         )
                         .await
                         .map_err(|e| {
@@ -1034,7 +1033,6 @@ where
                     &pre_key_bundle,
                     SystemTime::now(),
                     &mut rng,
-                    UsePQRatchet::No,
                 )
                 .await?;
             }

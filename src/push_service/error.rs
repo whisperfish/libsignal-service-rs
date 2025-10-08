@@ -1,6 +1,8 @@
 use aes::cipher::block_padding::UnpadError;
 use libsignal_core::curve::CurveError;
-use libsignal_protocol::{ServiceIdKind, SignalProtocolError};
+use libsignal_protocol::{
+    FingerprintError, ServiceIdKind, SignalProtocolError,
+};
 use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
 use crate::groups_v2::GroupDecodingError;
@@ -108,4 +110,15 @@ pub enum ServiceError {
 
     #[error(transparent)]
     Curve(#[from] CurveError),
+
+    // FingerprintError does not implement StdError, so we need a manual display,
+    // and manual From impl.
+    #[error("Fingerprint error: {0}")]
+    Fingerprint(FingerprintError),
+}
+
+impl From<FingerprintError> for ServiceError {
+    fn from(value: FingerprintError) -> Self {
+        ServiceError::Fingerprint(value)
+    }
 }

@@ -11,7 +11,6 @@ use libsignal_protocol::{
     PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
     SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
-    UsePQRatchet,
 };
 use prost::Message;
 use rand::{rng, CryptoRng, Rng};
@@ -225,7 +224,6 @@ where
                     &self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     csprng,
-                    UsePQRatchet::No,
                 )
                 .await?
                 .as_slice()
@@ -609,7 +607,6 @@ async fn sealed_sender_decrypt(
                 signed_pre_key_store,
                 kyber_pre_key_store,
                 &mut rng,
-                UsePQRatchet::No,
             )
             .await?
         },
