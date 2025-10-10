@@ -4,7 +4,7 @@
 <a href=#4 id=4 data-nosnippet>4</a>    ProtocolAddress, ServiceId, SessionStore, SignalProtocolError,
 <a href=#5 id=5 data-nosnippet>5</a>};
 <a href=#6 id=6 data-nosnippet>6</a>
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span><span class="kw">crate</span>::push_service::DEFAULT_DEVICE_ID;
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use crate</span>::{content::ServiceError, push_service::DEFAULT_DEVICE_ID};
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a><span class="doccomment">/// This is additional functions required to handle
 <a href=#10 id=10 data-nosnippet>10</a>/// session deletion. It might be a candidate for inclusion into
@@ -55,7 +55,7 @@
 <a href=#55 id=55 data-nosnippet>55</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#56 id=56 data-nosnippet>56</a>        local_address: <span class="kw-2">&amp;</span>ServiceId,
 <a href=#57 id=57 data-nosnippet>57</a>        address: <span class="kw-2">&amp;</span>ServiceId,
-<a href=#58 id=58 data-nosnippet>58</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;String, SignalProtocolError&gt;
+<a href=#58 id=58 data-nosnippet>58</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;String, ServiceError&gt;
 <a href=#59 id=59 data-nosnippet>59</a>    <span class="kw">where
 <a href=#60 id=60 data-nosnippet>60</a>        </span><span class="self">Self</span>: Sized + libsignal_protocol::IdentityKeyStore,
 <a href=#61 id=61 data-nosnippet>61</a>    {
@@ -81,6 +81,6 @@
 <a href=#81 id=81 data-nosnippet>81</a>            address.raw_uuid().as_bytes(),
 <a href=#82 id=82 data-nosnippet>82</a>            <span class="kw-2">&amp;</span>ident,
 <a href=#83 id=83 data-nosnippet>83</a>        )<span class="question-mark">?</span>;
-<a href=#84 id=84 data-nosnippet>84</a>        fp.display_string()
+<a href=#84 id=84 data-nosnippet>84</a>        <span class="prelude-val">Ok</span>(fp.display_string()<span class="question-mark">?</span>)
 <a href=#85 id=85 data-nosnippet>85</a>    }
 <a href=#86 id=86 data-nosnippet>86</a>}</code></pre></div></section></main></body></html>
