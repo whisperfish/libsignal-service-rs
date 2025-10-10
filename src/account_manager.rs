@@ -383,6 +383,7 @@ impl AccountManager {
 
         let msg = ProvisionMessage {
             aci: credentials.aci.as_ref().map(|u| u.to_string()),
+            aci_binary: credentials.aci.map(|u| u.into_bytes().into()),
             aci_identity_key_public: Some(
                 aci_identity_key_pair.public_key().serialize().into_vec(),
             ),
@@ -397,6 +398,7 @@ impl AccountManager {
                 pni_identity_key_pair.private_key().serialize(),
             ),
             pni: credentials.pni.as_ref().map(uuid::Uuid::to_string),
+            pni_binary: credentials.pni.map(|u| u.into_bytes().into()),
             profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(
