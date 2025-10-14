@@ -25,6 +25,7 @@ pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
     LazyLock::new(|| libsignal_core::DeviceId::try_from(1).unwrap());
 
 mod account;
+mod calling;
 mod cdn;
 mod error;
 mod keys;
@@ -35,6 +36,7 @@ mod response;
 mod stickers;
 
 pub use account::*;
+pub use calling::*;
 pub use cdn::*;
 pub use error::*;
 pub use keys::*;
