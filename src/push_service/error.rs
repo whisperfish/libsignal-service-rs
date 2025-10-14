@@ -105,6 +105,9 @@ pub enum ServiceError {
     #[error("Unknown CDN version {0}")]
     UnknownCdnVersion(u32),
 
+    #[error("Device limit reached: {current} out of {max} devices.")]
+    DeviceLimitReached { current: u32, max: u32 },
+
     #[error("HTTP reqwest error: {0}")]
     Http(#[from] reqwest::Error),
 
