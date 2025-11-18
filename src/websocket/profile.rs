@@ -77,20 +77,6 @@ impl SignalWebSocket<websocket::Identified> {
             .map_err(Into::into)
     }
 
-    pub async fn retrieve_profile_avatar(
-        &mut self,
-        path: &str,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        self.unidentified_push_service.get_from_cdn(0, path).await
-    }
-
-    pub async fn retrieve_groups_v2_profile_avatar(
-        &mut self,
-        path: &str,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        self.unidentified_push_service.get_from_cdn(0, path).await
-    }
-
     /// Writes a profile and returns the avatar URL, if one was provided.
     ///
     /// The name, about and emoji fields are encrypted with an [`ProfileCipher`][struct@crate::profile_cipher::ProfileCipher].
@@ -157,5 +143,21 @@ impl SignalWebSocket<websocket::Identified> {
                 Ok(None)
             },
         }
+    }
+}
+
+impl SignalWebSocket<websocket::Unidentified> {
+    pub async fn retrieve_profile_avatar(
+        &mut self,
+        path: &str,
+    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
+        self.unidentified_push_service.get_from_cdn(0, path).await
+    }
+
+    pub async fn retrieve_groups_v2_profile_avatar(
+        &mut self,
+        path: &str,
+    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
+        self.unidentified_push_service.get_from_cdn(0, path).await
     }
 }

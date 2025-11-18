@@ -234,31 +234,6 @@ impl SignalWebSocket<websocket::Unidentified> {
         .await
         .map_err(Into::into)
     }
-
-    pub async fn submit_verification_code(
-        &mut self,
-        session_id: &str,
-        verification_code: &str,
-    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
-        #[derive(Debug, Serialize)]
-        struct VerificationCode<'a> {
-            code: &'a str,
-        }
-
-        self.http_request(
-            Method::PUT,
-            format!("/v1/verification/session/{}/code", session_id),
-        )?
-        .send_json(&VerificationCode {
-            code: verification_code,
-        })
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
-    }
 }
 
 impl SignalWebSocket<websocket::Identified> {
@@ -310,5 +285,30 @@ impl SignalWebSocket<websocket::Identified> {
             .json()
             .await
             .map_err(Into::into)
+    }
+
+    pub async fn submit_verification_code(
+        &mut self,
+        session_id: &str,
+        verification_code: &str,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        #[derive(Debug, Serialize)]
+        struct VerificationCode<'a> {
+            code: &'a str,
+        }
+
+        self.http_request(
+            Method::PUT,
+            format!("/v1/verification/session/{}/code", session_id),
+        )?
+        .send_json(&VerificationCode {
+            code: verification_code,
+        })
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+        .map_err(Into::into)
     }
 }
