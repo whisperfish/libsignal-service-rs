@@ -13,6 +13,7 @@ use futures::stream::FuturesUnordered;
 use reqwest::Method;
 use reqwest_websocket::WebSocket;
 use tokio::time::Instant;
+use tracing::debug;
 
 use crate::prelude::PushService;
 use crate::proto::{
@@ -281,9 +282,8 @@ impl SignalWebSocketProcess {
                             self.ws.send(reqwest_websocket::Message::Binary(buffer)).await?
                         }
                         None => {
-                            return Err(ServiceError::WsClosing {
-                                reason: "end of application request stream; socket closing"
-                            });
+                            debug!("end of application request stream; websocket closing");
+                            return Ok(());
                         }
                     }
                 }
