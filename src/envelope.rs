@@ -8,6 +8,7 @@ use crate::{configuration::SignalingKey, push_service::ServiceError};
 pub use crate::proto::Envelope;
 
 impl Envelope {
+    #[expect(clippy::result_large_err)]
     #[tracing::instrument(skip(input, signaling_key), fields(signaling_key_present = signaling_key.is_some(), input_size = input.len()))]
     pub fn decrypt(
         input: &[u8],
@@ -76,7 +77,7 @@ impl Envelope {
     }
 
     pub fn is_receipt(&self) -> bool {
-        self.r#type() == crate::proto::envelope::Type::Receipt
+        self.r#type() == crate::proto::envelope::Type::ServerDeliveryReceipt
     }
 
     pub fn is_signal_message(&self) -> bool {

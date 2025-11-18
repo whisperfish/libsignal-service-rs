@@ -64,7 +64,7 @@ pub(crate) struct WebSocketRequestBuilder<'a, C: WebSocketType> {
 
 impl<C: WebSocketType> SignalWebSocket<C> {
     #[tracing::instrument(skip(self))]
-    pub fn http_request(
+    pub(crate) fn http_request(
         &mut self,
         method: Method,
         path: impl Into<String> + fmt::Debug,

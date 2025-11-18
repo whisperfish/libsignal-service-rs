@@ -23,7 +23,7 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: doc
-          args: --all-features --no-deps -p libsignal-service -p libsignal-protocol -p zkgroup -p libsignal-service-actix -p libsignal-service-hyper
+          args: --all-features --no-deps -p libsignal-service -p libsignal-protocol -p zkgroup
       - uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

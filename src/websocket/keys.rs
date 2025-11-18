@@ -41,17 +41,18 @@ pub struct PreKeyResponseItem {
     pub registration_id: u32,
     pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
-    pub pq_pre_key: Option<KyberPreKeyEntity>,
+    pub pq_pre_key: KyberPreKeyEntity,
 }
 
 impl PreKeyResponseItem {
     pub(crate) fn into_bundle(
         self,
         identity: IdentityKey,
-    ) -> Result<PreKeyBundle, SignalProtocolError> {
-        let b = PreKeyBundle::new(
+    ) -> Result<PreKeyBundle, ServiceError> {
+        let device_id = self.device_id.try_into()?;
+        let pre_key_bundle = PreKeyBundle::new(
             self.registration_id,
-            self.device_id.into(),
+            device_id,
             self.pre_key
                 .map(|pk| -> Result<_, SignalProtocolError> {
                     Ok((
@@ -64,18 +65,13 @@ impl PreKeyResponseItem {
             self.signed_pre_key.key_id.into(),
             PublicKey::deserialize(&self.signed_pre_key.public_key)?,
             self.signed_pre_key.signature,
+            self.pq_pre_key.key_id.into(),
+            Key::<Public>::deserialize(&self.pq_pre_key.public_key)?,
+            self.pq_pre_key.signature,
             identity,
         )?;
 
-        if let Some(pq_pk) = self.pq_pre_key {
-            Ok(b.with_kyber_pre_key(
-                pq_pk.key_id.into(),
-                Key::<Public>::deserialize(&pq_pk.public_key)?,
-                pq_pk.signature,
-            ))
-        } else {
-            Ok(b)
-        }
+        Ok(pre_key_bundle)
     }
 }
 
@@ -186,7 +182,7 @@ impl SignalWebSocket<websocket::Identified> {
 
         let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         let device = pre_key_response.devices.remove(0);
-        Ok(device.into_bundle(identity)?)
+        device.into_bundle(identity).map_err(Into::into)
     }
 
     pub(crate) async fn get_pre_keys(

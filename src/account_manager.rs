@@ -372,6 +372,7 @@ impl AccountManager {
         let pub_key = query
             .get("pub_key")
             .ok_or(ProvisioningError::MissingPublicKey)?;
+
         let pub_key = BASE64_RELAXED
             .decode(&**pub_key)
             .map_err(|e| ProvisioningError::InvalidPublicKey(e.into()))?;
@@ -394,6 +395,7 @@ impl AccountManager {
 
         let msg = ProvisionMessage {
             aci: credentials.aci.as_ref().map(|u| u.to_string()),
+            aci_binary: credentials.aci.map(|u| u.into_bytes().into()),
             aci_identity_key_public: Some(
                 aci_identity_key_pair.public_key().serialize().into_vec(),
             ),
@@ -408,6 +410,7 @@ impl AccountManager {
                 pni_identity_key_pair.private_key().serialize(),
             ),
             pni: credentials.pni.as_ref().map(uuid::Uuid::to_string),
+            pni_binary: credentials.pni.map(|u| u.into_bytes().into()),
             profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
             // CURRENT is not exposed by prost :(
             provisioning_version: Some(i32::from(
@@ -417,6 +420,9 @@ impl AccountManager {
             read_receipts: None,
             user_agent: None,
             master_key: master_key.map(|x| x.into()),
+            ephemeral_backup_key: None,
+            account_entropy_pool: None,
+            media_root_backup_key: None,
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);
@@ -440,15 +446,18 @@ impl AccountManager {
             .map(|i| {
                 Ok(DeviceInfo {
                     id: i.id,
-                    name: i
-                        .name
-                        .map(|s| {
-                            decrypt_device_name_from_device_info(
-                                &s,
-                                &aci_identity_keypair,
-                            )
-                        })
-                        .transpose()?,
+                    name: i.name.and_then(|s| {
+                        match decrypt_device_name_from_device_info(
+                            &s,
+                            &aci_identity_keypair,
+                        ) {
+                            Ok(name) => Some(name),
+                            Err(e) => {
+                                tracing::error!("{e}");
+                                None
+                            },
+                        }
+                    }),
                     created: i.created,
                     last_seen: i.last_seen,
                 })
@@ -658,12 +667,21 @@ impl AccountManager {
     /// Update (encrypted) device name
     pub async fn update_device_name<R: Rng + CryptoRng>(
         &mut self,
+        device_id: libsignal_core::DeviceId,
         device_name: &str,
-        public_key: &IdentityKey,
+        aci: Aci,
+        aci_identity_store: &dyn IdentityKeyStore,
         csprng: &mut R,
     ) -> Result<(), ServiceError> {
+        let addr = aci.to_protocol_address(device_id).unwrap();
+        let public_key = aci_identity_store.get_identity(&addr).await?;
+        let Some(public_key) = public_key else {
+            return Err(ServiceError::SendError {
+                reason: format!("public key for device {addr:?} not found"),
+            });
+        };
         let encrypted_device_name =
-            encrypt_device_name(csprng, device_name, public_key)?;
+            encrypt_device_name(csprng, device_name, &public_key)?;
 
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -675,7 +693,10 @@ impl AccountManager {
         self.service
             .request(
                 Method::PUT,
-                Endpoint::service("/v1/accounts/name"),
+                Endpoint::service(format!(
+                    "/v1/accounts/name?deviceId={}",
+                    device_id
+                )),
                 HttpAuthOverride::NoOverride,
             )?
             .json(&Data {
@@ -764,16 +785,16 @@ impl AccountManager {
 
         let signature_valid_on_each_signed_pre_key = true;
         for local_device_id in
-            std::iter::once(DEFAULT_DEVICE_ID).chain(local_device_ids)
+            std::iter::once(*DEFAULT_DEVICE_ID).chain(local_device_ids)
         {
             let local_protocol_address =
-                local_aci.to_protocol_address(local_device_id);
+                local_aci.to_protocol_address(local_device_id)?;
             let span = tracing::trace_span!(
                 "filtering devices",
                 address = %local_protocol_address
             );
             // Skip if we don't have a session with the device
-            if (local_device_id != DEFAULT_DEVICE_ID)
+            if (local_device_id != *DEFAULT_DEVICE_ID)
                 && aci_protocol_store
                     .load_session(&local_protocol_address)
                     .instrument(span)
@@ -791,7 +812,7 @@ impl AccountManager {
                 signed_pre_key,
                 _kyber_pre_keys,
                 last_resort_kyber_prekey,
-            ) = if local_device_id == DEFAULT_DEVICE_ID {
+            ) = if local_device_id == *DEFAULT_DEVICE_ID {
                 crate::pre_keys::replenish_pre_keys(
                     pni_protocol_store,
                     csprng,
@@ -805,14 +826,16 @@ impl AccountManager {
                 // Generate a signed prekey
                 let signed_pre_key_pair = KeyPair::generate(csprng);
                 let signed_pre_key_public = signed_pre_key_pair.public_key;
-                let signed_pre_key_signature =
-                    pni_identity_key_pair.private_key().calculate_signature(
+                let signed_pre_key_signature = pni_identity_key_pair
+                    .private_key()
+                    .calculate_signature(
                         &signed_pre_key_public.serialize(),
                         csprng,
-                    )?;
+                    )
+                    .map_err(MessageSenderError::InvalidPrivateKey)?;
 
                 let signed_prekey_record = SignedPreKeyRecord::new(
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
                     Timestamp::now(),
                     &signed_pre_key_pair,
                     &signed_pre_key_signature,
@@ -821,7 +844,7 @@ impl AccountManager {
                 // Generate a last-resort Kyber prekey
                 let kyber_pre_key_record = KyberPreKeyRecord::generate(
                     kem::KeyType::Kyber1024,
-                    csprng.gen_range::<u32, _>(0..0xFFFFFF).into(),
+                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
                     pni_identity_key_pair.private_key(),
                 )?;
                 (
@@ -832,7 +855,7 @@ impl AccountManager {
                 )
             };
 
-            let registration_id = if local_device_id == DEFAULT_DEVICE_ID {
+            let registration_id = if local_device_id == *DEFAULT_DEVICE_ID {
                 pni_protocol_store.get_local_registration_id().await?
             } else {
                 loop {
@@ -862,7 +885,7 @@ impl AccountManager {
             assert!(_pre_keys.is_empty());
             assert!(_kyber_pre_keys.is_empty());
 
-            if local_device_id == DEFAULT_DEVICE_ID {
+            if local_device_id == *DEFAULT_DEVICE_ID {
                 // This is the primary device
                 // We don't need to send a message to the primary device
                 continue;
@@ -892,7 +915,7 @@ impl AccountManager {
                 .create_encrypted_message(
                     &local_aci.into(),
                     None,
-                    local_device_id.into(),
+                    local_device_id,
                     &content.into_proto().encode_to_vec(),
                 )
                 .await?;
@@ -1024,7 +1047,7 @@ mod tests {
     #[test]
     fn encrypt_device_name() -> anyhow::Result<()> {
         let input_device_name = "Nokia 3310 Millenial Edition";
-        let mut csprng = rand::thread_rng();
+        let mut csprng = rand::rng();
         let identity = IdentityKeyPair::generate(&mut csprng);
 
         let device_name = super::encrypt_device_name(

@@ -1,13 +1,8 @@
-use std::convert::TryInto;
-
-use crate::proto::Verified;
-
 use bytes::Bytes;
 use phonenumber::PhoneNumber;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
-use zkgroup::profiles::ProfileKey;
 
 /// Attachment represents an attachment received from a peer
 #[derive(Debug, Serialize, Deserialize)]
@@ -24,14 +19,9 @@ pub struct Contact {
     pub uuid: Uuid,
     pub phone_number: Option<PhoneNumber>,
     pub name: String,
-    pub color: Option<String>,
-    #[serde(skip)]
-    pub verified: Verified,
-    pub profile_key: Vec<u8>,
     pub expire_timer: u32,
     pub expire_timer_version: u32,
     pub inbox_position: u32,
-    pub archived: bool,
     #[serde(skip)]
     pub avatar: Option<Attachment<Bytes>>,
 }
@@ -66,13 +56,9 @@ impl Contact {
                 .as_ref()
                 .and_then(|n| phonenumber::parse(None, n).ok()),
             name: contact_details.name().into(),
-            color: contact_details.color.clone(),
-            verified: contact_details.verified.clone().unwrap_or_default(),
-            profile_key: contact_details.profile_key().to_vec(),
             expire_timer: contact_details.expire_timer(),
             expire_timer_version: contact_details.expire_timer_version(),
             inbox_position: contact_details.inbox_position(),
-            archived: contact_details.archived(),
             avatar: contact_details.avatar.and_then(|avatar| {
                 if let (Some(content_type), Some(avatar_data)) =
                     (avatar.content_type, avatar_data)
@@ -87,14 +73,5 @@ impl Contact {
                 }
             }),
         })
-    }
-
-    pub fn profile_key(&self) -> Result<ProfileKey, ParseContactError> {
-        Ok(ProfileKey::create(
-            self.profile_key
-                .clone()
-                .try_into()
-                .map_err(|_| ParseContactError::MissingProfileKey)?,
-        ))
     }
 }

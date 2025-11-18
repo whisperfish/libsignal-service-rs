@@ -15,7 +15,7 @@ pub fn random_length_padding<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
     max_len: usize,
 ) -> Vec<u8> {
-    let length = csprng.gen_range(0..max_len);
+    let length = csprng.random_range(0..max_len);
     let mut padding = vec![0u8; length];
     csprng.fill_bytes(&mut padding);
     padding
@@ -313,5 +313,25 @@ pub mod serde_service_id {
             deserializer,
         )?)
         .ok_or_else(|| serde::de::Error::custom("invalid service ID string"))
+    }
+}
+
+pub mod serde_aci {
+    use libsignal_core::Aci;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(aci: &Aci, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&aci.service_id_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Aci, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Aci::parse_from_service_id_string(&String::deserialize(deserializer)?)
+            .ok_or_else(|| serde::de::Error::custom("invalid ACI string"))
     }
 }

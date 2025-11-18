@@ -75,7 +75,7 @@ impl WebSocketResponseMessage {
 
 impl SyncMessage {
     pub fn with_padding<R: Rng + CryptoRng>(csprng: &mut R) -> Self {
-        let random_size = csprng.gen_range(1..=512);
+        let random_size = csprng.random_range(1..=512);
         let mut padding: Vec<u8> = vec![0; random_size];
         csprng.fill_bytes(&mut padding);
 

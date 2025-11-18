@@ -79,7 +79,9 @@ impl ProvisioningCipher {
         let msg = msg.encode_to_vec();
 
         let our_key_pair = libsignal_protocol::KeyPair::generate(csprng);
-        let agreement = our_key_pair.calculate_agreement(self.public_key())?;
+        let agreement = our_key_pair
+            .calculate_agreement(self.public_key())
+            .map_err(ProvisioningError::invalid_public_key)?;
 
         let mut shared_secrets = [0; 64];
         hkdf::Hkdf::<sha2::Sha256>::new(None, &agreement)
@@ -88,7 +90,7 @@ impl ProvisioningCipher {
 
         let aes_key = &shared_secrets[0..32];
         let mac_key = &shared_secrets[32..];
-        let iv: [u8; IV_LENGTH] = csprng.gen();
+        let iv: [u8; IV_LENGTH] = csprng.random();
 
         let cipher = cbc::Encryptor::<Aes256>::new(aes_key.into(), &iv.into());
         let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&msg);
@@ -124,7 +126,8 @@ impl ProvisioningCipher {
         };
         let master_ephemeral = PublicKey::deserialize(
             &provision_envelope.public_key.expect("no public key"),
-        )?;
+        )
+        .map_err(ProvisioningError::invalid_public_key)?;
         let body = provision_envelope
             .body
             .expect("no body in ProvisionMessage");
@@ -139,7 +142,9 @@ impl ProvisioningCipher {
         debug_assert_eq!(iv.len(), IV_LENGTH);
         debug_assert_eq!(mac.len(), 32);
 
-        let agreement = key_pair.calculate_agreement(&master_ephemeral)?;
+        let agreement = key_pair
+            .calculate_agreement(&master_ephemeral)
+            .map_err(ProvisioningError::invalid_private_key)?;
 
         let mut shared_secrets = [0; 64];
         hkdf::Hkdf::<sha2::Sha256>::new(None, &agreement)
@@ -176,7 +181,7 @@ mod tests {
 
     #[test]
     fn encrypt_provisioning_roundtrip() -> anyhow::Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let key_pair = KeyPair::generate(&mut rng);
         let cipher = ProvisioningCipher::from_key_pair(key_pair);
         let encrypt_cipher: ProvisioningCipher =
