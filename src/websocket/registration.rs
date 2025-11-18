@@ -153,7 +153,6 @@ impl SignalWebSocket<websocket::Unidentified> {
             .await?
             .json()
             .await
-            .map_err(Into::into)
     }
 
     pub async fn patch_verification_session<'a>(
@@ -193,7 +192,6 @@ impl SignalWebSocket<websocket::Unidentified> {
         .await?
         .json()
         .await
-        .map_err(Into::into)
     }
 
     // Equivalent of Java's
@@ -232,7 +230,6 @@ impl SignalWebSocket<websocket::Unidentified> {
         .await?
         .json()
         .await
-        .map_err(Into::into)
     }
 }
 
@@ -284,7 +281,6 @@ impl SignalWebSocket<websocket::Identified> {
             .await?
             .json()
             .await
-            .map_err(Into::into)
     }
 
     pub async fn submit_verification_code(
@@ -309,6 +305,5 @@ impl SignalWebSocket<websocket::Identified> {
         .await?
         .json()
         .await
-        .map_err(Into::into)
     }
 }

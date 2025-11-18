@@ -90,7 +90,6 @@ impl SignalWebSocket<websocket::Identified> {
             .await?
             .json()
             .await
-            .map_err(Into::into)
     }
 
     /// Fetches a list of all devices tied to the authenticated account.
@@ -130,6 +129,5 @@ impl SignalWebSocket<websocket::Identified> {
             .await?
             .json()
             .await
-            .map_err(Into::into)
     }
 }

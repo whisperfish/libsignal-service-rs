@@ -97,7 +97,6 @@ impl SignalWebSocket<websocket::Identified> {
         .await?
         .json()
         .await
-        .map_err(Into::into)
     }
 
     /// Checks for consistency of the repeated-use keys
@@ -182,7 +181,7 @@ impl SignalWebSocket<websocket::Identified> {
 
         let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
         let device = pre_key_response.devices.remove(0);
-        device.into_bundle(identity).map_err(Into::into)
+        device.into_bundle(identity)
     }
 
     pub(crate) async fn get_pre_keys(
@@ -288,6 +287,5 @@ impl SignalWebSocket<websocket::Identified> {
         .await?
         .json()
         .await
-        .map_err(Into::into)
     }
 }

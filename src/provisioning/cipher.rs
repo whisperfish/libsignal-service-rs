@@ -70,7 +70,6 @@ impl ProvisioningCipher {
         self.key_material.public()
     }
 
-    #[expect(clippy::result_large_err)]
     pub fn encrypt<R: Rng + CryptoRng>(
         &self,
         csprng: &mut R,
@@ -113,7 +112,6 @@ impl ProvisioningCipher {
         })
     }
 
-    #[expect(clippy::result_large_err)]
     pub fn decrypt(
         &self,
         provision_envelope: ProvisionEnvelope,

@@ -457,7 +457,7 @@ struct Plaintext {
     data: Vec<u8>,
 }
 
-#[expect(clippy::comparison_chain, clippy::result_large_err)]
+#[expect(clippy::comparison_chain)]
 fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     if version < 2 {
         Err(ServiceError::PaddingVersion(version))
@@ -480,7 +480,7 @@ fn add_padding(version: u32, contents: &[u8]) -> Result<Vec<u8>, ServiceError> {
     }
 }
 
-#[expect(clippy::comparison_chain, clippy::result_large_err)]
+#[expect(clippy::comparison_chain)]
 fn strip_padding_version(
     version: u32,
     contents: &mut Vec<u8>,
@@ -497,7 +497,6 @@ fn strip_padding_version(
     }
 }
 
-#[expect(clippy::result_large_err)]
 fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
     let new_length = Iso7816::raw_unpad(contents)?.len();
     contents.resize(new_length, 0);

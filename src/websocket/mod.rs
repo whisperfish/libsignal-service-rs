@@ -307,7 +307,7 @@ impl SignalWebSocketProcess {
                         Some(Ok(Message::Text(_))) => {
                             tracing::trace!("received text (unsupported, skipping)");
                         }
-                        Some(Err(e)) => return Err(ServiceError::WsError(e)),
+                        Some(Err(e)) => return Err(e.into()),
                         None => {
                             return Err(ServiceError::WsClosing {
                                 reason: "end of web request stream; socket closing"
@@ -381,7 +381,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
 
         (
             Self {
-                _type: PhantomData::default(),
+                _type: PhantomData,
                 request_sink: outgoing_request_sink,
                 unidentified_push_service,
                 inner: Arc::new(Mutex::new(SignalWebSocketInner {

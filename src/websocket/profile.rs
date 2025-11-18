@@ -74,7 +74,6 @@ impl SignalWebSocket<websocket::Identified> {
             .await?
             .json()
             .await
-            .map_err(Into::into)
     }
 
     /// Writes a profile and returns the avatar URL, if one was provided.

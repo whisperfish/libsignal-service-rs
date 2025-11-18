@@ -104,7 +104,6 @@ impl PushService {
         }
     }
 
-    #[expect(clippy::result_large_err)]
     #[tracing::instrument(skip(self), fields(endpoint = %endpoint))]
     pub fn request(
         &self,
