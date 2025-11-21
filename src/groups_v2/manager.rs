@@ -10,6 +10,7 @@ use crate::{
     proto::GroupContextV2,
     push_service::{HttpAuth, HttpAuthOverride, ReqwestExt, ServiceIds},
     utils::BASE64_RELAXED,
+    websocket::{self, SignalWebSocket},
 };
 
 use base64::prelude::*;
@@ -38,7 +39,6 @@ pub struct CredentialResponse {
     credentials: Vec<TemporalCredential>,
 }
 
-#[expect(clippy::result_large_err)]
 impl CredentialResponse {
     pub fn parse(
         self,
@@ -133,7 +133,8 @@ impl<T: CredentialsCache> CredentialsCache for &mut T {
 
 pub struct GroupsManager<C: CredentialsCache> {
     service_ids: ServiceIds,
-    push_service: PushService,
+    identified_push_service: PushService,
+    unidentified_websocket: SignalWebSocket<websocket::Unidentified>,
     credentials_cache: C,
     server_public_params: ServerPublicParams,
 }
@@ -141,13 +142,15 @@ pub struct GroupsManager<C: CredentialsCache> {
 impl<C: CredentialsCache> GroupsManager<C> {
     pub fn new(
         service_ids: ServiceIds,
-        push_service: PushService,
+        identified_push_service: PushService,
+        unidentified_websocket: SignalWebSocket<websocket::Unidentified>,
         credentials_cache: C,
         server_public_params: ServerPublicParams,
     ) -> Self {
         Self {
             service_ids,
-            push_service,
+            identified_push_service,
+            unidentified_websocket,
             credentials_cache,
             server_public_params,
         }
@@ -169,7 +172,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             format!("/v1/certificate/auth/group?redemptionStartSeconds={}&redemptionEndSeconds={}&pniAsServiceId=true", today, today_plus_7_days);
 
             let credentials_response: CredentialResponse = self
-                .push_service
+                .identified_push_service
                 .request(
                     Method::GET,
                     Endpoint::service(path),
@@ -199,7 +202,6 @@ impl<C: CredentialsCache> GroupsManager<C> {
         )
     }
 
-    #[expect(clippy::result_large_err)]
     fn get_authorization_string<R: Rng + CryptoRng>(
         &self,
         csprng: &mut R,
@@ -257,7 +259,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         let authorization = self
             .get_authorization_for_today(csprng, group_secret_params)
             .await?;
-        self.push_service.get_group(authorization).await
+        self.identified_push_service.get_group(authorization).await
     }
 
     #[tracing::instrument(
@@ -270,7 +272,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         group_secret_params: GroupSecretParams,
     ) -> Result<Option<Vec<u8>>, ServiceError> {
         let mut encrypted_avatar = self
-            .push_service
+            .unidentified_websocket
             .retrieve_groups_v2_profile_avatar(path)
             .await?;
         let mut result = Vec::with_capacity(10 * 1024 * 1024);
@@ -301,7 +303,6 @@ impl<C: CredentialsCache> GroupsManager<C> {
     }
 }
 
-#[expect(clippy::result_large_err)]
 pub fn decrypt_group(
     master_key_bytes: &[u8],
     encrypted_group: crate::proto::Group,

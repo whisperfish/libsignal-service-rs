@@ -30,15 +30,20 @@ use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
 use crate::push_service::{
-    AvatarWrite, CaptchaAttributes, DeviceActivationRequest, DeviceInfo,
-    HttpAuthOverride, RegistrationMethod, ReqwestExt, VerifyAccountResponse,
-    DEFAULT_DEVICE_ID,
+    AvatarWrite, HttpAuthOverride, ReqwestExt, DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
 use crate::service_address::ServiceIdExt;
 use crate::session_store::SessionStoreExt;
 use crate::timestamp::TimestampExt as _;
 use crate::utils::{random_length_padding, BASE64_RELAXED};
+use crate::websocket::account::DeviceInfo;
+use crate::websocket::keys::PreKeyStatus;
+use crate::websocket::registration::{
+    CaptchaAttributes, DeviceActivationRequest, RegistrationMethod,
+    VerifyAccountResponse,
+};
+use crate::websocket::{self, SignalWebSocket};
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::PreKeyState,
@@ -46,14 +51,16 @@ use crate::{
     profile_name::ProfileName,
     proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
     provisioning::{ProvisioningCipher, ProvisioningError},
-    push_service::{AccountAttributes, PushService, ServiceError},
+    push_service::{PushService, ServiceError},
     utils::serde_base64,
+    websocket::account::AccountAttributes,
 };
 
 type Aes256Ctr128BE = ctr::Ctr128BE<aes::Aes256>;
 
 pub struct AccountManager {
     service: PushService,
+    websocket: SignalWebSocket<websocket::Identified>,
     profile_key: Option<ProfileKey>,
 }
 
@@ -75,9 +82,14 @@ pub struct Profile {
 }
 
 impl AccountManager {
-    pub fn new(service: PushService, profile_key: Option<ProfileKey>) -> Self {
+    pub fn new(
+        service: PushService,
+        websocket: SignalWebSocket<websocket::Identified>,
+        profile_key: Option<ProfileKey>,
+    ) -> Self {
         Self {
             service,
+            websocket,
             profile_key,
         }
     }
@@ -122,7 +134,7 @@ impl AccountManager {
         hash.update((u32::from(kyber_prekey_id) as u64).to_be_bytes());
         hash.update(kyber_prekey.public_key()?.serialize());
 
-        self.service
+        self.websocket
             .check_pre_keys(service_id_kind, hash.finalize().as_ref())
             .await
     }
@@ -143,7 +155,7 @@ impl AccountManager {
         csprng: &mut R,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
-            .service
+            .websocket
             .get_pre_key_status(service_id_kind)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
@@ -156,7 +168,7 @@ impl AccountManager {
                 tracing::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
                 // Additionally, the second PUT request will fail if this really comes down to an
                 // authorization failure.
-                crate::push_service::PreKeyStatus {
+                PreKeyStatus {
                     count: 0,
                     pq_count: 0,
                 }
@@ -266,7 +278,7 @@ impl AccountManager {
             pq_last_resort_key,
         };
 
-        self.service
+        self.websocket
             .register_pre_keys(service_id_kind, pre_key_state)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
@@ -425,7 +437,7 @@ impl AccountManager {
         &mut self,
         aci_identity_store: &dyn IdentityKeyStore,
     ) -> Result<Vec<DeviceInfo>, ServiceError> {
-        let device_infos = self.service.devices().await?;
+        let device_infos = self.websocket.devices().await?;
         let aci_identity_keypair =
             aci_identity_store.get_identity_key_pair().await?;
 
@@ -520,7 +532,7 @@ impl AccountManager {
         };
 
         let result = self
-            .service
+            .websocket
             .submit_registration_request(
                 registration_method,
                 account_attributes,
@@ -580,7 +592,7 @@ impl AccountManager {
             self.profile_key.expect("set profile key in AccountManager");
 
         let encrypted_profile = self
-            .service
+            .websocket
             .retrieve_profile_by_id(address, Some(profile_key))
             .await?;
 
@@ -630,7 +642,7 @@ impl AccountManager {
         let profile_key_version = profile_key.get_profile_key_version(aci);
 
         Ok(self
-            .service
+            .websocket
             .write_profile::<C, S>(
                 &profile_key_version,
                 &name,
@@ -649,7 +661,7 @@ impl AccountManager {
         &mut self,
         attributes: AccountAttributes,
     ) -> Result<(), ServiceError> {
-        self.service.set_account_attributes(attributes).await
+        self.websocket.set_account_attributes(attributes).await
     }
 
     /// Update (encrypted) device name
@@ -910,7 +922,7 @@ impl AccountManager {
             device_messages.push(msg);
         }
 
-        self.service
+        self.websocket
             .distribute_pni_keys(
                 pni_identity_key,
                 device_messages,
@@ -925,7 +937,6 @@ impl AccountManager {
     }
 }
 
-#[expect(clippy::result_large_err)]
 fn calculate_hmac256(
     mac_key: &[u8],
     ciphertext: &[u8],
@@ -936,7 +947,6 @@ fn calculate_hmac256(
     Ok(mac.finalize().into_bytes())
 }
 
-#[expect(clippy::result_large_err)]
 pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
     device_name: &str,
@@ -973,7 +983,6 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     Ok(device_name)
 }
 
-#[expect(clippy::result_large_err)]
 fn decrypt_device_name_from_device_info(
     string: &str,
     aci: &IdentityKeyPair,
@@ -983,7 +992,6 @@ fn decrypt_device_name_from_device_info(
     crate::decrypt_device_name(aci.private_key(), &name)
 }
 
-#[expect(clippy::result_large_err)]
 pub fn decrypt_device_name(
     private_key: &PrivateKey,
     device_name: &DeviceName,

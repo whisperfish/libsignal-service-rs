@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::future::Future;
@@ -12,15 +13,23 @@ use futures::stream::FuturesUnordered;
 use reqwest::Method;
 use reqwest_websocket::WebSocket;
 use tokio::time::Instant;
+use tracing::debug;
 
+use crate::prelude::PushService;
 use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
     WebSocketResponseMessage,
 };
 use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
+pub mod account;
+pub mod keys;
+pub mod linking;
+pub mod profile;
+pub mod registration;
 mod request;
 mod sender;
+pub mod stickers;
 
 pub use request::WebSocketRequestMessageBuilder;
 
@@ -46,12 +55,27 @@ impl Stream for SignalRequestStream {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Identified;
+
+#[derive(Debug, Clone)]
+pub struct Unidentified;
+
+pub trait WebSocketType: 'static {}
+
+impl WebSocketType for Identified {}
+
+impl WebSocketType for Unidentified {}
+
 /// A dispatching web socket client for the Signal web socket API.
 ///
 /// This structure can be freely cloned, since this acts as a *facade* for multiple entry and exit
 /// points.
 #[derive(Clone)]
-pub struct SignalWebSocket {
+pub struct SignalWebSocket<C: WebSocketType> {
+    _type: PhantomData<C>,
+    // XXX: at the end of the migration, this should be CDN operations only
+    pub(crate) unidentified_push_service: PushService,
     inner: Arc<Mutex<SignalWebSocketInner>>,
     request_sink: mpsc::Sender<(
         WebSocketRequestMessage,
@@ -258,9 +282,8 @@ impl SignalWebSocketProcess {
                             self.ws.send(reqwest_websocket::Message::Binary(buffer)).await?
                         }
                         None => {
-                            return Err(ServiceError::WsClosing {
-                                reason: "end of application request stream; socket closing"
-                            });
+                            debug!("end of application request stream; websocket closing");
+                            return Ok(());
                         }
                     }
                 }
@@ -284,7 +307,7 @@ impl SignalWebSocketProcess {
                         Some(Ok(Message::Text(_))) => {
                             tracing::trace!("received text (unsupported, skipping)");
                         }
-                        Some(Err(e)) => return Err(ServiceError::WsError(e)),
+                        Some(Err(e)) => return Err(e.into()),
                         None => {
                             return Err(ServiceError::WsClosing {
                                 reason: "end of web request stream; socket closing"
@@ -320,14 +343,15 @@ impl SignalWebSocketProcess {
     }
 }
 
-impl SignalWebSocket {
+impl<C: WebSocketType> SignalWebSocket<C> {
     fn inner_locked(&self) -> MutexGuard<'_, SignalWebSocketInner> {
         self.inner.lock().unwrap()
     }
 
-    pub fn from_socket(
+    pub fn new(
         ws: WebSocket,
         keep_alive_path: String,
+        unidentified_push_service: PushService,
     ) -> (Self, impl Future<Output = ()>) {
         // Create process
         let (incoming_request_sink, incoming_request_stream) = mpsc::channel(1);
@@ -357,7 +381,9 @@ impl SignalWebSocket {
 
         (
             Self {
+                _type: PhantomData,
                 request_sink: outgoing_request_sink,
+                unidentified_push_service,
                 inner: Arc::new(Mutex::new(SignalWebSocketInner {
                     stream: Some(SignalRequestStream {
                         inner: incoming_request_stream,
@@ -445,5 +471,20 @@ impl SignalWebSocket {
             .await?
             .json()
             .await
+    }
+}
+
+impl WebSocketResponseMessage {
+    pub async fn service_error_for_status(self) -> Result<Self, ServiceError> {
+        super::push_service::response::service_error_for_status(self).await
+    }
+
+    pub async fn json<T: for<'a> serde::Deserialize<'a>>(
+        &self,
+    ) -> Result<T, ServiceError> {
+        self.body
+            .as_ref()
+            .ok_or(ServiceError::UnsupportedContent)
+            .and_then(|b| serde_json::from_slice(b).map_err(Into::into))
     }
 }

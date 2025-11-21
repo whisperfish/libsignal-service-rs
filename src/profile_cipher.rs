@@ -5,7 +5,8 @@ use rand::{rand_core, CryptoRng, RngCore};
 use zkgroup::profiles::ProfileKey;
 
 use crate::{
-    profile_name::ProfileName, push_service::SignalServiceProfile, Profile,
+    profile_name::ProfileName, websocket::profile::SignalServiceProfile,
+    Profile,
 };
 
 /// Encrypt and decrypt a [`ProfileName`] and other profile information.

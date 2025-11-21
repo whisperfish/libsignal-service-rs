@@ -5,11 +5,12 @@ use libsignal_protocol::{
 };
 use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
-use crate::groups_v2::GroupDecodingError;
-
-use super::{
-    MismatchedDevices, ProofRequired, RegistrationLockFailure, StaleDevices,
+use crate::{
+    groups_v2::GroupDecodingError,
+    websocket::registration::RegistrationLockFailure,
 };
+
+use super::{MismatchedDevices, ProofRequired, StaleDevices};
 
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
@@ -47,7 +48,7 @@ pub enum ServiceError {
     UnhandledResponseCode { http_code: u16 },
 
     #[error("Websocket error: {0}")]
-    WsError(#[from] reqwest_websocket::Error),
+    WsError(Box<reqwest_websocket::Error>),
     #[error("Websocket closing: {reason}")]
     WsClosing { reason: &'static str },
 
@@ -120,5 +121,11 @@ pub enum ServiceError {
 impl From<FingerprintError> for ServiceError {
     fn from(value: FingerprintError) -> Self {
         ServiceError::Fingerprint(value)
+    }
+}
+
+impl From<reqwest_websocket::Error> for ServiceError {
+    fn from(error: reqwest_websocket::Error) -> Self {
+        Self::WsError(Box::new(error))
     }
 }

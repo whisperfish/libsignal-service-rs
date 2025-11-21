@@ -30,7 +30,7 @@ use crate::{
     session_store::SessionStoreExt,
     unidentified_access::UnidentifiedAccess,
     utils::serde_service_id,
-    websocket::SignalWebSocket,
+    websocket::{self, SignalWebSocket},
 };
 
 pub use crate::proto::ContactDetails;
@@ -88,8 +88,8 @@ pub struct AttachmentSpec {
 
 #[derive(Clone)]
 pub struct MessageSender<S> {
-    identified_ws: SignalWebSocket,
-    unidentified_ws: SignalWebSocket,
+    identified_ws: SignalWebSocket<websocket::Identified>,
+    unidentified_ws: SignalWebSocket<websocket::Unidentified>,
     service: PushService,
     cipher: ServiceCipher<S>,
     protocol_store: S,
@@ -165,8 +165,8 @@ where
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        identified_ws: SignalWebSocket,
-        unidentified_ws: SignalWebSocket,
+        identified_ws: SignalWebSocket<websocket::Identified>,
+        unidentified_ws: SignalWebSocket<websocket::Unidentified>,
         service: PushService,
         cipher: ServiceCipher<S>,
         protocol_store: S,
@@ -647,7 +647,7 @@ where
                             (*missing_device_id).try_into()?,
                         )?;
                         let pre_key = self
-                            .service
+                            .identified_ws
                             .get_pre_key(&recipient, *missing_device_id)
                             .await?;
 
@@ -837,7 +837,6 @@ where
         Ok(())
     }
 
-    #[expect(clippy::result_large_err)]
     #[tracing::instrument(level = "trace", skip(self))]
     fn create_pni_signature(
         &mut self,
@@ -993,7 +992,7 @@ where
                 recipient_protocol_address
             );
             let pre_keys = match self
-                .service
+                .identified_ws
                 .get_pre_keys(recipient, device_id.into())
                 .await
             {
