@@ -48,11 +48,16 @@ If you're looking to contribute or want to ask a question, you're more than welc
 ## License
 
 Copyright 2015-2019 Open Whisper Systems
+
 Copyright 2020-2023 Signal Messenger, LLC
+
 Copyright 2019-2021 Michael F Bryan
-Copyright 2019-2024 Ruben De Smet
-Copyright 2019-2024 Gabriel Féron
-Copyright 2019-2024 Whisperfish contributors
+
+Copyright 2019-2025 Ruben De Smet
+
+Copyright 2019-2025 Gabriel Féron
+
+Copyright 2019-2025 Whisperfish contributors
 
 Licensed under the AGPLv3: http://www.gnu.org/licenses/agpl-3.0.html
 
