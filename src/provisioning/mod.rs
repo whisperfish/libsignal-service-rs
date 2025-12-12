@@ -7,7 +7,6 @@ use std::convert::TryInto;
 pub use cipher::ProvisioningCipher;
 
 use base64::Engine;
-use derivative::Derivative;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
 use libsignal_core::curve::CurveError;
@@ -129,21 +128,20 @@ pub enum SecondaryDeviceProvisioning {
     NewDeviceRegistration(NewDeviceRegistration),
 }
 
-#[derive(Derivative)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug)]
 pub struct NewDeviceRegistration {
     pub phone_number: phonenumber::PhoneNumber,
     pub device_id: DeviceId,
     pub registration_id: u32,
     pub pni_registration_id: u32,
     pub service_ids: ServiceIds,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub aci_private_key: PrivateKey,
     pub aci_public_key: IdentityKey,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub pni_private_key: PrivateKey,
     pub pni_public_key: IdentityKey,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub profile_key: ProfileKey,
 }
 
