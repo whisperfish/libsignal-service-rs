@@ -7,9 +7,9 @@ license = "AGPL-3.0-only"
 readme = "README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.83.0" }
-libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.83.0" }
-zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.83.0" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.86.6" }
+libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.86.6" }
+zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.86.6" }
 
 aes = "0.8"
 aes-gcm = "0.10"
