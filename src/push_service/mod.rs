@@ -8,7 +8,6 @@ use crate::{
     websocket::SignalWebSocket,
 };
 
-use derivative::Derivative;
 use libsignal_protocol::{
     error::SignalProtocolError,
     kem::{Key, Public},
@@ -49,11 +48,10 @@ pub struct ProofRequired {
     pub options: Vec<String>,
 }
 
-#[derive(Derivative, Clone, Serialize, Deserialize)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug, Clone, Serialize, Deserialize)]
 pub struct HttpAuth {
     pub username: String,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub password: String,
 }
 
