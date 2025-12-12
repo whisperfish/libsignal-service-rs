@@ -146,13 +146,12 @@ impl AccountManager {
     ///
     /// Equivalent to Java's RefreshPreKeysJob
     #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, csprng, protocol_store))]
-    pub async fn update_pre_key_bundle<R: Rng + CryptoRng, P: PreKeysStore>(
+    #[tracing::instrument(skip(self, protocol_store))]
+    pub async fn update_pre_key_bundle<P: PreKeysStore>(
         &mut self,
         protocol_store: &mut P,
         service_id_kind: ServiceIdKind,
         use_last_resort_key: bool,
-        csprng: &mut R,
     ) -> Result<(), ServiceError> {
         let prekey_status = match self
             .websocket
@@ -230,7 +229,7 @@ impl AccountManager {
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
             crate::pre_keys::replenish_pre_keys(
                 protocol_store,
-                csprng,
+                &mut rand::rng(),
                 &identity_key_pair,
                 use_last_resort_key && !has_last_resort_key,
                 PRE_KEY_BATCH_SIZE,
