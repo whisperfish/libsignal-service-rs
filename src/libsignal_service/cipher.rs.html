@@ -457,7 +457,7 @@
 <a href=#457 id=457 data-nosnippet>457</a>    data: Vec&lt;u8&gt;,
 <a href=#458 id=458 data-nosnippet>458</a>}
 <a href=#459 id=459 data-nosnippet>459</a>
-<a href=#460 id=460 data-nosnippet>460</a><span class="attr">#[expect(clippy::comparison_chain, clippy::result_large_err)]
+<a href=#460 id=460 data-nosnippet>460</a><span class="attr">#[expect(clippy::comparison_chain)]
 <a href=#461 id=461 data-nosnippet>461</a></span><span class="kw">fn </span>add_padding(version: u32, contents: <span class="kw-2">&amp;</span>[u8]) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, ServiceError&gt; {
 <a href=#462 id=462 data-nosnippet>462</a>    <span class="kw">if </span>version &lt; <span class="number">2 </span>{
 <a href=#463 id=463 data-nosnippet>463</a>        <span class="prelude-val">Err</span>(ServiceError::PaddingVersion(version))
@@ -480,7 +480,7 @@
 <a href=#480 id=480 data-nosnippet>480</a>    }
 <a href=#481 id=481 data-nosnippet>481</a>}
 <a href=#482 id=482 data-nosnippet>482</a>
-<a href=#483 id=483 data-nosnippet>483</a><span class="attr">#[expect(clippy::comparison_chain, clippy::result_large_err)]
+<a href=#483 id=483 data-nosnippet>483</a><span class="attr">#[expect(clippy::comparison_chain)]
 <a href=#484 id=484 data-nosnippet>484</a></span><span class="kw">fn </span>strip_padding_version(
 <a href=#485 id=485 data-nosnippet>485</a>    version: u32,
 <a href=#486 id=486 data-nosnippet>486</a>    contents: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;,
@@ -497,135 +497,134 @@
 <a href=#497 id=497 data-nosnippet>497</a>    }
 <a href=#498 id=498 data-nosnippet>498</a>}
 <a href=#499 id=499 data-nosnippet>499</a>
-<a href=#500 id=500 data-nosnippet>500</a><span class="attr">#[expect(clippy::result_large_err)]
-<a href=#501 id=501 data-nosnippet>501</a></span><span class="kw">fn </span>strip_padding(contents: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt; {
-<a href=#502 id=502 data-nosnippet>502</a>    <span class="kw">let </span>new_length = Iso7816::raw_unpad(contents)<span class="question-mark">?</span>.len();
-<a href=#503 id=503 data-nosnippet>503</a>    contents.resize(new_length, <span class="number">0</span>);
-<a href=#504 id=504 data-nosnippet>504</a>    <span class="prelude-val">Ok</span>(())
-<a href=#505 id=505 data-nosnippet>505</a>}
-<a href=#506 id=506 data-nosnippet>506</a>
-<a href=#507 id=507 data-nosnippet>507</a><span class="doccomment">/// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
-<a href=#508 id=508 data-nosnippet>508</a></span><span class="kw">pub async fn </span>get_preferred_protocol_address&lt;S: SessionStore&gt;(
-<a href=#509 id=509 data-nosnippet>509</a>    session_store: <span class="kw-2">&amp;</span>S,
-<a href=#510 id=510 data-nosnippet>510</a>    address: <span class="kw-2">&amp;</span>ServiceId,
-<a href=#511 id=511 data-nosnippet>511</a>    device_id: DeviceId,
-<a href=#512 id=512 data-nosnippet>512</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ProtocolAddress, libsignal_protocol::error::SignalProtocolError&gt; {
-<a href=#513 id=513 data-nosnippet>513</a>    <span class="kw">let </span>address = address.to_protocol_address(device_id);
-<a href=#514 id=514 data-nosnippet>514</a>    <span class="kw">if </span>session_store.load_session(<span class="kw-2">&amp;</span>address).<span class="kw">await</span><span class="question-mark">?</span>.is_some() {
-<a href=#515 id=515 data-nosnippet>515</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(address);
-<a href=#516 id=516 data-nosnippet>516</a>    }
-<a href=#517 id=517 data-nosnippet>517</a>
-<a href=#518 id=518 data-nosnippet>518</a>    <span class="prelude-val">Ok</span>(address)
-<a href=#519 id=519 data-nosnippet>519</a>}
-<a href=#520 id=520 data-nosnippet>520</a>
-<a href=#521 id=521 data-nosnippet>521</a><span class="doccomment">/// Decrypt a Sealed Sender message `ciphertext` in either the v1 or v2 format, validate its sender
-<a href=#522 id=522 data-nosnippet>522</a>/// certificate, and then decrypt the inner message payload.
-<a href=#523 id=523 data-nosnippet>523</a>///
-<a href=#524 id=524 data-nosnippet>524</a>/// This method calls [`sealed_sender_decrypt_to_usmc`] to extract the sender information, including
-<a href=#525 id=525 data-nosnippet>525</a>/// the embedded [`SenderCertificate`]. The sender certificate (signed by the [`ServerCertificate`])
-<a href=#526 id=526 data-nosnippet>526</a>/// is then validated against the `trust_root` baked into the client to ensure that the sender's
-<a href=#527 id=527 data-nosnippet>527</a>/// identity was not forged.
-<a href=#528 id=528 data-nosnippet>528</a></span><span class="attr">#[allow(clippy::too_many_arguments)]
-<a href=#529 id=529 data-nosnippet>529</a>#[tracing::instrument(
-<a href=#530 id=530 data-nosnippet>530</a>    skip(
-<a href=#531 id=531 data-nosnippet>531</a>        ciphertext,
-<a href=#532 id=532 data-nosnippet>532</a>        trust_root,
-<a href=#533 id=533 data-nosnippet>533</a>        identity_store,
-<a href=#534 id=534 data-nosnippet>534</a>        session_store,
-<a href=#535 id=535 data-nosnippet>535</a>        pre_key_store,
-<a href=#536 id=536 data-nosnippet>536</a>        signed_pre_key_store,
-<a href=#537 id=537 data-nosnippet>537</a>        sender_key_store,
-<a href=#538 id=538 data-nosnippet>538</a>        kyber_pre_key_store
-<a href=#539 id=539 data-nosnippet>539</a>    ),
-<a href=#540 id=540 data-nosnippet>540</a>    fields(
-<a href=#541 id=541 data-nosnippet>541</a>        ciphertext = ciphertext.len(),
-<a href=#542 id=542 data-nosnippet>542</a>    )
-<a href=#543 id=543 data-nosnippet>543</a>)]
-<a href=#544 id=544 data-nosnippet>544</a></span><span class="kw">async fn </span>sealed_sender_decrypt(
-<a href=#545 id=545 data-nosnippet>545</a>    ciphertext: <span class="kw-2">&amp;</span>[u8],
-<a href=#546 id=546 data-nosnippet>546</a>    trust_root: <span class="kw-2">&amp;</span>PublicKey,
-<a href=#547 id=547 data-nosnippet>547</a>    timestamp: Timestamp,
-<a href=#548 id=548 data-nosnippet>548</a>    local_e164: <span class="prelude-ty">Option</span>&lt;String&gt;,
-<a href=#549 id=549 data-nosnippet>549</a>    local_uuid: String,
-<a href=#550 id=550 data-nosnippet>550</a>    local_device_id: DeviceId,
-<a href=#551 id=551 data-nosnippet>551</a>    identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
-<a href=#552 id=552 data-nosnippet>552</a>    session_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SessionStore,
-<a href=#553 id=553 data-nosnippet>553</a>    pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>PreKeyStore,
-<a href=#554 id=554 data-nosnippet>554</a>    signed_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SignedPreKeyStore,
-<a href=#555 id=555 data-nosnippet>555</a>    sender_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SenderKeyStore,
-<a href=#556 id=556 data-nosnippet>556</a>    kyber_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>KyberPreKeyStore,
-<a href=#557 id=557 data-nosnippet>557</a>) -&gt; <span class="prelude-ty">Result</span>&lt;SealedSenderDecryptionResult, SignalProtocolError&gt; {
-<a href=#558 id=558 data-nosnippet>558</a>    <span class="kw">let </span>usmc =
-<a href=#559 id=559 data-nosnippet>559</a>        sealed_sender_decrypt_to_usmc(ciphertext, identity_store).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#560 id=560 data-nosnippet>560</a>
-<a href=#561 id=561 data-nosnippet>561</a>    <span class="kw">if </span>!usmc.sender()<span class="question-mark">?</span>.validate(trust_root, timestamp)<span class="question-mark">? </span>{
-<a href=#562 id=562 data-nosnippet>562</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
-<a href=#563 id=563 data-nosnippet>563</a>            <span class="string">"trust root validation failed"</span>.to_string(),
-<a href=#564 id=564 data-nosnippet>564</a>        ));
-<a href=#565 id=565 data-nosnippet>565</a>    }
-<a href=#566 id=566 data-nosnippet>566</a>
-<a href=#567 id=567 data-nosnippet>567</a>    <span class="kw">let </span>is_local_uuid = local_uuid == usmc.sender()<span class="question-mark">?</span>.sender_uuid()<span class="question-mark">?</span>;
-<a href=#568 id=568 data-nosnippet>568</a>
-<a href=#569 id=569 data-nosnippet>569</a>    <span class="kw">let </span>is_local_e164 = <span class="kw">match </span>(local_e164, usmc.sender()<span class="question-mark">?</span>.sender_e164()<span class="question-mark">?</span>) {
-<a href=#570 id=570 data-nosnippet>570</a>        (<span class="prelude-val">Some</span>(l), <span class="prelude-val">Some</span>(s)) =&gt; l == s,
-<a href=#571 id=571 data-nosnippet>571</a>        (<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-<a href=#572 id=572 data-nosnippet>572</a>    };
-<a href=#573 id=573 data-nosnippet>573</a>
-<a href=#574 id=574 data-nosnippet>574</a>    <span class="kw">if </span>(is_local_e164 || is_local_uuid)
-<a href=#575 id=575 data-nosnippet>575</a>        &amp;&amp; usmc.sender()<span class="question-mark">?</span>.sender_device_id()<span class="question-mark">? </span>== local_device_id
-<a href=#576 id=576 data-nosnippet>576</a>    {
-<a href=#577 id=577 data-nosnippet>577</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::SealedSenderSelfSend);
-<a href=#578 id=578 data-nosnippet>578</a>    }
-<a href=#579 id=579 data-nosnippet>579</a>
-<a href=#580 id=580 data-nosnippet>580</a>    <span class="kw">let </span><span class="kw-2">mut </span>rng = rng();
-<a href=#581 id=581 data-nosnippet>581</a>
-<a href=#582 id=582 data-nosnippet>582</a>    <span class="kw">let </span>remote_address = ProtocolAddress::new(
-<a href=#583 id=583 data-nosnippet>583</a>        usmc.sender()<span class="question-mark">?</span>.sender_uuid()<span class="question-mark">?</span>.to_string(),
-<a href=#584 id=584 data-nosnippet>584</a>        usmc.sender()<span class="question-mark">?</span>.sender_device_id()<span class="question-mark">?</span>,
-<a href=#585 id=585 data-nosnippet>585</a>    );
-<a href=#586 id=586 data-nosnippet>586</a>
-<a href=#587 id=587 data-nosnippet>587</a>    <span class="kw">let </span>message = <span class="kw">match </span>usmc.msg_type()<span class="question-mark">? </span>{
-<a href=#588 id=588 data-nosnippet>588</a>        CiphertextMessageType::Whisper =&gt; {
-<a href=#589 id=589 data-nosnippet>589</a>            <span class="kw">let </span>ctext = SignalMessage::try_from(usmc.contents()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
-<a href=#590 id=590 data-nosnippet>590</a>            message_decrypt_signal(
-<a href=#591 id=591 data-nosnippet>591</a>                <span class="kw-2">&amp;</span>ctext,
-<a href=#592 id=592 data-nosnippet>592</a>                <span class="kw-2">&amp;</span>remote_address,
-<a href=#593 id=593 data-nosnippet>593</a>                session_store,
-<a href=#594 id=594 data-nosnippet>594</a>                identity_store,
-<a href=#595 id=595 data-nosnippet>595</a>                <span class="kw-2">&amp;mut </span>rng,
-<a href=#596 id=596 data-nosnippet>596</a>            )
-<a href=#597 id=597 data-nosnippet>597</a>            .<span class="kw">await</span><span class="question-mark">?
-<a href=#598 id=598 data-nosnippet>598</a>        </span>},
-<a href=#599 id=599 data-nosnippet>599</a>        CiphertextMessageType::PreKey =&gt; {
-<a href=#600 id=600 data-nosnippet>600</a>            <span class="kw">let </span>ctext = PreKeySignalMessage::try_from(usmc.contents()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
-<a href=#601 id=601 data-nosnippet>601</a>            message_decrypt_prekey(
-<a href=#602 id=602 data-nosnippet>602</a>                <span class="kw-2">&amp;</span>ctext,
-<a href=#603 id=603 data-nosnippet>603</a>                <span class="kw-2">&amp;</span>remote_address,
-<a href=#604 id=604 data-nosnippet>604</a>                session_store,
-<a href=#605 id=605 data-nosnippet>605</a>                identity_store,
-<a href=#606 id=606 data-nosnippet>606</a>                pre_key_store,
-<a href=#607 id=607 data-nosnippet>607</a>                signed_pre_key_store,
-<a href=#608 id=608 data-nosnippet>608</a>                kyber_pre_key_store,
-<a href=#609 id=609 data-nosnippet>609</a>                <span class="kw-2">&amp;mut </span>rng,
-<a href=#610 id=610 data-nosnippet>610</a>            )
-<a href=#611 id=611 data-nosnippet>611</a>            .<span class="kw">await</span><span class="question-mark">?
-<a href=#612 id=612 data-nosnippet>612</a>        </span>},
-<a href=#613 id=613 data-nosnippet>613</a>        CiphertextMessageType::SenderKey =&gt; {
-<a href=#614 id=614 data-nosnippet>614</a>            group_decrypt(usmc.contents()<span class="question-mark">?</span>, sender_key_store, <span class="kw-2">&amp;</span>remote_address)
-<a href=#615 id=615 data-nosnippet>615</a>                .<span class="kw">await</span><span class="question-mark">?
-<a href=#616 id=616 data-nosnippet>616</a>        </span>},
-<a href=#617 id=617 data-nosnippet>617</a>        msg_type =&gt; {
-<a href=#618 id=618 data-nosnippet>618</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidMessage(
-<a href=#619 id=619 data-nosnippet>619</a>                msg_type,
-<a href=#620 id=620 data-nosnippet>620</a>                <span class="string">"unexpected message type for sealed_sender_decrypt"</span>,
-<a href=#621 id=621 data-nosnippet>621</a>            ));
-<a href=#622 id=622 data-nosnippet>622</a>        },
-<a href=#623 id=623 data-nosnippet>623</a>    };
-<a href=#624 id=624 data-nosnippet>624</a>
-<a href=#625 id=625 data-nosnippet>625</a>    <span class="prelude-val">Ok</span>(SealedSenderDecryptionResult {
-<a href=#626 id=626 data-nosnippet>626</a>        sender_uuid: usmc.sender()<span class="question-mark">?</span>.sender_uuid()<span class="question-mark">?</span>.to_string(),
-<a href=#627 id=627 data-nosnippet>627</a>        sender_e164: usmc.sender()<span class="question-mark">?</span>.sender_e164()<span class="question-mark">?</span>.map(|s| s.to_string()),
-<a href=#628 id=628 data-nosnippet>628</a>        device_id: usmc.sender()<span class="question-mark">?</span>.sender_device_id()<span class="question-mark">?</span>,
-<a href=#629 id=629 data-nosnippet>629</a>        message,
-<a href=#630 id=630 data-nosnippet>630</a>    })
-<a href=#631 id=631 data-nosnippet>631</a>}</code></pre></div></section></main></body></html>
+<a href=#500 id=500 data-nosnippet>500</a><span class="kw">fn </span>strip_padding(contents: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), ServiceError&gt; {
+<a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">let </span>new_length = Iso7816::raw_unpad(contents)<span class="question-mark">?</span>.len();
+<a href=#502 id=502 data-nosnippet>502</a>    contents.resize(new_length, <span class="number">0</span>);
+<a href=#503 id=503 data-nosnippet>503</a>    <span class="prelude-val">Ok</span>(())
+<a href=#504 id=504 data-nosnippet>504</a>}
+<a href=#505 id=505 data-nosnippet>505</a>
+<a href=#506 id=506 data-nosnippet>506</a><span class="doccomment">/// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
+<a href=#507 id=507 data-nosnippet>507</a></span><span class="kw">pub async fn </span>get_preferred_protocol_address&lt;S: SessionStore&gt;(
+<a href=#508 id=508 data-nosnippet>508</a>    session_store: <span class="kw-2">&amp;</span>S,
+<a href=#509 id=509 data-nosnippet>509</a>    address: <span class="kw-2">&amp;</span>ServiceId,
+<a href=#510 id=510 data-nosnippet>510</a>    device_id: DeviceId,
+<a href=#511 id=511 data-nosnippet>511</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ProtocolAddress, libsignal_protocol::error::SignalProtocolError&gt; {
+<a href=#512 id=512 data-nosnippet>512</a>    <span class="kw">let </span>address = address.to_protocol_address(device_id);
+<a href=#513 id=513 data-nosnippet>513</a>    <span class="kw">if </span>session_store.load_session(<span class="kw-2">&amp;</span>address).<span class="kw">await</span><span class="question-mark">?</span>.is_some() {
+<a href=#514 id=514 data-nosnippet>514</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(address);
+<a href=#515 id=515 data-nosnippet>515</a>    }
+<a href=#516 id=516 data-nosnippet>516</a>
+<a href=#517 id=517 data-nosnippet>517</a>    <span class="prelude-val">Ok</span>(address)
+<a href=#518 id=518 data-nosnippet>518</a>}
+<a href=#519 id=519 data-nosnippet>519</a>
+<a href=#520 id=520 data-nosnippet>520</a><span class="doccomment">/// Decrypt a Sealed Sender message `ciphertext` in either the v1 or v2 format, validate its sender
+<a href=#521 id=521 data-nosnippet>521</a>/// certificate, and then decrypt the inner message payload.
+<a href=#522 id=522 data-nosnippet>522</a>///
+<a href=#523 id=523 data-nosnippet>523</a>/// This method calls [`sealed_sender_decrypt_to_usmc`] to extract the sender information, including
+<a href=#524 id=524 data-nosnippet>524</a>/// the embedded [`SenderCertificate`]. The sender certificate (signed by the [`ServerCertificate`])
+<a href=#525 id=525 data-nosnippet>525</a>/// is then validated against the `trust_root` baked into the client to ensure that the sender's
+<a href=#526 id=526 data-nosnippet>526</a>/// identity was not forged.
+<a href=#527 id=527 data-nosnippet>527</a></span><span class="attr">#[allow(clippy::too_many_arguments)]
+<a href=#528 id=528 data-nosnippet>528</a>#[tracing::instrument(
+<a href=#529 id=529 data-nosnippet>529</a>    skip(
+<a href=#530 id=530 data-nosnippet>530</a>        ciphertext,
+<a href=#531 id=531 data-nosnippet>531</a>        trust_root,
+<a href=#532 id=532 data-nosnippet>532</a>        identity_store,
+<a href=#533 id=533 data-nosnippet>533</a>        session_store,
+<a href=#534 id=534 data-nosnippet>534</a>        pre_key_store,
+<a href=#535 id=535 data-nosnippet>535</a>        signed_pre_key_store,
+<a href=#536 id=536 data-nosnippet>536</a>        sender_key_store,
+<a href=#537 id=537 data-nosnippet>537</a>        kyber_pre_key_store
+<a href=#538 id=538 data-nosnippet>538</a>    ),
+<a href=#539 id=539 data-nosnippet>539</a>    fields(
+<a href=#540 id=540 data-nosnippet>540</a>        ciphertext = ciphertext.len(),
+<a href=#541 id=541 data-nosnippet>541</a>    )
+<a href=#542 id=542 data-nosnippet>542</a>)]
+<a href=#543 id=543 data-nosnippet>543</a></span><span class="kw">async fn </span>sealed_sender_decrypt(
+<a href=#544 id=544 data-nosnippet>544</a>    ciphertext: <span class="kw-2">&amp;</span>[u8],
+<a href=#545 id=545 data-nosnippet>545</a>    trust_root: <span class="kw-2">&amp;</span>PublicKey,
+<a href=#546 id=546 data-nosnippet>546</a>    timestamp: Timestamp,
+<a href=#547 id=547 data-nosnippet>547</a>    local_e164: <span class="prelude-ty">Option</span>&lt;String&gt;,
+<a href=#548 id=548 data-nosnippet>548</a>    local_uuid: String,
+<a href=#549 id=549 data-nosnippet>549</a>    local_device_id: DeviceId,
+<a href=#550 id=550 data-nosnippet>550</a>    identity_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>IdentityKeyStore,
+<a href=#551 id=551 data-nosnippet>551</a>    session_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SessionStore,
+<a href=#552 id=552 data-nosnippet>552</a>    pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>PreKeyStore,
+<a href=#553 id=553 data-nosnippet>553</a>    signed_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SignedPreKeyStore,
+<a href=#554 id=554 data-nosnippet>554</a>    sender_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>SenderKeyStore,
+<a href=#555 id=555 data-nosnippet>555</a>    kyber_pre_key_store: <span class="kw-2">&amp;mut </span><span class="kw">dyn </span>KyberPreKeyStore,
+<a href=#556 id=556 data-nosnippet>556</a>) -&gt; <span class="prelude-ty">Result</span>&lt;SealedSenderDecryptionResult, SignalProtocolError&gt; {
+<a href=#557 id=557 data-nosnippet>557</a>    <span class="kw">let </span>usmc =
+<a href=#558 id=558 data-nosnippet>558</a>        sealed_sender_decrypt_to_usmc(ciphertext, identity_store).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#559 id=559 data-nosnippet>559</a>
+<a href=#560 id=560 data-nosnippet>560</a>    <span class="kw">if </span>!usmc.sender()<span class="question-mark">?</span>.validate(trust_root, timestamp)<span class="question-mark">? </span>{
+<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidSealedSenderMessage(
+<a href=#562 id=562 data-nosnippet>562</a>            <span class="string">"trust root validation failed"</span>.to_string(),
+<a href=#563 id=563 data-nosnippet>563</a>        ));
+<a href=#564 id=564 data-nosnippet>564</a>    }
+<a href=#565 id=565 data-nosnippet>565</a>
+<a href=#566 id=566 data-nosnippet>566</a>    <span class="kw">let </span>is_local_uuid = local_uuid == usmc.sender()<span class="question-mark">?</span>.sender_uuid()<span class="question-mark">?</span>;
+<a href=#567 id=567 data-nosnippet>567</a>
+<a href=#568 id=568 data-nosnippet>568</a>    <span class="kw">let </span>is_local_e164 = <span class="kw">match </span>(local_e164, usmc.sender()<span class="question-mark">?</span>.sender_e164()<span class="question-mark">?</span>) {
+<a href=#569 id=569 data-nosnippet>569</a>        (<span class="prelude-val">Some</span>(l), <span class="prelude-val">Some</span>(s)) =&gt; l == s,
+<a href=#570 id=570 data-nosnippet>570</a>        (<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+<a href=#571 id=571 data-nosnippet>571</a>    };
+<a href=#572 id=572 data-nosnippet>572</a>
+<a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">if </span>(is_local_e164 || is_local_uuid)
+<a href=#574 id=574 data-nosnippet>574</a>        &amp;&amp; usmc.sender()<span class="question-mark">?</span>.sender_device_id()<span class="question-mark">? </span>== local_device_id
+<a href=#575 id=575 data-nosnippet>575</a>    {
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::SealedSenderSelfSend);
+<a href=#577 id=577 data-nosnippet>577</a>    }
+<a href=#578 id=578 data-nosnippet>578</a>
+<a href=#579 id=579 data-nosnippet>579</a>    <span class="kw">let </span><span class="kw-2">mut </span>rng = rng();
+<a href=#580 id=580 data-nosnippet>580</a>
+<a href=#581 id=581 data-nosnippet>581</a>    <span class="kw">let </span>remote_address = ProtocolAddress::new(
+<a href=#582 id=582 data-nosnippet>582</a>        usmc.sender()<span class="question-mark">?</span>.sender_uuid()<span class="question-mark">?</span>.to_string(),
+<a href=#583 id=583 data-nosnippet>583</a>        usmc.sender()<span class="question-mark">?</span>.sender_device_id()<span class="question-mark">?</span>,
+<a href=#584 id=584 data-nosnippet>584</a>    );
+<a href=#585 id=585 data-nosnippet>585</a>
+<a href=#586 id=586 data-nosnippet>586</a>    <span class="kw">let </span>message = <span class="kw">match </span>usmc.msg_type()<span class="question-mark">? </span>{
+<a href=#587 id=587 data-nosnippet>587</a>        CiphertextMessageType::Whisper =&gt; {
+<a href=#588 id=588 data-nosnippet>588</a>            <span class="kw">let </span>ctext = SignalMessage::try_from(usmc.contents()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+<a href=#589 id=589 data-nosnippet>589</a>            message_decrypt_signal(
+<a href=#590 id=590 data-nosnippet>590</a>                <span class="kw-2">&amp;</span>ctext,
+<a href=#591 id=591 data-nosnippet>591</a>                <span class="kw-2">&amp;</span>remote_address,
+<a href=#592 id=592 data-nosnippet>592</a>                session_store,
+<a href=#593 id=593 data-nosnippet>593</a>                identity_store,
+<a href=#594 id=594 data-nosnippet>594</a>                <span class="kw-2">&amp;mut </span>rng,
+<a href=#595 id=595 data-nosnippet>595</a>            )
+<a href=#596 id=596 data-nosnippet>596</a>            .<span class="kw">await</span><span class="question-mark">?
+<a href=#597 id=597 data-nosnippet>597</a>        </span>},
+<a href=#598 id=598 data-nosnippet>598</a>        CiphertextMessageType::PreKey =&gt; {
+<a href=#599 id=599 data-nosnippet>599</a>            <span class="kw">let </span>ctext = PreKeySignalMessage::try_from(usmc.contents()<span class="question-mark">?</span>)<span class="question-mark">?</span>;
+<a href=#600 id=600 data-nosnippet>600</a>            message_decrypt_prekey(
+<a href=#601 id=601 data-nosnippet>601</a>                <span class="kw-2">&amp;</span>ctext,
+<a href=#602 id=602 data-nosnippet>602</a>                <span class="kw-2">&amp;</span>remote_address,
+<a href=#603 id=603 data-nosnippet>603</a>                session_store,
+<a href=#604 id=604 data-nosnippet>604</a>                identity_store,
+<a href=#605 id=605 data-nosnippet>605</a>                pre_key_store,
+<a href=#606 id=606 data-nosnippet>606</a>                signed_pre_key_store,
+<a href=#607 id=607 data-nosnippet>607</a>                kyber_pre_key_store,
+<a href=#608 id=608 data-nosnippet>608</a>                <span class="kw-2">&amp;mut </span>rng,
+<a href=#609 id=609 data-nosnippet>609</a>            )
+<a href=#610 id=610 data-nosnippet>610</a>            .<span class="kw">await</span><span class="question-mark">?
+<a href=#611 id=611 data-nosnippet>611</a>        </span>},
+<a href=#612 id=612 data-nosnippet>612</a>        CiphertextMessageType::SenderKey =&gt; {
+<a href=#613 id=613 data-nosnippet>613</a>            group_decrypt(usmc.contents()<span class="question-mark">?</span>, sender_key_store, <span class="kw-2">&amp;</span>remote_address)
+<a href=#614 id=614 data-nosnippet>614</a>                .<span class="kw">await</span><span class="question-mark">?
+<a href=#615 id=615 data-nosnippet>615</a>        </span>},
+<a href=#616 id=616 data-nosnippet>616</a>        msg_type =&gt; {
+<a href=#617 id=617 data-nosnippet>617</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(SignalProtocolError::InvalidMessage(
+<a href=#618 id=618 data-nosnippet>618</a>                msg_type,
+<a href=#619 id=619 data-nosnippet>619</a>                <span class="string">"unexpected message type for sealed_sender_decrypt"</span>,
+<a href=#620 id=620 data-nosnippet>620</a>            ));
+<a href=#621 id=621 data-nosnippet>621</a>        },
+<a href=#622 id=622 data-nosnippet>622</a>    };
+<a href=#623 id=623 data-nosnippet>623</a>
+<a href=#624 id=624 data-nosnippet>624</a>    <span class="prelude-val">Ok</span>(SealedSenderDecryptionResult {
+<a href=#625 id=625 data-nosnippet>625</a>        sender_uuid: usmc.sender()<span class="question-mark">?</span>.sender_uuid()<span class="question-mark">?</span>.to_string(),
+<a href=#626 id=626 data-nosnippet>626</a>        sender_e164: usmc.sender()<span class="question-mark">?</span>.sender_e164()<span class="question-mark">?</span>.map(|s| s.to_string()),
+<a href=#627 id=627 data-nosnippet>627</a>        device_id: usmc.sender()<span class="question-mark">?</span>.sender_device_id()<span class="question-mark">?</span>,
+<a href=#628 id=628 data-nosnippet>628</a>        message,
+<a href=#629 id=629 data-nosnippet>629</a>    })
+<a href=#630 id=630 data-nosnippet>630</a>}</code></pre></div></section></main></body></html>
