@@ -2,17 +2,10 @@ use std::{sync::LazyLock, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
-    pre_keys::{KyberPreKeyEntity, PreKeyEntity, SignedPreKeyEntity},
     prelude::ServiceConfiguration,
-    utils::serde_base64,
-    websocket::SignalWebSocket,
+    websocket::{SignalWebSocket, WebSocketType},
 };
 
-use libsignal_protocol::{
-    error::SignalProtocolError,
-    kem::{Key, Public},
-    IdentityKey, PreKeyBundle, PublicKey,
-};
 use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
@@ -26,20 +19,12 @@ pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
 mod account;
 mod cdn;
 mod error;
-mod keys;
-mod linking;
-mod profile;
-mod registration;
-mod response;
-mod stickers;
+pub mod linking;
+pub(crate) mod response;
 
 pub use account::*;
 pub use cdn::*;
 pub use error::*;
-pub use keys::*;
-pub use linking::*;
-pub use profile::*;
-pub use registration::*;
 pub(crate) use response::{ReqwestExt, SignalServiceResponse};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -67,60 +52,6 @@ pub enum AvatarWrite<C> {
     NewAvatar(C),
     RetainAvatar,
     NoAvatar,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SenderCertificateJson {
-    #[serde(with = "serde_base64")]
-    certificate: Vec<u8>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PreKeyResponse {
-    #[serde(with = "serde_base64")]
-    pub identity_key: Vec<u8>,
-    pub devices: Vec<PreKeyResponseItem>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PreKeyResponseItem {
-    pub device_id: u32,
-    pub registration_id: u32,
-    pub signed_pre_key: SignedPreKeyEntity,
-    pub pre_key: Option<PreKeyEntity>,
-    pub pq_pre_key: KyberPreKeyEntity,
-}
-
-impl PreKeyResponseItem {
-    #[allow(clippy::result_large_err)]
-    pub(crate) fn into_bundle(
-        self,
-        identity: IdentityKey,
-    ) -> Result<PreKeyBundle, ServiceError> {
-        Ok(PreKeyBundle::new(
-            self.registration_id,
-            self.device_id.try_into()?,
-            self.pre_key
-                .map(|pk| -> Result<_, SignalProtocolError> {
-                    Ok((
-                        pk.key_id.into(),
-                        PublicKey::deserialize(&pk.public_key)?,
-                    ))
-                })
-                .transpose()?,
-            // pre_key: Option<(u32, PublicKey)>,
-            self.signed_pre_key.key_id.into(),
-            PublicKey::deserialize(&self.signed_pre_key.public_key)?,
-            self.signed_pre_key.signature,
-            self.pq_pre_key.key_id.into(),
-            Key::<Public>::deserialize(&self.pq_pre_key.public_key)?,
-            self.pq_pre_key.signature,
-            identity,
-        )?)
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -171,7 +102,6 @@ impl PushService {
         }
     }
 
-    #[expect(clippy::result_large_err)]
     #[tracing::instrument(skip(self), fields(endpoint = %endpoint))]
     pub fn request(
         &self,
@@ -201,13 +131,13 @@ impl PushService {
         Ok(builder)
     }
 
-    pub async fn ws(
+    pub async fn ws<C: WebSocketType>(
         &mut self,
         path: &str,
         keepalive_path: &str,
         additional_headers: &[(&'static str, &str)],
         credentials: Option<ServiceCredentials>,
-    ) -> Result<SignalWebSocket, ServiceError> {
+    ) -> Result<SignalWebSocket<C>, ServiceError> {
         let span = debug_span!("websocket");
 
         let mut url = Endpoint::service(path).into_url(&self.cfg)?;
@@ -231,8 +161,16 @@ impl PushService {
             .instrument(span.clone())
             .await?;
 
-        let (ws, task) =
-            SignalWebSocket::from_socket(ws, keepalive_path.to_owned());
+        let unidentified_push_service = PushService {
+            cfg: self.cfg.clone(),
+            credentials: None,
+            client: self.client.clone(),
+        };
+        let (ws, task) = SignalWebSocket::new(
+            ws,
+            keepalive_path.to_owned(),
+            unidentified_push_service,
+        );
         let task = task.instrument(span);
         tokio::task::spawn(task);
         Ok(ws)

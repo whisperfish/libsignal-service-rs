@@ -72,7 +72,6 @@ impl Content {
     }
 
     /// Converts a proto::Content into a public Content, including metadata.
-    #[expect(clippy::result_large_err)]
     pub fn from_proto(
         p: crate::proto::Content,
         metadata: Metadata,

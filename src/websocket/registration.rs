@@ -3,12 +3,11 @@ use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{AccountAttributes, PushService, ServiceError};
+use super::ServiceError;
 use crate::{
-    configuration::Endpoint,
     pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
-    push_service::{response::ReqwestExt, HttpAuthOverride},
     utils::serde_base64,
+    websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
 
 /// This type is used in registration lock handling.
@@ -119,7 +118,120 @@ impl RegistrationSessionMetadataResponse {
     }
 }
 
-impl PushService {
+impl SignalWebSocket<websocket::Unidentified> {
+    // Equivalent of Java's
+    // RegistrationSessionMetadataResponse createVerificationSession(@Nullable String pushToken, @Nullable String mcc, @Nullable String mnc)
+    pub async fn create_verification_session<'a>(
+        &mut self,
+        number: &'a str,
+        push_token: Option<&'a str>,
+        mcc: Option<&'a str>,
+        mnc: Option<&'a str>,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct VerificationSessionMetadataRequestBody<'a> {
+            number: &'a str,
+            push_token: Option<&'a str>,
+            mcc: Option<&'a str>,
+            mnc: Option<&'a str>,
+            push_token_type: Option<&'a str>,
+        }
+
+        self.http_request(Method::POST, "/v1/verification/session")?
+            .send_json(&VerificationSessionMetadataRequestBody {
+                number,
+                push_token_type: push_token.as_ref().map(|_| "fcm"),
+                push_token,
+                mcc,
+                mnc,
+            })
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
+    }
+
+    pub async fn patch_verification_session<'a>(
+        &mut self,
+        session_id: &'a str,
+        push_token: Option<&'a str>,
+        mcc: Option<&'a str>,
+        mnc: Option<&'a str>,
+        captcha: Option<&'a str>,
+        push_challenge: Option<&'a str>,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct UpdateVerificationSessionRequestBody<'a> {
+            captcha: Option<&'a str>,
+            push_token: Option<&'a str>,
+            push_challenge: Option<&'a str>,
+            mcc: Option<&'a str>,
+            mnc: Option<&'a str>,
+            push_token_type: Option<&'a str>,
+        }
+
+        self.http_request(
+            Method::PATCH,
+            format!("/v1/verification/session/{}", session_id),
+        )?
+        .send_json(&UpdateVerificationSessionRequestBody {
+            captcha,
+            push_token_type: push_token.as_ref().map(|_| "fcm"),
+            push_token,
+            mcc,
+            mnc,
+            push_challenge,
+        })
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+    }
+
+    // Equivalent of Java's
+    // RegistrationSessionMetadataResponse requestVerificationCode(String sessionId, Locale locale, boolean androidSmsRetriever, VerificationCodeTransport transport)
+    /// Request a verification code.
+    ///
+    /// Signal requires a client type, and they use these three strings internally:
+    ///   - "android-2021-03"
+    ///   - "android"
+    ///   - "ios"
+    ///
+    /// "android-2021-03" allegedly implies FCM support, whereas the other strings don't. In
+    /// principle, they will consider any string as "unknown", so other strings may work too.
+    pub async fn request_verification_code(
+        &mut self,
+        session_id: &str,
+        client: &str,
+        // XXX: We currently don't support this, because we need to set some headers in the
+        //      post_json() call
+        // locale: Option<String>,
+        transport: VerificationTransport,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        #[derive(Debug, Serialize)]
+        struct VerificationCodeRequest<'a> {
+            transport: VerificationTransport,
+            client: &'a str,
+        }
+
+        self.http_request(
+            Method::POST,
+            format!("/v1/verification/session/{}/code", session_id),
+        )?
+        .send_json(&VerificationCodeRequest { transport, client })
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+    }
+}
+
+impl SignalWebSocket<websocket::Identified> {
     pub async fn submit_registration_request(
         &mut self,
         registration_method: RegistrationMethod<'_>,
@@ -151,157 +263,22 @@ impl PushService {
             device_activation_request: DeviceActivationRequest,
         }
 
-        self.request(
-            Method::POST,
-            Endpoint::service("/v1/registration"),
-            HttpAuthOverride::NoOverride,
-        )?
-        .json(&RegistrationSessionRequestBody {
-            session_id: registration_method.session_id(),
-            recovery_password: registration_method.recovery_password(),
-            account_attributes,
-            skip_device_transfer,
-            aci_identity_key: aci_identity_key.serialize().into(),
-            pni_identity_key: pni_identity_key.serialize().into(),
-            device_activation_request,
-            every_signed_key_valid: true,
-        })
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
-    }
-
-    // Equivalent of Java's
-    // RegistrationSessionMetadataResponse createVerificationSession(@Nullable String pushToken, @Nullable String mcc, @Nullable String mnc)
-    pub async fn create_verification_session<'a>(
-        &mut self,
-        number: &'a str,
-        push_token: Option<&'a str>,
-        mcc: Option<&'a str>,
-        mnc: Option<&'a str>,
-    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
-        #[derive(serde::Serialize, Debug)]
-        #[serde(rename_all = "camelCase")]
-        struct VerificationSessionMetadataRequestBody<'a> {
-            number: &'a str,
-            push_token: Option<&'a str>,
-            mcc: Option<&'a str>,
-            mnc: Option<&'a str>,
-            push_token_type: Option<&'a str>,
-        }
-
-        self.request(
-            Method::POST,
-            Endpoint::service("/v1/verification/session"),
-            HttpAuthOverride::Unidentified,
-        )?
-        .json(&VerificationSessionMetadataRequestBody {
-            number,
-            push_token_type: push_token.as_ref().map(|_| "fcm"),
-            push_token,
-            mcc,
-            mnc,
-        })
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
-    }
-
-    pub async fn patch_verification_session<'a>(
-        &mut self,
-        session_id: &'a str,
-        push_token: Option<&'a str>,
-        mcc: Option<&'a str>,
-        mnc: Option<&'a str>,
-        captcha: Option<&'a str>,
-        push_challenge: Option<&'a str>,
-    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
-        #[derive(serde::Serialize, Debug)]
-        #[serde(rename_all = "camelCase")]
-        struct UpdateVerificationSessionRequestBody<'a> {
-            captcha: Option<&'a str>,
-            push_token: Option<&'a str>,
-            push_challenge: Option<&'a str>,
-            mcc: Option<&'a str>,
-            mnc: Option<&'a str>,
-            push_token_type: Option<&'a str>,
-        }
-
-        self.request(
-            Method::PATCH,
-            Endpoint::service(format!(
-                "/v1/verification/session/{}",
-                session_id
-            )),
-            HttpAuthOverride::Unidentified,
-        )?
-        .json(&UpdateVerificationSessionRequestBody {
-            captcha,
-            push_token_type: push_token.as_ref().map(|_| "fcm"),
-            push_token,
-            mcc,
-            mnc,
-            push_challenge,
-        })
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
-    }
-
-    // Equivalent of Java's
-    // RegistrationSessionMetadataResponse requestVerificationCode(String sessionId, Locale locale, boolean androidSmsRetriever, VerificationCodeTransport transport)
-    /// Request a verification code.
-    ///
-    /// Signal requires a client type, and they use these three strings internally:
-    ///   - "android-2021-03"
-    ///   - "android"
-    ///   - "ios"
-    ///
-    /// "android-2021-03" allegedly implies FCM support, whereas the other strings don't. In
-    /// principle, they will consider any string as "unknown", so other strings may work too.
-    pub async fn request_verification_code(
-        &mut self,
-        session_id: &str,
-        client: &str,
-        // XXX: We currently don't support this, because we need to set some headers in the
-        //      post_json() call
-        // locale: Option<String>,
-        transport: VerificationTransport,
-    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
-        #[derive(Debug, Serialize)]
-        struct VerificationCodeRequest<'a> {
-            transport: VerificationTransport,
-            client: &'a str,
-        }
-
-        self.request(
-            Method::POST,
-            Endpoint::service(format!(
-                "/v1/verification/session/{}/code",
-                session_id
-            )),
-            HttpAuthOverride::Unidentified,
-        )?
-        .json(&VerificationCodeRequest { transport, client })
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
+        self.http_request(Method::POST, "/v1/registration")?
+            .send_json(&RegistrationSessionRequestBody {
+                session_id: registration_method.session_id(),
+                recovery_password: registration_method.recovery_password(),
+                account_attributes,
+                skip_device_transfer,
+                aci_identity_key: aci_identity_key.serialize().into(),
+                pni_identity_key: pni_identity_key.serialize().into(),
+                device_activation_request,
+                every_signed_key_valid: true,
+            })
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
     }
 
     pub async fn submit_verification_code(
@@ -314,23 +291,17 @@ impl PushService {
             code: &'a str,
         }
 
-        self.request(
+        self.http_request(
             Method::PUT,
-            Endpoint::service(format!(
-                "/v1/verification/session/{}/code",
-                session_id
-            )),
-            HttpAuthOverride::Unidentified,
+            format!("/v1/verification/session/{}/code", session_id),
         )?
-        .json(&VerificationCode {
+        .send_json(&VerificationCode {
             code: verification_code,
         })
-        .send()
         .await?
         .service_error_for_status()
         .await?
         .json()
         .await
-        .map_err(Into::into)
     }
 }

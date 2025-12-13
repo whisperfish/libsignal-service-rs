@@ -14,7 +14,10 @@ pub use crate::{
     },
 };
 
-use crate::{push_service::ServiceError, websocket::SignalWebSocket};
+use crate::{
+    push_service::ServiceError,
+    websocket::{self, SignalWebSocket},
+};
 
 #[derive(Debug)]
 pub enum Incoming {
@@ -23,20 +26,20 @@ pub enum Incoming {
 }
 
 pub struct MessagePipe {
-    ws: SignalWebSocket,
+    ws: SignalWebSocket<websocket::Identified>,
     credentials: ServiceCredentials,
 }
 
 impl MessagePipe {
     pub fn from_socket(
-        ws: SignalWebSocket,
+        ws: SignalWebSocket<websocket::Identified>,
         credentials: ServiceCredentials,
     ) -> Self {
         MessagePipe { ws, credentials }
     }
 
     /// Return a SignalWebSocket for sending messages and other purposes beyond receiving messages.
-    pub fn ws(&self) -> SignalWebSocket {
+    pub fn ws(&self) -> SignalWebSocket<websocket::Identified> {
         self.ws.clone()
     }
 
