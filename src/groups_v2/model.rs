@@ -1,6 +1,5 @@
 use std::{convert::TryFrom, convert::TryInto};
 
-use derivative::Derivative;
 use libsignal_protocol::{Aci, Pni, ServiceId};
 use serde::{Deserialize, Serialize};
 use zkgroup::profiles::ProfileKey;
@@ -16,13 +15,12 @@ pub enum Role {
     Administrator,
 }
 
-#[derive(Derivative, Clone, Deserialize, Serialize)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug, Clone, Deserialize, Serialize)]
 pub struct Member {
     #[serde(with = "aci_serde")]
     pub aci: Aci,
     pub role: Role,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub profile_key: ProfileKey,
     pub joined_at_revision: u32,
 }
@@ -66,11 +64,10 @@ pub struct PendingMember {
     pub timestamp: u64,
 }
 
-#[derive(Derivative, Clone)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug, Clone)]
 pub struct RequestingMember {
     pub aci: Aci,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub profile_key: ProfileKey,
     pub timestamp: u64,
 }
@@ -81,8 +78,7 @@ impl PartialEq for RequestingMember {
     }
 }
 
-#[derive(Derivative, Clone)]
-#[derivative(Debug)]
+#[derive(Debug, Clone)]
 pub struct BannedMember {
     pub service_id: ServiceId,
     pub timestamp: u64,
@@ -94,12 +90,11 @@ impl PartialEq for BannedMember {
     }
 }
 
-#[derive(Derivative, Clone)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug, Clone)]
 pub struct PromotedMember {
     pub aci: Aci,
     pub pni: Pni,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub profile_key: ProfileKey,
 }
 
@@ -150,8 +145,7 @@ pub struct GroupChanges {
     pub change_epoch: u32,
 }
 
-#[derive(Derivative, Clone)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug, Clone)]
 pub enum GroupChange {
     NewMember(Member),
     DeleteMember(Aci),
@@ -161,14 +155,14 @@ pub enum GroupChange {
     },
     ModifyMemberProfileKey {
         aci: Aci,
-        #[derivative(Debug = "ignore")]
+        #[debug(ignore)]
         profile_key: ProfileKey,
     },
     NewPendingMember(PendingMember),
     DeletePendingMember(ServiceId),
     PromotePendingMember {
         address: ServiceId,
-        #[derivative(Debug = "ignore")]
+        #[debug(ignore)]
         profile_key: ProfileKey,
     },
     Title(String),

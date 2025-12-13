@@ -1,4 +1,3 @@
-use derivative::Derivative;
 use libsignal_protocol::IdentityKey;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
@@ -13,11 +12,10 @@ use crate::{
 
 /// This type is used in registration lock handling.
 /// It's identical with HttpAuth, but used to avoid type confusion.
-#[derive(Derivative, Clone, Serialize, Deserialize)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug, Clone, Serialize, Deserialize)]
 pub struct AuthCredentials {
     pub username: String,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub password: String,
 }
 

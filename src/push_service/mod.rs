@@ -6,7 +6,6 @@ use crate::{
     websocket::{SignalWebSocket, WebSocketType},
 };
 
-use derivative::Derivative;
 use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
@@ -34,11 +33,10 @@ pub struct ProofRequired {
     pub options: Vec<String>,
 }
 
-#[derive(Derivative, Clone, Serialize, Deserialize)]
-#[derivative(Debug)]
+#[derive(derive_more::Debug, Clone, Serialize, Deserialize)]
 pub struct HttpAuth {
     pub username: String,
-    #[derivative(Debug = "ignore")]
+    #[debug(ignore)]
     pub password: String,
 }
 
