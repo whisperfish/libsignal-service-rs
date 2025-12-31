@@ -50,8 +50,6 @@ pub struct DeviceInfo {
     pub id: u8,
     pub name: Option<String>,
     #[serde(with = "chrono::serde::ts_milliseconds")]
-    pub created: DateTime<Utc>,
-    #[serde(with = "chrono::serde::ts_milliseconds")]
     pub last_seen: DateTime<Utc>,
 }
 

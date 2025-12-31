@@ -446,7 +446,6 @@ impl AccountManager {
                             },
                         }
                     }),
-                    created: i.created,
                     last_seen: i.last_seen,
                 })
             })
