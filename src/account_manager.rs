@@ -446,7 +446,14 @@ impl AccountManager {
                             },
                         }
                     }),
+                    registration_id: i.registration_id,
                     last_seen: i.last_seen,
+                    created_at: decrypt_device_created_at_from_device_info(
+                        i.id,
+                        i.registration_id,
+                        &i.created_at_ciphertext,
+                        &aci_identity_keypair,
+                    )?,
                 })
             })
             .collect()
@@ -980,6 +987,34 @@ fn decrypt_device_name_from_device_info(
     let data = BASE64_RELAXED.decode(string)?;
     let name = DeviceName::decode(&*data)?;
     crate::decrypt_device_name(aci.private_key(), &name)
+}
+
+fn decrypt_device_created_at_from_device_info(
+    id: u8,
+    registration_id: i32,
+    string: &str,
+    aci: &IdentityKeyPair,
+) -> Result<chrono::DateTime<chrono::Utc>, ServiceError> {
+    use signal_crypto::SimpleHpkeReceiver;
+
+    let mut associated_data = vec![id];
+    associated_data.extend(&registration_id.to_be_bytes());
+    let data = BASE64_RELAXED.decode(string)?;
+
+    let result =
+        aci.private_key()
+            .open(b"deviceCreatedAt", &associated_data, &data)?;
+
+    let timestamp = i64::from_be_bytes(
+        result
+            .try_into()
+            .map_err(|_| ServiceError::InvalidDeviceCreatedAt)?,
+    );
+
+    Ok(
+        chrono::DateTime::<chrono::Utc>::from_timestamp_millis(timestamp)
+            .ok_or(ServiceError::InvalidDeviceCreatedAt)?,
+    )
 }
 
 #[expect(clippy::result_large_err)]

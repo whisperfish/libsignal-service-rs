@@ -48,7 +48,21 @@ pub struct DeviceId {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
     pub id: u8,
+    pub registration_id: i32,
     pub name: Option<String>,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub created_at: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub last_seen: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DeviceInfoPushService {
+    pub id: u8,
+    pub name: Option<String>,
+    pub registration_id: i32,
+    pub created_at_ciphertext: String,
     #[serde(with = "chrono::serde::ts_milliseconds")]
     pub last_seen: DateTime<Utc>,
 }
@@ -125,10 +139,12 @@ impl PushService {
     /// Fetches a list of all devices tied to the authenticated account.
     ///
     /// This list include the device that sends the request.
-    pub async fn devices(&mut self) -> Result<Vec<DeviceInfo>, ServiceError> {
+    pub(crate) async fn devices(
+        &mut self,
+    ) -> Result<Vec<DeviceInfoPushService>, ServiceError> {
         #[derive(serde::Deserialize)]
         struct DeviceInfoList {
-            devices: Vec<DeviceInfo>,
+            devices: Vec<DeviceInfoPushService>,
         }
 
         let devices: DeviceInfoList = self
