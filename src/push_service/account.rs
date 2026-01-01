@@ -58,7 +58,7 @@ pub struct DeviceInfo {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct DeviceInfoPushService {
+pub(crate) struct DeviceInfoEncrypted {
     pub id: u8,
     pub name: Option<String>,
     pub registration_id: i32,
@@ -141,10 +141,10 @@ impl PushService {
     /// This list include the device that sends the request.
     pub(crate) async fn devices(
         &mut self,
-    ) -> Result<Vec<DeviceInfoPushService>, ServiceError> {
+    ) -> Result<Vec<DeviceInfoEncrypted>, ServiceError> {
         #[derive(serde::Deserialize)]
         struct DeviceInfoList {
-            devices: Vec<DeviceInfoPushService>,
+            devices: Vec<DeviceInfoEncrypted>,
         }
 
         let devices: DeviceInfoList = self
