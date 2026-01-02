@@ -997,8 +997,10 @@ fn decrypt_device_created_at_from_device_info(
 ) -> Result<chrono::DateTime<chrono::Utc>, ServiceError> {
     use signal_crypto::SimpleHpkeReceiver;
 
-    let mut associated_data = vec![id];
-    associated_data.extend(&registration_id.to_be_bytes());
+    let mut associated_data = [0; 5];
+    associated_data[0] = id;
+    associated_data[1..].copy_from_slice(&registration_id.to_be_bytes());
+
     let data = BASE64_RELAXED.decode(string)?;
 
     let result =
