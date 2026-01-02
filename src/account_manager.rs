@@ -1,4 +1,5 @@
 use base64::prelude::*;
+use libsignal_core::DeviceId;
 use phonenumber::PhoneNumber;
 use rand::{CryptoRng, Rng};
 use reqwest::Method;
@@ -991,7 +992,7 @@ fn decrypt_device_name_from_device_info(
 
 // Analogous to https://github.com/signalapp/Signal-Android/blob/d88a862e0985cc2bbc463c5f504f5bb4e91ad4fc/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt#L121.
 fn decrypt_device_created_at_from_device_info(
-    id: u8,
+    id: DeviceId,
     registration_id: i32,
     string: &str,
     aci: &IdentityKeyPair,
@@ -999,7 +1000,7 @@ fn decrypt_device_created_at_from_device_info(
     use signal_crypto::SimpleHpkeReceiver;
 
     let mut associated_data = [0; 5];
-    associated_data[0] = id;
+    associated_data[0] = id.into();
     associated_data[1..].copy_from_slice(&registration_id.to_be_bytes());
 
     let data = BASE64_RELAXED.decode(string)?;
@@ -1008,11 +1009,9 @@ fn decrypt_device_created_at_from_device_info(
         aci.private_key()
             .open(b"deviceCreatedAt", &associated_data, &data)?;
 
-    let timestamp = i64::from_be_bytes(
-        result
-            .try_into()
-            .map_err(|_| ServiceError::DecryptDeviceInfoFieldError("created-at"))?,
-    );
+    let timestamp = i64::from_be_bytes(result.try_into().map_err(|_| {
+        ServiceError::DecryptDeviceInfoFieldError("created-at")
+    })?);
 
     Ok(
         chrono::DateTime::<chrono::Utc>::from_timestamp_millis(timestamp)

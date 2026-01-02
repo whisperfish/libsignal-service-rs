@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     configuration::Endpoint,
-    utils::{serde_optional_base64, serde_phone_number},
+    utils::{serde_device_id, serde_optional_base64, serde_phone_number},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -41,13 +41,15 @@ impl fmt::Display for ServiceIds {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
-    pub device_id: u32,
+    #[serde(with = "serde_device_id")]
+    pub device_id: libsignal_core::DeviceId,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
-    pub id: u8,
+    #[serde(with = "serde_device_id")]
+    pub id: libsignal_core::DeviceId,
     pub registration_id: i32,
     pub name: Option<String>,
     #[serde(with = "chrono::serde::ts_milliseconds")]
@@ -59,7 +61,8 @@ pub struct DeviceInfo {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct DeviceInfoEncrypted {
-    pub id: u8,
+    #[serde(with = "serde_device_id")]
+    pub id: libsignal_core::DeviceId,
     pub name: Option<String>,
     pub registration_id: i32,
     pub created_at_ciphertext: String,

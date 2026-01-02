@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use libsignal_core::DeviceId;
 use libsignal_protocol::{
     IdentityKey, PreKeyBundle, SenderCertificate, ServiceId, ServiceIdKind,
 };
@@ -9,7 +10,7 @@ use serde::Deserialize;
 use crate::{
     configuration::Endpoint,
     pre_keys::{KyberPreKeyEntity, PreKeyState, SignedPreKeyEntity},
-    push_service::PreKeyResponse,
+    push_service::{PreKeyResponse, DEFAULT_DEVICE_ID},
     sender::OutgoingPushMessage,
     utils::serde_base64,
 };
@@ -113,7 +114,7 @@ impl PushService {
     pub async fn get_pre_key(
         &mut self,
         destination: &ServiceId,
-        device_id: u32,
+        device_id: DeviceId,
     ) -> Result<PreKeyBundle, ServiceError> {
         let path = format!(
             "/v2/keys/{}/{}",
@@ -144,9 +145,9 @@ impl PushService {
     pub(crate) async fn get_pre_keys(
         &mut self,
         destination: &ServiceId,
-        device_id: u32,
+        device_id: DeviceId,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
-        let path = if device_id == 1 {
+        let path = if device_id == *DEFAULT_DEVICE_ID {
             format!("/v2/keys/{}/*", destination.service_id_string())
         } else {
             format!(

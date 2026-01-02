@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::configuration::Endpoint;
+use crate::utils::serde_device_id;
 
 use super::{
     response::ReqwestExt, DeviceActivationRequest, HttpAuth, HttpAuthOverride,
@@ -50,7 +51,8 @@ pub struct LinkResponse {
     #[serde(rename = "uuid")]
     pub aci: Uuid,
     pub pni: Uuid,
-    pub device_id: u32,
+    #[serde(with = "serde_device_id")]
+    pub device_id: DeviceId,
 }
 
 #[derive(Debug, Serialize)]
@@ -83,7 +85,10 @@ impl PushService {
         .map_err(Into::into)
     }
 
-    pub async fn unlink_device(&mut self, id: DeviceId) -> Result<(), ServiceError> {
+    pub async fn unlink_device(
+        &mut self,
+        id: DeviceId,
+    ) -> Result<(), ServiceError> {
         self.request(
             Method::DELETE,
             Endpoint::service(format!("/v1/devices/{}", id)),
