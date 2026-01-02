@@ -1,3 +1,4 @@
+use libsignal_core::DeviceId;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -82,7 +83,7 @@ impl PushService {
         .map_err(Into::into)
     }
 
-    pub async fn unlink_device(&mut self, id: u8) -> Result<(), ServiceError> {
+    pub async fn unlink_device(&mut self, id: DeviceId) -> Result<(), ServiceError> {
         self.request(
             Method::DELETE,
             Endpoint::service(format!("/v1/devices/{}", id)),
