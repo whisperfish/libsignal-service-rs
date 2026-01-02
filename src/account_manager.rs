@@ -989,6 +989,7 @@ fn decrypt_device_name_from_device_info(
     crate::decrypt_device_name(aci.private_key(), &name)
 }
 
+// Analogous to https://github.com/signalapp/Signal-Android/blob/d88a862e0985cc2bbc463c5f504f5bb4e91ad4fc/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt#L121.
 fn decrypt_device_created_at_from_device_info(
     id: u8,
     registration_id: i32,
