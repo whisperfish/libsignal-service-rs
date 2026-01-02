@@ -99,10 +99,8 @@ pub enum ServiceError {
     #[error("Not found.")]
     NotFoundError,
 
-    #[error("invalid device name")]
-    InvalidDeviceName,
-    #[error("invalid device created at")]
-    InvalidDeviceCreatedAt,
+    #[error("failed to decrypt field from device info: {0}")]
+    DecryptDeviceInfoFieldError(&'static str),
 
     #[error("Unknown CDN version {0}")]
     UnknownCdnVersion(u32),

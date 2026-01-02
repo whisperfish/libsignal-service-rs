@@ -1011,12 +1011,12 @@ fn decrypt_device_created_at_from_device_info(
     let timestamp = i64::from_be_bytes(
         result
             .try_into()
-            .map_err(|_| ServiceError::InvalidDeviceCreatedAt)?,
+            .map_err(|_| ServiceError::DecryptDeviceInfoFieldError("created-at"))?,
     );
 
     Ok(
         chrono::DateTime::<chrono::Utc>::from_timestamp_millis(timestamp)
-            .ok_or(ServiceError::InvalidDeviceCreatedAt)?,
+            .ok_or(ServiceError::DecryptDeviceInfoFieldError("created-at"))?,
     )
 }
 
@@ -1031,7 +1031,7 @@ pub fn decrypt_device_name(
         ciphertext: Some(ciphertext),
     } = device_name
     else {
-        return Err(ServiceError::InvalidDeviceName);
+        return Err(ServiceError::DecryptDeviceInfoFieldError("name"));
     };
 
     let synthetic_iv: [u8; 16] = synthetic_iv[..synthetic_iv.len().min(16)]
