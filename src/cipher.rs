@@ -25,13 +25,14 @@ use crate::{
     utils::BASE64_RELAXED,
     ServiceIdExt,
 };
+
 /// Decrypts incoming messages and encrypts outgoing messages.
 ///
 /// Equivalent of SignalServiceCipher in Java.
 #[derive(Clone)]
 pub struct ServiceCipher<S> {
     protocol_store: S,
-    trust_root: PublicKey,
+    trust_roots: Vec<PublicKey>,
     local_uuid: Uuid,
     local_device_id: DeviceId,
 }
@@ -74,13 +75,13 @@ where
 {
     pub fn new(
         protocol_store: S,
-        trust_root: PublicKey,
+        trust_roots: Vec<PublicKey>,
         local_uuid: Uuid,
         local_device_id: DeviceId,
     ) -> Self {
         Self {
             protocol_store,
-            trust_root,
+            trust_roots,
             local_uuid,
             local_device_id,
         }
@@ -309,7 +310,8 @@ where
                     mut message,
                 } = sealed_sender_decrypt(
                     ciphertext,
-                    &self.trust_root,
+                    // Turn Vec<PublicKey> into Vec<&PublicKey> and then coerce into &[&PublicKey]
+                    &self.trust_roots.iter().collect::<Vec<_>>(),
                     Timestamp::from_epoch_millis(envelope.timestamp()),
                     None,
                     self.local_uuid.to_string(),
@@ -528,7 +530,7 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 #[tracing::instrument(
     skip(
         ciphertext,
-        trust_root,
+        trust_roots,
         identity_store,
         session_store,
         pre_key_store,
@@ -542,7 +544,7 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 )]
 async fn sealed_sender_decrypt(
     ciphertext: &[u8],
-    trust_root: &PublicKey,
+    trust_roots: &[&PublicKey],
     timestamp: Timestamp,
     local_e164: Option<String>,
     local_uuid: String,
@@ -557,7 +559,10 @@ async fn sealed_sender_decrypt(
     let usmc =
         sealed_sender_decrypt_to_usmc(ciphertext, identity_store).await?;
 
-    if !usmc.sender()?.validate(trust_root, timestamp)? {
+    if !usmc
+        .sender()?
+        .validate_with_trust_roots(trust_roots, timestamp)?
+    {
         return Err(SignalProtocolError::InvalidSealedSenderMessage(
             "trust root validation failed".to_string(),
         ));
