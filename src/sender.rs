@@ -428,28 +428,29 @@ where
         };
 
         if needs_sync || is_multi_device {
-            debug!("sending multi-device sync message");
-            if let Some(sync) = if sync_message {
+            let sync_body = if sync_message {
                 Some(content_body)
             } else {
+                // Only some ContentBody types are syncable to self,
+                // not getting a content body to sync is not an error.
                 self.create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
                     Some(&result),
                 )
-            } {
+            };
+            if let Some(body) = sync_body {
+                debug!("sending multi-device sync message");
                 self.try_send_message(
                     self.local_aci.into(),
                     None,
-                    &sync,
+                    &body,
                     timestamp,
                     false,
                     false,
                 )
                 .await?;
-            } else {
-                error!("could not create sync message from a direct message");
             }
         }
 
@@ -1062,7 +1063,10 @@ where
         let (message, edit_message) = match content_body {
             ContentBody::DataMessage(m) => (Some(m), None),
             ContentBody::EditMessage(m) => (None, Some(m)),
-            _ => return None,
+            content_body => {
+                tracing::trace!(?content_body, "not syncing to self");
+                return None;
+            },
         };
         let unidentified_status: Vec<UnidentifiedDeliveryStatus> =
             send_message_results
