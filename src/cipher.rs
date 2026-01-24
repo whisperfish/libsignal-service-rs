@@ -310,8 +310,7 @@ where
                     mut message,
                 } = sealed_sender_decrypt(
                     ciphertext,
-                    // Turn Vec<PublicKey> into Vec<&PublicKey> and then coerce into &[&PublicKey]
-                    &self.trust_roots.iter().collect::<Vec<_>>(),
+                    &self.trust_roots,
                     Timestamp::from_epoch_millis(envelope.timestamp()),
                     None,
                     self.local_uuid.to_string(),
@@ -544,7 +543,7 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 )]
 async fn sealed_sender_decrypt(
     ciphertext: &[u8],
-    trust_roots: &[&PublicKey],
+    trust_roots: &[PublicKey],
     timestamp: Timestamp,
     local_e164: Option<String>,
     local_uuid: String,
