@@ -126,8 +126,16 @@ impl GroupOperations {
 
     fn decrypt_profile_key_presentation(
         &self,
+        aci: &[u8],
+        profile_key: &[u8],
         presentation: &[u8],
     ) -> Result<(Aci, ProfileKey), GroupDecodingError> {
+        if presentation.is_empty() {
+            let aci = self.decrypt_aci(aci)?;
+            let profile_key = self.decrypt_profile_key(profile_key, aci)?;
+            return Ok((aci, profile_key));
+        }
+
         let profile_key_credential_presentation =
             AnyProfileKeyCredentialPresentation::new(presentation)?;
 
@@ -165,14 +173,11 @@ impl GroupOperations {
         &self,
         member: EncryptedMember,
     ) -> Result<Member, GroupDecodingError> {
-        let (aci, profile_key) = if member.presentation.is_empty() {
-            let aci = self.decrypt_aci(&member.user_id)?;
-            let profile_key =
-                self.decrypt_profile_key(&member.profile_key, aci)?;
-            (aci, profile_key)
-        } else {
-            self.decrypt_profile_key_presentation(&member.presentation)?
-        };
+        let (aci, profile_key) = self.decrypt_profile_key_presentation(
+            &member.user_id,
+            &member.profile_key,
+            &member.presentation,
+        )?;
         Ok(Member {
             aci,
             profile_key,
@@ -202,14 +207,11 @@ impl GroupOperations {
         &self,
         member: proto::RequestingMember,
     ) -> Result<RequestingMember, GroupDecodingError> {
-        let (aci, profile_key) = if member.presentation.is_empty() {
-            let aci = self.decrypt_aci(&member.user_id)?;
-            let profile_key =
-                self.decrypt_profile_key(&member.profile_key, aci)?;
-            (aci, profile_key)
-        } else {
-            self.decrypt_profile_key_presentation(&member.presentation)?
-        };
+        let (aci, profile_key) = self.decrypt_profile_key_presentation(
+            &member.user_id,
+            &member.profile_key,
+            &member.presentation,
+        )?;
         Ok(RequestingMember {
             profile_key,
             aci,
@@ -414,8 +416,12 @@ impl GroupOperations {
 
         let modify_member_profile_keys =
             modify_member_profile_keys.into_iter().map(|m| {
-                let (aci, profile_key) =
-                    self.decrypt_profile_key_presentation(&m.presentation)?;
+                let (aci, profile_key) = self
+                    .decrypt_profile_key_presentation(
+                        &m.user_id,
+                        &m.profile_key,
+                        &m.presentation,
+                    )?;
                 Ok(GroupChange::ModifyMemberProfileKey { aci, profile_key })
             });
 
@@ -437,8 +443,12 @@ impl GroupOperations {
 
         let promote_pending_members =
             promote_pending_members.into_iter().map(|m| {
-                let (aci, profile_key) =
-                    self.decrypt_profile_key_presentation(&m.presentation)?;
+                let (aci, profile_key) = self
+                    .decrypt_profile_key_presentation(
+                        &m.user_id,
+                        &m.profile_key,
+                        &m.presentation,
+                    )?;
                 Ok(GroupChange::PromotePendingMember {
                     address: aci.into(),
                     profile_key,
