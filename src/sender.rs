@@ -759,6 +759,7 @@ where
                 );
                 MessageRequestResponse {
                     thread_aci: Some(aci.to_string()),
+                    thread_aci_binary: Some(aci.into_bytes().to_vec()),
                     group_id: None,
                     r#type: Some(action.into()),
                 }
@@ -771,6 +772,7 @@ where
                 );
                 MessageRequestResponse {
                     thread_aci: None,
+                    thread_aci_binary: None,
                     group_id: Some(id.to_vec()),
                     r#type: Some(action.into()),
                 }
@@ -1076,6 +1078,9 @@ where
                     UnidentifiedDeliveryStatus {
                         destination_service_id: Some(
                             recipient.service_id_string(),
+                        ),
+                        destination_service_id_binary: Some(
+                            recipient.service_id_binary(),
                         ),
                         unidentified: Some(*unidentified),
                         destination_pni_identity_key: Some(
