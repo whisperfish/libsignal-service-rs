@@ -3,9 +3,11 @@ use std::{sync::LazyLock, time::Duration};
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     prelude::ServiceConfiguration,
+    utils::serde_device_id_vec,
     websocket::{SignalWebSocket, WebSocketType},
 };
 
+use libsignal_core::DeviceId;
 use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
@@ -57,14 +59,17 @@ pub enum AvatarWrite<C> {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MismatchedDevices {
-    pub missing_devices: Vec<u32>,
-    pub extra_devices: Vec<u32>,
+    #[serde(with = "serde_device_id_vec")]
+    pub missing_devices: Vec<DeviceId>,
+    #[serde(with = "serde_device_id_vec")]
+    pub extra_devices: Vec<DeviceId>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
-    pub stale_devices: Vec<u32>,
+    #[serde(with = "serde_device_id_vec")]
+    pub stale_devices: Vec<DeviceId>,
 }
 
 #[derive(Clone)]

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use libsignal_core::DeviceId;
 use libsignal_protocol::{
     kem::{Key, Public},
     IdentityKey, PreKeyBundle, PublicKey, SenderCertificate, ServiceId,
@@ -12,8 +13,9 @@ use crate::{
     pre_keys::{
         KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
     },
+    push_service::DEFAULT_DEVICE_ID,
     sender::OutgoingPushMessage,
-    utils::serde_base64,
+    utils::{serde_base64, serde_device_id},
     websocket::{self, registration::VerifyAccountResponse, SignalWebSocket},
 };
 
@@ -37,7 +39,8 @@ pub struct PreKeyResponse {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyResponseItem {
-    pub device_id: u32,
+    #[serde(with = "serde_device_id")]
+    pub device_id: DeviceId,
     pub registration_id: u32,
     pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
@@ -49,10 +52,9 @@ impl PreKeyResponseItem {
         self,
         identity: IdentityKey,
     ) -> Result<PreKeyBundle, ServiceError> {
-        let device_id = self.device_id.try_into()?;
         let pre_key_bundle = PreKeyBundle::new(
             self.registration_id,
-            device_id,
+            self.device_id,
             self.pre_key
                 .map(|pk| -> Result<_, SignalProtocolError> {
                     Ok((
@@ -160,7 +162,7 @@ impl SignalWebSocket<websocket::Identified> {
     pub async fn get_pre_key(
         &mut self,
         destination: &ServiceId,
-        device_id: u32,
+        device_id: DeviceId,
     ) -> Result<PreKeyBundle, ServiceError> {
         let path = format!(
             "/v2/keys/{}/{}",
@@ -187,9 +189,9 @@ impl SignalWebSocket<websocket::Identified> {
     pub(crate) async fn get_pre_keys(
         &mut self,
         destination: &ServiceId,
-        device_id: u32,
+        device_id: DeviceId,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
-        let path = if device_id == 1 {
+        let path = if device_id == *DEFAULT_DEVICE_ID {
             format!("/v2/keys/{}/*", destination.service_id_string())
         } else {
             format!(

@@ -1,9 +1,11 @@
+use libsignal_core::DeviceId;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    configuration::Endpoint, websocket::registration::DeviceActivationRequest,
+    configuration::Endpoint, utils::serde_device_id,
+    websocket::registration::DeviceActivationRequest,
 };
 
 use super::{
@@ -50,7 +52,8 @@ pub struct LinkResponse {
     #[serde(rename = "uuid")]
     pub aci: Uuid,
     pub pni: Uuid,
-    pub device_id: u32,
+    #[serde(with = "serde_device_id")]
+    pub device_id: DeviceId,
 }
 
 #[derive(Debug, Serialize)]

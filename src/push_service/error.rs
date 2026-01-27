@@ -100,8 +100,8 @@ pub enum ServiceError {
     #[error("Not found.")]
     NotFoundError,
 
-    #[error("invalid device name")]
-    InvalidDeviceName,
+    #[error("failed to decrypt field from device info: {0}")]
+    DecryptDeviceInfoFieldError(&'static str),
 
     #[error("Unknown CDN version {0}")]
     UnknownCdnVersion(u32),
@@ -112,10 +112,21 @@ pub enum ServiceError {
     #[error(transparent)]
     Curve(#[from] CurveError),
 
+    // HpkeError does not implement StdError, so we need a manual display,
+    // and manual From impl.
+    #[error("Cryptographic error: {0}")]
+    Hpke(signal_crypto::HpkeError),
+
     // FingerprintError does not implement StdError, so we need a manual display,
     // and manual From impl.
     #[error("Fingerprint error: {0}")]
     Fingerprint(FingerprintError),
+}
+
+impl From<signal_crypto::HpkeError> for ServiceError {
+    fn from(value: signal_crypto::HpkeError) -> Self {
+        ServiceError::Hpke(value)
+    }
 }
 
 impl From<FingerprintError> for ServiceError {

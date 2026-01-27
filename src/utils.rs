@@ -335,3 +335,55 @@ pub mod serde_aci {
             .ok_or_else(|| serde::de::Error::custom("invalid ACI string"))
     }
 }
+
+pub mod serde_device_id {
+    use libsignal_core::DeviceId;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(id: &DeviceId, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_u8(u8::from(*id))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<DeviceId, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        DeviceId::try_from(u8::deserialize(deserializer)?)
+            .map_err(|_| serde::de::Error::custom("invalid device id"))
+    }
+}
+
+pub mod serde_device_id_vec {
+    use libsignal_core::DeviceId;
+    use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        ids: &Vec<DeviceId>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(ids.len()))?;
+        for id in ids {
+            seq.serialize_element(&u8::from(*id))?;
+        }
+        seq.end()
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Vec<DeviceId>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Vec::<u8>::deserialize(deserializer)?
+            .into_iter()
+            .map(DeviceId::try_from)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| serde::de::Error::custom("invalid device id"))
+    }
+}
