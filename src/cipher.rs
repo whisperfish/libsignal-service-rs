@@ -418,7 +418,7 @@ where
             use crate::proto::envelope::Type;
             Ok(OutgoingPushMessage {
                 r#type: Type::UnidentifiedSender as u32,
-                destination_device_id: address.device_id().into(),
+                destination_device_id: address.device_id(),
                 destination_registration_id,
                 content: BASE64_RELAXED.encode(message),
             })
@@ -446,7 +446,7 @@ where
             } as u32;
             Ok(OutgoingPushMessage {
                 r#type: message_type,
-                destination_device_id: address.device_id().into(),
+                destination_device_id: address.device_id(),
                 destination_registration_id,
                 content: body,
             })
