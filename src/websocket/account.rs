@@ -126,8 +126,8 @@ impl SignalWebSocket<websocket::Identified> {
             .send_json(&attributes)
             .await?
             .service_error_for_status()
-            .await?
-            .json()
-            .await
+            .await?;
+
+        Ok(())
     }
 }
