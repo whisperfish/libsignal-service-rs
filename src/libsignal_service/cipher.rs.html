@@ -418,7 +418,7 @@
 <a href=#418 id=418 data-nosnippet>418</a>            <span class="kw">use </span><span class="kw">crate</span>::proto::envelope::Type;
 <a href=#419 id=419 data-nosnippet>419</a>            <span class="prelude-val">Ok</span>(OutgoingPushMessage {
 <a href=#420 id=420 data-nosnippet>420</a>                r#type: Type::UnidentifiedSender <span class="kw">as </span>u32,
-<a href=#421 id=421 data-nosnippet>421</a>                destination_device_id: address.device_id().into(),
+<a href=#421 id=421 data-nosnippet>421</a>                destination_device_id: address.device_id(),
 <a href=#422 id=422 data-nosnippet>422</a>                destination_registration_id,
 <a href=#423 id=423 data-nosnippet>423</a>                content: BASE64_RELAXED.encode(message),
 <a href=#424 id=424 data-nosnippet>424</a>            })
@@ -446,7 +446,7 @@
 <a href=#446 id=446 data-nosnippet>446</a>            } <span class="kw">as </span>u32;
 <a href=#447 id=447 data-nosnippet>447</a>            <span class="prelude-val">Ok</span>(OutgoingPushMessage {
 <a href=#448 id=448 data-nosnippet>448</a>                r#type: message_type,
-<a href=#449 id=449 data-nosnippet>449</a>                destination_device_id: address.device_id().into(),
+<a href=#449 id=449 data-nosnippet>449</a>                destination_device_id: address.device_id(),
 <a href=#450 id=450 data-nosnippet>450</a>                destination_registration_id,
 <a href=#451 id=451 data-nosnippet>451</a>                content: body,
 <a href=#452 id=452 data-nosnippet>452</a>            })

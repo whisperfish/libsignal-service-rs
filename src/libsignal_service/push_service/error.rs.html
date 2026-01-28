@@ -100,8 +100,8 @@
 <a href=#100 id=100 data-nosnippet>100</a>    <span class="attr">#[error(<span class="string">"Not found."</span>)]
 <a href=#101 id=101 data-nosnippet>101</a>    </span>NotFoundError,
 <a href=#102 id=102 data-nosnippet>102</a>
-<a href=#103 id=103 data-nosnippet>103</a>    <span class="attr">#[error(<span class="string">"invalid device name"</span>)]
-<a href=#104 id=104 data-nosnippet>104</a>    </span>InvalidDeviceName,
+<a href=#103 id=103 data-nosnippet>103</a>    <span class="attr">#[error(<span class="string">"failed to decrypt field from device info: {0}"</span>)]
+<a href=#104 id=104 data-nosnippet>104</a>    </span>DecryptDeviceInfoFieldError(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str),
 <a href=#105 id=105 data-nosnippet>105</a>
 <a href=#106 id=106 data-nosnippet>106</a>    <span class="attr">#[error(<span class="string">"Unknown CDN version {0}"</span>)]
 <a href=#107 id=107 data-nosnippet>107</a>    </span>UnknownCdnVersion(u32),
@@ -112,20 +112,31 @@
 <a href=#112 id=112 data-nosnippet>112</a>    <span class="attr">#[error(transparent)]
 <a href=#113 id=113 data-nosnippet>113</a>    </span>Curve(<span class="attr">#[from] </span>CurveError),
 <a href=#114 id=114 data-nosnippet>114</a>
-<a href=#115 id=115 data-nosnippet>115</a>    <span class="comment">// FingerprintError does not implement StdError, so we need a manual display,
+<a href=#115 id=115 data-nosnippet>115</a>    <span class="comment">// HpkeError does not implement StdError, so we need a manual display,
 <a href=#116 id=116 data-nosnippet>116</a>    // and manual From impl.
-<a href=#117 id=117 data-nosnippet>117</a>    </span><span class="attr">#[error(<span class="string">"Fingerprint error: {0}"</span>)]
-<a href=#118 id=118 data-nosnippet>118</a>    </span>Fingerprint(FingerprintError),
-<a href=#119 id=119 data-nosnippet>119</a>}
-<a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a><span class="kw">impl </span>From&lt;FingerprintError&gt; <span class="kw">for </span>ServiceError {
-<a href=#122 id=122 data-nosnippet>122</a>    <span class="kw">fn </span>from(value: FingerprintError) -&gt; <span class="self">Self </span>{
-<a href=#123 id=123 data-nosnippet>123</a>        ServiceError::Fingerprint(value)
-<a href=#124 id=124 data-nosnippet>124</a>    }
-<a href=#125 id=125 data-nosnippet>125</a>}
-<a href=#126 id=126 data-nosnippet>126</a>
-<a href=#127 id=127 data-nosnippet>127</a><span class="kw">impl </span>From&lt;reqwest_websocket::Error&gt; <span class="kw">for </span>ServiceError {
-<a href=#128 id=128 data-nosnippet>128</a>    <span class="kw">fn </span>from(error: reqwest_websocket::Error) -&gt; <span class="self">Self </span>{
-<a href=#129 id=129 data-nosnippet>129</a>        <span class="self">Self</span>::WsError(Box::new(error))
-<a href=#130 id=130 data-nosnippet>130</a>    }
-<a href=#131 id=131 data-nosnippet>131</a>}</code></pre></div></section></main></body></html>
+<a href=#117 id=117 data-nosnippet>117</a>    </span><span class="attr">#[error(<span class="string">"Cryptographic error: {0}"</span>)]
+<a href=#118 id=118 data-nosnippet>118</a>    </span>Hpke(signal_crypto::HpkeError),
+<a href=#119 id=119 data-nosnippet>119</a>
+<a href=#120 id=120 data-nosnippet>120</a>    <span class="comment">// FingerprintError does not implement StdError, so we need a manual display,
+<a href=#121 id=121 data-nosnippet>121</a>    // and manual From impl.
+<a href=#122 id=122 data-nosnippet>122</a>    </span><span class="attr">#[error(<span class="string">"Fingerprint error: {0}"</span>)]
+<a href=#123 id=123 data-nosnippet>123</a>    </span>Fingerprint(FingerprintError),
+<a href=#124 id=124 data-nosnippet>124</a>}
+<a href=#125 id=125 data-nosnippet>125</a>
+<a href=#126 id=126 data-nosnippet>126</a><span class="kw">impl </span>From&lt;signal_crypto::HpkeError&gt; <span class="kw">for </span>ServiceError {
+<a href=#127 id=127 data-nosnippet>127</a>    <span class="kw">fn </span>from(value: signal_crypto::HpkeError) -&gt; <span class="self">Self </span>{
+<a href=#128 id=128 data-nosnippet>128</a>        ServiceError::Hpke(value)
+<a href=#129 id=129 data-nosnippet>129</a>    }
+<a href=#130 id=130 data-nosnippet>130</a>}
+<a href=#131 id=131 data-nosnippet>131</a>
+<a href=#132 id=132 data-nosnippet>132</a><span class="kw">impl </span>From&lt;FingerprintError&gt; <span class="kw">for </span>ServiceError {
+<a href=#133 id=133 data-nosnippet>133</a>    <span class="kw">fn </span>from(value: FingerprintError) -&gt; <span class="self">Self </span>{
+<a href=#134 id=134 data-nosnippet>134</a>        ServiceError::Fingerprint(value)
+<a href=#135 id=135 data-nosnippet>135</a>    }
+<a href=#136 id=136 data-nosnippet>136</a>}
+<a href=#137 id=137 data-nosnippet>137</a>
+<a href=#138 id=138 data-nosnippet>138</a><span class="kw">impl </span>From&lt;reqwest_websocket::Error&gt; <span class="kw">for </span>ServiceError {
+<a href=#139 id=139 data-nosnippet>139</a>    <span class="kw">fn </span>from(error: reqwest_websocket::Error) -&gt; <span class="self">Self </span>{
+<a href=#140 id=140 data-nosnippet>140</a>        <span class="self">Self</span>::WsError(Box::new(error))
+<a href=#141 id=141 data-nosnippet>141</a>    }
+<a href=#142 id=142 data-nosnippet>142</a>}</code></pre></div></section></main></body></html>
