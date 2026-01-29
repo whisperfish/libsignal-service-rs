@@ -85,3 +85,113 @@ impl SyncMessage {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prost::Message;
+
+    #[test]
+    fn test_poll_create_serialization() {
+        // Create a poll
+        let poll = data_message::PollCreate {
+            question: Some("What should we prioritize?".to_string()),
+            allow_multiple: Some(false),
+            options: vec![
+                "Security audit".to_string(),
+                "New features".to_string(),
+                "Documentation".to_string(),
+            ],
+        };
+
+        // Verify fields
+        assert_eq!(poll.question.as_deref(), Some("What should we prioritize?"));
+        assert_eq!(poll.allow_multiple, Some(false));
+        assert_eq!(poll.options.len(), 3);
+
+        // Test serialization roundtrip
+        let mut buf = Vec::new();
+        poll.encode(&mut buf).unwrap();
+        let decoded = data_message::PollCreate::decode(&buf[..]).unwrap();
+        
+        assert_eq!(poll, decoded);
+    }
+
+    #[test]
+    fn test_poll_vote_serialization() {
+        // Create a vote
+        let vote = data_message::PollVote {
+            target_author_aci_binary: Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+            target_sent_timestamp: Some(1706500000000),
+            option_indexes: vec![0, 2], // Vote for options 0 and 2
+            vote_count: Some(1),
+        };
+
+        // Test serialization roundtrip
+        let mut buf = Vec::new();
+        vote.encode(&mut buf).unwrap();
+        let decoded = data_message::PollVote::decode(&buf[..]).unwrap();
+        
+        assert_eq!(vote, decoded);
+        assert_eq!(decoded.option_indexes, vec![0, 2]);
+    }
+
+    #[test]
+    fn test_poll_terminate_serialization() {
+        let terminate = data_message::PollTerminate {
+            target_sent_timestamp: Some(1706500000000),
+        };
+
+        let mut buf = Vec::new();
+        terminate.encode(&mut buf).unwrap();
+        let decoded = data_message::PollTerminate::decode(&buf[..]).unwrap();
+        
+        assert_eq!(terminate, decoded);
+    }
+
+    #[test]
+    fn test_data_message_with_poll() {
+        // Create a DataMessage containing a poll
+        let poll = data_message::PollCreate {
+            question: Some("Approve federation with Group B?".to_string()),
+            allow_multiple: Some(false),
+            options: vec![
+                "Yes".to_string(),
+                "No".to_string(),
+            ],
+        };
+
+        let data_message = DataMessage {
+            poll_create: Some(poll.clone()),
+            timestamp: Some(1706500000000),
+            ..Default::default()
+        };
+
+        // Verify the poll is embedded
+        assert!(data_message.poll_create.is_some());
+        assert_eq!(
+            data_message.poll_create.as_ref().unwrap().question.as_deref(),
+            Some("Approve federation with Group B?")
+        );
+
+        // Test full message serialization
+        let mut buf = Vec::new();
+        data_message.encode(&mut buf).unwrap();
+        let decoded = DataMessage::decode(&buf[..]).unwrap();
+        
+        assert_eq!(decoded.poll_create, Some(poll));
+    }
+
+    #[test]
+    fn test_protocol_version_includes_polls() {
+        // Verify protocol version 8 (POLLS) exists
+        // Note: CURRENT = 8 is aliased to Polls in prost output
+        assert_eq!(data_message::ProtocolVersion::Polls as i32, 8);
+        
+        // Verify Polls is higher than Payments (previous version)
+        assert!(
+            data_message::ProtocolVersion::Polls as i32 
+            > data_message::ProtocolVersion::Payments as i32
+        );
+    }
+}
