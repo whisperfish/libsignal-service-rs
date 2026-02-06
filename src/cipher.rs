@@ -2,6 +2,7 @@ use std::{convert::TryFrom, fmt, time::SystemTime};
 
 use aes::cipher::block_padding::{Iso7816, RawPadding};
 use base64::prelude::*;
+use libsignal_core::ServiceIdKind;
 use libsignal_protocol::{
     group_decrypt, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, process_sender_key_distribution_message,
@@ -195,6 +196,43 @@ where
                 },
             });
 
+        if envelope.destination_service_id.is_none() {
+            tracing::warn!(
+                "missing destination service id; ingoring invalid message."
+            );
+            return Err(ServiceError::InvalidFrame {
+                reason: "missing destination service id",
+            });
+        }
+
+        if envelope.destination_address().raw_uuid() != self.local_uuid {
+            tracing::warn!(
+                "mismatching destination service id; ingoring invalid message."
+            );
+            return Err(ServiceError::InvalidFrame {
+                reason: "mismatch destination service id",
+            });
+        }
+
+        if envelope.destination_address().kind() == ServiceIdKind::Pni
+            && envelope.source_service_id.is_none()
+        {
+            tracing::warn!("received sealed sender message to our PNI; ignoring invalid message");
+            return Err(ServiceError::InvalidFrame {
+                reason: "sealed sender received on our PNI",
+            });
+        }
+
+        if envelope.source_service_id.is_some()
+            && envelope.source_address().kind() == ServiceIdKind::Pni
+            && envelope.r#type() != Type::ServerDeliveryReceipt
+        {
+            tracing::warn!("got a message from a PNI that was not a ServerDeliveryReceipt; ignoring invalid message");
+            return Err(ServiceError::InvalidFrame {
+                reason: "PNI received a non-ServerDeliveryReceipt",
+            });
+        }
+
         use crate::proto::envelope::Type;
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
@@ -341,6 +379,15 @@ where
                 } else {
                     true
                 };
+
+                if sender.kind() == ServiceIdKind::Pni {
+                    tracing::warn!(
+                        "sealed sender used for PNI; ignoring invalid message"
+                    );
+                    return Err(ServiceError::InvalidFrame {
+                        reason: "sealed sender used for PNI",
+                    });
+                }
 
                 let metadata = Metadata {
                     destination: envelope.destination_address(),
