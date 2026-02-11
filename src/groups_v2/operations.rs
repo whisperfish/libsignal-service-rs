@@ -284,7 +284,7 @@ impl GroupOperations {
         }
     }
 
-    fn encrypt_title<R: rand::Rng + rand::CryptoRng>(
+    pub fn encrypt_title<R: rand::Rng + rand::CryptoRng>(
         &self,
         title: &str,
         rng: &mut R,
