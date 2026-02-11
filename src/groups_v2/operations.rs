@@ -305,7 +305,7 @@ impl GroupOperations {
         self.encrypt_blob(&buf, rng)
     }
 
-    fn encrypt_description<R: rand::Rng + rand::CryptoRng>(
+    pub fn encrypt_description<R: rand::Rng + rand::CryptoRng>(
         &self,
         description: &str,
         rng: &mut R,
@@ -321,7 +321,7 @@ impl GroupOperations {
         self.encrypt_blob(&buf, rng)
     }
 
-    fn encrypt_disappearing_message_timer<R: rand::Rng + rand::CryptoRng>(
+    pub fn encrypt_disappearing_message_timer<R: rand::Rng + rand::CryptoRng>(
         &self,
         timer: &Timer,
         rng: &mut R,
