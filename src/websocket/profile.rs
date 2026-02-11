@@ -1,7 +1,9 @@
 use libsignal_protocol::Aci;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
+use zkgroup::profiles::{
+    ProfileKey, ProfileKeyCommitment, ProfileKeyCredentialRequest, ProfileKeyVersion,
+};
 
 use crate::{
     content::ServiceError,
@@ -32,6 +34,20 @@ pub struct SignalServiceProfile {
     pub unrestricted_unidentified_access: bool,
 
     pub capabilities: DeviceCapabilities,
+}
+
+/// Profile response that includes an optional expiring profile key credential.
+/// Used when requesting a profile with a credential request for group operations.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignalServiceProfileWithCredential {
+    #[serde(flatten)]
+    pub profile: SignalServiceProfile,
+    /// The expiring profile key credential response, base64-encoded.
+    /// This is present when the request included a valid credential request.
+    /// Note: The server returns this as "credential", not "expiringProfileKeyCredential".
+    #[serde(default, with = "serde_optional_base64")]
+    pub credential: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -74,6 +90,62 @@ impl SignalWebSocket<websocket::Identified> {
             .await?
             .json()
             .await
+    }
+
+    /// Retrieve a profile with a credential request for group operations.
+    ///
+    /// This method fetches the user's profile along with an `ExpiringProfileKeyCredentialResponse`
+    /// that can be used to create presentations for group creation and member addition.
+    ///
+    /// # Arguments
+    /// * `address` - The ACI of the user whose profile to fetch
+    /// * `profile_key` - The profile key for the user
+    /// * `credential_request` - The credential request created via `create_credential_request`
+    ///
+    /// # Returns
+    /// A `SignalServiceProfileWithCredential` containing the profile and optional credential response.
+    pub async fn retrieve_profile_with_credential(
+        &mut self,
+        address: Aci,
+        profile_key: ProfileKey,
+        credential_request: &ProfileKeyCredentialRequest,
+    ) -> Result<SignalServiceProfileWithCredential, ServiceError> {
+        // ProfileKeyVersion implements AsRef<str> and returns hex ASCII directly
+        let version = profile_key.get_profile_key_version(address);
+        let version_str: &str = version.as_ref();
+
+        let request_hex = hex::encode(zkgroup::serialize(credential_request));
+
+        // The credential request is a PATH parameter, not a query parameter.
+        // Server route: /v1/profile/{identifier}/{version}/{credentialRequest}?credentialType=expiringProfileKey
+        let path = format!(
+            "/v1/profile/{}/{}/{}?credentialType=expiringProfileKey",
+            address.service_id_string(),
+            version_str,
+            request_hex
+        );
+
+        tracing::debug!(
+            %path,
+            credential_request_len = request_hex.len(),
+            "fetching profile with credential request"
+        );
+
+        let response = self.http_request(Method::GET, &path)?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?;
+
+        let result: SignalServiceProfileWithCredential = response.json().await?;
+
+        tracing::debug!(
+            has_credential = result.credential.is_some(),
+            credential_len = result.credential.as_ref().map(|c| c.len()),
+            "got profile response"
+        );
+
+        Ok(result)
     }
 
     /// Writes a profile and returns the avatar URL, if one was provided.

@@ -205,18 +205,21 @@ impl PushService {
         group: crate::proto::Group,
     ) -> Result<crate::proto::Group, ServiceError> {
         use protobuf::ProtobufRequestBuilderExt;
-        self.request(
-            Method::PUT,
-            Endpoint::storage("/v2/groups/"),
-            HttpAuthOverride::Identified(credentials),
-        )?
-        .protobuf(group)?
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .protobuf()
-        .await
+        // Server returns GroupResponse { group, group_send_endorsements_response }
+        let response: crate::proto::GroupResponse = self
+            .request(
+                Method::PUT,
+                Endpoint::storage("/v2/groups/"),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            .protobuf(group)?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .protobuf()
+            .await?;
+        Ok(response.group.unwrap_or_default())
     }
 
     pub(crate) async fn modify_group(

@@ -6,7 +6,11 @@ use libsignal_protocol::{Aci, Pni, ServiceId};
 use prost::Message;
 use zkgroup::{
     groups::GroupSecretParams,
-    profiles::{AnyProfileKeyCredentialPresentation, ProfileKey},
+    profiles::{
+        AnyProfileKeyCredentialPresentation, ExpiringProfileKeyCredential,
+        ProfileKey,
+    },
+    ServerPublicParams,
 };
 
 use crate::{
@@ -20,7 +24,8 @@ use crate::{
 
 use super::{
     model::{
-        BannedMember, Member, PendingMember, PromotedMember, RequestingMember,
+        AccessControl, BannedMember, GroupCandidate, Member, PendingMember,
+        PromotedMember, RequestingMember,
     },
     Group, GroupChange, GroupChanges,
 };
@@ -67,7 +72,7 @@ impl GroupOperations {
         service_id: ServiceId,
     ) -> Result<Vec<u8>, GroupDecodingError> {
         let ciphertext = self.group_secret_params.encrypt_service_id(service_id);
-        Ok(bincode::serialize(&ciphertext)?)
+        Ok(zkgroup::serialize(&ciphertext))
     }
 
     fn decrypt_service_id(
@@ -76,7 +81,7 @@ impl GroupOperations {
     ) -> Result<ServiceId, GroupDecodingError> {
         match self
             .group_secret_params
-            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+            .decrypt_service_id(zkgroup::deserialize(ciphertext)?)?
         {
             ServiceId::Aci(aci) => Ok(ServiceId::from(aci)),
             ServiceId::Pni(pni) => Ok(ServiceId::from(pni)),
@@ -86,7 +91,7 @@ impl GroupOperations {
     fn encrypt_aci(&self, aci: Aci) -> Result<Vec<u8>, GroupDecodingError> {
         let ciphertext =
             self.group_secret_params.encrypt_service_id(aci.into());
-        Ok(bincode::serialize(&ciphertext)?)
+        Ok(zkgroup::serialize(&ciphertext))
     }
 
     fn decrypt_aci(
@@ -95,7 +100,7 @@ impl GroupOperations {
     ) -> Result<Aci, GroupDecodingError> {
         match self
             .group_secret_params
-            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+            .decrypt_service_id(zkgroup::deserialize(ciphertext)?)?
         {
             ServiceId::Aci(aci) => Ok(aci),
             ServiceId::Pni(pni) => {
@@ -114,7 +119,7 @@ impl GroupOperations {
     ) -> Result<Pni, GroupDecodingError> {
         match self
             .group_secret_params
-            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+            .decrypt_service_id(zkgroup::deserialize(ciphertext)?)?
         {
             ServiceId::Pni(pni) => Ok(pni),
             ServiceId::Aci(aci) => {
@@ -134,7 +139,7 @@ impl GroupOperations {
     ) -> Result<Vec<u8>, GroupDecodingError> {
         let ciphertext =
             self.group_secret_params.encrypt_profile_key(profile_key, aci);
-        Ok(bincode::serialize(&ciphertext)?)
+        Ok(zkgroup::serialize(&ciphertext))
     }
 
     fn decrypt_profile_key(
@@ -143,7 +148,7 @@ impl GroupOperations {
         decrypted_aci: libsignal_protocol::Aci,
     ) -> Result<ProfileKey, GroupDecodingError> {
         Ok(self.group_secret_params.decrypt_profile_key(
-            bincode::deserialize(encrypted_profile_key)?,
+            zkgroup::deserialize(encrypted_profile_key)?,
             decrypted_aci,
         )?)
     }
@@ -718,9 +723,9 @@ impl GroupOperations {
         });
 
         Ok(proto::Group {
-            public_key: bincode::serialize(
+            public_key: zkgroup::serialize(
                 &self.group_secret_params.get_public_params(),
-            )?,
+            ),
             title: encrypted_title,
             avatar: group.avatar.clone(),
             disappearing_messages_timer: encrypted_timer,
@@ -765,5 +770,156 @@ impl GroupOperations {
         Ok(proto::group_change::actions::DeleteMemberAction {
             deleted_user_id: self.encrypt_aci(aci)?,
         })
+    }
+
+    /// Create a presentation from a credential for adding a member to a group.
+    ///
+    /// This creates a ZK proof (ExpiringProfileKeyCredentialPresentation) that the
+    /// Signal server can verify to validate the member's identity and profile key.
+    pub fn create_member_presentation(
+        &self,
+        server_public_params: &ServerPublicParams,
+        credential: &ExpiringProfileKeyCredential,
+    ) -> Vec<u8> {
+        let randomness: [u8; 32] = rand::random();
+        let presentation = server_public_params
+            .create_expiring_profile_key_credential_presentation(
+                randomness,
+                self.group_secret_params,
+                *credential,
+            );
+        zkgroup::serialize(&presentation)
+    }
+
+    /// Encrypt a group for creation, using credentials for member presentations.
+    ///
+    /// This method properly populates the `presentation` field for members with
+    /// credentials, which is required by the Signal server for group creation.
+    ///
+    /// Members with credentials get added with presentations (full members).
+    /// Members without credentials get added as pending invites.
+    ///
+    /// # Arguments
+    /// * `title` - The group title
+    /// * `description` - Optional group description
+    /// * `disappearing_messages_timer` - Optional disappearing messages timer
+    /// * `access_control` - Optional access control settings
+    /// * `self_credential` - The creator's own credential (required)
+    /// * `member_candidates` - Other members to add, with optional credentials
+    /// * `server_public_params` - Server public params for creating presentations
+    /// * `rng` - Random number generator
+    pub fn encrypt_group_with_credentials<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        title: &str,
+        description: Option<&str>,
+        disappearing_messages_timer: Option<&Timer>,
+        access_control: Option<&AccessControl>,
+        self_credential: &ExpiringProfileKeyCredential,
+        member_candidates: &[GroupCandidate],
+        server_public_params: &ServerPublicParams,
+        rng: &mut R,
+    ) -> Result<proto::Group, GroupDecodingError> {
+        let mut members = Vec::new();
+        let mut pending_members = Vec::new();
+
+        // Add self as administrator with presentation
+        let self_presentation =
+            self.create_member_presentation(server_public_params, self_credential);
+        members.push(proto::Member {
+            user_id: vec![],      // Server extracts from presentation
+            profile_key: vec![],  // Server extracts from presentation
+            presentation: self_presentation,
+            role: proto::member::Role::Administrator.into(),
+            joined_at_revision: 0,
+        });
+
+        // Add other members
+        for candidate in member_candidates {
+            if let Some(credential) = &candidate.credential {
+                // Has credential - add as full member with presentation
+                let presentation =
+                    self.create_member_presentation(server_public_params, credential);
+                members.push(proto::Member {
+                    user_id: vec![],
+                    profile_key: vec![],
+                    presentation,
+                    role: proto::member::Role::Default.into(),
+                    joined_at_revision: 0,
+                });
+            } else {
+                // No credential - add as pending invite
+                let user_id_ciphertext =
+                    self.encrypt_service_id(candidate.service_id)?;
+                let self_aci = self_credential.aci();
+                pending_members.push(proto::PendingMember {
+                    member: Some(proto::Member {
+                        user_id: user_id_ciphertext,
+                        profile_key: vec![],
+                        presentation: vec![],
+                        role: proto::member::Role::Default.into(),
+                        joined_at_revision: 0,
+                    }),
+                    added_by_user_id: self.encrypt_aci(self_aci)?,
+                    timestamp: 0, // Server sets
+                });
+            }
+        }
+
+        // Encrypt title, description, timer
+        let encrypted_title = self.encrypt_title(title, rng);
+        let encrypted_description = description
+            .map(|d| self.encrypt_description(d, rng))
+            .unwrap_or_default();
+        let encrypted_timer = disappearing_messages_timer
+            .map(|t| self.encrypt_disappearing_message_timer(t, rng))
+            .unwrap_or_default();
+
+        // Convert access control
+        let proto_access_control = access_control.map(|ac| proto::AccessControl {
+            attributes: ac.attributes.into(),
+            members: ac.members.into(),
+            add_from_invite_link: ac.add_from_invite_link.into(),
+        });
+
+        Ok(proto::Group {
+            public_key: zkgroup::serialize(
+                &self.group_secret_params.get_public_params(),
+            ),
+            title: encrypted_title,
+            avatar: String::new(),
+            disappearing_messages_timer: encrypted_timer,
+            access_control: proto_access_control,
+            revision: 0,
+            members,
+            pending_members,
+            requesting_members: vec![],
+            invite_link_password: vec![],
+            description: encrypted_description,
+            announcements_only: false,
+            banned_members: vec![],
+        })
+    }
+
+    /// Build an AddMemberAction with a credential presentation for a GroupChange.
+    ///
+    /// This is used when adding members to an existing group with proper ZK proofs.
+    pub fn build_add_member_action_with_credential(
+        &self,
+        credential: &ExpiringProfileKeyCredential,
+        role: super::model::Role,
+        server_public_params: &ServerPublicParams,
+    ) -> proto::group_change::actions::AddMemberAction {
+        let presentation =
+            self.create_member_presentation(server_public_params, credential);
+        proto::group_change::actions::AddMemberAction {
+            added: Some(proto::Member {
+                user_id: vec![],      // Server extracts from presentation
+                profile_key: vec![],  // Server extracts from presentation
+                presentation,
+                role: role.into(),
+                joined_at_revision: 0, // Set by server
+            }),
+            join_from_invite_link: false,
+        }
     }
 }

@@ -3,7 +3,7 @@ use std::{collections::HashMap, convert::TryInto};
 use crate::{
     configuration::Endpoint,
     groups_v2::{
-        model::{Group, GroupChanges},
+        model::{AccessControl, Group, GroupCandidate, GroupChanges, Timer},
         operations::{GroupDecodingError, GroupOperations},
     },
     prelude::{PushService, ServiceError},
@@ -12,6 +12,8 @@ use crate::{
     utils::BASE64_RELAXED,
     websocket::{self, SignalWebSocket},
 };
+
+use zkgroup::profiles::ExpiringProfileKeyCredential;
 
 use base64::prelude::*;
 use bytes::Bytes;
@@ -302,7 +304,11 @@ impl<C: CredentialsCache> GroupsManager<C> {
         }
     }
 
-    /// Create a new group
+    /// Create a new group (legacy method without credential presentations).
+    ///
+    /// **Note**: This method does not include ProfileKeyCredentialPresentations for members,
+    /// which may cause HTTP 400 errors from the Signal server. Consider using
+    /// `create_group_with_credentials` instead.
     pub async fn create_group<R: Rng + CryptoRng>(
         &mut self,
         csprng: &mut R,
@@ -315,6 +321,62 @@ impl<C: CredentialsCache> GroupsManager<C> {
 
         let operations = GroupOperations::new(group_secret_params);
         let encrypted_group = operations.encrypt_group(&group, csprng)?;
+
+        let created_group = self
+            .identified_push_service
+            .create_group(authorization, encrypted_group)
+            .await?;
+
+        Ok(operations.decrypt_group(created_group)?)
+    }
+
+    /// Create a new group with credential-based member presentations.
+    ///
+    /// This is the recommended method for creating groups as it properly includes
+    /// ProfileKeyCredentialPresentations (ZK proofs) for each member, which the
+    /// Signal server requires for validation.
+    ///
+    /// # Arguments
+    /// * `csprng` - Cryptographically secure random number generator
+    /// * `group_secret_params` - The group's secret parameters
+    /// * `title` - The group title
+    /// * `description` - Optional group description
+    /// * `disappearing_messages_timer` - Optional disappearing messages timer
+    /// * `access_control` - Optional access control settings
+    /// * `self_credential` - The creator's own ExpiringProfileKeyCredential
+    /// * `member_candidates` - Other members to add, with optional credentials
+    ///
+    /// # Returns
+    /// The created and decrypted Group on success.
+    ///
+    /// Members with credentials are added as full members.
+    /// Members without credentials are added as pending invites.
+    pub async fn create_group_with_credentials<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        group_secret_params: GroupSecretParams,
+        title: &str,
+        description: Option<&str>,
+        disappearing_messages_timer: Option<&Timer>,
+        access_control: Option<&AccessControl>,
+        self_credential: &ExpiringProfileKeyCredential,
+        member_candidates: &[GroupCandidate],
+    ) -> Result<Group, ServiceError> {
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+
+        let operations = GroupOperations::new(group_secret_params);
+        let encrypted_group = operations.encrypt_group_with_credentials(
+            title,
+            description,
+            disappearing_messages_timer,
+            access_control,
+            self_credential,
+            member_candidates,
+            &self.server_public_params,
+            csprng,
+        )?;
 
         let created_group = self
             .identified_push_service
