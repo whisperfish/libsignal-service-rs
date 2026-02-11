@@ -25,7 +25,7 @@ use super::{
     Group, GroupChange, GroupChanges,
 };
 
-pub(crate) struct GroupOperations {
+pub struct GroupOperations {
     pub group_secret_params: GroupSecretParams,
 }
 
@@ -62,12 +62,6 @@ impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecodingError {
 }
 
 impl GroupOperations {
-    pub fn new(group_secret_params: GroupSecretParams) -> Self {
-        Self {
-            group_secret_params,
-        }
-    }
-
     fn encrypt_service_id(
         &self,
         service_id: ServiceId,
