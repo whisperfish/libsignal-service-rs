@@ -12,4 +12,4 @@ pub use model::{
     AccessControl, AccessRequired, Group, GroupChange, GroupChanges, Member,
     PendingMember, RequestingMember, Role, Timer,
 };
-pub use operations::GroupDecodingError;
+pub use operations::{GroupDecodingError, GroupOperations};
