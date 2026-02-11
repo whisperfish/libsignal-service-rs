@@ -62,6 +62,14 @@ impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecodingError {
 }
 
 impl GroupOperations {
+    fn encrypt_service_id(
+        &self,
+        service_id: ServiceId,
+    ) -> Result<Vec<u8>, GroupDecodingError> {
+        let ciphertext = self.group_secret_params.encrypt_service_id(service_id);
+        Ok(bincode::serialize(&ciphertext)?)
+    }
+
     fn decrypt_service_id(
         &self,
         ciphertext: &[u8],
@@ -73,6 +81,12 @@ impl GroupOperations {
             ServiceId::Aci(aci) => Ok(ServiceId::from(aci)),
             ServiceId::Pni(pni) => Ok(ServiceId::from(pni)),
         }
+    }
+
+    fn encrypt_aci(&self, aci: Aci) -> Result<Vec<u8>, GroupDecodingError> {
+        let ciphertext =
+            self.group_secret_params.encrypt_service_id(aci.into());
+        Ok(bincode::serialize(&ciphertext)?)
     }
 
     fn decrypt_aci(
@@ -111,6 +125,16 @@ impl GroupOperations {
                 Err(GroupDecodingError::NotPni)
             },
         }
+    }
+
+    fn encrypt_profile_key(
+        &self,
+        profile_key: ProfileKey,
+        aci: Aci,
+    ) -> Result<Vec<u8>, GroupDecodingError> {
+        let ciphertext =
+            self.group_secret_params.encrypt_profile_key(profile_key, aci);
+        Ok(bincode::serialize(&ciphertext)?)
     }
 
     fn decrypt_profile_key(
@@ -229,6 +253,16 @@ impl GroupOperations {
         })
     }
 
+    fn encrypt_blob<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        plaintext: &[u8],
+        rng: &mut R,
+    ) -> Vec<u8> {
+        let mut randomness = [0u8; 32];
+        rng.fill_bytes(&mut randomness);
+        self.group_secret_params.encrypt_blob(randomness, plaintext)
+    }
+
     fn decrypt_blob(&self, bytes: &[u8]) -> GroupAttributeBlob {
         if bytes.is_empty() {
             GroupAttributeBlob::default()
@@ -248,6 +282,56 @@ impl GroupOperations {
                     GroupAttributeBlob::default()
                 })
         }
+    }
+
+    fn encrypt_title<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        title: &str,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        let blob = GroupAttributeBlob {
+            content: Some(group_attribute_blob::Content::Title(
+                title.to_string(),
+            )),
+        };
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&[0u8; 4]); // 4-byte prefix
+        blob.encode(&mut buf).expect("encoding should succeed");
+        self.encrypt_blob(&buf, rng)
+    }
+
+    fn encrypt_description<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        description: &str,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        let blob = GroupAttributeBlob {
+            content: Some(group_attribute_blob::Content::Description(
+                description.to_string(),
+            )),
+        };
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&[0u8; 4]); // 4-byte prefix
+        blob.encode(&mut buf).expect("encoding should succeed");
+        self.encrypt_blob(&buf, rng)
+    }
+
+    fn encrypt_disappearing_message_timer<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        timer: &Timer,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        let blob = GroupAttributeBlob {
+            content: Some(
+                group_attribute_blob::Content::DisappearingMessagesDuration(
+                    timer.duration,
+                ),
+            ),
+        };
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&[0u8; 4]); // 4-byte prefix
+        blob.encode(&mut buf).expect("encoding should succeed");
+        self.encrypt_blob(&buf, rng)
     }
 
     fn decrypt_title(&self, ciphertext: &[u8]) -> String {
@@ -591,5 +675,95 @@ impl GroupOperations {
             Some(Content::Avatar(d)) => Some(d).filter(|d| !d.is_empty()),
             _ => None,
         }
+    }
+
+    /// Encrypt a Group proto for creation
+    pub fn encrypt_group<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        group: &Group,
+        rng: &mut R,
+    ) -> Result<proto::Group, GroupDecodingError> {
+        let encrypted_title = self.encrypt_title(&group.title, rng);
+        let encrypted_description = group
+            .description
+            .as_ref()
+            .map(|d| self.encrypt_description(d, rng))
+            .unwrap_or_default();
+        let encrypted_timer = group
+            .disappearing_messages_timer
+            .as_ref()
+            .map(|t| self.encrypt_disappearing_message_timer(t, rng))
+            .unwrap_or_default();
+
+        let encrypted_members = group
+            .members
+            .iter()
+            .map(|m| {
+                Ok(proto::Member {
+                    user_id: self.encrypt_aci(m.aci)?,
+                    profile_key: self.encrypt_profile_key(m.profile_key, m.aci)?,
+                    presentation: vec![], // Not needed for stored group
+                    role: m.role.into(),
+                    joined_at_revision: m.joined_at_revision,
+                })
+            })
+            .collect::<Result<Vec<_>, GroupDecodingError>>()?;
+
+        let access_control = group.access_control.as_ref().map(|ac| {
+            proto::AccessControl {
+                attributes: ac.attributes.into(),
+                members: ac.members.into(),
+                add_from_invite_link: ac.add_from_invite_link.into(),
+            }
+        });
+
+        Ok(proto::Group {
+            public_key: bincode::serialize(
+                &self.group_secret_params.get_public_params(),
+            )?,
+            title: encrypted_title,
+            avatar: group.avatar.clone(),
+            disappearing_messages_timer: encrypted_timer,
+            access_control,
+            revision: group.revision,
+            members: encrypted_members,
+            pending_members: vec![],
+            requesting_members: vec![],
+            invite_link_password: group.invite_link_password.clone(),
+            description: encrypted_description,
+            announcements_only: group.announcements_only,
+            banned_members: vec![],
+        })
+    }
+
+    /// Build an AddMemberAction for a GroupChange
+    pub fn build_add_member_action(
+        &self,
+        aci: Aci,
+        profile_key: ProfileKey,
+        role: super::model::Role,
+    ) -> Result<proto::group_change::actions::AddMemberAction, GroupDecodingError>
+    {
+        Ok(proto::group_change::actions::AddMemberAction {
+            added: Some(proto::Member {
+                user_id: self.encrypt_aci(aci)?,
+                profile_key: self.encrypt_profile_key(profile_key, aci)?,
+                presentation: vec![],
+                role: role.into(),
+                joined_at_revision: 0, // Set by server
+            }),
+            join_from_invite_link: false,
+        })
+    }
+
+    /// Build a DeleteMemberAction for a GroupChange
+    pub fn build_remove_member_action(
+        &self,
+        aci: Aci,
+    ) -> Result<proto::group_change::actions::DeleteMemberAction, GroupDecodingError>
+    {
+        Ok(proto::group_change::actions::DeleteMemberAction {
+            deleted_user_id: self.encrypt_aci(aci)?,
+        })
     }
 }

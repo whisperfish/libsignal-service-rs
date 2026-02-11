@@ -301,6 +301,48 @@ impl<C: CredentialsCache> GroupsManager<C> {
             _ => Ok(None),
         }
     }
+
+    /// Create a new group
+    pub async fn create_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        group_secret_params: GroupSecretParams,
+        group: Group,
+    ) -> Result<Group, ServiceError> {
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+
+        let operations = GroupOperations::new(group_secret_params);
+        let encrypted_group = operations.encrypt_group(&group, csprng)?;
+
+        let created_group = self
+            .identified_push_service
+            .create_group(authorization, encrypted_group)
+            .await?;
+
+        Ok(operations.decrypt_group(created_group)?)
+    }
+
+    /// Modify an existing group
+    pub async fn modify_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        group_secret_params: GroupSecretParams,
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<GroupChanges, ServiceError> {
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+
+        let group_change = self
+            .identified_push_service
+            .modify_group(authorization, actions)
+            .await?;
+
+        let operations = GroupOperations::new(group_secret_params);
+        Ok(operations.decrypt_group_change(group_change)?)
+    }
 }
 
 pub fn decrypt_group(

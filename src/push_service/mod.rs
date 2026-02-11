@@ -198,6 +198,46 @@ impl PushService {
         .protobuf()
         .await
     }
+
+    pub(crate) async fn create_group(
+        &mut self,
+        credentials: HttpAuth,
+        group: crate::proto::Group,
+    ) -> Result<crate::proto::Group, ServiceError> {
+        use protobuf::ProtobufRequestBuilderExt;
+        self.request(
+            Method::PUT,
+            Endpoint::storage("/v2/groups/"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .protobuf(group)?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
+
+    pub(crate) async fn modify_group(
+        &mut self,
+        credentials: HttpAuth,
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<crate::proto::GroupChange, ServiceError> {
+        use protobuf::ProtobufRequestBuilderExt;
+        self.request(
+            Method::PATCH,
+            Endpoint::storage("/v2/groups/"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .protobuf(actions)?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
 }
 
 pub(crate) mod protobuf {
