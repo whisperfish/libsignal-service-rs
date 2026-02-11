@@ -393,9 +393,11 @@ impl<C: CredentialsCache> GroupsManager<C> {
         group_secret_params: GroupSecretParams,
         actions: crate::proto::group_change::Actions,
     ) -> Result<GroupChanges, ServiceError> {
+        tracing::debug!("getting group auth for modify_group");
         let authorization = self
             .get_authorization_for_today(csprng, group_secret_params)
             .await?;
+        tracing::debug!("got auth, sending modify_group PATCH");
 
         let group_change = self
             .identified_push_service

@@ -186,9 +186,10 @@ impl PushService {
         &mut self,
         credentials: HttpAuth,
     ) -> Result<crate::proto::Group, ServiceError> {
-        self.request(
+        // Server returns GroupResponse { group, group_send_endorsements_response }
+        let response: crate::proto::GroupResponse = self.request(
             Method::GET,
-            Endpoint::storage("/v1/groups/"),
+            Endpoint::storage("/v2/groups/"),
             HttpAuthOverride::Identified(credentials),
         )?
         .send()
@@ -196,7 +197,8 @@ impl PushService {
         .service_error_for_status()
         .await?
         .protobuf()
-        .await
+        .await?;
+        Ok(response.group.unwrap_or_default())
     }
 
     pub(crate) async fn create_group(
@@ -228,18 +230,35 @@ impl PushService {
         actions: crate::proto::group_change::Actions,
     ) -> Result<crate::proto::GroupChange, ServiceError> {
         use protobuf::ProtobufRequestBuilderExt;
-        self.request(
+        tracing::debug!(
+            revision = actions.revision,
+            add_members = actions.add_members.len(),
+            "sending PATCH /v2/groups/"
+        );
+        let response = self.request(
             Method::PATCH,
             Endpoint::storage("/v2/groups/"),
             HttpAuthOverride::Identified(credentials),
         )?
         .protobuf(actions)?
         .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .protobuf()
-        .await
+        .await?;
+
+        let status = response.status();
+        tracing::debug!(%status, "PATCH /v2/groups/ response");
+        if !status.is_success() {
+            let body_bytes = response.bytes().await.unwrap_or_default();
+            let body_str = String::from_utf8_lossy(&body_bytes);
+            tracing::error!(%status, body = %body_str, "modify_group failed");
+            return Err(ServiceError::UnhandledResponseCode {
+                http_code: status.as_u16(),
+            });
+        }
+
+        // Server returns GroupChangeResponse { group_change, group_send_endorsements_response }
+        let change_response: crate::proto::GroupChangeResponse =
+            response.protobuf().await?;
+        Ok(change_response.group_change.unwrap_or_default())
     }
 }
 
