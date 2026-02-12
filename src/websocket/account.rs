@@ -149,4 +149,19 @@ impl SignalWebSocket<websocket::Identified> {
 
         Ok(())
     }
+
+    /// Unregister and delete the account from Signal servers.
+    ///
+    /// This permanently deletes the account and all associated data (groups, contacts, messages).
+    /// After calling this, the phone number can be re-registered with a fresh account.
+    ///
+    /// CAUTION: This is irreversible. All account data will be lost.
+    pub async fn unregister_account(&mut self) -> Result<(), ServiceError> {
+        self.http_request(Method::DELETE, "/v1/accounts/me")?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?;
+        Ok(())
+    }
 }
