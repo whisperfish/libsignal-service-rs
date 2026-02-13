@@ -10,7 +10,7 @@ use zkgroup::{
         ProfileKey, ProfileKeyCredentialRequest,
         ProfileKeyCredentialRequestContext,
     },
-    Timestamp, ZkGroupVerificationFailure, ServerPublicParams,
+    ServerPublicParams, Timestamp, ZkGroupVerificationFailure,
 };
 
 /// Create a ProfileKeyCredentialRequest for fetching a credential from the server.
@@ -25,13 +25,17 @@ pub fn create_credential_request(
     server_public_params: &ServerPublicParams,
     aci: Aci,
     profile_key: &ProfileKey,
-) -> (ProfileKeyCredentialRequestContext, ProfileKeyCredentialRequest) {
+) -> (
+    ProfileKeyCredentialRequestContext,
+    ProfileKeyCredentialRequest,
+) {
     let randomness: [u8; 32] = rand::random();
-    let context = server_public_params.create_profile_key_credential_request_context(
-        randomness,
-        aci,
-        *profile_key,
-    );
+    let context = server_public_params
+        .create_profile_key_credential_request_context(
+            randomness,
+            aci,
+            *profile_key,
+        );
     let request = context.get_request();
     (context, request)
 }

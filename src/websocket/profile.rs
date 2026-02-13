@@ -2,7 +2,8 @@ use libsignal_protocol::Aci;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use zkgroup::profiles::{
-    ProfileKey, ProfileKeyCommitment, ProfileKeyCredentialRequest, ProfileKeyVersion,
+    ProfileKey, ProfileKeyCommitment, ProfileKeyCredentialRequest,
+    ProfileKeyVersion,
 };
 
 use crate::{
@@ -131,13 +132,15 @@ impl SignalWebSocket<websocket::Identified> {
             "fetching profile with credential request"
         );
 
-        let response = self.http_request(Method::GET, &path)?
+        let response = self
+            .http_request(Method::GET, &path)?
             .send()
             .await?
             .service_error_for_status()
             .await?;
 
-        let result: SignalServiceProfileWithCredential = response.json().await?;
+        let result: SignalServiceProfileWithCredential =
+            response.json().await?;
 
         tracing::debug!(
             has_credential = result.credential.is_some(),

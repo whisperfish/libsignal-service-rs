@@ -21,7 +21,10 @@ impl std::fmt::Debug for GroupCandidate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GroupCandidate")
             .field("service_id", &self.service_id)
-            .field("credential", &self.credential.as_ref().map(|_| "[credential]"))
+            .field(
+                "credential",
+                &self.credential.as_ref().map(|_| "[credential]"),
+            )
             .finish()
     }
 }

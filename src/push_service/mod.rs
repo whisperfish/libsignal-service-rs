@@ -187,17 +187,18 @@ impl PushService {
         credentials: HttpAuth,
     ) -> Result<crate::proto::Group, ServiceError> {
         // Server returns GroupResponse { group, group_send_endorsements_response }
-        let response: crate::proto::GroupResponse = self.request(
-            Method::GET,
-            Endpoint::storage("/v2/groups/"),
-            HttpAuthOverride::Identified(credentials),
-        )?
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .protobuf()
-        .await?;
+        let response: crate::proto::GroupResponse = self
+            .request(
+                Method::GET,
+                Endpoint::storage("/v2/groups/"),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .protobuf()
+            .await?;
         Ok(response.group.unwrap_or_default())
     }
 
@@ -235,14 +236,15 @@ impl PushService {
             add_members = actions.add_members.len(),
             "sending PATCH /v2/groups/"
         );
-        let response = self.request(
-            Method::PATCH,
-            Endpoint::storage("/v2/groups/"),
-            HttpAuthOverride::Identified(credentials),
-        )?
-        .protobuf(actions)?
-        .send()
-        .await?;
+        let response = self
+            .request(
+                Method::PATCH,
+                Endpoint::storage("/v2/groups/"),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            .protobuf(actions)?
+            .send()
+            .await?;
 
         let status = response.status();
         tracing::debug!(%status, "PATCH /v2/groups/ response");

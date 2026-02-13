@@ -351,6 +351,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
     ///
     /// Members with credentials are added as full members.
     /// Members without credentials are added as pending invites.
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_group_with_credentials<R: Rng + CryptoRng>(
         &mut self,
         csprng: &mut R,

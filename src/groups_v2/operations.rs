@@ -71,7 +71,8 @@ impl GroupOperations {
         &self,
         service_id: ServiceId,
     ) -> Result<Vec<u8>, GroupDecodingError> {
-        let ciphertext = self.group_secret_params.encrypt_service_id(service_id);
+        let ciphertext =
+            self.group_secret_params.encrypt_service_id(service_id);
         Ok(zkgroup::serialize(&ciphertext))
     }
 
@@ -137,8 +138,9 @@ impl GroupOperations {
         profile_key: ProfileKey,
         aci: Aci,
     ) -> Result<Vec<u8>, GroupDecodingError> {
-        let ciphertext =
-            self.group_secret_params.encrypt_profile_key(profile_key, aci);
+        let ciphertext = self
+            .group_secret_params
+            .encrypt_profile_key(profile_key, aci);
         Ok(zkgroup::serialize(&ciphertext))
     }
 
@@ -321,7 +323,9 @@ impl GroupOperations {
         self.encrypt_blob(&buf, rng)
     }
 
-    pub fn encrypt_disappearing_message_timer<R: rand::Rng + rand::CryptoRng>(
+    pub fn encrypt_disappearing_message_timer<
+        R: rand::Rng + rand::CryptoRng,
+    >(
         &self,
         timer: &Timer,
         rng: &mut R,
@@ -706,7 +710,8 @@ impl GroupOperations {
             .map(|m| {
                 Ok(proto::Member {
                     user_id: self.encrypt_aci(m.aci)?,
-                    profile_key: self.encrypt_profile_key(m.profile_key, m.aci)?,
+                    profile_key: self
+                        .encrypt_profile_key(m.profile_key, m.aci)?,
                     presentation: vec![], // Not needed for stored group
                     role: m.role.into(),
                     joined_at_revision: m.joined_at_revision,
@@ -714,13 +719,15 @@ impl GroupOperations {
             })
             .collect::<Result<Vec<_>, GroupDecodingError>>()?;
 
-        let access_control = group.access_control.as_ref().map(|ac| {
-            proto::AccessControl {
-                attributes: ac.attributes.into(),
-                members: ac.members.into(),
-                add_from_invite_link: ac.add_from_invite_link.into(),
-            }
-        });
+        let access_control =
+            group
+                .access_control
+                .as_ref()
+                .map(|ac| proto::AccessControl {
+                    attributes: ac.attributes.into(),
+                    members: ac.members.into(),
+                    add_from_invite_link: ac.add_from_invite_link.into(),
+                });
 
         Ok(proto::Group {
             public_key: zkgroup::serialize(
@@ -765,8 +772,10 @@ impl GroupOperations {
     pub fn build_remove_member_action(
         &self,
         aci: Aci,
-    ) -> Result<proto::group_change::actions::DeleteMemberAction, GroupDecodingError>
-    {
+    ) -> Result<
+        proto::group_change::actions::DeleteMemberAction,
+        GroupDecodingError,
+    > {
         Ok(proto::group_change::actions::DeleteMemberAction {
             deleted_user_id: self.encrypt_aci(aci)?,
         })
@@ -808,6 +817,7 @@ impl GroupOperations {
     /// * `member_candidates` - Other members to add, with optional credentials
     /// * `server_public_params` - Server public params for creating presentations
     /// * `rng` - Random number generator
+    #[allow(clippy::too_many_arguments)]
     pub fn encrypt_group_with_credentials<R: rand::Rng + rand::CryptoRng>(
         &self,
         title: &str,
@@ -823,11 +833,11 @@ impl GroupOperations {
         let mut pending_members = Vec::new();
 
         // Add self as administrator with presentation
-        let self_presentation =
-            self.create_member_presentation(server_public_params, self_credential);
+        let self_presentation = self
+            .create_member_presentation(server_public_params, self_credential);
         members.push(proto::Member {
-            user_id: vec![],      // Server extracts from presentation
-            profile_key: vec![],  // Server extracts from presentation
+            user_id: vec![],     // Server extracts from presentation
+            profile_key: vec![], // Server extracts from presentation
             presentation: self_presentation,
             role: proto::member::Role::Administrator.into(),
             joined_at_revision: 0,
@@ -837,8 +847,10 @@ impl GroupOperations {
         for candidate in member_candidates {
             if let Some(credential) = &candidate.credential {
                 // Has credential - add as full member with presentation
-                let presentation =
-                    self.create_member_presentation(server_public_params, credential);
+                let presentation = self.create_member_presentation(
+                    server_public_params,
+                    credential,
+                );
                 members.push(proto::Member {
                     user_id: vec![],
                     profile_key: vec![],
@@ -875,11 +887,12 @@ impl GroupOperations {
             .unwrap_or_default();
 
         // Convert access control
-        let proto_access_control = access_control.map(|ac| proto::AccessControl {
-            attributes: ac.attributes.into(),
-            members: ac.members.into(),
-            add_from_invite_link: ac.add_from_invite_link.into(),
-        });
+        let proto_access_control =
+            access_control.map(|ac| proto::AccessControl {
+                attributes: ac.attributes.into(),
+                members: ac.members.into(),
+                add_from_invite_link: ac.add_from_invite_link.into(),
+            });
 
         Ok(proto::Group {
             public_key: zkgroup::serialize(
@@ -913,8 +926,8 @@ impl GroupOperations {
             self.create_member_presentation(server_public_params, credential);
         proto::group_change::actions::AddMemberAction {
             added: Some(proto::Member {
-                user_id: vec![],      // Server extracts from presentation
-                profile_key: vec![],  // Server extracts from presentation
+                user_id: vec![],     // Server extracts from presentation
+                profile_key: vec![], // Server extracts from presentation
                 presentation,
                 role: role.into(),
                 joined_at_revision: 0, // Set by server
@@ -932,7 +945,10 @@ impl GroupOperations {
         invitee_aci: Aci,
         added_by_aci: Aci,
         role: super::model::Role,
-    ) -> Result<proto::group_change::actions::AddPendingMemberAction, GroupDecodingError> {
+    ) -> Result<
+        proto::group_change::actions::AddPendingMemberAction,
+        GroupDecodingError,
+    > {
         Ok(proto::group_change::actions::AddPendingMemberAction {
             added: Some(proto::PendingMember {
                 member: Some(proto::Member {

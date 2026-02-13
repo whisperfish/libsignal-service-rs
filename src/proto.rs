@@ -105,7 +105,10 @@ mod tests {
         };
 
         // Verify fields
-        assert_eq!(poll.question.as_deref(), Some("What should we prioritize?"));
+        assert_eq!(
+            poll.question.as_deref(),
+            Some("What should we prioritize?")
+        );
         assert_eq!(poll.allow_multiple, Some(false));
         assert_eq!(poll.options.len(), 3);
 
@@ -113,7 +116,7 @@ mod tests {
         let mut buf = Vec::new();
         poll.encode(&mut buf).unwrap();
         let decoded = data_message::PollCreate::decode(&buf[..]).unwrap();
-        
+
         assert_eq!(poll, decoded);
     }
 
@@ -121,7 +124,9 @@ mod tests {
     fn test_poll_vote_serialization() {
         // Create a vote
         let vote = data_message::PollVote {
-            target_author_aci_binary: Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+            target_author_aci_binary: Some(vec![
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            ]),
             target_sent_timestamp: Some(1706500000000),
             option_indexes: vec![0, 2], // Vote for options 0 and 2
             vote_count: Some(1),
@@ -131,7 +136,7 @@ mod tests {
         let mut buf = Vec::new();
         vote.encode(&mut buf).unwrap();
         let decoded = data_message::PollVote::decode(&buf[..]).unwrap();
-        
+
         assert_eq!(vote, decoded);
         assert_eq!(decoded.option_indexes, vec![0, 2]);
     }
@@ -145,7 +150,7 @@ mod tests {
         let mut buf = Vec::new();
         terminate.encode(&mut buf).unwrap();
         let decoded = data_message::PollTerminate::decode(&buf[..]).unwrap();
-        
+
         assert_eq!(terminate, decoded);
     }
 
@@ -155,10 +160,7 @@ mod tests {
         let poll = data_message::PollCreate {
             question: Some("Approve federation with Group B?".to_string()),
             allow_multiple: Some(false),
-            options: vec![
-                "Yes".to_string(),
-                "No".to_string(),
-            ],
+            options: vec!["Yes".to_string(), "No".to_string()],
         };
 
         let data_message = DataMessage {
@@ -170,7 +172,12 @@ mod tests {
         // Verify the poll is embedded
         assert!(data_message.poll_create.is_some());
         assert_eq!(
-            data_message.poll_create.as_ref().unwrap().question.as_deref(),
+            data_message
+                .poll_create
+                .as_ref()
+                .unwrap()
+                .question
+                .as_deref(),
             Some("Approve federation with Group B?")
         );
 
@@ -178,7 +185,7 @@ mod tests {
         let mut buf = Vec::new();
         data_message.encode(&mut buf).unwrap();
         let decoded = DataMessage::decode(&buf[..]).unwrap();
-        
+
         assert_eq!(decoded.poll_create, Some(poll));
     }
 
@@ -187,11 +194,11 @@ mod tests {
         // Verify protocol version 8 (POLLS) exists
         // Note: CURRENT = 8 is aliased to Polls in prost output
         assert_eq!(data_message::ProtocolVersion::Polls as i32, 8);
-        
+
         // Verify Polls is higher than Payments (previous version)
         assert!(
-            data_message::ProtocolVersion::Polls as i32 
-            > data_message::ProtocolVersion::Payments as i32
+            data_message::ProtocolVersion::Polls as i32
+                > data_message::ProtocolVersion::Payments as i32
         );
     }
 }
