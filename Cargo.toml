@@ -11,6 +11,7 @@ libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0
 libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.86.15" }
 signal-crypto = { git = "https://github.com/signalapp/libsignal", tag = "v0.86.15" }
 zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.86.15" }
+usernames = { git = "https://github.com/signalapp/libsignal", tag = "v0.86.15" }
 
 aes = "0.8"
 aes-gcm = "0.10"
