@@ -28,7 +28,6 @@ pub mod keys;
 pub mod linking;
 pub mod profile;
 pub mod registration;
-pub mod username;
 mod request;
 mod sender;
 pub mod stickers;

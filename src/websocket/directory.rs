@@ -40,6 +40,6 @@ impl SignalWebSocket<Identified> {
             .service_error_for_status()
             .await?;
 
-        Ok(response.json().await?)
+        response.json().await
     }
 }
