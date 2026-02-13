@@ -922,4 +922,29 @@ impl GroupOperations {
             join_from_invite_link: false,
         }
     }
+
+    /// Build an AddPendingMemberAction to invite a member without their profile key.
+    ///
+    /// This adds the member as a pending invite. They will receive a group invite
+    /// notification and must accept to become a full member. No profile key is needed.
+    pub fn build_add_pending_member_action(
+        &self,
+        invitee_aci: Aci,
+        added_by_aci: Aci,
+        role: super::model::Role,
+    ) -> Result<proto::group_change::actions::AddPendingMemberAction, GroupDecodingError> {
+        Ok(proto::group_change::actions::AddPendingMemberAction {
+            added: Some(proto::PendingMember {
+                member: Some(proto::Member {
+                    user_id: self.encrypt_aci(invitee_aci)?,
+                    profile_key: vec![],
+                    presentation: vec![],
+                    role: role.into(),
+                    joined_at_revision: 0,
+                }),
+                added_by_user_id: self.encrypt_aci(added_by_aci)?,
+                timestamp: 0, // Server sets
+            }),
+        })
+    }
 }
