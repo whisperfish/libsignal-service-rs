@@ -23,6 +23,7 @@ use crate::proto::{
 use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
 pub mod account;
+pub mod directory;
 pub mod keys;
 pub mod linking;
 pub mod profile;
