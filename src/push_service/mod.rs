@@ -97,6 +97,7 @@ impl PushService {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(65))
             .user_agent(user_agent.as_ref())
+            .http1_only()
             .build()
             .unwrap();
 
