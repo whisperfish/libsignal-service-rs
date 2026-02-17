@@ -198,7 +198,7 @@ where
 
         if envelope.destination_service_id.is_none() {
             tracing::warn!(
-                "missing destination service id; ingoring invalid message."
+                "missing destination service id; ignoring invalid message."
             );
             return Err(ServiceError::InvalidFrame {
                 reason: "missing destination service id",
@@ -207,7 +207,7 @@ where
 
         if envelope.destination_address().raw_uuid() != self.local_uuid {
             tracing::warn!(
-                "mismatching destination service id; ingoring invalid message."
+                "mismatching destination service id; ignoring invalid message."
             );
             return Err(ServiceError::InvalidFrame {
                 reason: "mismatch destination service id",
