@@ -781,6 +781,25 @@ impl GroupOperations {
         })
     }
 
+    /// Build a DeletePendingMemberAction to retract an outstanding invitation.
+    ///
+    /// Used when a pending member (invite not yet accepted) is to be removed.
+    /// The `invitee` may be ACI or PNI — whichever service ID was used when
+    /// the invite was originally created.  The Signal server stores and matches
+    /// on the encrypted `user_id` field of `PendingMember`, which may be
+    /// either kind of `ServiceId`.
+    pub fn build_remove_pending_member_action(
+        &self,
+        invitee: ServiceId,
+    ) -> Result<
+        proto::group_change::actions::DeletePendingMemberAction,
+        GroupDecodingError,
+    > {
+        Ok(proto::group_change::actions::DeletePendingMemberAction {
+            deleted_user_id: self.encrypt_service_id(invitee)?,
+        })
+    }
+
     /// Create a presentation from a credential for adding a member to a group.
     ///
     /// This creates a ZK proof (ExpiringProfileKeyCredentialPresentation) that the
@@ -940,9 +959,15 @@ impl GroupOperations {
     ///
     /// This adds the member as a pending invite. They will receive a group invite
     /// notification and must accept to become a full member. No profile key is needed.
+    ///
+    /// The `invitee` may be either an ACI or a PNI. When only a PNI is known (e.g.
+    /// the invitee has ACI disclosure disabled in CDSI), passing `ServiceId::Pni`
+    /// allows the pending-invite path to proceed without an ACI. The Signal server
+    /// stores whichever service ID is provided in the encrypted `user_id` field of
+    /// the `PendingMember` proto. The `added_by_aci` must always be an ACI.
     pub fn build_add_pending_member_action(
         &self,
-        invitee_aci: Aci,
+        invitee: ServiceId,
         added_by_aci: Aci,
         role: super::model::Role,
     ) -> Result<
@@ -952,7 +977,7 @@ impl GroupOperations {
         Ok(proto::group_change::actions::AddPendingMemberAction {
             added: Some(proto::PendingMember {
                 member: Some(proto::Member {
-                    user_id: self.encrypt_aci(invitee_aci)?,
+                    user_id: self.encrypt_service_id(invitee)?,
                     profile_key: vec![],
                     presentation: vec![],
                     role: role.into(),
