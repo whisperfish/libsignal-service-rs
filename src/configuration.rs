@@ -19,7 +19,6 @@ pub struct ServiceConfiguration {
     service_url: Url,
     storage_url: Url,
     cdn_urls: HashMap<u32, Url>,
-    contact_discovery_url: Url,
     pub certificate_authority: String,
     pub unidentified_sender_trust_roots: Vec<PublicKey>,
     pub zkgroup_server_public_params: ServerPublicParams,
@@ -75,6 +74,15 @@ pub enum SignalServers {
     Production,
 }
 
+impl Into<libsignal_net::env::Env<'static>> for SignalServers {
+    fn into(self) -> libsignal_net::env::Env<'static> {
+        match self {
+            SignalServers::Staging => libsignal_net::env::STAGING,
+            SignalServers::Production => libsignal_net::env::PROD,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Endpoint<'a> {
     Absolute(Url),
@@ -88,9 +96,6 @@ pub enum Endpoint<'a> {
         cdn_id: u32,
         path: Cow<'a, str>,
         query: Option<Cow<'a, str>>,
-    },
-    ContactDiscovery {
-        path: Cow<'a, str>,
     },
 }
 
@@ -106,9 +111,6 @@ impl fmt::Display for Endpoint<'_> {
             },
             Endpoint::Cdn { cdn_id, path, .. } => {
                 write!(f, "CDN{cdn_id} call to {path}")
-            },
-            Endpoint::ContactDiscovery { path } => {
-                write!(f, "Contact discovery API call to {path}")
             },
         }
     }
@@ -159,9 +161,6 @@ impl<'a> Endpoint<'a> {
                 url.set_path(&path);
                 url.set_query(query.as_deref());
                 Ok(url)
-            },
-            Endpoint::ContactDiscovery { path } => {
-                service_configuration.contact_discovery_url.join(&path)
             },
             Endpoint::Absolute(url) => Ok(url),
         }
@@ -215,8 +214,6 @@ impl From<&SignalServers> for ServiceConfiguration {
                     map.insert(3, "https://cdn3-staging.signal.org".parse().unwrap());
                     map
                 },
-                contact_discovery_url:
-                    "https://api-staging.directory.signal.org".parse().unwrap(),
                 certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/staging-root-ca.pem")).to_string(),
                 unidentified_sender_trust_roots: vec![
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BbqY1DzohE4NUZoVF+L18oUPrK3kILllLEJh2UnPSsEx").unwrap()).unwrap(),
@@ -237,7 +234,6 @@ impl From<&SignalServers> for ServiceConfiguration {
                     map.insert(3, "https://cdn3.signal.org".parse().unwrap());
                     map
                 },
-                contact_discovery_url: "https://api.directory.signal.org".parse().unwrap(),
                 certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/production-root-ca.pem")).to_string(),
                 unidentified_sender_trust_roots: vec![
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BXu6QIKVz5MA8gstzfOgRQGqyLqOwNKHL6INkv3IHWMF").unwrap()).unwrap(),

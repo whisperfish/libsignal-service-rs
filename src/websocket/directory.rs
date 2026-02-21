@@ -2,14 +2,23 @@
 //!
 //! Provides authentication credentials for CDSI contact lookup operations.
 
-use crate::content::ServiceError;
-use crate::websocket::{Identified, SignalWebSocket};
+use libsignal_core::{Aci, E164};
+use libsignal_net::auth::Auth;
+use libsignal_net::cdsi::{CdsiConnection, LookupRequest};
+use libsignal_net::connect_state::{
+    ConnectState, ConnectionResources, SUGGESTED_CONNECT_CONFIG,
+};
+use libsignal_net_infra::dns::DnsResolver;
+use libsignal_net_infra::utils::no_network_change_events;
 use reqwest::Method;
 use serde::Deserialize;
 
+use crate::content::ServiceError;
+use crate::websocket::{Identified, SignalWebSocket};
+
 /// CDSI authentication credentials
 #[derive(Debug, Deserialize)]
-pub struct CdsiAuth {
+struct CdsiAuth {
     pub username: String,
     pub password: String,
 }
@@ -32,7 +41,7 @@ impl SignalWebSocket<Identified> {
     /// // Use auth.username and auth.password for CDSI connection
     /// # }
     /// ```
-    pub async fn get_cdsi_auth(&mut self) -> Result<CdsiAuth, ServiceError> {
+    async fn get_cdsi_auth(&mut self) -> Result<CdsiAuth, ServiceError> {
         let response = self
             .http_request(Method::GET, "/v2/directory/auth")?
             .send()
@@ -41,5 +50,73 @@ impl SignalWebSocket<Identified> {
             .await?;
 
         response.json().await
+    }
+
+    /// Resolve a phone number (E.164 format, e.g., "+15551234567") to an ACI.
+    ///
+    /// Uses Contact Discovery Service (CDSI) via libsignal-net. The phone number
+    /// is looked up inside an SGX enclave for privacy.
+    pub async fn resolve_phone_number(
+        &mut self,
+        e164: &str,
+    ) -> Result<Option<Aci>, ServiceError> {
+        let env: libsignal_net::env::Env<'_> = self.servers().into();
+        let phone_number: E164 =
+            e164.parse().map_err(|_| ServiceError::SendError {
+                reason: format!("Invalid E.164 phone number: {}", e164),
+            })?;
+
+        // 1. Get CDSI auth credentials from chat server
+        let cdsi_auth_response = self.get_cdsi_auth().await?;
+
+        let auth = Auth {
+            username: cdsi_auth_response.username,
+            password: cdsi_auth_response.password,
+        };
+
+        // 2. Set up connection infrastructure
+        let connect_state = ConnectState::new(SUGGESTED_CONNECT_CONFIG);
+        let network_change_event = no_network_change_events();
+        let static_map = std::collections::HashMap::from([env
+            .cdsi
+            .domain_config
+            .static_fallback(libsignal_net::env::StaticIpOrder::HARDCODED)]);
+        let dns_resolver = DnsResolver::new_with_static_fallback(
+            static_map,
+            &network_change_event,
+        );
+
+        let connection_resources = ConnectionResources {
+            connect_state: &connect_state,
+            dns_resolver: &dns_resolver,
+            network_change_event: &network_change_event,
+            confirmation_header_name: None,
+        };
+
+        // 3. Connect to CDSI using DirectOrProxyProvider::direct() wrapper
+        let cdsi_endpoint = &env.cdsi;
+        let cdsi_connection = CdsiConnection::connect_with(
+            connection_resources,
+            libsignal_net_infra::route::DirectOrProxyProvider::direct(
+                cdsi_endpoint.enclave_websocket_provider(
+                    libsignal_net_infra::EnableDomainFronting::No,
+                ),
+            ),
+            cdsi_endpoint.ws_config,
+            &cdsi_endpoint.params,
+            &auth,
+        )
+        .await?;
+
+        // 4. Send lookup request
+        let lookup_request = LookupRequest {
+            new_e164s: vec![phone_number],
+            ..Default::default()
+        };
+        let (_token, collector) =
+            cdsi_connection.send_request(lookup_request).await?;
+        let response = collector.collect().await?;
+
+        Ok(response.records.first().and_then(|r| r.aci))
     }
 }

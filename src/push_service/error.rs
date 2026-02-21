@@ -124,6 +124,9 @@ pub enum ServiceError {
     // and manual From impl.
     #[error("Fingerprint error: {0}")]
     Fingerprint(FingerprintError),
+
+    #[error("CDSI lookup error: {0}")]
+    CdsiLookupError(#[from] libsignal_net::cdsi::LookupError),
 }
 
 impl From<signal_crypto::HpkeError> for ServiceError {
