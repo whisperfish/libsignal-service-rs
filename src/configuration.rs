@@ -74,9 +74,9 @@ pub enum SignalServers {
     Production,
 }
 
-impl Into<libsignal_net::env::Env<'static>> for SignalServers {
-    fn into(self) -> libsignal_net::env::Env<'static> {
-        match self {
+impl From<SignalServers> for libsignal_net::env::Env<'static> {
+    fn from(servers: SignalServers) -> Self {
+        match servers {
             SignalServers::Staging => libsignal_net::env::STAGING,
             SignalServers::Production => libsignal_net::env::PROD,
         }
