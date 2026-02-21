@@ -212,7 +212,7 @@ pub(crate) mod protobuf {
         Self: Sized,
     {
         /// Set the request payload encoded as protobuf.
-        /// Sets the `Content-Type` header to `application/protobuf`
+        /// Sets the `Content-Type` header to `application/x-protobuf`
         #[allow(dead_code)]
         fn protobuf<T: Message + Default>(
             self,
@@ -236,7 +236,7 @@ pub(crate) mod protobuf {
             let mut buf = Vec::new();
             value.encode(&mut buf)?;
             let this =
-                self.header(header::CONTENT_TYPE, "application/protobuf");
+                self.header(header::CONTENT_TYPE, "application/x-protobuf");
             Ok(this.body(buf))
         }
     }
