@@ -1,3 +1,9 @@
+#[cfg(feature = "phonenumber")]
+mod phonenumber;
+
+#[cfg(feature = "phonenumber")]
+pub use phonenumber::*;
+
 // Signal sometimes adds padding, sometimes it does not.
 // This requires a custom decoding engine.
 // This engine is as general as possible.
@@ -19,20 +25,6 @@ pub fn random_length_padding<R: rand::Rng + rand::CryptoRng>(
     let mut padding = vec![0u8; length];
     csprng.fill_bytes(&mut padding);
     padding
-}
-
-#[cfg(feature = "phonenumber")]
-pub fn phonenumber_to_signal(
-    number: &phonenumber::PhoneNumber,
-) -> libsignal_core::E164 {
-    number.to_string().parse().expect("valid phonenumber")
-}
-
-#[cfg(feature = "phonenumber")]
-pub fn phonenumber_from_signal(
-    number: &libsignal_core::E164,
-) -> phonenumber::PhoneNumber {
-    phonenumber::parse(None, number.to_string()).expect("valid phonenumber")
 }
 
 pub mod serde_base64 {
