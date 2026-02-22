@@ -29,7 +29,7 @@ futures = "0.3"
 hex = "0.4"
 hkdf = "0.12"
 hmac = "0.12"
-phonenumber = "0.3"
+phonenumber = { version = "0.3", optional = true }
 prost = "0.13"
 rand = "0.9"
 rand_core_06 = { version = "0.6", package = "rand_core" }
@@ -55,6 +55,9 @@ prost-build = "0.13"
 [dev-dependencies]
 anyhow = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt"] }
+
+[features]
+phonenumber = ["dep:phonenumber"]
 
 [patch.crates-io]
 curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', tag = 'signal-curve25519-4.1.3' }
