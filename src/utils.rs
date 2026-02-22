@@ -1,3 +1,9 @@
+#[cfg(feature = "phonenumber")]
+mod phonenumber;
+
+#[cfg(feature = "phonenumber")]
+pub use phonenumber::*;
+
 // Signal sometimes adds padding, sometimes it does not.
 // This requires a custom decoding engine.
 // This engine is as general as possible.
@@ -268,6 +274,60 @@ pub mod serde_signaling_key {
     }
 }
 
+pub mod serde_optional_e164 {
+    use libsignal_core::E164;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        phone_number: &Option<E164>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match phone_number {
+            Some(p) => serializer.serialize_str(&p.to_string()),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<E164>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(s) => s.parse().map_err(serde::de::Error::custom).map(Some),
+            None => Ok(None),
+        }
+    }
+}
+
+pub mod serde_e164 {
+    use libsignal_core::E164;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        phone_number: &E164,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&phone_number.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<E164, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+#[cfg(feature = "phonenumber")]
 pub mod serde_phone_number {
     use phonenumber::PhoneNumber;
     use serde::{Deserialize, Deserializer, Serializer};

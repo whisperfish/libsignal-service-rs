@@ -69,6 +69,7 @@ pub mod prelude {
         sender::{MessageSender, MessageSenderError},
         session_store::SessionStoreExt,
     };
+    #[cfg(feature = "phonenumber")]
     pub use phonenumber;
     pub use prost::Message as ProtobufMessage;
     pub use uuid::{Error as UuidError, Uuid};

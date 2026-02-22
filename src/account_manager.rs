@@ -1,6 +1,5 @@
 use base64::prelude::*;
-use libsignal_core::DeviceId;
-use phonenumber::PhoneNumber;
+use libsignal_core::{DeviceId, E164};
 use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use std::collections::HashMap;
@@ -763,7 +762,7 @@ impl AccountManager {
         pni_protocol_store: &mut PniStore,
         mut sender: MessageSender<AciOrPni>,
         local_aci: Aci,
-        e164: PhoneNumber,
+        e164: E164,
         csprng: &mut R,
     ) -> Result<(), MessageSenderError> {
         let pni_identity_key_pair =
@@ -909,9 +908,7 @@ impl AccountManager {
                             .serialize()?,
                     ),
                     registration_id: Some(registration_id),
-                    new_e164: Some(
-                        e164.format().mode(phonenumber::Mode::E164).to_string(),
-                    ),
+                    new_e164: Some(e164.to_string()),
                 }),
                 padding: Some(random_length_padding(csprng, 512)),
                 ..SyncMessage::default()

@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
 use crate::utils::BASE64_RELAXED;
 use base64::prelude::*;
-use libsignal_core::DeviceId;
+use libsignal_core::{DeviceId, E164};
 use libsignal_protocol::PublicKey;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -30,7 +30,7 @@ pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 pub struct ServiceCredentials {
     pub aci: Option<uuid::Uuid>,
     pub pni: Option<uuid::Uuid>,
-    pub phonenumber: phonenumber::PhoneNumber,
+    pub phonenumber: E164,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
     pub device_id: Option<DeviceId>,
@@ -45,10 +45,7 @@ impl ServiceCredentials {
     }
 
     pub fn e164(&self) -> String {
-        self.phonenumber
-            .format()
-            .mode(phonenumber::Mode::E164)
-            .to_string()
+        self.phonenumber.to_string()
     }
 
     pub fn login(&self) -> String {
