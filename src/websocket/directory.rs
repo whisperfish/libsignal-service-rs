@@ -2,7 +2,7 @@
 //!
 //! Provides authentication credentials for CDSI contact lookup operations.
 
-use libsignal_core::{E164, ServiceId};
+use libsignal_core::{ServiceId, E164};
 use libsignal_net::auth::Auth;
 use libsignal_net::cdsi::{CdsiConnection, LookupRequest};
 use libsignal_net::connect_state::{
