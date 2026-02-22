@@ -21,6 +21,18 @@ pub fn random_length_padding<R: rand::Rng + rand::CryptoRng>(
     padding
 }
 
+pub fn phonenumber_to_signal(
+    number: &phonenumber::PhoneNumber,
+) -> libsignal_core::E164 {
+    number.to_string().parse().expect("valid phonenumber")
+}
+
+pub fn phonenumber_from_signal(
+    number: &libsignal_core::E164,
+) -> phonenumber::PhoneNumber {
+    phonenumber::parse(None, number.to_string()).expect("valid phonenumber")
+}
+
 pub mod serde_base64 {
     use super::BASE64_RELAXED;
     use base64::prelude::*;
