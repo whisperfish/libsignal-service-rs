@@ -2,7 +2,7 @@
 //!
 //! Provides authentication credentials for CDSI contact lookup operations.
 
-use libsignal_core::{Aci, E164};
+use libsignal_core::{E164, ServiceId};
 use libsignal_net::auth::Auth;
 use libsignal_net::cdsi::{CdsiConnection, LookupRequest};
 use libsignal_net::connect_state::{
@@ -12,6 +12,7 @@ use libsignal_net_infra::dns::DnsResolver;
 use libsignal_net_infra::utils::no_network_change_events;
 use reqwest::Method;
 use serde::Deserialize;
+use tracing::warn;
 
 use crate::content::ServiceError;
 use crate::websocket::{Identified, SignalWebSocket};
@@ -58,13 +59,9 @@ impl SignalWebSocket<Identified> {
     /// is looked up inside an SGX enclave for privacy.
     pub async fn resolve_phone_number(
         &mut self,
-        e164: &str,
-    ) -> Result<Option<Aci>, ServiceError> {
+        phone_numbers: impl IntoIterator<Item = E164>,
+    ) -> Result<Vec<Option<ServiceId>>, ServiceError> {
         let env: libsignal_net::env::Env<'_> = self.servers().into();
-        let phone_number: E164 =
-            e164.parse().map_err(|_| ServiceError::SendError {
-                reason: format!("Invalid E.164 phone number: {}", e164),
-            })?;
 
         // 1. Get CDSI auth credentials from chat server
         let cdsi_auth_response = self.get_cdsi_auth().await?;
@@ -110,13 +107,21 @@ impl SignalWebSocket<Identified> {
 
         // 4. Send lookup request
         let lookup_request = LookupRequest {
-            new_e164s: vec![phone_number],
+            new_e164s: phone_numbers.into_iter().collect(),
             ..Default::default()
         };
         let (_token, collector) =
             cdsi_connection.send_request(lookup_request).await?;
         let response = collector.collect().await?;
 
-        Ok(response.records.first().and_then(|r| r.aci))
+        Ok(response.records.into_iter().map(|r| match (r.pni, r.aci) {
+            (None, None) => None,
+            (None, Some(aci)) => Some(aci.into()),
+            (Some(pni), None) => Some(pni.into()),
+            (Some(_), Some(aci)) => {
+                warn!("got both ACI and PNI for a phone number, this is unexpected, using ACI!");
+                Some(aci.into())
+            },
+        }).collect())
     }
 }
