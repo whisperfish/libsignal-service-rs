@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["CdsiAuth"]};
+window.SIDEBAR_ITEMS = {};
