@@ -163,7 +163,7 @@ impl SignalWebSocket<Identified> {
         &mut self,
         phone_number: &str,
     ) -> Result<Option<ServiceId>, ServiceError> {
-        let e164 = match E164::from_str(phone_number) {
+        let e164 = match phone_number.parse::<E164>() {
             Ok(e164) => e164,
             Err(_) => return Ok(None), // Invalid phone number format
         };
