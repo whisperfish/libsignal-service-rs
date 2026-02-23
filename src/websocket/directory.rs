@@ -1,10 +1,8 @@
 //! Contact Discovery Service (CDSI) authentication
 //!
 //! Provides authentication credentials for CDSI contact lookup operations.
-//! 
-use std::str::FromStr;
-
-use libsignal_core::{ServiceId, E164};
+//!
+use libsignal_core::ServiceId;
 use libsignal_net::auth::Auth;
 use libsignal_net::cdsi::{CdsiConnection, LookupRequest};
 use libsignal_net::connect_state::{
@@ -17,6 +15,7 @@ use serde::Deserialize;
 use tracing::warn;
 
 use crate::content::ServiceError;
+use crate::utils::ToE164;
 use crate::websocket::{Identified, SignalWebSocket};
 
 /// CDSI authentication credentials
@@ -55,7 +54,7 @@ impl SignalWebSocket<Identified> {
         response.json().await
     }
 
-    /// Resolve a phone number (E.164 format, e.g., "+15551234567") to an ACI.
+    /// Resolve a phone number (E.164 format, e.g., "+15551234567") to an acccount.
     ///
     /// Uses Contact Discovery Service (CDSI) via libsignal-net. The phone number
     /// is looked up inside an SGX enclave for privacy.
@@ -68,13 +67,9 @@ impl SignalWebSocket<Identified> {
     /// # Returns
     /// * `Ok(Vec<Option<ServiceId>>)` - Vector of resolved ServiceIds (None if not found)
     /// * `Err(ServiceError)` - Network or protocol error
-    pub async fn resolve_phone_numbers(
+    pub async fn discover_contacts(
         &mut self,
-        phone_numbers: impl IntoIterator<Item = E164>,
-        prev_e164s: impl IntoIterator<Item = E164>,
-        acis_and_access_keys: impl IntoIterator<
-            Item = libsignal_net::cdsi::AciAndAccessKey,
-        >,
+        lookup_request: LookupRequest,
     ) -> Result<Vec<Option<ServiceId>>, ServiceError> {
         let env: libsignal_net::env::Env<'_> = self.servers().into();
 
@@ -120,13 +115,6 @@ impl SignalWebSocket<Identified> {
         )
         .await?;
 
-        // 4. Send lookup request
-        let lookup_request = LookupRequest {
-            new_e164s: phone_numbers.into_iter().collect(),
-            prev_e164s: prev_e164s.into_iter().collect(),
-            acis_and_access_keys: acis_and_access_keys.into_iter().collect(),
-            token: Box::new([]),
-        };
         let (_token, collector) =
             cdsi_connection.send_request(lookup_request).await?;
         let response = collector.collect().await?;
@@ -142,7 +130,7 @@ impl SignalWebSocket<Identified> {
         }).collect())
     }
 
-    /// Resolve a single phone number (E.164 format, e.g., "+15551234567") to an ACI.
+    /// Resolve a single phone number (E.164 format, e.g., "+15551234567") to a PNI.
     ///
     /// Uses Contact Discovery Service (CDSI) via libsignal-net. The phone number
     /// is looked up inside an SGX enclave for privacy.
@@ -155,27 +143,16 @@ impl SignalWebSocket<Identified> {
     /// # Returns
     /// * `Ok(Option<ServiceId>)` - The resolved ServiceId (None if not found)
     /// * `Err(ServiceError)` - Network or protocol error
-    #[deprecated(
-        since = "0.1.0",
-        note = "Use resolve_phone_numbers with explicit prev_e164s and acis_and_access_keys parameters"
-    )]
-    pub async fn resolve_phone_number(
+    pub async fn discover_contact_by_phone_number(
         &mut self,
-        phone_number: &str,
+        phone_number: impl ToE164,
     ) -> Result<Option<ServiceId>, ServiceError> {
-        let e164 = match phone_number.parse::<E164>() {
-            Ok(e164) => e164,
-            Err(_) => return Ok(None), // Invalid phone number format
+        let lookup_request = LookupRequest {
+            new_e164s: vec![phone_number.to_e164()],
+            ..Default::default()
         };
 
-        let results = self
-            .resolve_phone_numbers(
-                std::iter::once(e164),
-                std::iter::empty::<E164>(),
-                std::iter::empty::<libsignal_net::cdsi::AciAndAccessKey>(),
-            )
-            .await?;
-
+        let results = self.discover_contacts(lookup_request).await?;
         Ok(results.into_iter().next().flatten())
     }
 }

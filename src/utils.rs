@@ -1,7 +1,4 @@
-#[cfg(feature = "phonenumber")]
 mod phonenumber;
-
-#[cfg(feature = "phonenumber")]
 pub use phonenumber::*;
 
 // Signal sometimes adds padding, sometimes it does not.
