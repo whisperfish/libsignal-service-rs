@@ -68,7 +68,8 @@ impl SignalWebSocket<Identified> {
     pub async fn discover_contacts(
         &mut self,
         lookup_request: LookupRequest,
-    ) -> Result<Vec<Option<ServiceId>>, ServiceError> {
+    ) -> Result<Vec<Option<(libsignal_core::E164, ServiceId)>>, ServiceError>
+    {
         let env: libsignal_net::env::Env<'_> = self.servers().into();
 
         // 1. Get CDSI auth credentials from chat server
@@ -113,17 +114,19 @@ impl SignalWebSocket<Identified> {
         )
         .await?;
 
+        let e164s = lookup_request.new_e164s.clone();
+
         let (_token, collector) =
             cdsi_connection.send_request(lookup_request).await?;
         let response = collector.collect().await?;
 
-        Ok(response.records.into_iter().map(|r| match (r.pni, r.aci) {
+        Ok(e164s.into_iter().zip(response.records).map(|(e164, r)| match (r.pni, r.aci) {
             (None, None) => None,
-            (None, Some(aci)) => Some(aci.into()),
-            (Some(pni), None) => Some(pni.into()),
+            (None, Some(aci)) => Some((e164, aci.into())),
+            (Some(pni), None) => Some((e164, pni.into())),
             (Some(_), Some(aci)) => {
                 warn!("got both ACI and PNI for a phone number, this is unexpected, using ACI!");
-                Some(aci.into())
+                Some((e164, aci.into()))
             },
         }).collect())
     }
@@ -150,6 +153,10 @@ impl SignalWebSocket<Identified> {
         };
 
         let results = self.discover_contacts(lookup_request).await?;
-        Ok(results.into_iter().next().flatten())
+        Ok(results
+            .into_iter()
+            .next()
+            .flatten()
+            .map(|(_, service_id)| service_id))
     }
 }
