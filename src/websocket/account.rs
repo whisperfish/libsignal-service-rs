@@ -1,5 +1,4 @@
 use chrono::{DateTime, Utc};
-use phonenumber::PhoneNumber;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -7,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     content::ServiceError,
     utils::serde_optional_base64,
-    utils::{serde_device_id, serde_phone_number},
+    utils::{serde_device_id, serde_e164},
     websocket,
 };
 
@@ -93,8 +92,8 @@ pub struct WhoAmIResponse {
     pub aci: Uuid,
     #[serde(default)] // nil when not present (yet)
     pub pni: Uuid,
-    #[serde(with = "serde_phone_number")]
-    pub number: PhoneNumber,
+    #[serde(with = "serde_e164")]
+    pub number: libsignal_core::E164,
 }
 
 impl SignalWebSocket<websocket::Identified> {

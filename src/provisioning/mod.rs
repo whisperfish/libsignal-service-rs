@@ -10,6 +10,7 @@ use base64::Engine;
 use futures::StreamExt;
 use futures::{channel::mpsc::Sender, pin_mut, SinkExt};
 use libsignal_core::curve::CurveError;
+use libsignal_core::E164;
 use libsignal_protocol::{
     DeviceId, IdentityKey, IdentityKeyPair, PrivateKey, PublicKey,
 };
@@ -60,7 +61,7 @@ pub enum ProvisioningError {
     #[error("missing phone number")]
     MissingPhoneNumber,
     #[error("invalid phone number: {0}")]
-    InvalidPhoneNumber(phonenumber::ParseError),
+    InvalidPhoneNumber(<E164 as std::str::FromStr>::Err),
     #[error("missing provisioning code")]
     MissingProvisioningCode,
     #[error("mismatched MAC")]
@@ -130,7 +131,7 @@ pub enum SecondaryDeviceProvisioning {
 
 #[derive(derive_more::Debug)]
 pub struct NewDeviceRegistration {
-    pub phone_number: phonenumber::PhoneNumber,
+    pub phone_number: libsignal_core::E164,
     pub device_id: DeviceId,
     pub registration_id: u32,
     pub pni_registration_id: u32,
@@ -231,7 +232,8 @@ pub async fn link_device<
             .number
             .ok_or(ProvisioningError::MissingPhoneNumber)?;
 
-        let phone_number = phonenumber::parse(None, phone_number)
+        let phone_number = phone_number
+            .parse::<E164>()
             .map_err(ProvisioningError::InvalidPhoneNumber)?;
 
         let provisioning_code = message

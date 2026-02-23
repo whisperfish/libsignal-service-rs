@@ -1,5 +1,6 @@
+use crate::utils::serde_optional_e164;
 use bytes::Bytes;
-use phonenumber::PhoneNumber;
+use libsignal_core::E164;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use uuid::Uuid;
@@ -17,7 +18,8 @@ pub struct Attachment<R> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Contact {
     pub uuid: Uuid,
-    pub phone_number: Option<PhoneNumber>,
+    #[serde(with = "serde_optional_e164")]
+    pub phone_number: Option<E164>,
     pub name: String,
     pub expire_timer: u32,
     pub expire_timer_version: u32,
@@ -51,10 +53,13 @@ impl Contact {
                 .as_ref()
                 .ok_or(ParseContactError::MissingUuid)?
                 .parse()?,
-            phone_number: contact_details
-                .number
-                .as_ref()
-                .and_then(|n| phonenumber::parse(None, n).ok()),
+            phone_number: contact_details.number.as_ref().and_then(|n| {
+                n.parse::<E164>()
+                    .inspect_err(|e| {
+                        tracing::warn!(e=%e, "unparseable phone number");
+                    })
+                    .ok()
+            }),
             name: contact_details.name().into(),
             expire_timer: contact_details.expire_timer(),
             expire_timer_version: contact_details.expire_timer_version(),

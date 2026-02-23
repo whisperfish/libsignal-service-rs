@@ -15,6 +15,7 @@ use reqwest_websocket::WebSocket;
 use tokio::time::Instant;
 use tracing::debug;
 
+use crate::configuration::SignalServers;
 use crate::prelude::PushService;
 use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
@@ -393,6 +394,10 @@ impl<C: WebSocketType> SignalWebSocket<C> {
             },
             process,
         )
+    }
+
+    pub fn servers(&self) -> SignalServers {
+        self.unidentified_push_service.servers
     }
 
     pub fn is_closed(&self) -> bool {

@@ -3,7 +3,7 @@ use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
 use crate::utils::BASE64_RELAXED;
 use base64::prelude::*;
-use libsignal_core::DeviceId;
+use libsignal_core::{DeviceId, E164};
 use libsignal_protocol::PublicKey;
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -19,7 +19,6 @@ pub struct ServiceConfiguration {
     service_url: Url,
     storage_url: Url,
     cdn_urls: HashMap<u32, Url>,
-    contact_discovery_url: Url,
     pub certificate_authority: String,
     pub unidentified_sender_trust_roots: Vec<PublicKey>,
     pub zkgroup_server_public_params: ServerPublicParams,
@@ -31,7 +30,7 @@ pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
 pub struct ServiceCredentials {
     pub aci: Option<uuid::Uuid>,
     pub pni: Option<uuid::Uuid>,
-    pub phonenumber: phonenumber::PhoneNumber,
+    pub phonenumber: E164,
     pub password: Option<String>,
     pub signaling_key: Option<SignalingKey>,
     pub device_id: Option<DeviceId>,
@@ -46,10 +45,7 @@ impl ServiceCredentials {
     }
 
     pub fn e164(&self) -> String {
-        self.phonenumber
-            .format()
-            .mode(phonenumber::Mode::E164)
-            .to_string()
+        self.phonenumber.to_string()
     }
 
     pub fn login(&self) -> String {
@@ -75,6 +71,15 @@ pub enum SignalServers {
     Production,
 }
 
+impl From<SignalServers> for libsignal_net::env::Env<'static> {
+    fn from(servers: SignalServers) -> Self {
+        match servers {
+            SignalServers::Staging => libsignal_net::env::STAGING,
+            SignalServers::Production => libsignal_net::env::PROD,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum Endpoint<'a> {
     Absolute(Url),
@@ -88,9 +93,6 @@ pub enum Endpoint<'a> {
         cdn_id: u32,
         path: Cow<'a, str>,
         query: Option<Cow<'a, str>>,
-    },
-    ContactDiscovery {
-        path: Cow<'a, str>,
     },
 }
 
@@ -106,9 +108,6 @@ impl fmt::Display for Endpoint<'_> {
             },
             Endpoint::Cdn { cdn_id, path, .. } => {
                 write!(f, "CDN{cdn_id} call to {path}")
-            },
-            Endpoint::ContactDiscovery { path } => {
-                write!(f, "Contact discovery API call to {path}")
             },
         }
     }
@@ -159,9 +158,6 @@ impl<'a> Endpoint<'a> {
                 url.set_path(&path);
                 url.set_query(query.as_deref());
                 Ok(url)
-            },
-            Endpoint::ContactDiscovery { path } => {
-                service_configuration.contact_discovery_url.join(&path)
             },
             Endpoint::Absolute(url) => Ok(url),
         }
@@ -215,8 +211,6 @@ impl From<&SignalServers> for ServiceConfiguration {
                     map.insert(3, "https://cdn3-staging.signal.org".parse().unwrap());
                     map
                 },
-                contact_discovery_url:
-                    "https://api-staging.directory.signal.org".parse().unwrap(),
                 certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/staging-root-ca.pem")).to_string(),
                 unidentified_sender_trust_roots: vec![
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BbqY1DzohE4NUZoVF+L18oUPrK3kILllLEJh2UnPSsEx").unwrap()).unwrap(),
@@ -237,7 +231,6 @@ impl From<&SignalServers> for ServiceConfiguration {
                     map.insert(3, "https://cdn3.signal.org".parse().unwrap());
                     map
                 },
-                contact_discovery_url: "https://api.directory.signal.org".parse().unwrap(),
                 certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/production-root-ca.pem")).to_string(),
                 unidentified_sender_trust_roots: vec![
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BXu6QIKVz5MA8gstzfOgRQGqyLqOwNKHL6INkv3IHWMF").unwrap()).unwrap(),

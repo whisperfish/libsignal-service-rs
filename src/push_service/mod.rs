@@ -1,7 +1,7 @@
 use std::{sync::LazyLock, time::Duration};
 
 use crate::{
-    configuration::{Endpoint, ServiceCredentials},
+    configuration::{Endpoint, ServiceCredentials, SignalServers},
     prelude::ServiceConfiguration,
     utils::serde_device_id_vec,
     websocket::{SignalWebSocket, WebSocketType},
@@ -74,6 +74,7 @@ pub struct StaleDevices {
 
 #[derive(Clone)]
 pub struct PushService {
+    pub(crate) servers: SignalServers,
     cfg: ServiceConfiguration,
     credentials: Option<HttpAuth>,
     client: reqwest::Client,
@@ -81,11 +82,11 @@ pub struct PushService {
 
 impl PushService {
     pub fn new(
-        cfg: impl Into<ServiceConfiguration>,
+        env: SignalServers,
         credentials: Option<ServiceCredentials>,
         user_agent: impl AsRef<str>,
     ) -> Self {
-        let cfg = cfg.into();
+        let cfg: ServiceConfiguration = env.into();
         let client = reqwest::ClientBuilder::new()
             .tls_built_in_root_certs(false)
             .add_root_certificate(
@@ -102,6 +103,7 @@ impl PushService {
             .unwrap();
 
         Self {
+            servers: env,
             cfg,
             credentials: credentials.and_then(|c| c.authorization()),
             client,
@@ -168,6 +170,7 @@ impl PushService {
             .await?;
 
         let unidentified_push_service = PushService {
+            servers: self.servers,
             cfg: self.cfg.clone(),
             credentials: None,
             client: self.client.clone(),
@@ -261,11 +264,11 @@ mod tests {
 
     #[test]
     fn create_clients() {
-        let configs = &[SignalServers::Staging, SignalServers::Production];
+        let environments = &[SignalServers::Staging, SignalServers::Production];
 
-        for cfg in configs {
+        for env in environments {
             let _ =
-                super::PushService::new(cfg, None, "libsignal-service test");
+                super::PushService::new(*env, None, "libsignal-service test");
         }
     }
 
