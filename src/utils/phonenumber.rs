@@ -1,3 +1,8 @@
+use std::num::ParseIntError;
+
+#[cfg(feature = "phonenumber")]
+use url::form_urlencoded::Parse;
+
 #[cfg(feature = "phonenumber")]
 pub fn phonenumber_to_signal(
     number: &phonenumber::PhoneNumber,
@@ -12,26 +17,32 @@ pub fn phonenumber_from_signal(
     phonenumber::parse(None, number.to_string()).expect("valid phonenumber")
 }
 
-pub trait ToE164: Sized {
-    fn to_e164(self) -> libsignal_core::E164;
+pub trait TryIntoE164: Sized {
+    fn try_into_e164(self) -> Result<libsignal_core::E164, ParseIntError>;
 }
 
-impl ToE164 for libsignal_core::E164 {
-    fn to_e164(self) -> libsignal_core::E164 {
-        self
+impl TryIntoE164 for &str {
+    fn try_into_e164(self) -> Result<libsignal_core::E164, ParseIntError> {
+        self.parse()
+    }
+}
+
+impl TryIntoE164 for libsignal_core::E164 {
+    fn try_into_e164(self) -> Result<libsignal_core::E164, ParseIntError> {
+        Ok(self)
     }
 }
 
 #[cfg(feature = "phonenumber")]
-impl ToE164 for phonenumber::PhoneNumber {
-    fn to_e164(self) -> libsignal_core::E164 {
-        phonenumber_to_signal(&self)
+impl TryIntoE164 for phonenumber::PhoneNumber {
+    fn try_into_e164(self) -> Result<libsignal_core::E164, ParseIntError> {
+        Ok(phonenumber_to_signal(&self))
     }
 }
 
 #[cfg(feature = "phonenumber")]
-impl ToE164 for &phonenumber::PhoneNumber {
-    fn to_e164(self) -> libsignal_core::E164 {
-        phonenumber_to_signal(self)
+impl TryIntoE164 for &phonenumber::PhoneNumber {
+    fn try_into_e164(self) -> Result<libsignal_core::E164, ParseIntError> {
+        Ok(phonenumber_to_signal(self))
     }
 }

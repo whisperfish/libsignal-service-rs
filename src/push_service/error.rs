@@ -23,6 +23,9 @@ pub enum ServiceError {
     #[error("wrong address type: {0}")]
     InvalidAddressType(ServiceIdKind),
 
+    #[error("invalid phone number")]
+    InvalidPhoneNumber,
+
     #[error("Error sending request: {reason}")]
     SendError { reason: String },
 

@@ -15,7 +15,7 @@ use serde::Deserialize;
 use tracing::warn;
 
 use crate::content::ServiceError;
-use crate::utils::ToE164;
+use crate::utils::TryIntoE164;
 use crate::websocket::{Identified, SignalWebSocket};
 
 /// CDSI authentication credentials
@@ -140,10 +140,12 @@ impl SignalWebSocket<Identified> {
     /// * `Err(ServiceError)` - Network or protocol error
     pub async fn discover_contact_by_phone_number(
         &mut self,
-        phone_number: impl ToE164,
+        phone_number: impl TryIntoE164,
     ) -> Result<Option<ServiceId>, ServiceError> {
         let lookup_request = LookupRequest {
-            new_e164s: vec![phone_number.to_e164()],
+            new_e164s: vec![phone_number
+                .try_into_e164()
+                .map_err(|_| ServiceError::InvalidPhoneNumber)?],
             ..Default::default()
         };
 
