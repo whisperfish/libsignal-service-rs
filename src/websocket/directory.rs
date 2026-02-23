@@ -54,10 +54,17 @@ impl SignalWebSocket<Identified> {
         response.json().await
     }
 
-    /// Resolve phone numbers (with possible extra information) to acccounts.
+    /// Resolve phone numbers (with possible extra information) to accounts.
     ///
     /// Uses Contact Discovery Service (CDSI) via libsignal-net. The phone numbers
     /// are looked up inside an SGX enclave for privacy.
+    ///
+    /// # Arguments
+    /// * `lookup_request` - The CDSI lookup request containing phone numbers and other parameters
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Option<ServiceId>>)` - Vector of resolved ServiceIds (None if not found)
+    /// * `Err(ServiceError)` - Network or protocol error
     pub async fn discover_contacts(
         &mut self,
         lookup_request: LookupRequest,
@@ -123,7 +130,10 @@ impl SignalWebSocket<Identified> {
 
     /// Resolve a single phone number (E.164 format, e.g., "+15551234567") to a ServiceId.
     ///
-    /// This is a wrapper for the single phone number function.
+    /// Convenience wrapper that looks up a single phone number using CDSI.
+    ///
+    /// # Arguments
+    /// * `phone_number` - Phone number in E.164 format (e.g., "+15551234567")
     ///
     /// # Returns
     /// * `Ok(Option<ServiceId>)` - The resolved ServiceId (None if not found)
