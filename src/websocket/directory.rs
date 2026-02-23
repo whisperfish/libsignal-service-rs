@@ -54,19 +54,10 @@ impl SignalWebSocket<Identified> {
         response.json().await
     }
 
-    /// Resolve a phone number (E.164 format, e.g., "+15551234567") to an acccount.
+    /// Resolve phone numbers (with possible extra information) to acccounts.
     ///
-    /// Uses Contact Discovery Service (CDSI) via libsignal-net. The phone number
-    /// is looked up inside an SGX enclave for privacy.
-    ///
-    /// # Parameters
-    /// * `phone_numbers` - The phone numbers to look up
-    /// * `prev_e164s` - Previously seen phone numbers (optional)
-    /// * `acis_and_access_keys` - ACI and access keys for lookup (optional)
-    ///
-    /// # Returns
-    /// * `Ok(Vec<Option<ServiceId>>)` - Vector of resolved ServiceIds (None if not found)
-    /// * `Err(ServiceError)` - Network or protocol error
+    /// Uses Contact Discovery Service (CDSI) via libsignal-net. The phone numbers
+    /// are looked up inside an SGX enclave for privacy.
     pub async fn discover_contacts(
         &mut self,
         lookup_request: LookupRequest,
@@ -130,15 +121,9 @@ impl SignalWebSocket<Identified> {
         }).collect())
     }
 
-    /// Resolve a single phone number (E.164 format, e.g., "+15551234567") to a PNI.
+    /// Resolve a single phone number (E.164 format, e.g., "+15551234567") to a ServiceId.
     ///
-    /// Uses Contact Discovery Service (CDSI) via libsignal-net. The phone number
-    /// is looked up inside an SGX enclave for privacy.
-    ///
-    /// This is a backward-compatible wrapper for the single phone number function.
-    ///
-    /// # Parameters
-    /// * `phone_number` - The phone number to look up
+    /// This is a wrapper for the single phone number function.
     ///
     /// # Returns
     /// * `Ok(Option<ServiceId>)` - The resolved ServiceId (None if not found)
