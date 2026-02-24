@@ -4,7 +4,7 @@
 //!
 use libsignal_core::ServiceId;
 use libsignal_net::auth::Auth;
-use libsignal_net::cdsi::CdsiConnection;
+use libsignal_net::cdsi::{CdsiConnection, LookupResponseEntry};
 use libsignal_net::connect_state::{
     ConnectState, ConnectionResources, SUGGESTED_CONNECT_CONFIG,
 };
@@ -70,7 +70,7 @@ impl SignalWebSocket<Identified> {
     pub async fn discover_contacts(
         &mut self,
         lookup_request: LookupRequest,
-    ) -> Result<Vec<Option<(libsignal_core::E164, ServiceId)>>, ServiceError>
+    ) -> Result<Vec<(libsignal_core::E164, Option<ServiceId>)>, ServiceError>
     {
         let env: libsignal_net::env::Env<'_> = self.servers().into();
 
@@ -116,19 +116,17 @@ impl SignalWebSocket<Identified> {
         )
         .await?;
 
-        let e164s = lookup_request.new_e164s.clone();
-
         let (_token, collector) =
             cdsi_connection.send_request(lookup_request).await?;
         let response = collector.collect().await?;
 
-        Ok(e164s.into_iter().zip(response.records).map(|(e164, r)| match (r.pni, r.aci) {
-            (None, None) => None,
-            (None, Some(aci)) => Some((e164, aci.into())),
-            (Some(pni), None) => Some((e164, pni.into())),
+        Ok(response.records.into_iter().map(|LookupResponseEntry { e164, aci, pni }| match (pni, aci) {
+            (None, None) => (e164, None),
+            (None, Some(aci)) => (e164, Some(aci.into())),
+            (Some(pni), None) => (e164, Some(pni.into())),
             (Some(_), Some(aci)) => {
                 warn!("got both ACI and PNI for a phone number, this is unexpected, using ACI!");
-                Some((e164, aci.into()))
+                (e164, Some(aci.into()))
             },
         }).collect())
     }
@@ -158,7 +156,6 @@ impl SignalWebSocket<Identified> {
         Ok(results
             .into_iter()
             .next()
-            .flatten()
-            .map(|(_, service_id)| service_id))
+            .and_then(|(_, service_id)| service_id))
     }
 }
