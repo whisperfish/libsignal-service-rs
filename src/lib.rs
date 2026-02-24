@@ -77,10 +77,11 @@ pub mod prelude {
         groups::{GroupMasterKey, GroupSecretParams},
         profiles::ProfileKey,
     };
-
-    pub use libsignal_core::InvalidDeviceId;
-    pub use libsignal_protocol::{DeviceId, IdentityKeyStore};
 }
 
-pub use libsignal_protocol as protocol;
+pub mod protocol {
+    pub use libsignal_core::{InvalidDeviceId, E164};
+    pub use libsignal_protocol::*;
+}
+
 pub use zkgroup;
