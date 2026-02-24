@@ -261,7 +261,11 @@ impl<C: CredentialsCache> GroupsManager<C> {
         let authorization = self
             .get_authorization_for_today(csprng, group_secret_params)
             .await?;
-        self.identified_push_service.get_group(authorization).await
+        let response = self
+            .identified_push_service
+            .get_group(authorization)
+            .await?;
+        Ok(response.group.unwrap_or_default())
     }
 
     #[tracing::instrument(
@@ -353,12 +357,12 @@ impl<C: CredentialsCache> GroupsManager<C> {
             csprng,
         )?;
 
-        let created_group = self
+        let response = self
             .identified_push_service
             .create_group(authorization, encrypted_group)
             .await?;
 
-        Ok(operations.decrypt_group(created_group)?)
+        Ok(operations.decrypt_group(response.group.unwrap_or_default())?)
     }
 
     /// Modify an existing group
@@ -374,13 +378,14 @@ impl<C: CredentialsCache> GroupsManager<C> {
             .await?;
         tracing::debug!("got auth, sending modify_group PATCH");
 
-        let group_change = self
+        let response = self
             .identified_push_service
             .modify_group(authorization, actions)
             .await?;
 
         let operations = GroupOperations::new(group_secret_params);
-        Ok(operations.decrypt_group_change(group_change)?)
+        Ok(operations
+            .decrypt_group_change(response.group_change.unwrap_or_default())?)
     }
 }
 

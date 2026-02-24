@@ -188,51 +188,45 @@ impl PushService {
     pub(crate) async fn get_group(
         &mut self,
         credentials: HttpAuth,
-    ) -> Result<crate::proto::Group, ServiceError> {
-        // Server returns GroupResponse { group, group_send_endorsements_response }
-        let response: crate::proto::GroupResponse = self
-            .request(
-                Method::GET,
-                Endpoint::storage("/v2/groups/"),
-                HttpAuthOverride::Identified(credentials),
-            )?
-            .send()
-            .await?
-            .service_error_for_status()
-            .await?
-            .protobuf()
-            .await?;
-        Ok(response.group.unwrap_or_default())
+    ) -> Result<crate::proto::GroupResponse, ServiceError> {
+        self.request(
+            Method::GET,
+            Endpoint::storage("/v2/groups/"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
     }
 
     pub(crate) async fn create_group(
         &mut self,
         credentials: HttpAuth,
         group: crate::proto::Group,
-    ) -> Result<crate::proto::Group, ServiceError> {
+    ) -> Result<crate::proto::GroupResponse, ServiceError> {
         use protobuf::ProtobufRequestBuilderExt;
-        // Server returns GroupResponse { group, group_send_endorsements_response }
-        let response: crate::proto::GroupResponse = self
-            .request(
-                Method::PUT,
-                Endpoint::storage("/v2/groups/"),
-                HttpAuthOverride::Identified(credentials),
-            )?
-            .protobuf(group)?
-            .send()
-            .await?
-            .service_error_for_status()
-            .await?
-            .protobuf()
-            .await?;
-        Ok(response.group.unwrap_or_default())
+        self.request(
+            Method::PUT,
+            Endpoint::storage("/v2/groups/"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .protobuf(group)?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
     }
 
     pub(crate) async fn modify_group(
         &mut self,
         credentials: HttpAuth,
         actions: crate::proto::group_change::Actions,
-    ) -> Result<crate::proto::GroupChange, ServiceError> {
+    ) -> Result<crate::proto::GroupChangeResponse, ServiceError> {
         use protobuf::ProtobufRequestBuilderExt;
         tracing::debug!(
             revision = actions.revision,
@@ -260,10 +254,7 @@ impl PushService {
             });
         }
 
-        // Server returns GroupChangeResponse { group_change, group_send_endorsements_response }
-        let change_response: crate::proto::GroupChangeResponse =
-            response.protobuf().await?;
-        Ok(change_response.group_change.unwrap_or_default())
+        response.protobuf().await
     }
 }
 
