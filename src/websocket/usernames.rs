@@ -8,6 +8,13 @@ use crate::content::ServiceError;
 use super::{SignalWebSocket, Unidentified};
 
 impl SignalWebSocket<Unidentified> {
+    pub async fn look_up_username(
+        &mut self,
+        username: &usernames::Username,
+    ) -> Result<Option<Aci>, ServiceError> {
+        self.look_up_username_hash(&username.hash()).await
+    }
+
     // Based on libsignal-net
     pub async fn look_up_username_hash(
         &mut self,
