@@ -52,6 +52,11 @@ impl WebSocketRequestMessageBuilder {
         Ok(self.header("content-type", "application/json").request)
     }
 
+    pub fn body(mut self, body: Vec<u8>) -> WebSocketRequestMessage {
+        self.request.body = Some(body);
+        self.request
+    }
+
     pub fn build(self) -> WebSocketRequestMessage {
         self.request
     }

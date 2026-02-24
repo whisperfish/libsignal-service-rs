@@ -265,7 +265,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             .identified_push_service
             .get_group(authorization)
             .await?;
-        Ok(response.group.unwrap_or_default())
+        Ok(response.group)
     }
 
     #[tracing::instrument(
@@ -362,7 +362,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             .create_group(authorization, encrypted_group)
             .await?;
 
-        Ok(operations.decrypt_group(response.group.unwrap_or_default())?)
+        Ok(operations.decrypt_group(response.group)?)
     }
 
     /// Modify an existing group
@@ -384,8 +384,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
             .await?;
 
         let operations = GroupOperations::new(group_secret_params);
-        Ok(operations
-            .decrypt_group_change(response.group_change.unwrap_or_default())?)
+        Ok(operations.decrypt_group_change(response.group_change)?)
     }
 }
 
