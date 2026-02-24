@@ -4,7 +4,7 @@
 //!
 use libsignal_core::ServiceId;
 use libsignal_net::auth::Auth;
-use libsignal_net::cdsi::{CdsiConnection, LookupRequest};
+use libsignal_net::cdsi::CdsiConnection;
 use libsignal_net::connect_state::{
     ConnectState, ConnectionResources, SUGGESTED_CONNECT_CONFIG,
 };
@@ -17,6 +17,8 @@ use tracing::warn;
 use crate::content::ServiceError;
 use crate::utils::TryIntoE164;
 use crate::websocket::{Identified, SignalWebSocket};
+
+pub use libsignal_net::cdsi::LookupRequest;
 
 /// CDSI authentication credentials
 #[derive(Debug, Deserialize)]
