@@ -32,6 +32,7 @@ pub mod registration;
 mod request;
 mod sender;
 pub mod stickers;
+mod usernames;
 
 pub use request::WebSocketRequestMessageBuilder;
 
