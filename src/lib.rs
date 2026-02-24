@@ -82,6 +82,7 @@ pub mod prelude {
 pub mod protocol {
     pub use libsignal_core::{InvalidDeviceId, E164};
     pub use libsignal_protocol::*;
+    pub use usernames::Username;
 }
 
 pub use zkgroup;
