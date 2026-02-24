@@ -4,7 +4,7 @@
 <a href=#4 id=4 data-nosnippet>4</a>//!
 <a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use </span>libsignal_core::ServiceId;
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>libsignal_net::auth::Auth;
-<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>libsignal_net::cdsi::CdsiConnection;
+<a href=#7 id=7 data-nosnippet>7</a><span class="kw">use </span>libsignal_net::cdsi::{CdsiConnection, LookupResponseEntry};
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>libsignal_net::connect_state::{
 <a href=#9 id=9 data-nosnippet>9</a>    ConnectState, ConnectionResources, SUGGESTED_CONNECT_CONFIG,
 <a href=#10 id=10 data-nosnippet>10</a>};
@@ -70,7 +70,7 @@
 <a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">pub async fn </span>discover_contacts(
 <a href=#71 id=71 data-nosnippet>71</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#72 id=72 data-nosnippet>72</a>        lookup_request: LookupRequest,
-<a href=#73 id=73 data-nosnippet>73</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;<span class="prelude-ty">Option</span>&lt;(libsignal_core::E164, ServiceId)&gt;&gt;, ServiceError&gt;
+<a href=#73 id=73 data-nosnippet>73</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(libsignal_core::E164, <span class="prelude-ty">Option</span>&lt;ServiceId&gt;)&gt;, ServiceError&gt;
 <a href=#74 id=74 data-nosnippet>74</a>    {
 <a href=#75 id=75 data-nosnippet>75</a>        <span class="kw">let </span>env: libsignal_net::env::Env&lt;<span class="lifetime">'_</span>&gt; = <span class="self">self</span>.servers().into();
 <a href=#76 id=76 data-nosnippet>76</a>
@@ -116,50 +116,47 @@
 <a href=#116 id=116 data-nosnippet>116</a>        )
 <a href=#117 id=117 data-nosnippet>117</a>        .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#118 id=118 data-nosnippet>118</a>
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>e164s = lookup_request.new_e164s.clone();
-<a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">let </span>(_token, collector) =
-<a href=#122 id=122 data-nosnippet>122</a>            cdsi_connection.send_request(lookup_request).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#123 id=123 data-nosnippet>123</a>        <span class="kw">let </span>response = collector.collect().<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#124 id=124 data-nosnippet>124</a>
-<a href=#125 id=125 data-nosnippet>125</a>        <span class="prelude-val">Ok</span>(e164s.into_iter().zip(response.records).map(|(e164, r)| <span class="kw">match </span>(r.pni, r.aci) {
-<a href=#126 id=126 data-nosnippet>126</a>            (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">None</span>,
-<a href=#127 id=127 data-nosnippet>127</a>            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(aci)) =&gt; <span class="prelude-val">Some</span>((e164, aci.into())),
-<a href=#128 id=128 data-nosnippet>128</a>            (<span class="prelude-val">Some</span>(pni), <span class="prelude-val">None</span>) =&gt; <span class="prelude-val">Some</span>((e164, pni.into())),
-<a href=#129 id=129 data-nosnippet>129</a>            (<span class="prelude-val">Some</span>(<span class="kw">_</span>), <span class="prelude-val">Some</span>(aci)) =&gt; {
-<a href=#130 id=130 data-nosnippet>130</a>                <span class="macro">warn!</span>(<span class="string">"got both ACI and PNI for a phone number, this is unexpected, using ACI!"</span>);
-<a href=#131 id=131 data-nosnippet>131</a>                <span class="prelude-val">Some</span>((e164, aci.into()))
-<a href=#132 id=132 data-nosnippet>132</a>            },
-<a href=#133 id=133 data-nosnippet>133</a>        }).collect())
-<a href=#134 id=134 data-nosnippet>134</a>    }
-<a href=#135 id=135 data-nosnippet>135</a>
-<a href=#136 id=136 data-nosnippet>136</a>    <span class="doccomment">/// Resolve a single phone number (E.164 format, e.g., "+15551234567") to a ServiceId.
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>(_token, collector) =
+<a href=#120 id=120 data-nosnippet>120</a>            cdsi_connection.send_request(lookup_request).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">let </span>response = collector.collect().<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#122 id=122 data-nosnippet>122</a>
+<a href=#123 id=123 data-nosnippet>123</a>        <span class="prelude-val">Ok</span>(response.records.into_iter().map(|LookupResponseEntry { e164, aci, pni }| <span class="kw">match </span>(pni, aci) {
+<a href=#124 id=124 data-nosnippet>124</a>            (<span class="prelude-val">None</span>, <span class="prelude-val">None</span>) =&gt; (e164, <span class="prelude-val">None</span>),
+<a href=#125 id=125 data-nosnippet>125</a>            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(aci)) =&gt; (e164, <span class="prelude-val">Some</span>(aci.into())),
+<a href=#126 id=126 data-nosnippet>126</a>            (<span class="prelude-val">Some</span>(pni), <span class="prelude-val">None</span>) =&gt; (e164, <span class="prelude-val">Some</span>(pni.into())),
+<a href=#127 id=127 data-nosnippet>127</a>            (<span class="prelude-val">Some</span>(<span class="kw">_</span>), <span class="prelude-val">Some</span>(aci)) =&gt; {
+<a href=#128 id=128 data-nosnippet>128</a>                <span class="macro">warn!</span>(<span class="string">"got both ACI and PNI for a phone number, this is unexpected, using ACI!"</span>);
+<a href=#129 id=129 data-nosnippet>129</a>                (e164, <span class="prelude-val">Some</span>(aci.into()))
+<a href=#130 id=130 data-nosnippet>130</a>            },
+<a href=#131 id=131 data-nosnippet>131</a>        }).collect())
+<a href=#132 id=132 data-nosnippet>132</a>    }
+<a href=#133 id=133 data-nosnippet>133</a>
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="doccomment">/// Resolve a single phone number (E.164 format, e.g., "+15551234567") to a ServiceId.
+<a href=#135 id=135 data-nosnippet>135</a>    ///
+<a href=#136 id=136 data-nosnippet>136</a>    /// Convenience wrapper that looks up a single phone number using CDSI.
 <a href=#137 id=137 data-nosnippet>137</a>    ///
-<a href=#138 id=138 data-nosnippet>138</a>    /// Convenience wrapper that looks up a single phone number using CDSI.
-<a href=#139 id=139 data-nosnippet>139</a>    ///
-<a href=#140 id=140 data-nosnippet>140</a>    /// # Arguments
-<a href=#141 id=141 data-nosnippet>141</a>    /// * `phone_number` - Phone number in E.164 format (e.g., "+15551234567")
-<a href=#142 id=142 data-nosnippet>142</a>    ///
-<a href=#143 id=143 data-nosnippet>143</a>    /// # Returns
-<a href=#144 id=144 data-nosnippet>144</a>    /// * `Ok(Option&lt;ServiceId&gt;)` - The resolved ServiceId (None if not found)
-<a href=#145 id=145 data-nosnippet>145</a>    /// * `Err(ServiceError)` - Network or protocol error
-<a href=#146 id=146 data-nosnippet>146</a>    </span><span class="kw">pub async fn </span>discover_contact_by_phone_number(
-<a href=#147 id=147 data-nosnippet>147</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#148 id=148 data-nosnippet>148</a>        phone_number: <span class="kw">impl </span>TryIntoE164,
-<a href=#149 id=149 data-nosnippet>149</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ServiceId&gt;, ServiceError&gt; {
-<a href=#150 id=150 data-nosnippet>150</a>        <span class="kw">let </span>lookup_request = LookupRequest {
-<a href=#151 id=151 data-nosnippet>151</a>            new_e164s: <span class="macro">vec!</span>[phone_number
-<a href=#152 id=152 data-nosnippet>152</a>                .try_into_e164()
-<a href=#153 id=153 data-nosnippet>153</a>                .map_err(|<span class="kw">_</span>| ServiceError::InvalidPhoneNumber)<span class="question-mark">?</span>],
-<a href=#154 id=154 data-nosnippet>154</a>            ..Default::default()
-<a href=#155 id=155 data-nosnippet>155</a>        };
-<a href=#156 id=156 data-nosnippet>156</a>
-<a href=#157 id=157 data-nosnippet>157</a>        <span class="kw">let </span>results = <span class="self">self</span>.discover_contacts(lookup_request).<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#158 id=158 data-nosnippet>158</a>        <span class="prelude-val">Ok</span>(results
-<a href=#159 id=159 data-nosnippet>159</a>            .into_iter()
-<a href=#160 id=160 data-nosnippet>160</a>            .next()
-<a href=#161 id=161 data-nosnippet>161</a>            .flatten()
-<a href=#162 id=162 data-nosnippet>162</a>            .map(|(<span class="kw">_</span>, service_id)| service_id))
-<a href=#163 id=163 data-nosnippet>163</a>    }
-<a href=#164 id=164 data-nosnippet>164</a>}
+<a href=#138 id=138 data-nosnippet>138</a>    /// # Arguments
+<a href=#139 id=139 data-nosnippet>139</a>    /// * `phone_number` - Phone number in E.164 format (e.g., "+15551234567")
+<a href=#140 id=140 data-nosnippet>140</a>    ///
+<a href=#141 id=141 data-nosnippet>141</a>    /// # Returns
+<a href=#142 id=142 data-nosnippet>142</a>    /// * `Ok(Option&lt;ServiceId&gt;)` - The resolved ServiceId (None if not found)
+<a href=#143 id=143 data-nosnippet>143</a>    /// * `Err(ServiceError)` - Network or protocol error
+<a href=#144 id=144 data-nosnippet>144</a>    </span><span class="kw">pub async fn </span>discover_contact_by_phone_number(
+<a href=#145 id=145 data-nosnippet>145</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#146 id=146 data-nosnippet>146</a>        phone_number: <span class="kw">impl </span>TryIntoE164,
+<a href=#147 id=147 data-nosnippet>147</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ServiceId&gt;, ServiceError&gt; {
+<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw">let </span>lookup_request = LookupRequest {
+<a href=#149 id=149 data-nosnippet>149</a>            new_e164s: <span class="macro">vec!</span>[phone_number
+<a href=#150 id=150 data-nosnippet>150</a>                .try_into_e164()
+<a href=#151 id=151 data-nosnippet>151</a>                .map_err(|<span class="kw">_</span>| ServiceError::InvalidPhoneNumber)<span class="question-mark">?</span>],
+<a href=#152 id=152 data-nosnippet>152</a>            ..Default::default()
+<a href=#153 id=153 data-nosnippet>153</a>        };
+<a href=#154 id=154 data-nosnippet>154</a>
+<a href=#155 id=155 data-nosnippet>155</a>        <span class="kw">let </span>results = <span class="self">self</span>.discover_contacts(lookup_request).<span class="kw">await</span><span class="question-mark">?</span>;
+<a href=#156 id=156 data-nosnippet>156</a>        <span class="prelude-val">Ok</span>(results
+<a href=#157 id=157 data-nosnippet>157</a>            .into_iter()
+<a href=#158 id=158 data-nosnippet>158</a>            .next()
+<a href=#159 id=159 data-nosnippet>159</a>            .and_then(|(<span class="kw">_</span>, service_id)| service_id))
+<a href=#160 id=160 data-nosnippet>160</a>    }
+<a href=#161 id=161 data-nosnippet>161</a>}
 </code></pre></div></section></main></body></html>
