@@ -5,6 +5,10 @@ mod model;
 mod operations;
 pub mod utils;
 
+pub use credentials::{
+    CredentialError, CredentialReceived, GroupOperationManager, Idle,
+    RequestCreated,
+};
 pub use manager::{
     decrypt_group, CredentialsCache, CredentialsCacheError, GroupsManager,
     InMemoryCredentialsCache,
