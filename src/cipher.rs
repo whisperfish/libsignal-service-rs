@@ -7,11 +7,13 @@ use libsignal_protocol::{
     group_decrypt, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
-    CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
-    PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
-    PublicKey, SealedSenderDecryptionResult, SenderCertificate,
-    SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
-    SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
+    sealed_sender_multi_recipient_encrypt, CiphertextMessageType, ContentHint,
+    DeviceId, IdentityKeyStore, KyberPreKeyStore, PreKeySignalMessage,
+    PreKeyStore, ProtocolAddress, ProtocolStore, PublicKey,
+    SealedSenderDecryptionResult, SenderCertificate,
+    SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionRecord,
+    SessionStore, SignalMessage, SignalProtocolError, SignedPreKeyStore,
+    Timestamp, UnidentifiedSenderMessageContent,
 };
 use prost::Message;
 use rand::{rng, CryptoRng, Rng};
@@ -497,6 +499,96 @@ where
                 content: body,
             })
         }
+    }
+
+    /// Encrypt a message for multiple recipients using Sealed Sender Multi-Recipient.
+    ///
+    /// This is used for group messages with Group Send Endorsements. The message is
+    /// encrypted once and can be delivered to multiple recipients in a single request.
+    ///
+    /// # Arguments
+    ///
+    /// * `recipients` - List of protocol addresses for each recipient
+    /// * `sender_certificate` - The sender certificate for anonymous delivery
+    /// * `content` - The plaintext content to encrypt
+    /// * `excluded_recipients` - Service IDs to exclude (typically just the sender)
+    /// * `csprng` - Cryptographically secure random number generator
+    ///
+    /// # Returns
+    ///
+    /// Returns the encrypted multi-recipient payload on success.
+    pub async fn encrypt_for_multi_recipient<R: Rng + CryptoRng>(
+        &mut self,
+        recipients: &[ProtocolAddress],
+        sender_certificate: &SenderCertificate,
+        content: &[u8],
+        excluded_recipients: Vec<ServiceId>,
+        csprng: &mut R,
+    ) -> Result<Vec<u8>, ServiceError> {
+        // Load all sessions for recipients
+        let mut sessions: Vec<SessionRecord> =
+            Vec::with_capacity(recipients.len());
+        for address in recipients {
+            let session = self
+                .protocol_store
+                .load_session(address)
+                .await?
+                .ok_or_else(|| {
+                    SignalProtocolError::SessionNotFound(address.clone())
+                })?;
+            sessions.push(session);
+        }
+
+        // For multi-recipient, we need to first encrypt the message
+        // using the first recipient's session to get the message type and serialized form
+        // Then we create a USMC and use it for multi-recipient encryption
+
+        // Encrypt with the first recipient to get the ciphertext message
+        let first_address =
+            recipients
+                .first()
+                .ok_or_else(|| ServiceError::InvalidFrame {
+                    reason: "no recipients provided",
+                })?;
+
+        let padded_content =
+            add_padding(sessions[0].session_version()?, content)?;
+
+        let message = message_encrypt(
+            &padded_content,
+            first_address,
+            &mut self.protocol_store.clone(),
+            &mut self.protocol_store.clone(),
+            SystemTime::now(),
+            csprng,
+        )
+        .await?;
+
+        // Build the UnidentifiedSenderMessageContent from the encrypted message
+        let usmc = UnidentifiedSenderMessageContent::new(
+            message.message_type(),
+            sender_certificate.clone(),
+            message.serialize().to_vec(),
+            ContentHint::Default,
+            None, // group_id
+        )?;
+
+        // Collect references for the encryption call
+        let address_refs: Vec<&ProtocolAddress> = recipients.iter().collect();
+        let session_refs: Vec<&SessionRecord> = sessions.iter().collect();
+
+        // Encrypt using multi-recipient sealed sender
+        let payload = sealed_sender_multi_recipient_encrypt(
+            &address_refs,
+            &session_refs,
+            excluded_recipients,
+            &usmc,
+            &self.protocol_store,
+            csprng,
+        )
+        .await?;
+
+        Ok(payload)
     }
 }
 

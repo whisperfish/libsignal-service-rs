@@ -230,7 +230,7 @@ pub fn decode_group_send_endorsements_response(
             // We only store endorsements for ACIs, not PNIs
             if let ServiceId::Aci(aci) = service_id {
                 Some(GroupSendMemberEndorsement {
-                    group_id: group_id.clone(),
+                    group_id,
                     member_aci: *aci,
                     expiration: expiration.epoch_seconds(),
                     endorsement: bincode::serialize(
@@ -342,7 +342,7 @@ impl GroupSendTokenBuilder {
         let endorsement: GroupSendEndorsement =
             bincode::deserialize(&self.combined_endorsement.endorsement)
                 .map_err(|_| GroupSendEndorsementError::InvalidEndorsement)?;
-        let token = endorsement.to_token(&self.group_secret_params);
+        let token = endorsement.to_token(self.group_secret_params);
         let expiration =
             Timestamp::from_epoch_seconds(self.combined_endorsement.expiration);
         let full_token = token.into_full_token(expiration);
@@ -403,12 +403,12 @@ impl GroupSendTokenBuilder {
         let member_endorsement = self
             .member_endorsements
             .get(&recipient)
-            .ok_or_else(|| GroupSendEndorsementError::MissingEndorsement)?;
+            .ok_or(GroupSendEndorsementError::MissingEndorsement)?;
 
         let endorsement: GroupSendEndorsement =
             bincode::deserialize(&member_endorsement.endorsement)
                 .map_err(|_| GroupSendEndorsementError::InvalidEndorsement)?;
-        let token = endorsement.to_token(&self.group_secret_params);
+        let token = endorsement.to_token(self.group_secret_params);
         let expiration =
             Timestamp::from_epoch_seconds(member_endorsement.expiration);
         let full_token = token.into_full_token(expiration);
@@ -446,7 +446,7 @@ impl GroupSendTokenBuilder {
             let member_endorsement = self
                 .member_endorsements
                 .get(&excluded_aci)
-                .ok_or_else(|| GroupSendEndorsementError::MissingEndorsement)?;
+                .ok_or(GroupSendEndorsementError::MissingEndorsement)?;
 
             let exclusion_endorsement: GroupSendEndorsement =
                 bincode::deserialize(&member_endorsement.endorsement).map_err(
@@ -455,7 +455,7 @@ impl GroupSendTokenBuilder {
             result = result.remove(&exclusion_endorsement);
         }
 
-        let token = result.to_token(&self.group_secret_params);
+        let token = result.to_token(self.group_secret_params);
         let expiration =
             Timestamp::from_epoch_seconds(self.combined_endorsement.expiration);
         let full_token = token.into_full_token(expiration);
@@ -474,10 +474,10 @@ impl GroupSendTokenBuilder {
         let endorsements: Vec<_> = recipients
             .iter()
             .map(|aci| {
-                let member =
-                    self.member_endorsements.get(aci).ok_or_else(|| {
-                        GroupSendEndorsementError::MissingEndorsement
-                    })?;
+                let member = self
+                    .member_endorsements
+                    .get(aci)
+                    .ok_or(GroupSendEndorsementError::MissingEndorsement)?;
                 let endorsement: GroupSendEndorsement = bincode::deserialize(
                     &member.endorsement,
                 )
@@ -488,7 +488,7 @@ impl GroupSendTokenBuilder {
 
         // Combine all endorsements
         let combined = GroupSendEndorsement::combine(endorsements);
-        let token = combined.to_token(&self.group_secret_params);
+        let token = combined.to_token(self.group_secret_params);
         let expiration =
             Timestamp::from_epoch_seconds(self.combined_endorsement.expiration);
         let full_token = token.into_full_token(expiration);

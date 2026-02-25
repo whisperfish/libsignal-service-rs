@@ -250,7 +250,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         &mut self,
         csprng: &mut R,
         master_key_bytes: &[u8],
-    ) -> Result<crate::proto::Group, ServiceError> {
+    ) -> Result<crate::push_service::GroupResponseData, ServiceError> {
         let group_master_key = GroupMasterKey::new(
             master_key_bytes
                 .try_into()
@@ -261,11 +261,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         let authorization = self
             .get_authorization_for_today(csprng, group_secret_params)
             .await?;
-        let response = self
-            .identified_push_service
-            .get_group(authorization)
-            .await?;
-        Ok(response.group)
+        self.identified_push_service.get_group(authorization).await
     }
 
     #[tracing::instrument(

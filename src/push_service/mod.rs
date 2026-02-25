@@ -354,6 +354,10 @@ impl PushService {
     /// Uses the `/v2/groups/logs/{startVersion}` endpoint. Supports pagination via
     /// Content-Range header parsing and endorsement caching via the
     /// Cached-Send-Endorsements header.
+    ///
+    /// TODO: This method will be used for caching endorsements from group logs
+    /// in a future implementation. See Group Send Endorsements specification.
+    #[allow(dead_code)]
     pub(crate) async fn get_group_log(
         &mut self,
         credentials: HttpAuth,
