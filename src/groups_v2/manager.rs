@@ -49,7 +49,6 @@ use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use serde::Deserialize;
 
-
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TemporalCredential {
@@ -180,14 +179,16 @@ impl GroupAuthorization {
         redemption_time: u64,
         csprng: &mut R,
     ) -> Result<Self, ServiceError> {
-        let redemption_time = zkgroup::Timestamp::from_epoch_seconds(redemption_time);
+        let redemption_time =
+            zkgroup::Timestamp::from_epoch_seconds(redemption_time);
 
-        let auth_credential_bytes = zkgroup::serialize(&credential_response.clone().receive(
-            server_public_params,
-            service_ids.aci(),
-            service_ids.pni(),
-            redemption_time,
-        )?);
+        let auth_credential_bytes =
+            zkgroup::serialize(&credential_response.clone().receive(
+                server_public_params,
+                service_ids.aci(),
+                service_ids.pni(),
+                redemption_time,
+            )?);
 
         let auth_credential =
             AuthCredentialWithPni::new(&auth_credential_bytes)
@@ -196,11 +197,12 @@ impl GroupAuthorization {
         let mut random_bytes = [0u8; 32];
         csprng.fill_bytes(&mut random_bytes);
 
-        let auth_credential_presentation = zkgroup::serialize(&auth_credential.present(
-            server_public_params,
-            group_secret_params,
-            random_bytes,
-        ));
+        let auth_credential_presentation =
+            zkgroup::serialize(&auth_credential.present(
+                server_public_params,
+                group_secret_params,
+                random_bytes,
+            ));
 
         // see simpleapi.rs GroupSecretParams_getPublicParams, everything is bincode encoded
         // across the boundary of Rust/Java

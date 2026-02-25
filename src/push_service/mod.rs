@@ -479,8 +479,6 @@ pub(crate) mod protobuf {
             T: prost::Message + Default;
     }
 
-
-
     #[async_trait]
     impl ProtobufResponseExt for Response {
         async fn protobuf<T>(self) -> Result<T, ServiceError>

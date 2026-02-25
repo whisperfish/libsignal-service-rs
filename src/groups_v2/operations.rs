@@ -268,8 +268,11 @@ impl GroupOperations {
     ) -> Vec<u8> {
         let mut randomness = [0u8; 32];
         rng.fill_bytes(&mut randomness);
-        self.group_secret_params
-            .encrypt_blob_with_padding(randomness, plaintext, padding_len)
+        self.group_secret_params.encrypt_blob_with_padding(
+            randomness,
+            plaintext,
+            padding_len,
+        )
     }
 
     fn decrypt_blob(&self, bytes: &[u8]) -> GroupAttributeBlob {
