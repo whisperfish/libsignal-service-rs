@@ -28,7 +28,7 @@ pub(crate) mod response;
 pub use account::*;
 pub use cdn::*;
 pub use error::*;
-pub(crate) use response::{ReqwestExt, SignalServiceResponse};
+pub(crate) use response::{GroupServiceExt, ReqwestExt, SignalServiceResponse};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProofRequired {
@@ -283,7 +283,7 @@ impl PushService {
             )?
             .send()
             .await?
-            .service_error_for_status()
+            .service_error_for_group_status()
             .await?
             .protobuf()
             .await?;
@@ -305,7 +305,7 @@ impl PushService {
             .protobuf(group)
             .send()
             .await?
-            .service_error_for_status()
+            .service_error_for_group_status()
             .await?
             .protobuf()
             .await?;
@@ -331,18 +331,9 @@ impl PushService {
             )?
             .protobuf(actions)
             .send()
+            .await?
+            .service_error_for_group_status()
             .await?;
-
-        let status = response.status();
-        tracing::debug!(%status, "PATCH /v2/groups/ response");
-        if !status.is_success() {
-            let body_bytes = response.bytes().await.unwrap_or_default();
-            let body_str = String::from_utf8_lossy(&body_bytes);
-            tracing::error!(%status, body = %body_str, "modify_group failed");
-            return Err(ServiceError::UnhandledResponseCode {
-                http_code: status.as_u16(),
-            });
-        }
 
         let proto_response: crate::proto::GroupChangeResponse =
             response.protobuf().await?;
@@ -422,7 +413,7 @@ impl PushService {
             (false, None, None)
         };
 
-        let response = response.service_error_for_status().await?;
+        let response = response.service_error_for_group_status().await?;
         let bytes = response.bytes().await?;
         let changes = crate::proto::GroupChanges::decode(bytes.as_ref())?;
 
