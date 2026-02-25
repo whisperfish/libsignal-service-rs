@@ -515,7 +515,7 @@ mod tests {
     fn test_group_id() {
         let group_id = GroupV2Id::from([0u8; 32]);
         let endorsement = GroupSendCombinedEndorsement {
-            group_id: group_id.clone(),
+            group_id,
             expiration: 0,
             endorsement: vec![],
         };

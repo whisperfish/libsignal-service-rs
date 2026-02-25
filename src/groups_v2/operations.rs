@@ -260,14 +260,16 @@ impl GroupOperations {
         })
     }
 
-    fn encrypt_blob<R: rand::Rng + rand::CryptoRng>(
+    fn encrypt_blob_with_padding<R: rand::Rng + rand::CryptoRng>(
         &self,
         plaintext: &[u8],
+        padding_len: u32,
         rng: &mut R,
     ) -> Vec<u8> {
         let mut randomness = [0u8; 32];
         rng.fill_bytes(&mut randomness);
-        self.group_secret_params.encrypt_blob(randomness, plaintext)
+        self.group_secret_params
+            .encrypt_blob_with_padding(randomness, plaintext, padding_len)
     }
 
     fn decrypt_blob(&self, bytes: &[u8]) -> GroupAttributeBlob {
@@ -278,10 +280,10 @@ impl GroupOperations {
             GroupAttributeBlob::default()
         } else {
             self.group_secret_params
-                .decrypt_blob(bytes)
+                .decrypt_blob_with_padding(bytes)
                 .map_err(GroupDecodingError::from)
-                .and_then(|b| {
-                    GroupAttributeBlob::decode(Bytes::copy_from_slice(&b[4..]))
+                .and_then(|plaintext| {
+                    GroupAttributeBlob::decode(Bytes::from(plaintext))
                         .map_err(GroupDecodingError::ProtobufDecodeError)
                 })
                 .unwrap_or_else(|e| {
@@ -291,20 +293,53 @@ impl GroupOperations {
         }
     }
 
+    /// Helper method to encrypt a group attribute blob content.
+    ///
+    /// This reduces code duplication across the encrypt_* methods by handling
+    /// the common pattern of: create blob -> encode -> encrypt with padding format.
+    ///
+    /// # Padding Format
+    ///
+    /// Uses the official Signal `encrypt_blob_with_padding` format from libsignal's
+    /// `GroupSecretParams`, which prepends a 4-byte big-endian padding length value
+    /// to the plaintext before encryption. For group attribute blobs, padding is
+    /// always 0, so the format is:
+    /// - First 4 bytes: `0u32.to_be_bytes()` (padding length = 0)
+    /// - Remaining bytes: protobuf-encoded `GroupAttributeBlob`
+    ///
+    /// The minimum blob size check of 29 bytes in decryption accounts for:
+    /// 4 bytes (padding length) + encrypted protobuf + 12 bytes (nonce) +
+    /// 1 byte (reserved) + 16 bytes (AES-GCM-SIV tag).
+    ///
+    /// # References
+    ///
+    /// - Signal libsignal repository: <https://github.com/signalapp/libsignal>
+    /// - GroupSecretParams implementation:
+    ///   `rust/zkgroup/src/api/groups/group_params.rs`
+    /// - Java ClientZkGroupCipher usage:
+    ///   `java/shared/java/org/signal/libsignal/zkgroup/groups/ClientZkGroupCipher.java`
+    fn encrypt_blob_content<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        content: group_attribute_blob::Content,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        let blob = GroupAttributeBlob {
+            content: Some(content),
+        };
+        let mut buf = Vec::new();
+        blob.encode(&mut buf).expect("encoding should succeed");
+        self.encrypt_blob_with_padding(&buf, 0, rng)
+    }
+
     pub fn encrypt_title<R: rand::Rng + rand::CryptoRng>(
         &self,
         title: &str,
         rng: &mut R,
     ) -> Vec<u8> {
-        let blob = GroupAttributeBlob {
-            content: Some(group_attribute_blob::Content::Title(
-                title.to_string(),
-            )),
-        };
-        let mut buf = Vec::new();
-        buf.extend_from_slice(&[0u8; 4]); // 4-byte prefix
-        blob.encode(&mut buf).expect("encoding should succeed");
-        self.encrypt_blob(&buf, rng)
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::Title(title.to_string()),
+            rng,
+        )
     }
 
     pub fn encrypt_description<R: rand::Rng + rand::CryptoRng>(
@@ -312,15 +347,10 @@ impl GroupOperations {
         description: &str,
         rng: &mut R,
     ) -> Vec<u8> {
-        let blob = GroupAttributeBlob {
-            content: Some(group_attribute_blob::Content::Description(
-                description.to_string(),
-            )),
-        };
-        let mut buf = Vec::new();
-        buf.extend_from_slice(&[0u8; 4]); // 4-byte prefix
-        blob.encode(&mut buf).expect("encoding should succeed");
-        self.encrypt_blob(&buf, rng)
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::Description(description.to_string()),
+            rng,
+        )
     }
 
     pub fn encrypt_disappearing_message_timer<
@@ -330,17 +360,12 @@ impl GroupOperations {
         timer: &Timer,
         rng: &mut R,
     ) -> Vec<u8> {
-        let blob = GroupAttributeBlob {
-            content: Some(
-                group_attribute_blob::Content::DisappearingMessagesDuration(
-                    timer.duration,
-                ),
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::DisappearingMessagesDuration(
+                timer.duration,
             ),
-        };
-        let mut buf = Vec::new();
-        buf.extend_from_slice(&[0u8; 4]); // 4-byte prefix
-        blob.encode(&mut buf).expect("encoding should succeed");
-        self.encrypt_blob(&buf, rng)
+            rng,
+        )
     }
 
     fn decrypt_title(&self, ciphertext: &[u8]) -> String {

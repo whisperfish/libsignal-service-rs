@@ -105,6 +105,7 @@ impl SignalWebSocket<websocket::Identified> {
     ///
     /// # Returns
     /// A `SignalServiceProfileWithCredential` containing the profile and optional credential response.
+    #[tracing::instrument(skip(self, credential_request))]
     pub async fn retrieve_profile_with_credential(
         &mut self,
         address: Aci,
@@ -126,12 +127,6 @@ impl SignalWebSocket<websocket::Identified> {
             request_hex
         );
 
-        tracing::debug!(
-            %path,
-            credential_request_len = request_hex.len(),
-            "fetching profile with credential request"
-        );
-
         let response = self
             .http_request(Method::GET, &path)?
             .send()
@@ -141,12 +136,6 @@ impl SignalWebSocket<websocket::Identified> {
 
         let result: SignalServiceProfileWithCredential =
             response.json().await?;
-
-        tracing::debug!(
-            has_credential = result.credential.is_some(),
-            credential_len = result.credential.as_ref().map(|c| c.len()),
-            "got profile response"
-        );
 
         Ok(result)
     }

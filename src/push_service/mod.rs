@@ -302,7 +302,7 @@ impl PushService {
                 Endpoint::storage("/v2/groups/"),
                 HttpAuthOverride::Identified(credentials),
             )?
-            .protobuf(group)?
+            .protobuf(group)
             .send()
             .await?
             .service_error_for_status()
@@ -329,7 +329,7 @@ impl PushService {
                 Endpoint::storage("/v2/groups/"),
                 HttpAuthOverride::Identified(credentials),
             )?
-            .protobuf(actions)?
+            .protobuf(actions)
             .send()
             .await?;
 
@@ -445,7 +445,7 @@ impl PushService {
 
 pub(crate) mod protobuf {
     use async_trait::async_trait;
-    use prost::{EncodeError, Message};
+    use prost::Message;
     use reqwest::{header, RequestBuilder, Response};
 
     use super::ServiceError;
@@ -457,10 +457,18 @@ pub(crate) mod protobuf {
         /// Set the request payload encoded as protobuf.
         /// Sets the `Content-Type` header to `application/x-protobuf`
         #[allow(dead_code)]
-        fn protobuf<T: Message + Default>(
-            self,
-            value: T,
-        ) -> Result<Self, EncodeError>;
+        fn protobuf<T: Message + Default>(self, value: T) -> Self;
+    }
+
+    impl ProtobufRequestBuilderExt for RequestBuilder {
+        fn protobuf<T: Message + Default>(self, value: T) -> Self {
+            let mut buf = Vec::new();
+            value
+                .encode(&mut buf)
+                .expect("protobuf encoding to Vec is infallible");
+            self.header(header::CONTENT_TYPE, "application/x-protobuf")
+                .body(buf)
+        }
     }
 
     #[async_trait::async_trait]
@@ -471,18 +479,7 @@ pub(crate) mod protobuf {
             T: prost::Message + Default;
     }
 
-    impl ProtobufRequestBuilderExt for RequestBuilder {
-        fn protobuf<T: Message + Default>(
-            self,
-            value: T,
-        ) -> Result<Self, EncodeError> {
-            let mut buf = Vec::new();
-            value.encode(&mut buf)?;
-            let this =
-                self.header(header::CONTENT_TYPE, "application/x-protobuf");
-            Ok(this.body(buf))
-        }
-    }
+
 
     #[async_trait]
     impl ProtobufResponseExt for Response {

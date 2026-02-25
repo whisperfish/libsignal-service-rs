@@ -16,8 +16,8 @@ pub use endorsements::{
     GroupSendMemberEndorsement, GroupSendToken, GroupSendTokenBuilder,
 };
 pub use manager::{
-    decrypt_group, CredentialsCache, CredentialsCacheError, GroupsManager,
-    InMemoryCredentialsCache,
+    CredentialsCache, CredentialsCacheError, GroupCreationOptions, GroupsManager,
+    InMemoryCredentialsCache, decrypt_group,
 };
 pub use model::{
     AccessControl, AccessRequired, Group, GroupCandidate, GroupChange,
