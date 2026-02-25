@@ -13,7 +13,7 @@ use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
 use serde::{Deserialize, Serialize};
-use tracing::{debug_span, Instrument};
+use tracing::Instrument;
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
@@ -140,6 +140,7 @@ impl PushService {
         Ok(builder)
     }
 
+    #[tracing::instrument(skip(self, additional_headers, credentials))]
     pub async fn ws<C: WebSocketType>(
         &mut self,
         path: &str,
@@ -147,7 +148,7 @@ impl PushService {
         additional_headers: &[(&'static str, &str)],
         credentials: Option<ServiceCredentials>,
     ) -> Result<SignalWebSocket<C>, ServiceError> {
-        let span = debug_span!("websocket");
+        let span = tracing::debug_span!("websocket");
 
         let mut url = Endpoint::service(path).into_url(&self.cfg)?;
         url.set_scheme("wss").expect("valid https base url");
@@ -271,6 +272,7 @@ pub struct GroupLogResponseData {
 }
 
 impl PushService {
+    #[tracing::instrument(skip(self, credentials))]
     pub(crate) async fn get_group(
         &mut self,
         credentials: HttpAuth,
@@ -290,6 +292,7 @@ impl PushService {
         Ok(response.into())
     }
 
+    #[tracing::instrument(skip(self, credentials, group))]
     pub(crate) async fn create_group(
         &mut self,
         credentials: HttpAuth,
@@ -312,17 +315,20 @@ impl PushService {
         Ok(response.into())
     }
 
+    #[tracing::instrument(
+        skip(self, credentials, actions),
+        fields(
+            revision = actions.revision,
+            add_members = actions.add_members.len()
+        )
+    )]
     pub(crate) async fn modify_group(
         &mut self,
         credentials: HttpAuth,
         actions: crate::proto::group_change::Actions,
     ) -> Result<GroupChangeResponseData, ServiceError> {
         use protobuf::ProtobufRequestBuilderExt;
-        tracing::debug!(
-            revision = actions.revision,
-            add_members = actions.add_members.len(),
-            "sending PATCH /v2/groups/"
-        );
+
         let response = self
             .request(
                 Method::PATCH,
@@ -349,6 +355,15 @@ impl PushService {
     /// TODO: This method will be used for caching endorsements from group logs
     /// in a future implementation. See Group Send Endorsements specification.
     #[allow(dead_code)]
+    #[tracing::instrument(
+        skip(self, credentials, options),
+        fields(
+            start_version = options.start_version,
+            include_first_state = options.include_first_state,
+            include_last_state = options.include_last_state,
+            max_supported_change_epoch = options.max_supported_change_epoch
+        )
+    )]
     pub(crate) async fn get_group_log(
         &mut self,
         credentials: HttpAuth,

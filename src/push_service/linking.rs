@@ -66,6 +66,7 @@ pub struct LinkRequest {
 }
 
 impl PushService {
+    #[tracing::instrument(skip(self, link_request, http_auth))]
     pub async fn link_device(
         &mut self,
         link_request: &LinkRequest,
