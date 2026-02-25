@@ -33,6 +33,11 @@ zkgroup = { version = "0.9.0", git = "https://github.com/signalapp/libsignal-cli
 
 If you're using a Cargo workspace, you should add the `[patch.crates.io]` section in the root `Cargo.toml` file instead.
 
+Additionally, if you want to make use of the CDSI support (phone number lookup), you should enable the `cdsi` feature (enabled by default).
+This pulls in `libsignal-net` and its transitive dependencies.
+The optional, non-default `phonenumber` feature pulls in the [phonenumber crate](https://github.com/whisperfish/rust-phonenumber),
+which offers a more comprehensive suite of phonenumber validation routines and conversions.
+
 ### Note on supported Rust versions
 
 `libsignal-protocol` is the core library that implements the Signal protocol, and it has a minimum supported Rust version (MSRV) of **Rust 1.89** and therefore dictates the MSRV of `libsignal-service-rs`.

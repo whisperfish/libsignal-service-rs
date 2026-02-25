@@ -9,8 +9,8 @@ readme = "README.md"
 [dependencies]
 libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4" }
 libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4" }
-libsignal-net = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4" }
-libsignal-net-infra = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4" }
+libsignal-net = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4", optional = true }
+libsignal-net-infra = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4", optional = true }
 signal-crypto = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4" }
 zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4" }
 usernames = { git = "https://github.com/signalapp/libsignal", tag = "v0.87.4" }
@@ -57,7 +57,9 @@ anyhow = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt"] }
 
 [features]
+default = ["cdsi"]
 phonenumber = ["dep:phonenumber"]
+cdsi = ["dep:libsignal-net", "dep:libsignal-net-infra"]
 
 [patch.crates-io]
 curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', tag = 'signal-curve25519-4.1.3' }
