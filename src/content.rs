@@ -1,5 +1,6 @@
 use libsignal_core::DeviceId;
 use libsignal_protocol::{ProtocolAddress, ServiceId};
+use prost::Message;
 use std::fmt;
 use uuid::Uuid;
 
@@ -7,9 +8,10 @@ pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
-        sync_message, AttachmentPointer, CallMessage, DataMessage, EditMessage,
-        GroupContextV2, NullMessage, PniSignatureMessage, ReceiptMessage,
-        StoryMessage, SyncMessage, TypingMessage,
+        sync_message, AttachmentPointer, CallMessage, DataMessage,
+        DecryptionErrorMessage, EditMessage, GroupContextV2, NullMessage,
+        PniSignatureMessage, ReceiptMessage, StoryMessage, SyncMessage,
+        TypingMessage,
     },
     push_service::ServiceError,
     ServiceIdExt,
@@ -140,7 +142,9 @@ impl fmt::Display for ContentBody {
             Self::ReceiptMessage(_) => write!(f, "ReceiptMessage"),
             Self::TypingMessage(_) => write!(f, "TypingMessage"),
             // Self::SenderKeyDistributionMessage(_) => write!(f, "SenderKeyDistributionMessage"),
-            // Self::DecryptionErrorMessage(_) => write!(f, "DecryptionErrorMessage"),
+            Self::DecryptionErrorMessage(_) => {
+                write!(f, "DecryptionErrorMessage")
+            },
             Self::StoryMessage(_) => write!(f, "StoryMessage"),
             Self::PniSignatureMessage(_) => write!(f, "PniSignatureMessage"),
             Self::EditMessage(_) => write!(f, "EditMessage"),
@@ -158,7 +162,7 @@ pub enum ContentBody {
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
     // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
-    // DecryptionErrorMessage(DecryptionErrorMessage),
+    DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
     PniSignatureMessage(PniSignatureMessage),
     EditMessage(EditMessage),
@@ -197,10 +201,10 @@ impl ContentBody {
             //     sender_key_distribution_message: Some(msg),
             //     ..Default::default()
             // },
-            // Self::DecryptionErrorMessage(msg) => crate::proto::Content {
-            //     decryption_error_message: Some(msg.serialized()),
-            //     ..Default::default()
-            // },
+            Self::DecryptionErrorMessage(msg) => crate::proto::Content {
+                decryption_error_message: Some(msg.encode_to_vec()),
+                ..Default::default()
+            },
             Self::StoryMessage(msg) => crate::proto::Content {
                 story_message: Some(msg),
                 ..Default::default()
@@ -236,7 +240,7 @@ impl_from_for_content_body!(TypingMessage(TypingMessage));
 // impl_from_for_content_body!(SenderKeyDistributionMessage(
 //     SenderKeyDistributionMessage
 // ));
-// impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
+impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
 impl_from_for_content_body!(StoryMessage(StoryMessage));
 impl_from_for_content_body!(PniSignatureMessage(PniSignatureMessage));
 impl_from_for_content_body!(EditMessage(EditMessage));

@@ -232,6 +232,15 @@ pub struct GroupsManager<C: CredentialsCache> {
     server_public_params: ServerPublicParams,
 }
 
+/// Result of creating a group, including the group and optional endorsements.
+#[derive(Debug)]
+pub struct CreatedGroup {
+    /// The created group.
+    pub group: Group,
+    /// Raw group send endorsements response bytes, if present.
+    pub group_send_endorsements_response: Option<Vec<u8>>,
+}
+
 impl<C: CredentialsCache> GroupsManager<C> {
     pub fn new(
         service_ids: ServiceIds,
@@ -355,25 +364,11 @@ impl<C: CredentialsCache> GroupsManager<C> {
             _ => Ok(None),
         }
     }
-
     /// Create a new group with credential-based member presentations.
     ///
     /// This is the recommended method for creating groups as it properly includes
     /// ProfileKeyCredentialPresentations (ZK proofs) for each member, which the
     /// Signal server requires for validation.
-    ///
-    /// # Arguments
-    /// * `csprng` - Cryptographically secure random number generator
-    /// * `group_secret_params` - The group's secret parameters
-    /// * `title` - The group title
-    /// * `description` - Optional group description
-    /// * `disappearing_messages_timer` - Optional disappearing messages timer
-    /// * `access_control` - Optional access control settings
-    /// * `self_credential` - The creator's own ExpiringProfileKeyCredential
-    /// * `member_candidates` - Other members to add, with optional credentials
-    ///
-    /// # Returns
-    /// The created and decrypted Group on success.
     ///
     /// Members with credentials are added as full members.
     /// Members without credentials are added as pending invites.
@@ -381,7 +376,7 @@ impl<C: CredentialsCache> GroupsManager<C> {
         &mut self,
         csprng: &mut R,
         options: GroupCreationOptions<'_>,
-    ) -> Result<Group, ServiceError> {
+    ) -> Result<CreatedGroup, ServiceError> {
         let authorization = self
             .get_authorization_for_today(csprng, options.group_secret_params)
             .await?;
@@ -403,7 +398,11 @@ impl<C: CredentialsCache> GroupsManager<C> {
             .create_group(authorization, encrypted_group)
             .await?;
 
-        Ok(operations.decrypt_group(response.group)?)
+        Ok(CreatedGroup {
+            group: operations.decrypt_group(response.group)?,
+            group_send_endorsements_response: response
+                .group_send_endorsements_response,
+        })
     }
 
     /// Modify an existing group

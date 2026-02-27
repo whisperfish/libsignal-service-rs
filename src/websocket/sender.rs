@@ -6,6 +6,7 @@ use crate::{
     utils::BASE64_RELAXED,
 };
 use base64::Engine;
+use tracing::{debug, warn};
 
 /// Response from the multi-recipient send endpoint.
 #[derive(Debug)]
@@ -102,7 +103,15 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         let request = WebSocketRequestMessage::new(Method::PUT)
             .path(&path)
             .header("Group-Send-Token", token.to_base64())
+            .header("Content-Type", "application/vnd.signal-messenger.mrm")
             .body(payload.to_vec());
+
+        debug!(
+            path = %path,
+            token_length = token.as_bytes().len(),
+            payload_length = payload.len(),
+            "sending multi-recipient message with Group Send Token"
+        );
 
         let response = self.request(request).await?;
         let status = response.status();
@@ -111,6 +120,14 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         if status == 200 {
             return self.parse_multi_recipient_response(response).await;
         }
+
+        // Log error details for debugging
+        let body = response.body.unwrap_or_default();
+        warn!(
+            status = status,
+            body = %String::from_utf8_lossy(&body),
+            "multi-recipient send with token failed"
+        );
 
         Err(ServiceError::UnhandledResponseCode {
             http_code: status as u16,
@@ -145,7 +162,15 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 "Unidentified-Access-Key",
                 BASE64_RELAXED.encode(access_key),
             )
+            .header("Content-Type", "application/vnd.signal-messenger.mrm")
             .body(payload.to_vec());
+
+        debug!(
+            path = %path,
+            access_key_length = access_key.len(),
+            payload_length = payload.len(),
+            "sending multi-recipient message with access key"
+        );
 
         let response = self.request(request).await?;
         let status = response.status();
@@ -154,6 +179,14 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         if status == 200 {
             return self.parse_multi_recipient_response(response).await;
         }
+
+        // Log error details for debugging
+        let body = response.body.unwrap_or_default();
+        warn!(
+            status = status,
+            body = %String::from_utf8_lossy(&body),
+            "multi-recipient send with access key failed"
+        );
 
         Err(ServiceError::UnhandledResponseCode {
             http_code: status as u16,
