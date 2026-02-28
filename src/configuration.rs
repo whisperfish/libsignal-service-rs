@@ -9,10 +9,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 use zkgroup::ServerPublicParams;
 
-use crate::{
-    envelope::{CIPHER_KEY_SIZE, MAC_KEY_SIZE},
-    push_service::{HttpAuth, DEFAULT_DEVICE_ID},
-};
+use crate::push_service::{HttpAuth, DEFAULT_DEVICE_ID};
 
 #[derive(Clone)]
 pub struct ServiceConfiguration {
@@ -24,15 +21,12 @@ pub struct ServiceConfiguration {
     pub zkgroup_server_public_params: ServerPublicParams,
 }
 
-pub type SignalingKey = [u8; CIPHER_KEY_SIZE + MAC_KEY_SIZE];
-
 #[derive(Clone)]
 pub struct ServiceCredentials {
     pub aci: Option<uuid::Uuid>,
     pub pni: Option<uuid::Uuid>,
     pub phonenumber: E164,
     pub password: Option<String>,
-    pub signaling_key: Option<SignalingKey>,
     pub device_id: Option<DeviceId>,
 }
 

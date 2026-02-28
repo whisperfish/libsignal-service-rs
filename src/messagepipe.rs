@@ -5,6 +5,7 @@ use futures::{
     },
     prelude::*,
 };
+use prost::Message;
 
 pub use crate::{
     configuration::ServiceCredentials,
@@ -28,15 +29,11 @@ pub enum Incoming {
 
 pub struct MessagePipe {
     ws: SignalWebSocket<websocket::Identified>,
-    credentials: ServiceCredentials,
 }
 
 impl MessagePipe {
-    pub fn from_socket(
-        ws: SignalWebSocket<websocket::Identified>,
-        credentials: ServiceCredentials,
-    ) -> Self {
-        MessagePipe { ws, credentials }
+    pub fn from_socket(ws: SignalWebSocket<websocket::Identified>) -> Self {
+        MessagePipe { ws }
     }
 
     /// Return a SignalWebSocket for sending messages and other purposes beyond receiving messages.
@@ -87,11 +84,7 @@ impl MessagePipe {
                     reason: "request without body.",
                 });
             };
-            Some(Incoming::Envelope(Envelope::decrypt(
-                body,
-                self.credentials.signaling_key.as_ref(),
-                request.is_signal_key_encrypted(),
-            )?))
+            Some(Incoming::Envelope(Envelope::decode(body.as_slice())?))
         } else if request.is_queue_empty() {
             Some(Incoming::QueueEmpty)
         } else {
