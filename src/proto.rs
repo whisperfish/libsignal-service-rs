@@ -20,11 +20,12 @@ impl WebSocketRequestMessage {
 
     /// Equivalent of
     /// `SignalServiceMessagePipe::isSignalKeyEncrypted(WebSocketMessage)`.
+    ///
+    /// Signal server no longer encrypts websocket envelope bodies with the
+    /// signaling key and no longer sends the `X-Signal-Key` header
+    /// (removed in signalapp/Signal-Server@6d87b24). All official clients
+    /// (Android, Desktop) now decode envelopes as raw protobuf.
     pub fn is_signal_key_encrypted(&self) -> bool {
-        if self.headers.is_empty() {
-            return true;
-        }
-
         for header in &self.headers {
             let parts: Vec<_> = header.split(':').collect();
             if parts.len() != 2 {
@@ -33,17 +34,10 @@ impl WebSocketRequestMessage {
                     header,
                     parts
                 );
-                continue;
-            }
-
-            if parts[0].trim().eq_ignore_ascii_case("X-Signal-Key")
-                && parts[1].trim().eq_ignore_ascii_case("false")
-            {
-                return false;
             }
         }
 
-        true
+        false
     }
 }
 
