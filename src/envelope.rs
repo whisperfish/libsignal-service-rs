@@ -1,72 +1,7 @@
-use aes::cipher::block_padding::Pkcs7;
-use aes::cipher::{BlockDecryptMut, KeyIvInit};
-use libsignal_protocol::ServiceId;
-use prost::Message;
-
-use crate::{configuration::SignalingKey, push_service::ServiceError};
-
 pub use crate::proto::Envelope;
+use libsignal_protocol::ServiceId;
 
 impl Envelope {
-    #[tracing::instrument(skip(input, signaling_key), fields(signaling_key_present = signaling_key.is_some(), input_size = input.len()))]
-    pub fn decrypt(
-        input: &[u8],
-        signaling_key: Option<&SignalingKey>,
-        is_signaling_key_encrypted: bool,
-    ) -> Result<Self, ServiceError> {
-        if !is_signaling_key_encrypted {
-            tracing::trace!("Envelope::decrypt: not encrypted");
-            Ok(Envelope::decode(input)?)
-        } else {
-            let signaling_key = signaling_key
-                .expect("signaling_key required to decrypt envelopes");
-            tracing::trace!("Envelope::decrypt: decrypting");
-            if input.len() < VERSION_LENGTH
-                || input[VERSION_OFFSET] != SUPPORTED_VERSION
-            {
-                return Err(ServiceError::InvalidFrame {
-                    reason: "unsupported signaling cryptogram version",
-                });
-            }
-
-            let aes_key = &signaling_key[..CIPHER_KEY_SIZE];
-            let mac_key = &signaling_key[CIPHER_KEY_SIZE..];
-            let mac = &input[(input.len() - MAC_SIZE)..];
-            let input_for_mac = &input[..(input.len() - MAC_SIZE)];
-            let iv = &input[IV_OFFSET..(IV_OFFSET + IV_LENGTH)];
-            debug_assert_eq!(mac_key.len(), MAC_KEY_SIZE);
-            debug_assert_eq!(aes_key.len(), CIPHER_KEY_SIZE);
-            debug_assert_eq!(iv.len(), IV_LENGTH);
-
-            // Verify MAC
-            use hmac::{Hmac, Mac};
-            use sha2::Sha256;
-            let mut verifier = Hmac::<Sha256>::new_from_slice(mac_key)
-                .expect("Hmac can take any size key");
-            verifier.update(input_for_mac);
-            // XXX: possible timing attack, but we need the bytes for a
-            // truncated view...
-            let our_mac = verifier.finalize().into_bytes();
-            if &our_mac[..MAC_SIZE] != mac {
-                return Err(ServiceError::MacError);
-            }
-
-            // libsignal-service-java uses Pkcs5,
-            // but that should not matter.
-            // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-            let cipher =
-                cbc::Decryptor::<aes::Aes256>::new(aes_key.into(), iv.into());
-            let input = &input[CIPHERTEXT_OFFSET..(input.len() - MAC_SIZE)];
-            let input = cipher
-                .decrypt_padded_vec_mut::<Pkcs7>(input)
-                .expect("decryption");
-
-            tracing::trace!("Envelope::decrypt: decrypted, decoding");
-
-            Ok(Envelope::decode(&input as &[u8])?)
-        }
-    }
-
     pub fn is_unidentified_sender(&self) -> bool {
         self.r#type() == crate::proto::envelope::Type::UnidentifiedSender
     }
@@ -113,19 +48,17 @@ impl Envelope {
     }
 }
 
-pub(crate) const SUPPORTED_VERSION: u8 = 1;
 pub(crate) const CIPHER_KEY_SIZE: usize = 32;
-pub(crate) const MAC_KEY_SIZE: usize = 20;
-pub(crate) const MAC_SIZE: usize = 10;
 
 pub(crate) const VERSION_OFFSET: usize = 0;
 pub(crate) const VERSION_LENGTH: usize = 1;
 pub(crate) const IV_OFFSET: usize = VERSION_OFFSET + VERSION_LENGTH;
 pub(crate) const IV_LENGTH: usize = 16;
-pub(crate) const CIPHERTEXT_OFFSET: usize = IV_OFFSET + IV_LENGTH;
 
 #[cfg(test)]
 mod tests {
+    use prost::Message;
+
     use super::*;
 
     #[test]
@@ -154,9 +87,7 @@ mod tests {
             99,
         ];
 
-        let signaling_key = [0u8; 52];
-        let envelope =
-            Envelope::decrypt(&body, Some(&signaling_key), true).unwrap();
+        let envelope = Envelope::decode(body.as_slice()).unwrap();
         assert_eq!(envelope.server_timestamp(), 1594373582421);
         assert_eq!(envelope.timestamp(), 1594373580977);
         assert_eq!(

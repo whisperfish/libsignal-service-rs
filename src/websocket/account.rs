@@ -48,6 +48,7 @@ pub(crate) struct DeviceInfoEncrypted {
 #[serde(rename_all = "camelCase")]
 pub struct AccountAttributes {
     #[serde(default, with = "serde_optional_base64")]
+    // TODO: does Signal actually still read this?
     pub signaling_key: Option<Vec<u8>>,
     pub registration_id: u32,
     pub pni_registration_id: u32,

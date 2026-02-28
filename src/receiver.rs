@@ -36,10 +36,10 @@ impl MessageReceiver {
                 "/v1/websocket/",
                 "/v1/keepalive",
                 headers,
-                Some(credentials.clone()),
+                Some(credentials),
             )
             .await?;
-        Ok(MessagePipe::from_socket(ws, credentials))
+        Ok(MessagePipe::from_socket(ws))
     }
 
     pub async fn retrieve_contacts(

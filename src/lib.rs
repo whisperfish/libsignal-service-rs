@@ -50,9 +50,7 @@ pub const GROUP_LEAVE_FLAG: u32 = 2;
 pub mod prelude {
     pub use crate::{
         cipher::ServiceCipher,
-        configuration::{
-            ServiceConfiguration, ServiceCredentials, SignalingKey,
-        },
+        configuration::{ServiceConfiguration, ServiceCredentials},
         content::Content,
         envelope::Envelope,
         groups_v2::{
