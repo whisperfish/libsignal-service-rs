@@ -75,25 +75,28 @@ pub struct AccountAttributes {
     pub name: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default, Eq, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
     #[serde(default)]
     pub storage: bool,
     #[serde(default)]
-    pub sender_key: bool,
+    pub transfer: bool,
     #[serde(default)]
-    pub announcement_group: bool,
+    pub attachment_backfill: bool,
     #[serde(default)]
-    pub change_number: bool,
-    #[serde(default)]
-    pub stories: bool,
-    #[serde(default)]
-    pub gift_badges: bool,
-    #[serde(default)]
-    pub pni: bool,
-    #[serde(default)]
-    pub payment_activation: bool,
+    pub spqr: bool,
+}
+
+impl Default for DeviceCapabilities {
+    fn default() -> Self {
+        Self {
+            storage: false,
+            transfer: false,
+            attachment_backfill: false,
+            spqr: true,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
