@@ -129,6 +129,7 @@ pub enum ServiceError {
     Fingerprint(FingerprintError),
 
     #[error("CDSI lookup error: {0}")]
+    #[cfg(feature = "cdsi")]
     CdsiLookupError(#[from] libsignal_net::cdsi::LookupError),
 }
 
