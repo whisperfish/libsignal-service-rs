@@ -1,5 +1,6 @@
 #![allow(clippy::all)]
 
+use libsignal_core::ServiceId;
 use rand::{CryptoRng, Rng};
 include!(concat!(env!("OUT_DIR"), "/signalservice.rs"));
 include!(concat!(env!("OUT_DIR"), "/signal.rs"));
@@ -71,6 +72,18 @@ impl SyncMessage {
         Self {
             padding: Some(padding),
             ..Default::default()
+        }
+    }
+}
+
+impl sync_message::Sent {
+    pub fn parse_destination_service_id(&self) -> Option<ServiceId> {
+        if let Some(bytes) = self.destination_service_id_binary.as_deref() {
+            ServiceId::parse_from_service_id_binary(bytes)
+        } else if let Some(s) = self.destination_service_id.as_deref() {
+            ServiceId::parse_from_service_id_string(s)
+        } else {
+            None
         }
     }
 }

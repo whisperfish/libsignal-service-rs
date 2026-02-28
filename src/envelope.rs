@@ -93,6 +93,7 @@ impl Envelope {
         self.story.unwrap_or(false)
     }
 
+    #[deprecated = "use parse_source_service_id"]
     pub fn source_address(&self) -> ServiceId {
         match self.source_service_id.as_deref() {
             Some(service_id) => {
@@ -103,6 +104,7 @@ impl Envelope {
         }
     }
 
+    #[deprecated = "use parse_destination_service_id"]
     pub fn destination_address(&self) -> ServiceId {
         match self.destination_service_id.as_deref() {
             Some(service_id) => ServiceId::parse_from_service_id_string(
@@ -110,6 +112,26 @@ impl Envelope {
             )
             .expect("invalid destination ProtocolAddress UUID or prefix"),
             None => panic!("destination_address is set"),
+        }
+    }
+
+    pub fn parse_destination_service_id(&self) -> Option<ServiceId> {
+        if let Some(bytes) = self.destination_service_id_binary.as_deref() {
+            ServiceId::parse_from_service_id_binary(bytes)
+        } else if let Some(s) = self.destination_service_id.as_deref() {
+            ServiceId::parse_from_service_id_string(s)
+        } else {
+            None
+        }
+    }
+
+    pub fn parse_source_service_id(&self) -> Option<ServiceId> {
+        if let Some(bytes) = self.source_service_id_binary.as_deref() {
+            ServiceId::parse_from_service_id_binary(bytes)
+        } else if let Some(s) = self.source_service_id.as_deref() {
+            ServiceId::parse_from_service_id_string(s)
+        } else {
+            None
         }
     }
 }

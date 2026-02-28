@@ -196,16 +196,18 @@ where
                 },
             });
 
-        if envelope.destination_service_id.is_none() {
+        let Some(destination_service_id) =
+            envelope.parse_destination_service_id()
+        else {
             tracing::warn!(
                 "missing destination service id; ignoring invalid message."
             );
             return Err(ServiceError::InvalidFrame {
                 reason: "missing destination service id",
             });
-        }
+        };
 
-        if envelope.destination_address().raw_uuid() != self.local_uuid {
+        if destination_service_id.raw_uuid() != self.local_uuid {
             tracing::warn!(
                 "mismatching destination service id; ignoring invalid message."
             );
@@ -214,7 +216,7 @@ where
             });
         }
 
-        if envelope.destination_address().kind() == ServiceIdKind::Pni
+        if destination_service_id.kind() == ServiceIdKind::Pni
             && envelope.source_service_id.is_none()
         {
             tracing::warn!("received sealed sender message to our PNI; ignoring invalid message");
@@ -223,14 +225,16 @@ where
             });
         }
 
-        if envelope.source_service_id.is_some()
-            && envelope.source_address().kind() == ServiceIdKind::Pni
-            && envelope.r#type() != Type::ServerDeliveryReceipt
-        {
-            tracing::warn!("got a message from a PNI that was not a ServerDeliveryReceipt; ignoring invalid message");
-            return Err(ServiceError::InvalidFrame {
-                reason: "PNI received a non-ServerDeliveryReceipt",
-            });
+        // TODO: let chain in edition 2024
+        if let Some(source_service_id) = envelope.parse_source_service_id() {
+            if source_service_id.kind() == ServiceIdKind::Pni
+                && envelope.r#type() != Type::ServerDeliveryReceipt
+            {
+                tracing::warn!("got a message from a PNI that was not a ServerDeliveryReceipt; ignoring invalid message");
+                return Err(ServiceError::InvalidFrame {
+                    reason: "PNI received a non-ServerDeliveryReceipt",
+                });
+            }
         }
 
         use crate::proto::envelope::Type;
@@ -238,13 +242,19 @@ where
             Type::PrekeyBundle => {
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
-                    &envelope.source_address(),
+                    &envelope
+                        .parse_source_service_id()
+                        .expect("prekey bundle format"),
                     envelope.source_device().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
-                    destination: envelope.destination_address(),
-                    sender: envelope.source_address(),
+                    destination: envelope
+                        .parse_destination_service_id()
+                        .expect("prekey bundle format"),
+                    sender: envelope
+                        .parse_source_service_id()
+                        .expect("prekey bundle format"),
                     sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
@@ -283,8 +293,12 @@ where
             Type::PlaintextContent => {
                 tracing::warn!(?envelope, "Envelope with plaintext content.  This usually indicates a decryption retry.");
                 let metadata = Metadata {
-                    destination: envelope.destination_address(),
-                    sender: envelope.source_address(),
+                    destination: envelope
+                        .parse_destination_service_id()
+                        .expect("plaintext content format"),
+                    sender: envelope
+                        .parse_source_service_id()
+                        .expect("plaintext content format"),
                     sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.server_timestamp(),
                     needs_receipt: false,
@@ -301,13 +315,19 @@ where
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
-                    &envelope.source_address(),
+                    &envelope
+                        .parse_source_service_id()
+                        .expect("ciphertext envelope format"),
                     envelope.source_device().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
-                    destination: envelope.destination_address(),
-                    sender: envelope.source_address(),
+                    destination: envelope
+                        .parse_destination_service_id()
+                        .expect("ciphertext envelope format"),
+                    sender: envelope
+                        .parse_source_service_id()
+                        .expect("ciphertext envelope format"),
                     sender_device: envelope.source_device().try_into()?,
                     timestamp: envelope.timestamp(),
                     needs_receipt: false,
@@ -391,7 +411,9 @@ where
                 }
 
                 let metadata = Metadata {
-                    destination: envelope.destination_address(),
+                    destination: envelope
+                        .parse_destination_service_id()
+                        .expect("unidentified sender envelope format"),
                     sender,
                     sender_device: device_id,
                     timestamp: envelope.timestamp(),
