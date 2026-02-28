@@ -22,7 +22,7 @@ pub use libsignal_net::cdsi::LookupRequest;
 
 /// CDSI authentication credentials
 #[derive(Debug, Deserialize)]
-struct CdsiAuth {
+pub struct CdsiAuth {
     pub username: String,
     pub password: String,
 }
@@ -45,7 +45,7 @@ impl SignalWebSocket<Identified> {
     /// // Use auth.username and auth.password for CDSI connection
     /// # }
     /// ```
-    async fn get_cdsi_auth(&mut self) -> Result<CdsiAuth, ServiceError> {
+    pub async fn get_cdsi_auth(&mut self) -> Result<CdsiAuth, ServiceError> {
         let response = self
             .http_request(Method::GET, "/v2/directory/auth")?
             .send()

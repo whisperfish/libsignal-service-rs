@@ -97,6 +97,38 @@ pub enum ServiceError {
     #[error(transparent)]
     ZkGroupVerificationFailure(#[from] ZkGroupVerificationFailure),
 
+    // Group V2 modification errors
+    /// Group revision conflict (HTTP 409 Conflict).
+    ///
+    /// Returned when a client attempts to modify a group with an outdated revision number.
+    /// The client must:
+    /// 1. Fetch the latest group state
+    /// 2. Rebase their changes on top of the new revision
+    /// 3. Retry the modification with the updated revision
+    #[error("Group revision conflict: client must rebase changes")]
+    GroupRevisionConflict,
+
+    /// Group operation forbidden (HTTP 403 Forbidden).
+    ///
+    /// Returned when a user lacks permissions to perform the operation, such as:
+    /// - Non-member trying to modify a group
+    /// - Non-admin trying to perform admin-only operations
+    /// - Requesting member trying to modify before being promoted
+    #[error("Group operation forbidden: insufficient permissions")]
+    GroupForbidden,
+
+    /// Group not found (HTTP 404 Not Found).
+    ///
+    /// Returned when the specified group does not exist.
+    #[error("Group not found")]
+    GroupNotFound,
+
+    /// Group has been deleted (HTTP 410 Gone).
+    ///
+    /// Returned when attempting to access a group that has been deleted.
+    #[error("Group has been deleted")]
+    GroupGone,
+
     #[error("unsupported content")]
     UnsupportedContent,
 

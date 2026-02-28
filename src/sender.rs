@@ -144,6 +144,9 @@ pub enum MessageSenderError {
 
     #[error("no messages were encrypted: this should not really happen and most likely implies a logic error")]
     NoMessagesToSend,
+
+    #[error("encryption error: {0}")]
+    EncryptionError(String),
 }
 
 pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
