@@ -71,6 +71,7 @@ pub enum SignalServers {
     Production,
 }
 
+#[cfg(feature = "cdsi")]
 impl From<SignalServers> for libsignal_net::env::Env<'static> {
     fn from(servers: SignalServers) -> Self {
         match servers {
