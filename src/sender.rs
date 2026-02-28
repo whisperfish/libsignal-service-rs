@@ -1093,6 +1093,8 @@ where
             sent: Some(sync_message::Sent {
                 destination_service_id: recipient
                     .map(ServiceId::service_id_string),
+                destination_service_id_binary: recipient
+                    .map(ServiceId::service_id_binary),
                 destination_e164: None,
                 expiration_start_timestamp: message
                     .as_ref()
