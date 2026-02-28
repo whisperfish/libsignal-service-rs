@@ -36,10 +36,10 @@
 <a href=#36 id=36 data-nosnippet>36</a>                <span class="string">"/v1/websocket/"</span>,
 <a href=#37 id=37 data-nosnippet>37</a>                <span class="string">"/v1/keepalive"</span>,
 <a href=#38 id=38 data-nosnippet>38</a>                headers,
-<a href=#39 id=39 data-nosnippet>39</a>                <span class="prelude-val">Some</span>(credentials.clone()),
+<a href=#39 id=39 data-nosnippet>39</a>                <span class="prelude-val">Some</span>(credentials),
 <a href=#40 id=40 data-nosnippet>40</a>            )
 <a href=#41 id=41 data-nosnippet>41</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
-<a href=#42 id=42 data-nosnippet>42</a>        <span class="prelude-val">Ok</span>(MessagePipe::from_socket(ws, credentials))
+<a href=#42 id=42 data-nosnippet>42</a>        <span class="prelude-val">Ok</span>(MessagePipe::from_socket(ws))
 <a href=#43 id=43 data-nosnippet>43</a>    }
 <a href=#44 id=44 data-nosnippet>44</a>
 <a href=#45 id=45 data-nosnippet>45</a>    <span class="kw">pub async fn </span>retrieve_contacts(
