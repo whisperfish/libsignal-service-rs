@@ -409,10 +409,10 @@ pub mod serde_device_id_vec {
 }
 
 pub mod serde_prost_base64 {
+    use super::BASE64_RELAXED;
     use base64::Engine;
     use prost::Message;
     use serde::{Deserialize, Deserializer, Serializer};
-    use super::BASE64_RELAXED;
 
     // Serializes a Prost message into a Base64 string
     pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
@@ -435,7 +435,8 @@ pub mod serde_prost_base64 {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        let bytes = BASE64_RELAXED.decode(s).map_err(serde::de::Error::custom)?;
+        let bytes =
+            BASE64_RELAXED.decode(s).map_err(serde::de::Error::custom)?;
 
         T::decode(bytes.as_slice()).map_err(serde::de::Error::custom)
     }
@@ -446,8 +447,8 @@ pub mod serde_optional_prost_base64 {
     use prost::Message;
     use serde::{Deserialize, Deserializer, Serializer};
 
-    use super::{BASE64_RELAXED, serde_prost_base64};
-    
+    use super::{serde_prost_base64, BASE64_RELAXED};
+
     pub fn serialize<T, S>(
         value: &Option<T>,
         serializer: S,
@@ -471,8 +472,9 @@ pub mod serde_optional_prost_base64 {
     {
         match Option::<String>::deserialize(deserializer)? {
             Some(s) => {
-                let bytes =
-                    BASE64_RELAXED.decode(s).map_err(serde::de::Error::custom)?;
+                let bytes = BASE64_RELAXED
+                    .decode(s)
+                    .map_err(serde::de::Error::custom)?;
                 let msg = T::decode(bytes.as_slice())
                     .map_err(serde::de::Error::custom)?;
                 Ok(Some(msg))

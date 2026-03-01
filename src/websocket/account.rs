@@ -4,7 +4,13 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    content::ServiceError, proto::DeviceName, utils::{serde_device_id, serde_e164, serde_optional_base64, serde_optional_prost_base64}, websocket
+    content::ServiceError,
+    proto::DeviceName,
+    utils::{
+        serde_device_id, serde_e164, serde_optional_base64,
+        serde_optional_prost_base64,
+    },
+    websocket,
 };
 
 use super::SignalWebSocket;
@@ -56,9 +62,13 @@ pub struct AccountAttributes {
     pub unidentified_access_key: Option<Vec<u8>>,
     pub unrestricted_unidentified_access: bool,
     pub capabilities: DeviceCapabilities,
-    pub discoverable_by_phone_number: bool,    
+    pub discoverable_by_phone_number: bool,
     pub pin: Option<String>,
-    #[serde(default, with = "serde_optional_base64", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        with = "serde_optional_base64",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub recovery_password: Option<Vec<u8>>,
 }
 
