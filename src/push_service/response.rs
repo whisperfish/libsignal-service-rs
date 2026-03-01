@@ -23,7 +23,7 @@ where
             // This is 404 and means that e.g. recipient is not registered
             Err(ServiceError::NotFoundError)
         },
-        StatusCode::PAYLOAD_TOO_LARGE => {
+        StatusCode::PAYLOAD_TOO_LARGE | StatusCode::TOO_MANY_REQUESTS => {
             // This is 413 and means rate limit exceeded for Signal.
             Err(ServiceError::RateLimitExceeded)
         },
