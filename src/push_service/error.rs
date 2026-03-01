@@ -41,8 +41,10 @@ pub enum ServiceError {
     #[error("error decoding base64 string: {0}")]
     Base64DecodeError(#[from] base64::DecodeError),
 
-    #[error("Rate limit exceeded")]
-    RateLimitExceeded,
+    #[error("Rate limit exceeded: retry after {}", retry_after.map(|a| a.to_string()).unwrap_or_else(|| "unspecified".into()))]
+    RateLimitExceeded {
+        retry_after: Option<chrono::Duration>,
+    },
     #[error("Authorization failed")]
     Unauthorized,
     #[error("Registration lock is set: {0:?}")]
