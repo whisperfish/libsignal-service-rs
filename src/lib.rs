@@ -33,7 +33,8 @@ pub mod utils;
 pub mod websocket;
 
 pub use crate::account_manager::{
-    decrypt_device_name, AccountManager, Profile, ProfileManagerError,
+    decrypt_device_name, encrypt_device_name, AccountManager, Profile,
+    ProfileManagerError,
 };
 pub use crate::service_address::*;
 

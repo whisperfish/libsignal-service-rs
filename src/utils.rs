@@ -407,3 +407,77 @@ pub mod serde_device_id_vec {
             .map_err(|_| serde::de::Error::custom("invalid device id"))
     }
 }
+
+pub mod serde_prost_base64 {
+    use base64::Engine;
+    use prost::Message;
+    use serde::{Deserialize, Deserializer, Serializer};
+    use super::BASE64_RELAXED;
+
+    // Serializes a Prost message into a Base64 string
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Message,
+        S: Serializer,
+    {
+        let mut buf = Vec::new();
+        buf.reserve(value.encoded_len());
+        value.encode(&mut buf).map_err(serde::ser::Error::custom)?;
+
+        let b64 = BASE64_RELAXED.encode(buf);
+        serializer.serialize_str(&b64)
+    }
+
+    // Deserializes a Base64 string back into a Prost message
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: Message + Default,
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        let bytes = BASE64_RELAXED.decode(s).map_err(serde::de::Error::custom)?;
+
+        T::decode(bytes.as_slice()).map_err(serde::de::Error::custom)
+    }
+}
+
+pub mod serde_optional_prost_base64 {
+    use base64::Engine;
+    use prost::Message;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use super::{BASE64_RELAXED, serde_prost_base64};
+    
+    pub fn serialize<T, S>(
+        value: &Option<T>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        T: Message,
+        S: Serializer,
+    {
+        match value {
+            Some(msg) => serde_prost_base64::serialize(msg, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, T, D>(
+        deserializer: D,
+    ) -> Result<Option<T>, D::Error>
+    where
+        T: Message + Default,
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(s) => {
+                let bytes =
+                    BASE64_RELAXED.decode(s).map_err(serde::de::Error::custom)?;
+                let msg = T::decode(bytes.as_slice())
+                    .map_err(serde::de::Error::custom)?;
+                Ok(Some(msg))
+            },
+            None => Ok(None),
+        }
+    }
+}
