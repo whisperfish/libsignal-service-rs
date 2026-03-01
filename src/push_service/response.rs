@@ -24,8 +24,22 @@ where
             Err(ServiceError::NotFoundError)
         },
         StatusCode::PAYLOAD_TOO_LARGE | StatusCode::TOO_MANY_REQUESTS => {
+            let seconds = response.header("retry-after");
             // This is 413 and means rate limit exceeded for Signal.
-            Err(ServiceError::RateLimitExceeded)
+            Err(ServiceError::RateLimitExceeded {
+                retry_after: seconds
+                    .and_then(|seconds| {
+                        seconds
+                            .parse::<i64>()
+                            .inspect_err(|error| {
+                                tracing::warn!(
+                                    %error, "could not parse rate limit duration"
+                                )
+                            })
+                            .ok()
+                    })
+                    .map(chrono::Duration::seconds),
+            })
         },
         StatusCode::CONFLICT => {
             let mismatched_devices =
@@ -113,6 +127,7 @@ pub(crate) trait SignalServiceResponse {
         for<'de> U: serde::Deserialize<'de>;
 
     async fn text(self) -> Result<String, Self::Error>;
+    fn header(&self, name: &str) -> Option<&str>;
 }
 
 #[async_trait::async_trait]
@@ -132,6 +147,16 @@ impl SignalServiceResponse for reqwest::Response {
 
     async fn text(self) -> Result<String, Self::Error> {
         reqwest::Response::text(self).await
+    }
+
+    fn header(&self, name: &str) -> Option<&str> {
+        self.headers().get(name).and_then(|v| {
+            v.to_str()
+                .inspect_err(|e| {
+                    tracing::warn!(?e, "could not read header as string")
+                })
+                .ok()
+        })
     }
 }
 
@@ -155,6 +180,15 @@ impl SignalServiceResponse for WebSocketResponseMessage {
             .body
             .map(|body| String::from_utf8_lossy(&body).to_string())
             .unwrap_or_default())
+    }
+
+    fn header(&self, name: &str) -> Option<&str> {
+        let (_header, value) = self
+            .headers
+            .iter()
+            .filter_map(|hdr| hdr.split_once(":"))
+            .find(|(header, _body)| header.trim().eq_ignore_ascii_case(name))?;
+        Some(value.trim())
     }
 }
 
