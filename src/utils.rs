@@ -42,7 +42,7 @@ pub mod serde_base64 {
         D: Deserializer<'de>,
     {
         use serde::de::Error;
-        String::deserialize(deserializer).and_then(|string| {
+        <&str>::deserialize(deserializer).and_then(|string| {
             BASE64_RELAXED
                 .decode(string)
                 .map_err(|err| Error::custom(err.to_string()))
@@ -111,7 +111,7 @@ pub mod serde_identity_key {
     {
         IdentityKey::decode(
             &BASE64_RELAXED
-                .decode(String::deserialize(deserializer)?)
+                .decode(<&str>::deserialize(deserializer)?)
                 .map_err(serde::de::Error::custom)?,
         )
         .map_err(serde::de::Error::custom)
@@ -184,7 +184,7 @@ pub mod serde_private_key {
     {
         PrivateKey::deserialize(
             &BASE64_RELAXED
-                .decode(String::deserialize(deserializer)?)
+                .decode(<&str>::deserialize(deserializer)?)
                 .map_err(serde::de::Error::custom)?,
         )
         .map_err(serde::de::Error::custom)
@@ -282,8 +282,9 @@ pub mod serde_e164 {
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        s.parse().map_err(serde::de::Error::custom)
+        <&str>::deserialize(deserializer)?
+            .parse()
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -306,7 +307,7 @@ pub mod serde_phone_number {
     where
         D: Deserializer<'de>,
     {
-        phonenumber::parse(None, String::deserialize(deserializer)?)
+        phonenumber::parse(None, <&str>::deserialize(deserializer)?)
             .map_err(serde::de::Error::custom)
     }
 }
@@ -329,7 +330,7 @@ pub mod serde_service_id {
     where
         D: Deserializer<'de>,
     {
-        ServiceId::parse_from_service_id_string(&String::deserialize(
+        ServiceId::parse_from_service_id_string(<&str>::deserialize(
             deserializer,
         )?)
         .ok_or_else(|| serde::de::Error::custom("invalid service ID string"))
@@ -351,7 +352,7 @@ pub mod serde_aci {
     where
         D: Deserializer<'de>,
     {
-        Aci::parse_from_service_id_string(&String::deserialize(deserializer)?)
+        Aci::parse_from_service_id_string(<&str>::deserialize(deserializer)?)
             .ok_or_else(|| serde::de::Error::custom("invalid ACI string"))
     }
 }
@@ -405,5 +406,80 @@ pub mod serde_device_id_vec {
             .map(DeviceId::try_from)
             .collect::<Result<Vec<_>, _>>()
             .map_err(|_| serde::de::Error::custom("invalid device id"))
+    }
+}
+
+pub mod serde_prost_base64 {
+    use super::BASE64_RELAXED;
+    use base64::Engine;
+    use prost::Message;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    // Serializes a Prost message into a Base64 string
+    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: Message,
+        S: Serializer,
+    {
+        let mut buf = Vec::with_capacity(value.encoded_len());
+        value.encode(&mut buf).map_err(serde::ser::Error::custom)?;
+
+        let b64 = BASE64_RELAXED.encode(buf);
+        serializer.serialize_str(&b64)
+    }
+
+    // Deserializes a Base64 string back into a Prost message
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        T: Message + Default,
+        D: Deserializer<'de>,
+    {
+        let bytes = BASE64_RELAXED
+            .decode(<&str>::deserialize(deserializer)?)
+            .map_err(serde::de::Error::custom)?;
+
+        T::decode(bytes.as_slice()).map_err(serde::de::Error::custom)
+    }
+}
+
+pub mod serde_optional_prost_base64 {
+    use base64::Engine;
+    use prost::Message;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    use super::{serde_prost_base64, BASE64_RELAXED};
+
+    pub fn serialize<T, S>(
+        value: &Option<T>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        T: Message,
+        S: Serializer,
+    {
+        match value {
+            Some(msg) => serde_prost_base64::serialize(msg, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, T, D>(
+        deserializer: D,
+    ) -> Result<Option<T>, D::Error>
+    where
+        T: Message + Default,
+        D: Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(s) => {
+                let bytes = BASE64_RELAXED
+                    .decode(s)
+                    .map_err(serde::de::Error::custom)?;
+                let msg = T::decode(bytes.as_slice())
+                    .map_err(serde::de::Error::custom)?;
+                Ok(Some(msg))
+            },
+            None => Ok(None),
+        }
     }
 }

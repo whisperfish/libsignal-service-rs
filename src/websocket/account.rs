@@ -5,8 +5,11 @@ use uuid::Uuid;
 
 use crate::{
     content::ServiceError,
-    utils::serde_optional_base64,
-    utils::{serde_device_id, serde_e164},
+    proto::DeviceName,
+    utils::{
+        serde_device_id, serde_e164, serde_optional_base64,
+        serde_optional_prost_base64,
+    },
     websocket,
 };
 
@@ -46,23 +49,27 @@ pub(crate) struct DeviceInfoEncrypted {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+/// kept in sync with https://github.com/signalapp/Signal-Server/blob/main/service/src/main/java/org/whispersystems/textsecuregcm/entities/AccountAttributes.java#L25
 pub struct AccountAttributes {
-    #[serde(default, with = "serde_optional_base64")]
-    // TODO: does Signal actually still read this?
-    pub signaling_key: Option<Vec<u8>>,
+    pub fetches_messages: bool,
     pub registration_id: u32,
     pub pni_registration_id: u32,
-    pub voice: bool,
-    pub video: bool,
-    pub fetches_messages: bool,
-    pub pin: Option<String>,
+    #[serde(default, with = "serde_optional_prost_base64")]
+    pub name: Option<DeviceName>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub registration_lock: Option<String>,
     #[serde(default, with = "serde_optional_base64")]
     pub unidentified_access_key: Option<Vec<u8>>,
     pub unrestricted_unidentified_access: bool,
-    pub discoverable_by_phone_number: bool,
     pub capabilities: DeviceCapabilities,
-    pub name: Option<String>,
+    pub discoverable_by_phone_number: bool,
+    pub pin: Option<String>,
+    #[serde(
+        default,
+        with = "serde_optional_base64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub recovery_password: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
