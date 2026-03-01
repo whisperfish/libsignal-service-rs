@@ -42,7 +42,7 @@ pub mod serde_base64 {
         D: Deserializer<'de>,
     {
         use serde::de::Error;
-        String::deserialize(deserializer).and_then(|string| {
+        <&str>::deserialize(deserializer).and_then(|string| {
             BASE64_RELAXED
                 .decode(string)
                 .map_err(|err| Error::custom(err.to_string()))
@@ -111,7 +111,7 @@ pub mod serde_identity_key {
     {
         IdentityKey::decode(
             &BASE64_RELAXED
-                .decode(String::deserialize(deserializer)?)
+                .decode(<&str>::deserialize(deserializer)?)
                 .map_err(serde::de::Error::custom)?,
         )
         .map_err(serde::de::Error::custom)
@@ -184,7 +184,7 @@ pub mod serde_private_key {
     {
         PrivateKey::deserialize(
             &BASE64_RELAXED
-                .decode(String::deserialize(deserializer)?)
+                .decode(<&str>::deserialize(deserializer)?)
                 .map_err(serde::de::Error::custom)?,
         )
         .map_err(serde::de::Error::custom)
@@ -282,8 +282,9 @@ pub mod serde_e164 {
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        s.parse().map_err(serde::de::Error::custom)
+        <&str>::deserialize(deserializer)?
+            .parse()
+            .map_err(serde::de::Error::custom)
     }
 }
 
@@ -306,7 +307,7 @@ pub mod serde_phone_number {
     where
         D: Deserializer<'de>,
     {
-        phonenumber::parse(None, String::deserialize(deserializer)?)
+        phonenumber::parse(None, <&str>::deserialize(deserializer)?)
             .map_err(serde::de::Error::custom)
     }
 }
@@ -329,7 +330,7 @@ pub mod serde_service_id {
     where
         D: Deserializer<'de>,
     {
-        ServiceId::parse_from_service_id_string(&String::deserialize(
+        ServiceId::parse_from_service_id_string(<&str>::deserialize(
             deserializer,
         )?)
         .ok_or_else(|| serde::de::Error::custom("invalid service ID string"))
@@ -351,7 +352,7 @@ pub mod serde_aci {
     where
         D: Deserializer<'de>,
     {
-        Aci::parse_from_service_id_string(&String::deserialize(deserializer)?)
+        Aci::parse_from_service_id_string(<&str>::deserialize(deserializer)?)
             .ok_or_else(|| serde::de::Error::custom("invalid ACI string"))
     }
 }
@@ -433,9 +434,9 @@ pub mod serde_prost_base64 {
         T: Message + Default,
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        let bytes =
-            BASE64_RELAXED.decode(s).map_err(serde::de::Error::custom)?;
+        let bytes = BASE64_RELAXED
+            .decode(<&str>::deserialize(deserializer)?)
+            .map_err(serde::de::Error::custom)?;
 
         T::decode(bytes.as_slice()).map_err(serde::de::Error::custom)
     }
