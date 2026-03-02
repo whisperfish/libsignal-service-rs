@@ -43,7 +43,7 @@ type RequestStreamItem = (
 );
 
 pub struct SignalRequestStream {
-    inner: mpsc::Receiver<RequestStreamItem>,
+    inner: mpsc::UnboundedReceiver<RequestStreamItem>,
 }
 
 impl Stream for SignalRequestStream {
@@ -101,7 +101,7 @@ struct SignalWebSocketProcess {
         oneshot::Sender<Result<WebSocketResponseMessage, ServiceError>>,
     )>,
     /// Signal's requests should go in here, to be delivered to the application.
-    request_sink: mpsc::Sender<RequestStreamItem>,
+    request_sink: mpsc::UnboundedSender<RequestStreamItem>,
 
     outgoing_requests: HashMap<
         u64,
@@ -358,7 +358,8 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         unidentified_push_service: PushService,
     ) -> (Self, impl Future<Output = ()>) {
         // Create process
-        let (incoming_request_sink, incoming_request_stream) = mpsc::channel(1);
+        let (incoming_request_sink, incoming_request_stream) =
+            mpsc::unbounded();
         let (outgoing_request_sink, outgoing_requests) = mpsc::channel(1);
 
         let process = SignalWebSocketProcess {
