@@ -421,10 +421,7 @@ pub mod serde_prost_base64 {
         T: Message,
         S: Serializer,
     {
-        let mut buf = Vec::with_capacity(value.encoded_len());
-        value.encode(&mut buf).map_err(serde::ser::Error::custom)?;
-
-        let b64 = BASE64_RELAXED.encode(buf);
+        let b64 = BASE64_RELAXED.encode(value.encode_to_vec());
         serializer.serialize_str(&b64)
     }
 
