@@ -183,18 +183,7 @@ where
             });
         };
 
-        let server_guid =
-            envelope.server_guid.as_ref().and_then(|g| match g.parse() {
-                Ok(uuid) => Some(uuid),
-                Err(e) => {
-                    tracing::error!(
-                        ?envelope,
-                        "Unparseable server_guid ({})",
-                        e
-                    );
-                    None
-                },
-            });
+        let server_guid = envelope.parse_server_guid();
 
         let Some(destination_service_id) =
             envelope.parse_destination_service_id()
