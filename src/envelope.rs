@@ -68,6 +68,13 @@ impl Envelope {
             None
         }
     }
+
+    pub fn parse_server_guid(&self) -> Option<uuid::Uuid> {
+        crate::utils::parse_uuid_with_fallback(
+            self.server_guid_binary.as_deref(),
+            self.server_guid.as_deref(),
+        )
+    }
 }
 
 pub(crate) const CIPHER_KEY_SIZE: usize = 32;
