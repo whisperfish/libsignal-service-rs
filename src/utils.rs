@@ -1,5 +1,6 @@
 mod phonenumber;
 pub use phonenumber::*;
+use uuid::Uuid;
 
 // Signal sometimes adds padding, sometimes it does not.
 // This requires a custom decoding engine.
@@ -13,6 +14,29 @@ pub const BASE64_RELAXED: base64::engine::GeneralPurpose =
                 base64::engine::DecodePaddingMode::Indifferent,
             ),
     );
+
+/// Parse protobuf UUIDs specified in both binary and utf8 formats
+///
+/// Prefers the binary format
+pub fn parse_uuid_with_fallback(
+    binary: Option<&[u8]>,
+    utf8: Option<&str>,
+) -> Option<Uuid> {
+    let binary = binary
+        .map(<[u8; 16]>::try_from)
+        .transpose()
+        .inspect_err(|_e| tracing::warn!("invalid binary UUID length"))
+        .ok()
+        .flatten()
+        .map(Uuid::from_bytes);
+
+    binary.or_else(|| {
+        let utf8 = utf8?;
+        utf8.parse()
+            .inspect_err(|e| tracing::warn!(error=%e, "unparseable UUID"))
+            .ok()
+    })
+}
 
 pub fn random_length_padding<R: rand::Rng + rand::CryptoRng>(
     csprng: &mut R,
