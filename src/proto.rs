@@ -111,3 +111,102 @@ impl data_message::StoryContext {
         )
     }
 }
+
+impl data_message::PollVote {
+    pub fn parse_target_author_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.target_author_aci_binary.as_deref(),
+            None,
+        )
+    }
+}
+
+impl data_message::PinMessage {
+    pub fn parse_target_author_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.target_author_aci_binary.as_deref(),
+            None,
+        )
+    }
+}
+
+impl data_message::UnpinMessage {
+    pub fn parse_target_author_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.target_author_aci_binary.as_deref(),
+            None,
+        )
+    }
+}
+
+impl Verified {
+    pub fn parse_destination_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.destination_aci_binary.as_deref(),
+            self.destination_aci.as_deref(),
+        )
+    }
+}
+
+impl sync_message::sent::UnidentifiedDeliveryStatus {
+    pub fn parse_destination_service_id(&self) -> Option<ServiceId> {
+        crate::utils::parse_service_id_with_fallback(
+            self.destination_service_id_binary.as_deref(),
+            self.destination_service_id.as_deref(),
+        )
+    }
+}
+
+impl sync_message::sent::StoryMessageRecipient {
+    pub fn parse_destination_service_id(&self) -> Option<ServiceId> {
+        crate::utils::parse_service_id_with_fallback(
+            self.destination_service_id_binary.as_deref(),
+            self.destination_service_id.as_deref(),
+        )
+    }
+}
+
+impl sync_message::Read {
+    pub fn parse_sender_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.sender_aci_binary.as_deref(),
+            self.sender_aci.as_deref(),
+        )
+    }
+}
+
+impl sync_message::Viewed {
+    pub fn parse_sender_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.sender_aci_binary.as_deref(),
+            self.sender_aci.as_deref(),
+        )
+    }
+}
+
+impl sync_message::ViewOnceOpen {
+    pub fn parse_sender_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.sender_aci_binary.as_deref(),
+            self.sender_aci.as_deref(),
+        )
+    }
+}
+
+impl sync_message::MessageRequestResponse {
+    pub fn parse_thread_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.thread_aci_binary.as_deref(),
+            self.thread_aci.as_deref(),
+        )
+    }
+}
+
+impl ContactDetails {
+    pub fn parse_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.aci_binary.as_deref(),
+            self.aci.as_deref(),
+        )
+    }
+}
