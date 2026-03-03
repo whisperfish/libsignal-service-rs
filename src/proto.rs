@@ -85,3 +85,12 @@ impl data_message::Quote {
         )
     }
 }
+
+impl data_message::StoryContext {
+    pub fn parse_author_aci(&self) -> Option<Aci> {
+        crate::utils::parse_aci_with_fallback(
+            self.author_aci_binary.as_deref(),
+            self.author_aci.as_deref(),
+        )
+    }
+}
