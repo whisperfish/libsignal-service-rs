@@ -1,4 +1,5 @@
 pub use crate::proto::Envelope;
+use libsignal_core::Pni;
 use libsignal_protocol::ServiceId;
 
 impl Envelope {
@@ -67,6 +68,16 @@ impl Envelope {
         crate::utils::parse_uuid_with_fallback(
             self.server_guid_binary.as_deref(),
             self.server_guid.as_deref(),
+        )
+    }
+
+    pub fn parse_updated_pni(&self) -> Option<Pni> {
+        crate::utils::parse_pni_with_fallback(
+            self.updated_pni_binary.as_deref(),
+            self.updated_pni.as_deref(),
+            // XXX: this might have to be `false`, but can't find a ref (and it's for the string
+            // fallback anyway...
+            true,
         )
     }
 }
