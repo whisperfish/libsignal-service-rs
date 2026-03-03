@@ -1,6 +1,6 @@
 #![allow(clippy::all)]
 
-use libsignal_core::ServiceId;
+use libsignal_core::{Aci, ServiceId};
 use rand::{CryptoRng, Rng};
 use reqwest::StatusCode;
 include!(concat!(env!("OUT_DIR"), "/signalservice.rs"));
@@ -65,6 +65,30 @@ impl sync_message::Sent {
             ServiceId::parse_from_service_id_binary(bytes)
         } else if let Some(s) = self.destination_service_id.as_deref() {
             ServiceId::parse_from_service_id_string(s)
+        } else {
+            None
+        }
+    }
+}
+
+impl data_message::Reaction {
+    pub fn parse_target_author_aci(&self) -> Option<Aci> {
+        if let Some(bytes) = self.target_author_aci_binary.as_deref() {
+            Some(Aci::from_uuid_bytes(
+                bytes
+                    .try_into()
+                    .inspect_err(|_e| tracing::warn!("binary ACI not 16 bytes"))
+                    .ok()?,
+            ))
+        } else if let Some(s) = self.target_author_aci.as_deref() {
+            // Option::inspect_none would be nice
+            match Aci::parse_from_service_id_string(s) {
+                Some(aci) => Some(aci),
+                None => {
+                    tracing::warn!("unparsable ACI");
+                    None
+                },
+            }
         } else {
             None
         }
