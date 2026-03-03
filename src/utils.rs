@@ -1,4 +1,4 @@
-use libsignal_core::ServiceId;
+use libsignal_core::{Aci, Pni, ServiceId};
 use uuid::Uuid;
 
 // Signal sometimes adds padding, sometimes it does not.
@@ -13,6 +13,65 @@ pub const BASE64_RELAXED: base64::engine::GeneralPurpose =
                 base64::engine::DecodePaddingMode::Indifferent,
             ),
     );
+
+pub fn parse_aci_with_fallback(
+    bytes: Option<&[u8]>,
+    utf8: Option<&str>,
+) -> Option<Aci> {
+    let binary = bytes.and_then(|bytes| {
+        let bytes = bytes
+            .try_into()
+            .inspect_err(|_e| tracing::warn!("binary ACI not 16 bytes"))
+            .ok()?;
+        Some(Aci::from_uuid_bytes(bytes))
+    });
+
+    binary.or_else(|| {
+        let utf8 = utf8?;
+        match Aci::parse_from_service_id_string(utf8) {
+            Some(sid) => Some(sid),
+            None => {
+                tracing::warn!("unparseable utf8 ACI");
+                None
+            },
+        }
+    })
+}
+
+pub fn parse_pni_with_fallback(
+    bytes: Option<&[u8]>,
+    utf8: Option<&str>,
+    pni_is_uuid: bool,
+) -> Option<Pni> {
+    let binary = bytes.and_then(|bytes| {
+        let bytes = bytes
+            .try_into()
+            .inspect_err(|_e| tracing::warn!("binary PNI not 16 bytes"))
+            .ok()?;
+        Some(Pni::from_uuid_bytes(bytes))
+    });
+
+    binary.or_else(|| {
+        let utf8 = utf8?;
+        if pni_is_uuid {
+            let uuid: uuid::Uuid = utf8
+                .parse()
+                .inspect_err(|e| {
+                    tracing::warn!(error = %e, "unparseable UUID");
+                })
+                .ok()?;
+            Some(Pni::from_uuid_bytes(*uuid.as_bytes()))
+        } else {
+            match Pni::parse_from_service_id_string(utf8) {
+                Some(sid) => Some(sid),
+                None => {
+                    tracing::warn!("unparseable utf8 PNI");
+                    None
+                },
+            }
+        }
+    })
+}
 
 pub fn parse_service_id_with_fallback(
     bytes: Option<&[u8]>,
