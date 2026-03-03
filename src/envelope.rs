@@ -50,23 +50,17 @@ impl Envelope {
     }
 
     pub fn parse_destination_service_id(&self) -> Option<ServiceId> {
-        if let Some(bytes) = self.destination_service_id_binary.as_deref() {
-            ServiceId::parse_from_service_id_binary(bytes)
-        } else if let Some(s) = self.destination_service_id.as_deref() {
-            ServiceId::parse_from_service_id_string(s)
-        } else {
-            None
-        }
+        crate::utils::parse_service_id_with_fallback(
+            self.destination_service_id_binary.as_deref(),
+            self.destination_service_id.as_deref(),
+        )
     }
 
     pub fn parse_source_service_id(&self) -> Option<ServiceId> {
-        if let Some(bytes) = self.source_service_id_binary.as_deref() {
-            ServiceId::parse_from_service_id_binary(bytes)
-        } else if let Some(s) = self.source_service_id.as_deref() {
-            ServiceId::parse_from_service_id_string(s)
-        } else {
-            None
-        }
+        crate::utils::parse_service_id_with_fallback(
+            self.source_service_id_binary.as_deref(),
+            self.source_service_id.as_deref(),
+        )
     }
 
     pub fn parse_server_guid(&self) -> Option<uuid::Uuid> {

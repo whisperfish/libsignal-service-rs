@@ -1,4 +1,5 @@
 mod phonenumber;
+use libsignal_core::ServiceId;
 pub use phonenumber::*;
 use uuid::Uuid;
 
@@ -14,6 +15,32 @@ pub const BASE64_RELAXED: base64::engine::GeneralPurpose =
                 base64::engine::DecodePaddingMode::Indifferent,
             ),
     );
+
+pub fn parse_service_id_with_fallback(
+    bytes: Option<&[u8]>,
+    utf8: Option<&str>,
+) -> Option<ServiceId> {
+    let binary = bytes.and_then(|bytes| {
+        match ServiceId::parse_from_service_id_binary(bytes) {
+            Some(sid) => Some(sid),
+            None => {
+                tracing::warn!("unparseable binary ServiceId");
+                None
+            },
+        }
+    });
+
+    binary.or_else(|| {
+        let utf8 = utf8?;
+        match ServiceId::parse_from_service_id_string(utf8) {
+            Some(sid) => Some(sid),
+            None => {
+                tracing::warn!("unparseable utf8 ServiceId");
+                None
+            },
+        }
+    })
+}
 
 /// Parse protobuf UUIDs specified in both binary and utf8 formats
 ///
