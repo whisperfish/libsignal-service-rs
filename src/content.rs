@@ -1,5 +1,6 @@
 use libsignal_core::DeviceId;
-use libsignal_protocol::{ProtocolAddress, ServiceId};
+use libsignal_protocol::{ProtocolAddress, SenderKeyDistributionMessage, ServiceId};
+use prost::Message;
 use std::fmt;
 use uuid::Uuid;
 
@@ -7,9 +8,10 @@ pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
-        sync_message, AttachmentPointer, CallMessage, DataMessage, EditMessage,
-        GroupContextV2, NullMessage, PniSignatureMessage, ReceiptMessage,
-        StoryMessage, SyncMessage, TypingMessage,
+        sync_message, AttachmentPointer, CallMessage, DataMessage,
+        DecryptionErrorMessage, EditMessage, GroupContextV2, NullMessage,
+        PniSignatureMessage, ReceiptMessage, StoryMessage, SyncMessage,
+        TypingMessage,
     },
     push_service::ServiceError,
     ServiceIdExt,
@@ -92,10 +94,13 @@ impl Content {
             Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.typing_message {
             Ok(Self::from_body(msg, metadata))
-        // } else if let Some(msg) = p.sender_key_distribution_message {
-        //     Ok(Self::from_body(msg, metadata))
-        // } else if let Some(msg) = p.decryption_error_message {
-        //     Ok(Self::from_body(msg, metadata))
+        } else if let Some(bytes) = p.sender_key_distribution_message {
+            // SenderKeyDistributionMessage is serialized as raw bytes
+            let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])
+                .map_err(|_| ServiceError::InvalidFrame {
+                    reason: "Invalid sender key distribution message",
+                })?;
+            Ok(Self::from_body(skdm, metadata))
         } else if let Some(msg) = p.story_message {
             Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.pni_signature_message {
@@ -139,8 +144,12 @@ impl fmt::Display for ContentBody {
             Self::CallMessage(_) => write!(f, "CallMessage"),
             Self::ReceiptMessage(_) => write!(f, "ReceiptMessage"),
             Self::TypingMessage(_) => write!(f, "TypingMessage"),
-            // Self::SenderKeyDistributionMessage(_) => write!(f, "SenderKeyDistributionMessage"),
-            // Self::DecryptionErrorMessage(_) => write!(f, "DecryptionErrorMessage"),
+            Self::SenderKeyDistributionMessage(_) => {
+                write!(f, "SenderKeyDistributionMessage")
+            },
+            Self::DecryptionErrorMessage(_) => {
+                write!(f, "DecryptionErrorMessage")
+            },
             Self::StoryMessage(_) => write!(f, "StoryMessage"),
             Self::PniSignatureMessage(_) => write!(f, "PniSignatureMessage"),
             Self::EditMessage(_) => write!(f, "EditMessage"),
@@ -157,8 +166,8 @@ pub enum ContentBody {
     CallMessage(CallMessage),
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
-    // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
-    // DecryptionErrorMessage(DecryptionErrorMessage),
+    SenderKeyDistributionMessage(SenderKeyDistributionMessage),
+    DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
     PniSignatureMessage(PniSignatureMessage),
     EditMessage(EditMessage),
@@ -191,16 +200,15 @@ impl ContentBody {
                 typing_message: Some(msg),
                 ..Default::default()
             },
-            // XXX Those two are serialized as Vec<u8> and I'm not currently sure how to handle
-            // them.
-            // Self::SenderKeyDistributionMessage(msg) => crate::proto::Content {
-            //     sender_key_distribution_message: Some(msg),
-            //     ..Default::default()
-            // },
-            // Self::DecryptionErrorMessage(msg) => crate::proto::Content {
-            //     decryption_error_message: Some(msg.serialized()),
-            //     ..Default::default()
-            // },
+            // SenderKeyDistributionMessage is serialized as raw bytes
+            Self::SenderKeyDistributionMessage(msg) => crate::proto::Content {
+                sender_key_distribution_message: Some(msg.serialized().to_vec()),
+                ..Default::default()
+            },
+            Self::DecryptionErrorMessage(msg) => crate::proto::Content {
+                decryption_error_message: Some(msg.encode_to_vec()),
+                ..Default::default()
+            },
             Self::StoryMessage(msg) => crate::proto::Content {
                 story_message: Some(msg),
                 ..Default::default()
@@ -233,10 +241,10 @@ impl_from_for_content_body!(SynchronizeMessage(SyncMessage));
 impl_from_for_content_body!(CallMessage(CallMessage));
 impl_from_for_content_body!(ReceiptMessage(ReceiptMessage));
 impl_from_for_content_body!(TypingMessage(TypingMessage));
-// impl_from_for_content_body!(SenderKeyDistributionMessage(
-//     SenderKeyDistributionMessage
-// ));
-// impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
+impl_from_for_content_body!(SenderKeyDistributionMessage(
+    SenderKeyDistributionMessage
+));
+impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
 impl_from_for_content_body!(StoryMessage(StoryMessage));
 impl_from_for_content_body!(PniSignatureMessage(PniSignatureMessage));
 impl_from_for_content_body!(EditMessage(EditMessage));

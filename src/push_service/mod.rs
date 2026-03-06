@@ -8,11 +8,12 @@ use crate::{
 };
 
 use libsignal_core::DeviceId;
+use prost::Message;
 use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::RequestBuilderExt;
 use serde::{Deserialize, Serialize};
-use tracing::{debug_span, Instrument};
+use tracing::Instrument;
 
 pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
 pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
@@ -27,7 +28,7 @@ pub(crate) mod response;
 pub use account::*;
 pub use cdn::*;
 pub use error::*;
-pub(crate) use response::{ReqwestExt, SignalServiceResponse};
+pub(crate) use response::{GroupServiceExt, ReqwestExt, SignalServiceResponse};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProofRequired {
@@ -139,6 +140,7 @@ impl PushService {
         Ok(builder)
     }
 
+    #[tracing::instrument(skip(self, additional_headers, credentials))]
     pub async fn ws<C: WebSocketType>(
         &mut self,
         path: &str,
@@ -146,7 +148,7 @@ impl PushService {
         additional_headers: &[(&'static str, &str)],
         credentials: Option<ServiceCredentials>,
     ) -> Result<SignalWebSocket<C>, ServiceError> {
-        let span = debug_span!("websocket");
+        let span = tracing::debug_span!("websocket");
 
         let mut url = Endpoint::service(path).into_url(&self.cfg)?;
         url.set_scheme("wss").expect("valid https base url");
@@ -184,28 +186,272 @@ impl PushService {
         tokio::task::spawn(task);
         Ok(ws)
     }
+}
 
+/// Response data from group operations that includes endorsement information.
+#[derive(Debug)]
+pub struct GroupResponseData {
+    /// The decrypted group state.
+    pub group: crate::proto::Group,
+    /// Raw group send endorsements response bytes, if present.
+    pub group_send_endorsements_response: Option<Vec<u8>>,
+}
+
+impl From<crate::proto::GroupResponse> for GroupResponseData {
+    fn from(response: crate::proto::GroupResponse) -> Self {
+        Self {
+            group: response.group.unwrap_or_default(),
+            group_send_endorsements_response: if response
+                .group_send_endorsements_response
+                .is_empty()
+            {
+                None
+            } else {
+                Some(response.group_send_endorsements_response)
+            },
+        }
+    }
+}
+
+/// Response from group modification operations.
+#[derive(Debug)]
+pub struct GroupChangeResponseData {
+    /// The group change returned by the server.
+    pub group_change: crate::proto::GroupChange,
+    /// Raw group send endorsements response bytes, if present.
+    pub group_send_endorsements_response: Option<Vec<u8>>,
+}
+
+impl From<crate::proto::GroupChangeResponse> for GroupChangeResponseData {
+    fn from(response: crate::proto::GroupChangeResponse) -> Self {
+        Self {
+            group_change: response.group_change.unwrap_or_default(),
+            group_send_endorsements_response: if response
+                .group_send_endorsements_response
+                .is_empty()
+            {
+                None
+            } else {
+                Some(response.group_send_endorsements_response)
+            },
+        }
+    }
+}
+
+/// Options for fetching group history logs.
+#[derive(Debug, Clone)]
+pub struct GroupLogOptions {
+    /// The version to start fetching from.
+    pub start_version: u32,
+    /// Whether to include the full group state at the start version.
+    pub include_first_state: bool,
+    /// Whether to include the full group state at the latest version.
+    pub include_last_state: bool,
+    /// The maximum change epoch this client understands.
+    pub max_supported_change_epoch: u32,
+    /// If Some, send the cached endorsement expiration timestamp. If the server
+    /// has newer endorsements, it will include them in the response. Send 0 or
+    /// None to always receive endorsements.
+    pub cached_endorsements_expiration: Option<u64>,
+}
+
+/// Response from the group log endpoint.
+#[derive(Debug)]
+pub struct GroupLogResponseData {
+    /// The group changes, possibly paginated.
+    pub changes: crate::proto::GroupChanges,
+    /// Endorsements for the group, if the server has newer ones than cached.
+    pub group_send_endorsements_response: Option<Vec<u8>>,
+    /// Whether the response is paginated (206 Partial Content).
+    pub paginated: bool,
+    /// For paginated responses, the range of versions included (from Content-Range header).
+    /// Format: (start_version, end_version).
+    pub page_range: Option<(u32, u32)>,
+    /// For paginated responses, the current server revision (from Content-Range header).
+    pub current_revision: Option<u32>,
+}
+
+impl PushService {
+    #[tracing::instrument(skip(self, credentials))]
     pub(crate) async fn get_group(
         &mut self,
         credentials: HttpAuth,
-    ) -> Result<crate::proto::Group, ServiceError> {
-        self.request(
+    ) -> Result<GroupResponseData, ServiceError> {
+        let response: crate::proto::GroupResponse = self
+            .request(
+                Method::GET,
+                Endpoint::storage("/v2/groups/"),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            .send()
+            .await?
+            .service_error_for_group_status()
+            .await?
+            .protobuf()
+            .await?;
+        Ok(response.into())
+    }
+
+    #[tracing::instrument(skip(self, credentials, group))]
+    pub(crate) async fn create_group(
+        &mut self,
+        credentials: HttpAuth,
+        group: crate::proto::Group,
+    ) -> Result<GroupResponseData, ServiceError> {
+        use protobuf::ProtobufRequestBuilderExt;
+        let response: crate::proto::GroupResponse = self
+            .request(
+                Method::PUT,
+                Endpoint::storage("/v2/groups/"),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            .protobuf(group)
+            .send()
+            .await?
+            .service_error_for_group_status()
+            .await?
+            .protobuf()
+            .await?;
+        Ok(response.into())
+    }
+
+    #[tracing::instrument(
+        skip(self, credentials, actions),
+        fields(
+            revision = actions.revision,
+            add_members = actions.add_members.len()
+        )
+    )]
+    pub(crate) async fn modify_group(
+        &mut self,
+        credentials: HttpAuth,
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<GroupChangeResponseData, ServiceError> {
+        use protobuf::ProtobufRequestBuilderExt;
+
+        let response = self
+            .request(
+                Method::PATCH,
+                Endpoint::storage("/v2/groups/"),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            .protobuf(actions)
+            .send()
+            .await?
+            .service_error_for_group_status()
+            .await?;
+
+        let proto_response: crate::proto::GroupChangeResponse =
+            response.protobuf().await?;
+        Ok(proto_response.into())
+    }
+
+    /// Fetch group change history from the server.
+    ///
+    /// Uses the `/v2/groups/logs/{startVersion}` endpoint. Supports pagination via
+    /// Content-Range header parsing and endorsement caching via the
+    /// Cached-Send-Endorsements header.
+    ///
+    /// TODO: This method will be used for caching endorsements from group logs
+    /// in a future implementation. See Group Send Endorsements specification.
+    #[allow(dead_code)]
+    #[tracing::instrument(
+        skip(self, credentials, options),
+        fields(
+            start_version = options.start_version,
+            include_first_state = options.include_first_state,
+            include_last_state = options.include_last_state,
+            max_supported_change_epoch = options.max_supported_change_epoch
+        )
+    )]
+    pub(crate) async fn get_group_log(
+        &mut self,
+        credentials: HttpAuth,
+        options: GroupLogOptions,
+    ) -> Result<GroupLogResponseData, ServiceError> {
+        let path = format!(
+            "/v2/groups/logs/{}?includeFirstState={}&includeLastState={}&maxSupportedChangeEpoch={}",
+            options.start_version,
+            options.include_first_state,
+            options.include_last_state,
+            options.max_supported_change_epoch,
+        );
+
+        let mut request = self.request(
             Method::GET,
-            Endpoint::storage("/v1/groups/"),
+            Endpoint::storage(&path),
             HttpAuthOverride::Identified(credentials),
-        )?
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .protobuf()
-        .await
+        )?;
+
+        // Add endorsement caching header
+        if let Some(expiration) = options.cached_endorsements_expiration {
+            request = request
+                .header("Cached-Send-Endorsements", expiration.to_string());
+        }
+
+        let response = request.send().await?;
+        let status = response.status();
+
+        // Parse Content-Range header for pagination info
+        // Format: "versions {start}-{end}/{total}"
+        let (paginated, page_range, current_revision) = if status.as_u16()
+            == 206
+        {
+            if let Some(range_header) = response.headers().get("content-range")
+            {
+                if let Ok(range_str) = range_header.to_str() {
+                    // Parse "versions 10-20/100"
+                    static RANGE_REGEX: std::sync::LazyLock<regex::Regex> =
+                        std::sync::LazyLock::new(|| {
+                            regex::Regex::new(r"^versions\s+(\d+)-(\d+)/(\d+)$")
+                                .unwrap()
+                        });
+                    if let Some(captures) = RANGE_REGEX.captures(range_str) {
+                        (
+                            true,
+                            Some((
+                                captures[1].parse().unwrap_or(0),
+                                captures[2].parse().unwrap_or(0),
+                            )),
+                            Some(captures[3].parse().unwrap_or(0)),
+                        )
+                    } else {
+                        (true, None, None)
+                    }
+                } else {
+                    (true, None, None)
+                }
+            } else {
+                (true, None, None)
+            }
+        } else {
+            (false, None, None)
+        };
+
+        let response = response.service_error_for_group_status().await?;
+        let bytes = response.bytes().await?;
+        let changes = crate::proto::GroupChanges::decode(bytes.as_ref())?;
+
+        let group_send_endorsements_response =
+            if changes.group_send_endorsements_response.is_empty() {
+                None
+            } else {
+                Some(changes.group_send_endorsements_response.clone())
+            };
+
+        Ok(GroupLogResponseData {
+            changes,
+            group_send_endorsements_response,
+            paginated,
+            page_range,
+            current_revision,
+        })
     }
 }
 
 pub(crate) mod protobuf {
     use async_trait::async_trait;
-    use prost::{EncodeError, Message};
+    use prost::Message;
     use reqwest::{header, RequestBuilder, Response};
 
     use super::ServiceError;
@@ -217,10 +463,18 @@ pub(crate) mod protobuf {
         /// Set the request payload encoded as protobuf.
         /// Sets the `Content-Type` header to `application/x-protobuf`
         #[allow(dead_code)]
-        fn protobuf<T: Message + Default>(
-            self,
-            value: T,
-        ) -> Result<Self, EncodeError>;
+        fn protobuf<T: Message + Default>(self, value: T) -> Self;
+    }
+
+    impl ProtobufRequestBuilderExt for RequestBuilder {
+        fn protobuf<T: Message + Default>(self, value: T) -> Self {
+            let mut buf = Vec::new();
+            value
+                .encode(&mut buf)
+                .expect("protobuf encoding to Vec is infallible");
+            self.header(header::CONTENT_TYPE, "application/x-protobuf")
+                .body(buf)
+        }
     }
 
     #[async_trait::async_trait]
@@ -229,19 +483,6 @@ pub(crate) mod protobuf {
         async fn protobuf<T>(self) -> Result<T, ServiceError>
         where
             T: prost::Message + Default;
-    }
-
-    impl ProtobufRequestBuilderExt for RequestBuilder {
-        fn protobuf<T: Message + Default>(
-            self,
-            value: T,
-        ) -> Result<Self, EncodeError> {
-            let mut buf = Vec::new();
-            value.encode(&mut buf)?;
-            let this =
-                self.header(header::CONTENT_TYPE, "application/x-protobuf");
-            Ok(this.body(buf))
-        }
     }
 
     #[async_trait]

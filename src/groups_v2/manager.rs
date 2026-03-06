@@ -3,7 +3,7 @@ use std::{collections::HashMap, convert::TryInto};
 use crate::{
     configuration::Endpoint,
     groups_v2::{
-        model::{Group, GroupChanges},
+        model::{AccessControl, Group, GroupCandidate, GroupChanges, Timer},
         operations::{GroupDecodingError, GroupOperations},
     },
     prelude::{PushService, ServiceError},
@@ -13,6 +13,34 @@ use crate::{
     websocket::{self, SignalWebSocket},
 };
 
+use zkgroup::{
+    auth::{AuthCredentialWithPni, AuthCredentialWithPniResponse},
+    groups::{GroupMasterKey, GroupSecretParams},
+    profiles::ExpiringProfileKeyCredential,
+    ServerPublicParams,
+};
+
+/// Options for creating a new group.
+///
+/// This struct encapsulates all the parameters needed for group creation,
+/// making it easier to pass around and extend in the future.
+pub struct GroupCreationOptions<'a> {
+    /// The secret parameters derived from the group's master key.
+    pub group_secret_params: GroupSecretParams,
+    /// The title of the group.
+    pub title: &'a str,
+    /// An optional description of the group.
+    pub description: Option<&'a str>,
+    /// Optional timer for disappearing messages.
+    pub disappearing_messages_timer: Option<&'a Timer>,
+    /// Optional access control settings for the group.
+    pub access_control: Option<&'a AccessControl>,
+    /// The self credential for the creating user.
+    pub self_credential: &'a ExpiringProfileKeyCredential,
+    /// Candidates for group membership.
+    pub member_candidates: &'a [GroupCandidate],
+}
+
 use base64::prelude::*;
 use bytes::Bytes;
 use chrono::{Days, NaiveDate, NaiveTime, Utc};
@@ -20,11 +48,6 @@ use futures::AsyncReadExt;
 use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use serde::Deserialize;
-use zkgroup::{
-    auth::{AuthCredentialWithPni, AuthCredentialWithPniResponse},
-    groups::{GroupMasterKey, GroupSecretParams},
-    ServerPublicParams,
-};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,12 +154,91 @@ impl<T: CredentialsCache> CredentialsCache for &mut T {
     }
 }
 
+/// Encapsulates the authorization data needed for group operations.
+///
+/// This struct holds the processed credential data that can be used to
+/// authenticate group API requests. It's created from an `AuthCredentialWithPniResponse`
+/// and contains the presentation bytes needed for server authentication.
+struct GroupAuthorization {
+    /// The hex-encoded public params (username part of HTTP auth)
+    username: String,
+    /// The hex-encoded credential presentation (password part of HTTP auth)
+    password: String,
+}
+
+impl GroupAuthorization {
+    /// Creates a group authorization from a credential response.
+    ///
+    /// This processes the credential response through the zkgroup library
+    /// to create a presentation that can be used for group API calls.
+    fn from_credential_response<R: Rng + CryptoRng>(
+        credential_response: &AuthCredentialWithPniResponse,
+        server_public_params: &ServerPublicParams,
+        service_ids: &ServiceIds,
+        group_secret_params: &GroupSecretParams,
+        redemption_time: u64,
+        csprng: &mut R,
+    ) -> Result<Self, ServiceError> {
+        let redemption_time =
+            zkgroup::Timestamp::from_epoch_seconds(redemption_time);
+
+        let auth_credential_bytes =
+            zkgroup::serialize(&credential_response.clone().receive(
+                server_public_params,
+                service_ids.aci(),
+                service_ids.pni(),
+                redemption_time,
+            )?);
+
+        let auth_credential =
+            AuthCredentialWithPni::new(&auth_credential_bytes)
+                .expect("just validated");
+
+        let mut random_bytes = [0u8; 32];
+        csprng.fill_bytes(&mut random_bytes);
+
+        let auth_credential_presentation =
+            zkgroup::serialize(&auth_credential.present(
+                server_public_params,
+                group_secret_params,
+                random_bytes,
+            ));
+
+        // see simpleapi.rs GroupSecretParams_getPublicParams, everything is bincode encoded
+        // across the boundary of Rust/Java
+        let username = hex::encode(bincode::serialize(
+            &group_secret_params.get_public_params(),
+        )?);
+
+        let password = hex::encode(&auth_credential_presentation);
+
+        Ok(Self { username, password })
+    }
+
+    /// Converts the authorization into an HttpAuth for use with requests.
+    fn into_http_auth(self) -> HttpAuth {
+        HttpAuth {
+            username: self.username,
+            password: self.password,
+        }
+    }
+}
+
 pub struct GroupsManager<C: CredentialsCache> {
     service_ids: ServiceIds,
     identified_push_service: PushService,
     unidentified_websocket: SignalWebSocket<websocket::Unidentified>,
     credentials_cache: C,
     server_public_params: ServerPublicParams,
+}
+
+/// Result of creating a group, including the group and optional endorsements.
+#[derive(Debug)]
+pub struct CreatedGroup {
+    /// The created group.
+    pub group: Group,
+    /// Raw group send endorsements response bytes, if present.
+    pub group_send_endorsements_response: Option<Vec<u8>>,
 }
 
 impl<C: CredentialsCache> GroupsManager<C> {
@@ -194,61 +296,22 @@ impl<C: CredentialsCache> GroupsManager<C> {
             })?
         };
 
-        self.get_authorization_string(
-            csprng,
-            group_secret_params,
-            auth_credential_response.clone(),
+        let authorization = GroupAuthorization::from_credential_response(
+            auth_credential_response,
+            &self.server_public_params,
+            &self.service_ids,
+            &group_secret_params,
             today,
-        )
-    }
-
-    fn get_authorization_string<R: Rng + CryptoRng>(
-        &self,
-        csprng: &mut R,
-        group_secret_params: GroupSecretParams,
-        credential_response: AuthCredentialWithPniResponse,
-        today: u64,
-    ) -> Result<HttpAuth, ServiceError> {
-        let redemption_time = zkgroup::Timestamp::from_epoch_seconds(today);
-
-        let auth_credential_bytes =
-            zkgroup::serialize(&credential_response.receive(
-                &self.server_public_params,
-                self.service_ids.aci(),
-                self.service_ids.pni(),
-                redemption_time,
-            )?);
-
-        let auth_credential =
-            AuthCredentialWithPni::new(&auth_credential_bytes)
-                .expect("just validated");
-
-        let mut random_bytes = [0u8; 32];
-        csprng.fill_bytes(&mut random_bytes);
-
-        let auth_credential_presentation =
-            zkgroup::serialize(&auth_credential.present(
-                &self.server_public_params,
-                &group_secret_params,
-                random_bytes,
-            ));
-
-        // see simpleapi.rs GroupSecretParams_getPublicParams, everything is bincode encoded
-        // across the boundary of Rust/Java
-        let username = hex::encode(bincode::serialize(
-            &group_secret_params.get_public_params(),
-        )?);
-
-        let password = hex::encode(&auth_credential_presentation);
-
-        Ok(HttpAuth { username, password })
+            csprng,
+        )?;
+        Ok(authorization.into_http_auth())
     }
 
     pub async fn fetch_encrypted_group<R: Rng + CryptoRng>(
         &mut self,
         csprng: &mut R,
         master_key_bytes: &[u8],
-    ) -> Result<crate::proto::Group, ServiceError> {
+    ) -> Result<crate::push_service::GroupResponseData, ServiceError> {
         let group_master_key = GroupMasterKey::new(
             master_key_bytes
                 .try_into()
@@ -300,6 +363,67 @@ impl<C: CredentialsCache> GroupsManager<C> {
             },
             _ => Ok(None),
         }
+    }
+    /// Create a new group with credential-based member presentations.
+    ///
+    /// This is the recommended method for creating groups as it properly includes
+    /// ProfileKeyCredentialPresentations (ZK proofs) for each member, which the
+    /// Signal server requires for validation.
+    ///
+    /// Members with credentials are added as full members.
+    /// Members without credentials are added as pending invites.
+    pub async fn create_group_with_credentials<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        options: GroupCreationOptions<'_>,
+    ) -> Result<CreatedGroup, ServiceError> {
+        let authorization = self
+            .get_authorization_for_today(csprng, options.group_secret_params)
+            .await?;
+
+        let operations = GroupOperations::new(options.group_secret_params);
+        let encrypted_group = operations.encrypt_group_with_credentials(
+            options.title,
+            options.description,
+            options.disappearing_messages_timer,
+            options.access_control,
+            options.self_credential,
+            options.member_candidates,
+            &self.server_public_params,
+            csprng,
+        )?;
+
+        let response = self
+            .identified_push_service
+            .create_group(authorization, encrypted_group)
+            .await?;
+
+        Ok(CreatedGroup {
+            group: operations.decrypt_group(response.group)?,
+            group_send_endorsements_response: response
+                .group_send_endorsements_response,
+        })
+    }
+
+    /// Modify an existing group
+    #[tracing::instrument(skip(self, csprng, group_secret_params, actions))]
+    pub async fn modify_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        group_secret_params: GroupSecretParams,
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<GroupChanges, ServiceError> {
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+
+        let response = self
+            .identified_push_service
+            .modify_group(authorization, actions)
+            .await?;
+
+        let operations = GroupOperations::new(group_secret_params);
+        Ok(operations.decrypt_group_change(response.group_change)?)
     }
 }
 
