@@ -30,6 +30,11 @@ pub struct LinkCapabilities {
     /// Signal Android refers to the field as `storageServiceEncryptionV2` [here](https://github.com/signalapp/Signal-Android/blob/ec840726fcbb5440e1337274f791d17a6fe59598/libsignal-service/src/main/java/org/whispersystems/signalservice/api/account/AccountAttributes.kt#L60).
     /// It is therefore possibly related to backup
     pub ssre2: bool,
+    /// Sparse Post-Quantum Ratchet (`SPARSE_POST_QUANTUM_RATCHET` on Signal Server).
+    ///
+    /// Required for all devices; the server returns 409 if a linking device omits this capability
+    /// while the account already has it on any existing device.
+    pub spqr: bool,
 }
 
 // https://github.com/signalapp/Signal-Desktop/blob/1e57db6aa4786dcddc944349e4894333ac2ffc9e/ts/textsecure/WebAPI.ts#L1287
@@ -39,6 +44,7 @@ impl Default for LinkCapabilities {
             delete_sync: true,
             versioned_expiration_timer: true,
             ssre2: true,
+            spqr: true,
         }
     }
 }
