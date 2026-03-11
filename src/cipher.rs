@@ -254,7 +254,7 @@ where
                 };
 
                 let mut data = message_decrypt_prekey(
-                    &PreKeySignalMessage::try_from(&ciphertext[..]).unwrap(),
+                    &PreKeySignalMessage::try_from(&ciphertext[..])?,
                     &sender,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
