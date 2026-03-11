@@ -145,7 +145,8 @@ where
                 return Ok(None);
             }
 
-            if let Some(bytes) = message.sender_key_distribution_message {
+            let mut processed_skdm = false;
+            if let Some(bytes) = &message.sender_key_distribution_message {
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
                     &plaintext.metadata.protocol_address()?,
@@ -153,11 +154,18 @@ where
                     &mut self.protocol_store,
                 )
                 .await?;
-                Ok(None)
-            } else {
-                let content = Content::from_proto(message, plaintext.metadata)?;
-                Ok(Some(content))
+                processed_skdm = true;
             }
+            let content = Content::from_proto(message, plaintext.metadata);
+            if let Err(ServiceError::UnsupportedContent) = content {
+                if processed_skdm {
+                    // If a sender key distribution message was processed,
+                    // do not return an error in this case.
+                    return Ok(None);
+                }
+                tracing::warn!("Unsupported content!");
+            }
+            Ok(Some(content?))
         } else {
             Ok(None)
         }
