@@ -95,8 +95,11 @@ impl Content {
             Ok(Self::from_body(msg, metadata))
         // } else if let Some(msg) = p.sender_key_distribution_message {
         //     Ok(Self::from_body(msg, metadata))
-        // } else if let Some(msg) = p.decryption_error_message {
-        //     Ok(Self::from_body(msg, metadata))
+        } else if let Some(msg) = p.decryption_error_message {
+            Ok(Self {
+                metadata,
+                body: ContentBody::DecryptionErrorMessage(msg),
+            })
         } else if let Some(msg) = p.story_message {
             Ok(Self::from_body(msg, metadata))
         } else if let Some(msg) = p.pni_signature_message {
@@ -143,7 +146,9 @@ impl fmt::Display for ContentBody {
             Self::ReceiptMessage(_) => write!(f, "ReceiptMessage"),
             Self::TypingMessage(_) => write!(f, "TypingMessage"),
             // Self::SenderKeyDistributionMessage(_) => write!(f, "SenderKeyDistributionMessage"),
-            // Self::DecryptionErrorMessage(_) => write!(f, "DecryptionErrorMessage"),
+            Self::DecryptionErrorMessage(_) => {
+                write!(f, "DecryptionErrorMessage")
+            },
             Self::StoryMessage(_) => write!(f, "StoryMessage"),
             Self::PniSignatureMessage(_) => write!(f, "PniSignatureMessage"),
             Self::EditMessage(_) => write!(f, "EditMessage"),
@@ -161,7 +166,7 @@ pub enum ContentBody {
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
     // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
-    // DecryptionErrorMessage(DecryptionErrorMessage),
+    DecryptionErrorMessage(Vec<u8>),
     StoryMessage(StoryMessage),
     PniSignatureMessage(PniSignatureMessage),
     EditMessage(EditMessage),
@@ -200,10 +205,10 @@ impl ContentBody {
             //     sender_key_distribution_message: Some(msg),
             //     ..Default::default()
             // },
-            // Self::DecryptionErrorMessage(msg) => crate::proto::Content {
-            //     decryption_error_message: Some(msg.serialized()),
-            //     ..Default::default()
-            // },
+            Self::DecryptionErrorMessage(msg) => crate::proto::Content {
+                decryption_error_message: Some(msg),
+                ..Default::default()
+            },
             Self::StoryMessage(msg) => crate::proto::Content {
                 story_message: Some(msg),
                 ..Default::default()
