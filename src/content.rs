@@ -1,5 +1,6 @@
 use libsignal_core::DeviceId;
 use libsignal_protocol::{ProtocolAddress, ServiceId};
+use prost::Message;
 use std::fmt;
 use uuid::Uuid;
 
@@ -7,9 +8,10 @@ pub use crate::{
     proto::{
         attachment_pointer::Flags as AttachmentPointerFlags,
         data_message::Flags as DataMessageFlags, data_message::Reaction,
-        sync_message, AttachmentPointer, CallMessage, DataMessage, EditMessage,
-        GroupContextV2, NullMessage, PniSignatureMessage, ReceiptMessage,
-        StoryMessage, SyncMessage, TypingMessage,
+        sync_message, AttachmentPointer, CallMessage, DataMessage,
+        DecryptionErrorMessage, EditMessage, GroupContextV2, NullMessage,
+        PniSignatureMessage, ReceiptMessage, StoryMessage, SyncMessage,
+        TypingMessage,
     },
     push_service::ServiceError,
     ServiceIdExt,
@@ -98,7 +100,9 @@ impl Content {
         } else if let Some(msg) = p.decryption_error_message {
             Ok(Self {
                 metadata,
-                body: ContentBody::DecryptionErrorMessage(msg),
+                body: ContentBody::DecryptionErrorMessage(
+                    DecryptionErrorMessage::decode(msg.as_ref())?,
+                ),
             })
         } else if let Some(msg) = p.story_message {
             Ok(Self::from_body(msg, metadata))
@@ -166,7 +170,7 @@ pub enum ContentBody {
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
     // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
-    DecryptionErrorMessage(Vec<u8>),
+    DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
     PniSignatureMessage(PniSignatureMessage),
     EditMessage(EditMessage),
@@ -206,7 +210,7 @@ impl ContentBody {
             //     ..Default::default()
             // },
             Self::DecryptionErrorMessage(msg) => crate::proto::Content {
-                decryption_error_message: Some(msg),
+                decryption_error_message: Some(msg.encode_to_vec()),
                 ..Default::default()
             },
             Self::StoryMessage(msg) => crate::proto::Content {
