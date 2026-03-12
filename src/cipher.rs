@@ -232,6 +232,22 @@ where
             }
         }
 
+        // Extract both kinds of timestamps.
+        // Note that we do not `?` here, but rather only later, in case we ever have a branch which
+        // is not concerned with envelope metadata.
+        let timestamp = chrono::DateTime::from_timestamp_millis(
+            envelope.timestamp() as i64,
+        )
+        .ok_or(ServiceError::InvalidFrame {
+            reason: "unparseable timestamp",
+        });
+        let server_timestamp = chrono::DateTime::from_timestamp_millis(
+            envelope.server_timestamp() as i64,
+        )
+        .ok_or(ServiceError::InvalidFrame {
+            reason: "unparseable server timestamp",
+        });
+
         use crate::proto::envelope::Type;
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
@@ -251,7 +267,8 @@ where
                         .parse_source_service_id()
                         .expect("prekey bundle format"),
                     sender_device: envelope.source_device().try_into()?,
-                    timestamp: envelope.server_timestamp(),
+                    timestamp: timestamp?,
+                    server_timestamp: server_timestamp?,
                     needs_receipt: false,
                     unidentified_sender: false,
                     was_plaintext: false,
@@ -295,7 +312,8 @@ where
                         .parse_source_service_id()
                         .expect("plaintext content format"),
                     sender_device: envelope.source_device().try_into()?,
-                    timestamp: envelope.server_timestamp(),
+                    timestamp: timestamp?,
+                    server_timestamp: server_timestamp?,
                     needs_receipt: false,
                     unidentified_sender: false,
                     was_plaintext: true,
@@ -324,7 +342,8 @@ where
                         .parse_source_service_id()
                         .expect("ciphertext envelope format"),
                     sender_device: envelope.source_device().try_into()?,
-                    timestamp: envelope.timestamp(),
+                    timestamp: timestamp?,
+                    server_timestamp: server_timestamp?,
                     needs_receipt: false,
                     unidentified_sender: false,
                     was_plaintext: false,
@@ -410,7 +429,8 @@ where
                         .expect("unidentified sender envelope format"),
                     sender,
                     sender_device: device_id,
-                    timestamp: envelope.timestamp(),
+                    timestamp: timestamp?,
+                    server_timestamp: server_timestamp?,
                     unidentified_sender: true,
                     needs_receipt,
                     was_plaintext: false,
