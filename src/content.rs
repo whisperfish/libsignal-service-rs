@@ -1,3 +1,4 @@
+use chrono::Utc;
 use libsignal_core::DeviceId;
 use libsignal_protocol::{ProtocolAddress, ServiceId};
 use prost::Message;
@@ -25,7 +26,8 @@ pub struct Metadata {
     pub sender: ServiceId,
     pub destination: ServiceId,
     pub sender_device: DeviceId,
-    pub timestamp: u64,
+    pub timestamp: chrono::DateTime<Utc>,
+    pub server_timestamp: chrono::DateTime<Utc>,
     pub needs_receipt: bool,
     pub unidentified_sender: bool,
     pub was_plaintext: bool,
@@ -40,13 +42,14 @@ impl fmt::Display for Metadata {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Metadata {{ sender: {}, guid: {} }}",
+            "Metadata {{ sender: {}, guid: {}, server timestamp: {} }}",
             self.sender.service_id_string(),
             // XXX: should this still be optional?
             self.server_guid
                 .map(|u| u.to_string())
                 .as_deref()
                 .unwrap_or("None"),
+            self.server_timestamp,
         )
     }
 }
