@@ -183,8 +183,12 @@ pub enum GroupChange {
     AddBannedMember(BannedMember),
     DeleteBannedMember(ServiceId),
     PromotePendingPniAciMemberProfileKey(PromotedMember),
-    MemberLabel(()),
-    MemberLabelAccess(()),
+    MemberLabel {
+        user_id: ServiceId,
+        label_emoji: String,
+        label_string: String,
+    },
+    MemberLabelAccess(AccessRequired),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]

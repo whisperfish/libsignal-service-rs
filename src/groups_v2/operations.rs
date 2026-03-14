@@ -229,6 +229,14 @@ impl GroupOperations {
         })
     }
 
+    fn decrypt_string(
+        &self,
+        bytes: &[u8],
+    ) -> Result<String, GroupDecodingError> {
+        let bytes = self.group_secret_params.decrypt_blob(bytes)?;
+        String::from_utf8(bytes).map_err(|_| GroupDecodingError::WrongBlob)
+    }
+
     fn decrypt_blob(&self, bytes: &[u8]) -> GroupAttributeBlob {
         if bytes.is_empty() {
             GroupAttributeBlob::default()
@@ -559,13 +567,20 @@ impl GroupOperations {
             .into_iter()
             .map(|m| Ok(GroupChange::AnnouncementOnly(m.announcements_only)));
 
-        let modify_member_labels = modify_member_labels
-            .into_iter()
-            .map(|m| Ok(GroupChange::MemberLabel(())));
+        let modify_member_labels = modify_member_labels.into_iter().map(|m| {
+            Ok(GroupChange::MemberLabel {
+                user_id: self.decrypt_service_id(&m.user_id)?,
+                label_emoji: self.decrypt_string(&m.label_emoji)?,
+                label_string: self.decrypt_string(&m.label_string)?,
+            })
+        });
 
-        let modify_member_label_access = modify_member_label_access
-            .into_iter()
-            .map(|m| Ok(GroupChange::MemberLabelAccess(())));
+        let modify_member_label_access =
+            modify_member_label_access.into_iter().map(|m| {
+                Ok(GroupChange::MemberLabelAccess(
+                    m.member_label_access.try_into()?,
+                ))
+            });
 
         let changes: Result<Vec<GroupChange>, GroupDecodingError> = new_members
             .chain(delete_members)
