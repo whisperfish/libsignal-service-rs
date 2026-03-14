@@ -22,7 +22,7 @@ pub struct Member {
     pub role: Role,
     #[debug(ignore)]
     pub profile_key: ProfileKey,
-    pub joined_at_revision: u32,
+    pub joined_at_version: u32,
 }
 
 impl PartialEq for Member {
@@ -80,13 +80,13 @@ impl PartialEq for RequestingMember {
 
 #[derive(Debug, Clone)]
 pub struct BannedMember {
-    pub service_id: ServiceId,
+    pub user_id: ServiceId,
     pub timestamp: u64,
 }
 
 impl PartialEq for BannedMember {
     fn eq(&self, other: &Self) -> bool {
-        self.service_id == other.service_id
+        self.user_id == other.user_id
     }
 }
 
@@ -126,21 +126,21 @@ pub struct Group {
     pub avatar: String,
     pub disappearing_messages_timer: Option<Timer>,
     pub access_control: Option<AccessControl>,
-    pub revision: u32,
+    pub version: u32,
     pub members: Vec<Member>,
-    pub pending_members: Vec<PendingMember>,
-    pub requesting_members: Vec<RequestingMember>,
+    pub members_pending_profile_key: Vec<PendingMember>,
+    pub members_pending_admin_approval: Vec<RequestingMember>,
     pub invite_link_password: Vec<u8>,
-    pub description: Option<String>,
+    pub description_text: Option<String>,
     pub announcements_only: bool,
-    pub banned_members: Vec<BannedMember>,
+    pub members_banned: Vec<BannedMember>,
 }
 
 #[derive(Debug, Clone)]
 pub struct GroupChanges {
     pub group_id: GroupV2Id,
     pub editor: Aci,
-    pub revision: u32,
+    pub version: u32,
     pub changes: Vec<GroupChange>,
     pub change_epoch: u32,
 }
@@ -183,6 +183,8 @@ pub enum GroupChange {
     AddBannedMember(BannedMember),
     DeleteBannedMember(ServiceId),
     PromotePendingPniAciMemberProfileKey(PromotedMember),
+    MemberLabel(()),
+    MemberLabelAccess(()),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
