@@ -12,6 +12,7 @@ use libsignal_protocol::{
     PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
     SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
+    UnidentifiedSenderMessageContent,
 };
 use prost::Message;
 use rand::{rng, CryptoRng, Rng};
@@ -588,6 +589,31 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
     Ok(address)
 }
 
+#[derive(thiserror::Error)]
+#[error("error: {inner}, usmc: {}", sender.is_some())]
+pub struct SealedSenderDecryptionError {
+    pub inner: SignalProtocolError,
+    pub sender: Option<ProtocolAddress>,
+}
+
+impl fmt::Debug for SealedSenderDecryptionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SealedSenderDecryptionError")
+            .field("inner", &self.inner)
+            .field("sender", &self.sender)
+            .finish()
+    }
+}
+
+impl From<SignalProtocolError> for SealedSenderDecryptionError {
+    fn from(e: SignalProtocolError) -> Self {
+        SealedSenderDecryptionError {
+            inner: e,
+            sender: None,
+        }
+    }
+}
+
 /// Decrypt a Sealed Sender message `ciphertext` in either the v1 or v2 format, validate its sender
 /// certificate, and then decrypt the inner message payload.
 ///
@@ -623,7 +649,7 @@ async fn sealed_sender_decrypt(
     signed_pre_key_store: &mut dyn SignedPreKeyStore,
     sender_key_store: &mut dyn SenderKeyStore,
     kyber_pre_key_store: &mut dyn KyberPreKeyStore,
-) -> Result<SealedSenderDecryptionResult, SignalProtocolError> {
+) -> Result<SealedSenderDecryptionResult, SealedSenderDecryptionError> {
     let usmc =
         sealed_sender_decrypt_to_usmc(ciphertext, identity_store).await?;
 
@@ -633,7 +659,8 @@ async fn sealed_sender_decrypt(
     {
         return Err(SignalProtocolError::InvalidSealedSenderMessage(
             "trust root validation failed".to_string(),
-        ));
+        )
+        .into());
     }
 
     let local_service_id =
@@ -655,22 +682,52 @@ async fn sealed_sender_decrypt(
     if (is_local_e164 || is_local_uuid)
         && usmc.sender()?.sender_device_id()? == local_address.device_id()
     {
-        return Err(SignalProtocolError::SealedSenderSelfSend);
+        return Err(SignalProtocolError::SealedSenderSelfSend.into());
     }
-
-    let mut rng = rng();
 
     let remote_address = ProtocolAddress::new(
         usmc.sender()?.sender_uuid()?.to_string(),
         usmc.sender()?.sender_device_id()?,
     );
 
+    sealed_sender_decrypt_with_validated_usmc(
+        &usmc,
+        &remote_address,
+        &local_address,
+        identity_store,
+        session_store,
+        pre_key_store,
+        signed_pre_key_store,
+        sender_key_store,
+        kyber_pre_key_store,
+    )
+    .await
+    .map_err(|inner| SealedSenderDecryptionError {
+        inner,
+        sender: Some(remote_address),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn sealed_sender_decrypt_with_validated_usmc(
+    usmc: &UnidentifiedSenderMessageContent,
+    remote_address: &ProtocolAddress,
+    local_address: &ProtocolAddress,
+    identity_store: &mut dyn IdentityKeyStore,
+    session_store: &mut dyn SessionStore,
+    pre_key_store: &mut dyn PreKeyStore,
+    signed_pre_key_store: &mut dyn SignedPreKeyStore,
+    sender_key_store: &mut dyn SenderKeyStore,
+    kyber_pre_key_store: &mut dyn KyberPreKeyStore,
+) -> Result<SealedSenderDecryptionResult, SignalProtocolError> {
+    let mut rng = rng();
+
     let message = match usmc.msg_type()? {
         CiphertextMessageType::Whisper => {
             let ctext = SignalMessage::try_from(usmc.contents()?)?;
             message_decrypt_signal(
                 &ctext,
-                &remote_address,
+                remote_address,
                 session_store,
                 identity_store,
                 &mut rng,
@@ -681,8 +738,8 @@ async fn sealed_sender_decrypt(
             let ctext = PreKeySignalMessage::try_from(usmc.contents()?)?;
             message_decrypt_prekey(
                 &ctext,
-                &remote_address,
-                &local_address,
+                remote_address,
+                local_address,
                 session_store,
                 identity_store,
                 pre_key_store,
@@ -693,7 +750,7 @@ async fn sealed_sender_decrypt(
             .await?
         },
         CiphertextMessageType::SenderKey => {
-            group_decrypt(usmc.contents()?, sender_key_store, &remote_address)
+            group_decrypt(usmc.contents()?, sender_key_store, remote_address)
                 .await?
         },
         msg_type => {
