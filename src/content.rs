@@ -176,6 +176,18 @@ pub enum ContentBody {
     EditMessage(EditMessage),
 }
 
+impl NullMessage {
+    pub fn generate<R: rand::Rng + rand::CryptoRng>(rng: &mut R) -> Self {
+        // Random length between 1 and 140 bytes
+        let padding_length = (rng.next_u64() % 140) as usize + 1;
+        let mut padding = vec![0; padding_length];
+        rng.fill(padding.as_mut_slice());
+        NullMessage {
+            padding: Some(padding),
+        }
+    }
+}
+
 impl ContentBody {
     pub fn into_proto(self) -> crate::proto::Content {
         match self {
