@@ -5,7 +5,9 @@ use libsignal_protocol::{
 };
 use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
-use crate::groups_v2::GroupDecodingError;
+use crate::{
+    cipher::SealedSenderDecryptionError, groups_v2::GroupDecodingError,
+};
 
 use super::{
     MismatchedDevices, ProofRequired, RegistrationLockFailure, StaleDevices,
@@ -67,6 +69,9 @@ pub enum ServiceError {
 
     #[error("Protocol error: {0}")]
     SignalProtocolError(#[from] SignalProtocolError),
+
+    #[error("Sealed sender decryption error: {0}")]
+    SealedSenderDecryptionError(#[from] SealedSenderDecryptionError),
 
     #[error("invalid device id: {0}")]
     InvalidDeviceId(#[from] libsignal_core::InvalidDeviceId),
