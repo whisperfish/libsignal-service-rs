@@ -589,6 +589,11 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
     Ok(address)
 }
 
+/// Error thrown when the sealed sending decryption fails.
+///
+/// The USMC sender field is only populated when the USMC could be validated against the trust roots;
+/// hence the sender information can be trusted, give or take an active attacker on the Signal
+/// side.
 #[derive(thiserror::Error)]
 #[error("error: {inner}, usmc: {}", sender.is_some())]
 pub struct SealedSenderDecryptionError {
