@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{borrow::Cow, collections::HashMap, str::FromStr};
 
-use crate::utils::BASE64_RELAXED;
+use crate::{content::ServiceError, utils::BASE64_RELAXED};
 use base64::prelude::*;
 use libsignal_core::{DeviceId, E164};
 use libsignal_protocol::PublicKey;
@@ -136,20 +136,25 @@ impl<'a> Endpoint<'a> {
     pub fn into_url(
         self,
         service_configuration: &ServiceConfiguration,
-    ) -> Result<Url, url::ParseError> {
+    ) -> Result<Url, ServiceError> {
         match self {
             Endpoint::Service { path } => {
-                service_configuration.service_url.join(&path)
+                Ok(service_configuration.service_url.join(&path)?)
             },
             Endpoint::Storage { path } => {
-                service_configuration.storage_url.join(&path)
+                Ok(service_configuration.storage_url.join(&path)?)
             },
             Endpoint::Cdn {
-                ref cdn_id,
+                cdn_id,
                 path,
                 query,
             } => {
-                let mut url = service_configuration.cdn_urls[cdn_id].clone();
+                let Some(mut url) =
+                    service_configuration.cdn_urls.get(&cdn_id).cloned()
+                else {
+                    tracing::warn!(%cdn_id, "Unknown CDN");
+                    return Err(ServiceError::UnknownCdnVersion(cdn_id));
+                };
                 url.set_path(&path);
                 url.set_query(query.as_deref());
                 Ok(url)
