@@ -9,7 +9,7 @@ use crate::sender::GroupV2Id;
 use super::GroupDecodingError;
 
 /// A candidate member for group creation/modification.
-
+///
 /// If credential is Some, member will be added with a presentation.
 /// If credential is None, member will be added as pending (invite).
 #[derive(Clone)]

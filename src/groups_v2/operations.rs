@@ -767,7 +767,18 @@ impl GroupOperations {
         })
     }
 
-    /// Build an AddMemberAction for a GroupChange
+    /// Build an AddMemberAction for a GroupChange.
+    ///
+    /// # Role Parameter
+    ///
+    /// The `role` parameter is accepted for API consistency, but note that
+    /// Signal-Android only ever adds members with `Role::Default`. Adding a member
+    /// with `Role::Administrator` is an illegal operation that the server will reject.
+    /// Promotion to administrator requires a separate `ModifyMemberRoleAction` after
+    /// the member has been added.
+    ///
+    /// See Signal-Android's `GroupsV2Operations.GroupOperations.createModifyGroupMembershipChange()`
+    /// which hardcodes `Member.Role newMemberRole = Member.Role.DEFAULT`.
     pub fn build_add_member_action(
         &self,
         aci: Aci,
@@ -954,6 +965,14 @@ impl GroupOperations {
     /// Build an AddMemberAction with a credential presentation for a GroupChange.
     ///
     /// This is used when adding members to an existing group with proper ZK proofs.
+    ///
+    /// # Role Parameter
+    ///
+    /// The `role` parameter is accepted for API consistency, but note that
+    /// Signal-Android only ever adds members with `Role::Default`. Adding a member
+    /// with `Role::Administrator` is an illegal operation that the server will reject.
+    /// Promotion to administrator requires a separate `ModifyMemberRoleAction` after
+    /// the member has been added.
     pub fn build_add_member_action_with_credential(
         &self,
         credential: &ExpiringProfileKeyCredential,
@@ -984,6 +1003,11 @@ impl GroupOperations {
     /// allows the pending-invite path to proceed without an ACI. The Signal server
     /// stores whichever service ID is provided in the encrypted `user_id` field of
     /// the `PendingMember` proto. The `added_by_aci` must always be an ACI.
+    ///
+    /// # Role Parameter
+    ///
+    /// The `role` parameter is accepted for API consistency, but note that
+    /// Signal-Android only ever adds pending members with `Role::Default`.
     pub fn build_add_pending_member_action(
         &self,
         invitee: ServiceId,
