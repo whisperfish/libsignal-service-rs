@@ -328,7 +328,7 @@ impl GroupOperations {
             content: Some(content),
         };
         let mut buf = Vec::new();
-        blob.encode(&mut buf).expect("encoding should succeed");
+        let buf = blob.encode_to_vec(&mut buf);
         self.encrypt_blob_with_padding(&buf, 0, rng)
     }
 
