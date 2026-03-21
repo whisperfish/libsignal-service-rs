@@ -294,23 +294,16 @@ impl GroupOperations {
         }
     }
 
-    /// Helper method to encrypt a group attribute blob content.
-    ///
-    /// This reduces code duplication across the encrypt_* methods by handling
-    /// the common pattern of: create blob -> encode -> encrypt with padding format.
+    /// Helper method to encrypt a `group_attribute_blob::Content`.
     ///
     /// # Padding Format
     ///
-    /// Uses the official Signal `encrypt_blob_with_padding` format from libsignal's
+    /// Uses `encrypt_blob_with_padding` format from Signal's zkgroup's
     /// `GroupSecretParams`, which prepends a 4-byte big-endian padding length value
     /// to the plaintext before encryption. For group attribute blobs, padding is
     /// always 0, so the format is:
     /// - First 4 bytes: `0u32.to_be_bytes()` (padding length = 0)
     /// - Remaining bytes: protobuf-encoded `GroupAttributeBlob`
-    ///
-    /// The minimum blob size check of 29 bytes in decryption accounts for:
-    /// 4 bytes (padding length) + encrypted protobuf + 12 bytes (nonce) +
-    /// 1 byte (reserved) + 16 bytes (AES-GCM-SIV tag).
     ///
     /// # References
     ///
