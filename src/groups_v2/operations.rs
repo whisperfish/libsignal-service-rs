@@ -320,8 +320,7 @@ impl GroupOperations {
         let blob = GroupAttributeBlob {
             content: Some(content),
         };
-        let mut buf = Vec::new();
-        let buf = blob.encode_to_vec(&mut buf);
+        let buf = blob.encode_to_vec();
         self.encrypt_blob_with_padding(&buf, 0, rng)
     }
 
