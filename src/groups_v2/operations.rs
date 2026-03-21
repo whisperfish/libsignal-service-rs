@@ -863,6 +863,7 @@ impl GroupOperations {
     /// * `disappearing_messages_timer` - Optional disappearing messages timer
     /// * `access_control` - Optional access control settings
     /// * `self_credential` - The creator's own credential (required)
+    /// * `avatar` - The group avatar URL
     /// * `member_candidates` - Other members to add, with optional credentials
     /// * `server_public_params` - Server public params for creating presentations
     /// * `rng` - Random number generator
@@ -876,6 +877,7 @@ impl GroupOperations {
         self_credential: &ExpiringProfileKeyCredential,
         member_candidates: &[GroupCandidate],
         server_public_params: &ServerPublicParams,
+        avatar: String,
         rng: &mut R,
     ) -> Result<proto::Group, GroupDecodingError> {
         let mut members = Vec::new();
@@ -948,7 +950,7 @@ impl GroupOperations {
                 &self.group_secret_params.get_public_params(),
             ),
             title: encrypted_title,
-            avatar: String::new(),
+            avatar,
             disappearing_messages_timer: encrypted_timer,
             access_control: proto_access_control,
             revision: 0,
