@@ -13,4 +13,3 @@ pub use model::{
     GroupChanges, Member, PendingMember, RequestingMember, Role, Timer,
 };
 pub use operations::{GroupDecodingError, GroupOperations};
-pub use utils::derive_distribution_id;
