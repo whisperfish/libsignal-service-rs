@@ -1033,3 +1033,108 @@ impl GroupOperations {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use zkgroup::groups::GroupMasterKey;
+
+    fn create_group_operations() -> GroupOperations {
+        // Create a test group master key (32 bytes)
+        let master_key_bytes = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
+            0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+        ];
+        let group_master_key = GroupMasterKey::new(master_key_bytes);
+        let group_secret_params =
+            GroupSecretParams::derive_from_master_key(group_master_key);
+        GroupOperations::new(group_secret_params)
+    }
+
+    #[test]
+    fn roundtrip_title() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let title = "Test Group Title";
+        let encrypted = ops.encrypt_title(title, &mut rng);
+        let decrypted = ops.decrypt_title(&encrypted);
+        assert_eq!(decrypted, title);
+    }
+
+    #[test]
+    fn roundtrip_description() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let description = "This is a test group description";
+        let encrypted = ops.encrypt_description(description, &mut rng);
+        let decrypted = ops.decrypt_description(&encrypted);
+        assert_eq!(decrypted, Some(description.to_string()));
+    }
+
+    #[test]
+    fn roundtrip_disappearing_message_timer() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let timer = Timer { duration: 3600 };
+        let encrypted =
+            ops.encrypt_disappearing_message_timer(&timer, &mut rng);
+        let decrypted = ops.decrypt_disappearing_message_timer(&encrypted);
+        assert_eq!(decrypted, Some(timer));
+    }
+
+    #[test]
+    fn roundtrip_aci_encryption() {
+        let ops = create_group_operations();
+
+        // Use a known ACI string (UUID format from existing test patterns)
+        let aci = Aci::parse_from_service_id_string(
+            "550e8400-e29b-41d4-a716-446655440000",
+        )
+        .expect("valid ACI");
+        let encrypted =
+            ops.encrypt_aci(aci).expect("encrypt_aci should succeed");
+        let decrypted = ops
+            .decrypt_aci(&encrypted)
+            .expect("decrypt_aci should succeed");
+        assert_eq!(decrypted, aci);
+    }
+
+    #[test]
+    fn roundtrip_service_id_encryption() {
+        let ops = create_group_operations();
+
+        // Use a known UUID string for the service ID
+        let service_id: ServiceId = ServiceId::parse_from_service_id_string(
+            "550e8400-e29b-41d4-a716-446655440000",
+        )
+        .expect("valid service ID");
+        let encrypted = ops
+            .encrypt_service_id(service_id)
+            .expect("encrypt_service_id should succeed");
+        let decrypted = ops
+            .decrypt_service_id(&encrypted)
+            .expect("decrypt_service_id should succeed");
+        assert_eq!(decrypted, service_id);
+    }
+
+    #[test]
+    fn encrypt_title_different_each_time() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let title = "Test Title";
+        let encrypted1 = ops.encrypt_title(title, &mut rng);
+        let encrypted2 = ops.encrypt_title(title, &mut rng);
+
+        // Same plaintext should produce different ciphertext due to random padding
+        // but both should decrypt to the same value
+        assert_ne!(encrypted1, encrypted2);
+        assert_eq!(ops.decrypt_title(&encrypted1), title);
+        assert_eq!(ops.decrypt_title(&encrypted2), title);
+    }
+}
