@@ -90,9 +90,7 @@ impl GroupOperations {
     }
 
     fn encrypt_aci(&self, aci: Aci) -> Result<Vec<u8>, GroupDecodingError> {
-        let ciphertext =
-            self.group_secret_params.encrypt_service_id(aci.into());
-        Ok(zkgroup::serialize(&ciphertext))
+        self.encrypt_service_id(aci.into())
     }
 
     fn decrypt_aci(
