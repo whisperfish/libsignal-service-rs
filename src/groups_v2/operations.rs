@@ -337,11 +337,13 @@ impl GroupOperations {
 
     pub fn encrypt_description<R: rand::Rng + rand::CryptoRng>(
         &self,
-        description: &str,
+        description: Option<&str>,
         rng: &mut R,
     ) -> Vec<u8> {
         self.encrypt_blob_content(
-            group_attribute_blob::Content::Description(description.to_string()),
+            group_attribute_blob::Content::Description(
+                description.unwrap_or_default().to_string(),
+            ),
             rng,
         )
     }
@@ -350,12 +352,12 @@ impl GroupOperations {
         R: rand::Rng + rand::CryptoRng,
     >(
         &self,
-        timer: &Timer,
+        timer: Option<&Timer>,
         rng: &mut R,
     ) -> Vec<u8> {
         self.encrypt_blob_content(
             group_attribute_blob::Content::DisappearingMessagesDuration(
-                timer.duration,
+                timer.map(|t| t.duration).unwrap_or(0),
             ),
             rng,
         )
@@ -711,16 +713,12 @@ impl GroupOperations {
         rng: &mut R,
     ) -> Result<proto::Group, GroupDecodingError> {
         let encrypted_title = self.encrypt_title(&group.title, rng);
-        let encrypted_description = group
-            .description
-            .as_ref()
-            .map(|d| self.encrypt_description(d, rng))
-            .unwrap_or_default();
-        let encrypted_timer = group
-            .disappearing_messages_timer
-            .as_ref()
-            .map(|t| self.encrypt_disappearing_message_timer(t, rng))
-            .unwrap_or_default();
+        let encrypted_description =
+            self.encrypt_description(group.description.as_deref(), rng);
+        let encrypted_timer = self.encrypt_disappearing_message_timer(
+            group.disappearing_messages_timer.as_ref(),
+            rng,
+        );
 
         let encrypted_members = group
             .members
@@ -929,12 +927,11 @@ impl GroupOperations {
 
         // Encrypt title, description, timer
         let encrypted_title = self.encrypt_title(title, rng);
-        let encrypted_description = description
-            .map(|d| self.encrypt_description(d, rng))
-            .unwrap_or_default();
-        let encrypted_timer = disappearing_messages_timer
-            .map(|t| self.encrypt_disappearing_message_timer(t, rng))
-            .unwrap_or_default();
+        let encrypted_description = self.encrypt_description(description, rng);
+        let encrypted_timer = self.encrypt_disappearing_message_timer(
+            disappearing_messages_timer,
+            rng,
+        );
 
         // Convert access control
         let proto_access_control =
@@ -1070,7 +1067,7 @@ mod tests {
         let mut rng = rand::rng();
 
         let description = "This is a test group description";
-        let encrypted = ops.encrypt_description(description, &mut rng);
+        let encrypted = ops.encrypt_description(Some(description), &mut rng);
         let decrypted = ops.decrypt_description(&encrypted);
         assert_eq!(decrypted, Some(description.to_string()));
     }
@@ -1082,7 +1079,7 @@ mod tests {
 
         let timer = Timer { duration: 3600 };
         let encrypted =
-            ops.encrypt_disappearing_message_timer(&timer, &mut rng);
+            ops.encrypt_disappearing_message_timer(Some(&timer), &mut rng);
         let decrypted = ops.decrypt_disappearing_message_timer(&encrypted);
         assert_eq!(decrypted, Some(timer));
     }
