@@ -706,64 +706,6 @@ impl GroupOperations {
         }
     }
 
-    /// Encrypt a Group proto for creation
-    pub fn encrypt_group<R: rand::Rng + rand::CryptoRng>(
-        &self,
-        group: &Group,
-        rng: &mut R,
-    ) -> Result<proto::Group, GroupDecodingError> {
-        let encrypted_title = self.encrypt_title(&group.title, rng);
-        let encrypted_description =
-            self.encrypt_description(group.description.as_deref(), rng);
-        let encrypted_timer = self.encrypt_disappearing_message_timer(
-            group.disappearing_messages_timer.as_ref(),
-            rng,
-        );
-
-        let encrypted_members = group
-            .members
-            .iter()
-            .map(|m| {
-                Ok(proto::Member {
-                    user_id: self.encrypt_aci(m.aci)?,
-                    profile_key: self
-                        .encrypt_profile_key(m.profile_key, m.aci)?,
-                    presentation: vec![], // Not needed for stored group
-                    role: m.role.into(),
-                    joined_at_revision: m.joined_at_revision,
-                })
-            })
-            .collect::<Result<Vec<_>, GroupDecodingError>>()?;
-
-        let access_control =
-            group
-                .access_control
-                .as_ref()
-                .map(|ac| proto::AccessControl {
-                    attributes: ac.attributes.into(),
-                    members: ac.members.into(),
-                    add_from_invite_link: ac.add_from_invite_link.into(),
-                });
-
-        Ok(proto::Group {
-            public_key: zkgroup::serialize(
-                &self.group_secret_params.get_public_params(),
-            ),
-            title: encrypted_title,
-            avatar: group.avatar.clone(),
-            disappearing_messages_timer: encrypted_timer,
-            access_control,
-            revision: group.revision,
-            members: encrypted_members,
-            pending_members: vec![],
-            requesting_members: vec![],
-            invite_link_password: group.invite_link_password.clone(),
-            description: encrypted_description,
-            announcements_only: group.announcements_only,
-            banned_members: vec![],
-        })
-    }
-
     /// Build an AddMemberAction for a GroupChange.
     ///
     /// # Role Parameter
