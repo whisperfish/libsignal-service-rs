@@ -149,7 +149,14 @@ impl<'a> Endpoint<'a> {
                 path,
                 query,
             } => {
-                let mut url = service_configuration.cdn_urls[cdn_id].clone();
+                if !service_configuration.cdn_urls.contains_key(cdn_id) {
+                    tracing::warn!(%cdn_id, "Unknown CDN");
+                }
+                let mut url = service_configuration
+                    .cdn_urls
+                    .get(cdn_id)
+                    .ok_or(url::ParseError::Overflow)?
+                    .clone();
                 url.set_path(&path);
                 url.set_query(query.as_deref());
                 Ok(url)
