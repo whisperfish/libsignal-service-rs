@@ -35,8 +35,7 @@ use crate::{
 pub struct ServiceCipher<S> {
     protocol_store: S,
     trust_roots: Vec<PublicKey>,
-    local_uuid: Uuid,
-    local_device_id: DeviceId,
+    local_address: ProtocolAddress,
 }
 
 impl<S> fmt::Debug for ServiceCipher<S> {
@@ -44,8 +43,7 @@ impl<S> fmt::Debug for ServiceCipher<S> {
         f.debug_struct("ServiceCipher")
             .field("protocol_store", &"...")
             .field("trust_root", &"...")
-            .field("local_uuid", &self.local_uuid)
-            .field("local_device_id", &self.local_device_id)
+            .field("local_address", &self.local_address)
             .finish()
     }
 }
@@ -78,14 +76,12 @@ where
     pub fn new(
         protocol_store: S,
         trust_roots: Vec<PublicKey>,
-        local_uuid: Uuid,
-        local_device_id: DeviceId,
+        local_address: ProtocolAddress,
     ) -> Self {
         Self {
             protocol_store,
             trust_roots,
-            local_uuid,
-            local_device_id,
+            local_address,
         }
     }
 
@@ -98,6 +94,10 @@ where
         envelope: Envelope,
         csprng: &mut R,
     ) -> Result<Option<Content>, ServiceError> {
+        let local_service: ServiceId =
+            ServiceId::parse_from_service_id_string(self.local_address.name())
+                .expect("valid protocol address name");
+
         if envelope.content.is_some() {
             let plaintext = self.decrypt(&envelope, csprng).await?;
             let was_plaintext = plaintext.metadata.was_plaintext;
@@ -139,8 +139,9 @@ where
             }
 
             if message.sync_message.is_some()
-                && plaintext.metadata.sender.aci().map(Into::into)
-                    != Some(self.local_uuid)
+                && plaintext.metadata.sender.aci().map(Uuid::from)
+                    != Some(local_service.raw_uuid())
+                && local_service.kind() == ServiceIdKind::Aci
             {
                 tracing::warn!("Source is not ourself.");
                 return Ok(None);
@@ -181,6 +182,10 @@ where
         envelope: &Envelope,
         csprng: &mut R,
     ) -> Result<Plaintext, ServiceError> {
+        let local_service: ServiceId =
+            ServiceId::parse_from_service_id_string(self.local_address.name())
+                .expect("valid protocol address name");
+
         let ciphertext = if let Some(msg) = envelope.content.as_ref() {
             msg
         } else {
@@ -203,7 +208,7 @@ where
             });
         };
 
-        if destination_service_id.raw_uuid() != self.local_uuid {
+        if destination_service_id != local_service {
             tracing::warn!(
                 "mismatching destination service id; ignoring invalid message."
             );
@@ -263,6 +268,7 @@ where
                 let mut data = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&ciphertext[..])?,
                     &sender,
+                    &self.local_address,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
@@ -368,8 +374,7 @@ where
                     &self.trust_roots.iter().collect::<Vec<_>>(),
                     Timestamp::from_epoch_millis(envelope.timestamp()),
                     None,
-                    self.local_uuid.to_string(),
-                    self.local_device_id,
+                    self.local_address.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
@@ -491,6 +496,7 @@ where
             let message = message_encrypt(
                 &padded_content,
                 address,
+                &self.local_address,
                 &mut self.protocol_store.clone(),
                 &mut self.protocol_store.clone(),
                 SystemTime::now(),
@@ -638,8 +644,7 @@ async fn sealed_sender_decrypt(
     trust_roots: &[&PublicKey],
     timestamp: Timestamp,
     local_e164: Option<String>,
-    local_uuid: String,
-    local_device_id: DeviceId,
+    local_address: ProtocolAddress,
     identity_store: &mut dyn IdentityKeyStore,
     session_store: &mut dyn SessionStore,
     pre_key_store: &mut dyn PreKeyStore,
@@ -660,7 +665,16 @@ async fn sealed_sender_decrypt(
         .into());
     }
 
-    let is_local_uuid = local_uuid == usmc.sender()?.sender_uuid()?;
+    let local_service_id =
+        ServiceId::parse_from_service_id_string(local_address.name())
+            .expect("valid protocol address name");
+    let is_local_uuid = local_service_id.raw_uuid()
+        == usmc
+            .sender()?
+            .sender_uuid()?
+            .parse::<Uuid>()
+            // Validity checked inside certificate checker
+            .expect("valid uuid");
 
     let is_local_e164 = match (local_e164, usmc.sender()?.sender_e164()?) {
         (Some(l), Some(s)) => l == s,
@@ -668,7 +682,7 @@ async fn sealed_sender_decrypt(
     };
 
     if (is_local_e164 || is_local_uuid)
-        && usmc.sender()?.sender_device_id()? == local_device_id
+        && usmc.sender()?.sender_device_id()? == local_address.device_id()
     {
         return Err(SignalProtocolError::SealedSenderSelfSend.into());
     }
@@ -681,6 +695,7 @@ async fn sealed_sender_decrypt(
     sealed_sender_decrypt_with_validated_usmc(
         &usmc,
         &remote_address,
+        &local_address,
         identity_store,
         session_store,
         pre_key_store,
@@ -699,6 +714,7 @@ async fn sealed_sender_decrypt(
 async fn sealed_sender_decrypt_with_validated_usmc(
     usmc: &UnidentifiedSenderMessageContent,
     remote_address: &ProtocolAddress,
+    local_address: &ProtocolAddress,
     identity_store: &mut dyn IdentityKeyStore,
     session_store: &mut dyn SessionStore,
     pre_key_store: &mut dyn PreKeyStore,
@@ -724,7 +740,8 @@ async fn sealed_sender_decrypt_with_validated_usmc(
             let ctext = PreKeySignalMessage::try_from(usmc.contents()?)?;
             message_decrypt_prekey(
                 &ctext,
-                remote_address,
+                &remote_address,
+                &local_address,
                 session_store,
                 identity_store,
                 pre_key_store,
