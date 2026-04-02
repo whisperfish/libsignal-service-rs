@@ -105,6 +105,7 @@ impl SignalWebSocket<Identified> {
         let cdsi_endpoint = &env.cdsi;
         let cdsi_connection = CdsiConnection::connect_with(
             connection_resources,
+            env.cdsi.domain_config.connect.service,
             libsignal_net_infra::route::DirectOrProxyProvider::direct(
                 cdsi_endpoint.enclave_websocket_provider(
                     libsignal_net_infra::EnableDomainFronting::No,
