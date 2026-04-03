@@ -6,7 +6,11 @@ use libsignal_protocol::{Aci, Pni, ServiceId};
 use prost::Message;
 use zkgroup::{
     groups::GroupSecretParams,
-    profiles::{AnyProfileKeyCredentialPresentation, ProfileKey},
+    profiles::{
+        AnyProfileKeyCredentialPresentation, ExpiringProfileKeyCredential,
+        ProfileKey,
+    },
+    ServerPublicParams,
 };
 
 use crate::{
@@ -20,12 +24,13 @@ use crate::{
 
 use super::{
     model::{
-        BannedMember, Member, PendingMember, PromotedMember, RequestingMember,
+        AccessControl, BannedMember, GroupCandidate, Member, PendingMember,
+        PromotedMember, RequestingMember,
     },
     Group, GroupChange, GroupChanges,
 };
 
-pub(crate) struct GroupOperations {
+pub struct GroupOperations {
     pub group_secret_params: GroupSecretParams,
 }
 
@@ -62,17 +67,30 @@ impl From<zkgroup::ZkGroupVerificationFailure> for GroupDecodingError {
 }
 
 impl GroupOperations {
+    fn encrypt_service_id(
+        &self,
+        service_id: ServiceId,
+    ) -> Result<Vec<u8>, GroupDecodingError> {
+        let ciphertext =
+            self.group_secret_params.encrypt_service_id(service_id);
+        Ok(zkgroup::serialize(&ciphertext))
+    }
+
     fn decrypt_service_id(
         &self,
         ciphertext: &[u8],
     ) -> Result<ServiceId, GroupDecodingError> {
         match self
             .group_secret_params
-            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+            .decrypt_service_id(zkgroup::deserialize(ciphertext)?)?
         {
             ServiceId::Aci(aci) => Ok(ServiceId::from(aci)),
             ServiceId::Pni(pni) => Ok(ServiceId::from(pni)),
         }
+    }
+
+    fn encrypt_aci(&self, aci: Aci) -> Result<Vec<u8>, GroupDecodingError> {
+        self.encrypt_service_id(aci.into())
     }
 
     fn decrypt_aci(
@@ -81,7 +99,7 @@ impl GroupOperations {
     ) -> Result<Aci, GroupDecodingError> {
         match self
             .group_secret_params
-            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+            .decrypt_service_id(zkgroup::deserialize(ciphertext)?)?
         {
             ServiceId::Aci(aci) => Ok(aci),
             ServiceId::Pni(pni) => {
@@ -100,7 +118,7 @@ impl GroupOperations {
     ) -> Result<Pni, GroupDecodingError> {
         match self
             .group_secret_params
-            .decrypt_service_id(bincode::deserialize(ciphertext)?)?
+            .decrypt_service_id(zkgroup::deserialize(ciphertext)?)?
         {
             ServiceId::Pni(pni) => Ok(pni),
             ServiceId::Aci(aci) => {
@@ -113,13 +131,24 @@ impl GroupOperations {
         }
     }
 
+    fn encrypt_profile_key(
+        &self,
+        profile_key: ProfileKey,
+        aci: Aci,
+    ) -> Result<Vec<u8>, GroupDecodingError> {
+        let ciphertext = self
+            .group_secret_params
+            .encrypt_profile_key(profile_key, aci);
+        Ok(zkgroup::serialize(&ciphertext))
+    }
+
     fn decrypt_profile_key(
         &self,
         encrypted_profile_key: &[u8],
         decrypted_aci: libsignal_protocol::Aci,
     ) -> Result<ProfileKey, GroupDecodingError> {
         Ok(self.group_secret_params.decrypt_profile_key(
-            bincode::deserialize(encrypted_profile_key)?,
+            zkgroup::deserialize(encrypted_profile_key)?,
             decrypted_aci,
         )?)
     }
@@ -229,6 +258,21 @@ impl GroupOperations {
         })
     }
 
+    fn encrypt_blob_with_padding<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        plaintext: &[u8],
+        padding_len: u32,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        let mut randomness = [0u8; 32];
+        rng.fill_bytes(&mut randomness);
+        self.group_secret_params.encrypt_blob_with_padding(
+            randomness,
+            plaintext,
+            padding_len,
+        )
+    }
+
     fn decrypt_blob(&self, bytes: &[u8]) -> GroupAttributeBlob {
         if bytes.is_empty() {
             GroupAttributeBlob::default()
@@ -237,10 +281,10 @@ impl GroupOperations {
             GroupAttributeBlob::default()
         } else {
             self.group_secret_params
-                .decrypt_blob(bytes)
+                .decrypt_blob_with_padding(bytes)
                 .map_err(GroupDecodingError::from)
-                .and_then(|b| {
-                    GroupAttributeBlob::decode(Bytes::copy_from_slice(&b[4..]))
+                .and_then(|plaintext| {
+                    GroupAttributeBlob::decode(Bytes::from(plaintext))
                         .map_err(GroupDecodingError::ProtobufDecodeError)
                 })
                 .unwrap_or_else(|e| {
@@ -248,6 +292,75 @@ impl GroupOperations {
                     GroupAttributeBlob::default()
                 })
         }
+    }
+
+    /// Helper method to encrypt a `group_attribute_blob::Content`.
+    ///
+    /// # Padding Format
+    ///
+    /// Uses `encrypt_blob_with_padding` format from Signal's zkgroup's
+    /// `GroupSecretParams`, which prepends a 4-byte big-endian padding length value
+    /// to the plaintext before encryption. For group attribute blobs, padding is
+    /// always 0, so the format is:
+    /// - First 4 bytes: `0u32.to_be_bytes()` (padding length = 0)
+    /// - Remaining bytes: protobuf-encoded `GroupAttributeBlob`
+    ///
+    /// # References
+    ///
+    /// - Signal libsignal repository: <https://github.com/signalapp/libsignal>
+    /// - GroupSecretParams implementation:
+    ///   `rust/zkgroup/src/api/groups/group_params.rs`
+    /// - Java ClientZkGroupCipher usage:
+    ///   `java/shared/java/org/signal/libsignal/zkgroup/groups/ClientZkGroupCipher.java`
+    fn encrypt_blob_content<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        content: group_attribute_blob::Content,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        let blob = GroupAttributeBlob {
+            content: Some(content),
+        };
+        let buf = blob.encode_to_vec();
+        self.encrypt_blob_with_padding(&buf, 0, rng)
+    }
+
+    pub fn encrypt_title<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        title: &str,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::Title(title.to_string()),
+            rng,
+        )
+    }
+
+    pub fn encrypt_description<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        description: Option<&str>,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::Description(
+                description.unwrap_or_default().to_string(),
+            ),
+            rng,
+        )
+    }
+
+    pub fn encrypt_disappearing_message_timer<
+        R: rand::Rng + rand::CryptoRng,
+    >(
+        &self,
+        timer: Option<&Timer>,
+        rng: &mut R,
+    ) -> Vec<u8> {
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::DisappearingMessagesDuration(
+                timer.map(|t| t.duration).unwrap_or(0),
+            ),
+            rng,
+        )
     }
 
     fn decrypt_title(&self, ciphertext: &[u8]) -> String {
@@ -591,5 +704,376 @@ impl GroupOperations {
             Some(Content::Avatar(d)) => Some(d).filter(|d| !d.is_empty()),
             _ => None,
         }
+    }
+
+    /// Build an AddMemberAction for a GroupChange.
+    ///
+    /// # Role Parameter
+    ///
+    /// The `role` parameter is accepted for API consistency, but note that
+    /// Signal-Android only ever adds members with `Role::Default`. Adding a member
+    /// with `Role::Administrator` is an illegal operation that the server will reject.
+    /// Promotion to administrator requires a separate `ModifyMemberRoleAction` after
+    /// the member has been added.
+    ///
+    /// See Signal-Android's `GroupsV2Operations.GroupOperations.createModifyGroupMembershipChange()`
+    /// which hardcodes `Member.Role newMemberRole = Member.Role.DEFAULT`.
+    pub fn build_add_member_action(
+        &self,
+        aci: Aci,
+        profile_key: ProfileKey,
+        role: super::model::Role,
+    ) -> Result<proto::group_change::actions::AddMemberAction, GroupDecodingError>
+    {
+        Ok(proto::group_change::actions::AddMemberAction {
+            added: Some(proto::Member {
+                user_id: self.encrypt_aci(aci)?,
+                profile_key: self.encrypt_profile_key(profile_key, aci)?,
+                presentation: vec![],
+                role: role.into(),
+                joined_at_revision: 0, // Set by server
+            }),
+            join_from_invite_link: false,
+        })
+    }
+
+    /// Build a DeleteMemberAction for a GroupChange
+    pub fn build_remove_member_action(
+        &self,
+        aci: Aci,
+    ) -> Result<
+        proto::group_change::actions::DeleteMemberAction,
+        GroupDecodingError,
+    > {
+        Ok(proto::group_change::actions::DeleteMemberAction {
+            deleted_user_id: self.encrypt_aci(aci)?,
+        })
+    }
+
+    /// Build a DeletePendingMemberAction to retract an outstanding invitation.
+    ///
+    /// Used when a pending member (invite not yet accepted) is to be removed.
+    /// The `invitee` may be ACI or PNI — whichever service ID was used when
+    /// the invite was originally created.  The Signal server stores and matches
+    /// on the encrypted `user_id` field of `PendingMember`, which may be
+    /// either kind of `ServiceId`.
+    pub fn build_remove_pending_member_action(
+        &self,
+        invitee: ServiceId,
+    ) -> Result<
+        proto::group_change::actions::DeletePendingMemberAction,
+        GroupDecodingError,
+    > {
+        Ok(proto::group_change::actions::DeletePendingMemberAction {
+            deleted_user_id: self.encrypt_service_id(invitee)?,
+        })
+    }
+
+    /// Create a presentation from a credential for adding a member to a group.
+    ///
+    /// This creates a ZK proof (ExpiringProfileKeyCredentialPresentation) that the
+    /// Signal server can verify to validate the member's identity and profile key.
+    pub fn create_member_presentation(
+        &self,
+        server_public_params: &ServerPublicParams,
+        credential: &ExpiringProfileKeyCredential,
+    ) -> Vec<u8> {
+        let randomness: [u8; 32] = rand::random();
+        let presentation = server_public_params
+            .create_expiring_profile_key_credential_presentation(
+                randomness,
+                self.group_secret_params,
+                *credential,
+            );
+        zkgroup::serialize(&presentation)
+    }
+
+    /// Encrypt a group for creation, using credentials for member presentations.
+    ///
+    /// This method properly populates the `presentation` field for members with
+    /// credentials, which is required by the Signal server for group creation.
+    ///
+    /// Members with credentials get added with presentations (full members).
+    /// Members without credentials get added as pending invites.
+    ///
+    /// # Arguments
+    /// * `title` - The group title
+    /// * `description` - Optional group description
+    /// * `disappearing_messages_timer` - Optional disappearing messages timer
+    /// * `access_control` - Optional access control settings
+    /// * `self_credential` - The creator's own credential (required)
+    /// * `avatar` - The group avatar URL
+    /// * `member_candidates` - Other members to add, with optional credentials
+    /// * `server_public_params` - Server public params for creating presentations
+    /// * `rng` - Random number generator
+    #[allow(clippy::too_many_arguments)]
+    pub fn encrypt_group_with_credentials<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        title: &str,
+        description: Option<&str>,
+        disappearing_messages_timer: Option<&Timer>,
+        access_control: Option<&AccessControl>,
+        self_credential: &ExpiringProfileKeyCredential,
+        member_candidates: &[GroupCandidate],
+        server_public_params: &ServerPublicParams,
+        avatar: String,
+        rng: &mut R,
+    ) -> Result<proto::Group, GroupDecodingError> {
+        let mut members = Vec::new();
+        let mut pending_members = Vec::new();
+
+        // Add self as administrator with presentation
+        let self_presentation = self
+            .create_member_presentation(server_public_params, self_credential);
+        members.push(proto::Member {
+            user_id: vec![],     // Server extracts from presentation
+            profile_key: vec![], // Server extracts from presentation
+            presentation: self_presentation,
+            role: proto::member::Role::Administrator.into(),
+            joined_at_revision: 0,
+        });
+
+        // Add other members
+        for candidate in member_candidates {
+            if let Some(credential) = &candidate.credential {
+                // Has credential - add as full member with presentation
+                let presentation = self.create_member_presentation(
+                    server_public_params,
+                    credential,
+                );
+                members.push(proto::Member {
+                    user_id: vec![],
+                    profile_key: vec![],
+                    presentation,
+                    role: proto::member::Role::Default.into(),
+                    joined_at_revision: 0,
+                });
+            } else {
+                // No credential - add as pending invite
+                let user_id_ciphertext =
+                    self.encrypt_service_id(candidate.service_id)?;
+                let self_aci = self_credential.aci();
+                pending_members.push(proto::PendingMember {
+                    member: Some(proto::Member {
+                        user_id: user_id_ciphertext,
+                        profile_key: vec![],
+                        presentation: vec![],
+                        role: proto::member::Role::Default.into(),
+                        joined_at_revision: 0,
+                    }),
+                    added_by_user_id: self.encrypt_aci(self_aci)?,
+                    timestamp: 0, // Server sets
+                });
+            }
+        }
+
+        // Encrypt title, description, timer
+        let encrypted_title = self.encrypt_title(title, rng);
+        let encrypted_description = self.encrypt_description(description, rng);
+        let encrypted_timer = self.encrypt_disappearing_message_timer(
+            disappearing_messages_timer,
+            rng,
+        );
+
+        // Convert access control
+        let proto_access_control =
+            access_control.map(|ac| proto::AccessControl {
+                attributes: ac.attributes.into(),
+                members: ac.members.into(),
+                add_from_invite_link: ac.add_from_invite_link.into(),
+            });
+
+        Ok(proto::Group {
+            public_key: zkgroup::serialize(
+                &self.group_secret_params.get_public_params(),
+            ),
+            title: encrypted_title,
+            avatar,
+            disappearing_messages_timer: encrypted_timer,
+            access_control: proto_access_control,
+            revision: 0,
+            members,
+            pending_members,
+            requesting_members: vec![],
+            invite_link_password: vec![],
+            description: encrypted_description,
+            announcements_only: false,
+            banned_members: vec![],
+        })
+    }
+
+    /// Build an AddMemberAction with a credential presentation for a GroupChange.
+    ///
+    /// This is used when adding members to an existing group with proper ZK proofs.
+    ///
+    /// # Role Parameter
+    ///
+    /// The `role` parameter is accepted for API consistency, but note that
+    /// Signal-Android only ever adds members with `Role::Default`. Adding a member
+    /// with `Role::Administrator` is an illegal operation that the server will reject.
+    /// Promotion to administrator requires a separate `ModifyMemberRoleAction` after
+    /// the member has been added.
+    pub fn build_add_member_action_with_credential(
+        &self,
+        credential: &ExpiringProfileKeyCredential,
+        role: super::model::Role,
+        server_public_params: &ServerPublicParams,
+    ) -> proto::group_change::actions::AddMemberAction {
+        let presentation =
+            self.create_member_presentation(server_public_params, credential);
+        proto::group_change::actions::AddMemberAction {
+            added: Some(proto::Member {
+                user_id: vec![],     // Server extracts from presentation
+                profile_key: vec![], // Server extracts from presentation
+                presentation,
+                role: role.into(),
+                joined_at_revision: 0, // Set by server
+            }),
+            join_from_invite_link: false,
+        }
+    }
+
+    /// Build an AddPendingMemberAction to invite a member without their profile key.
+    ///
+    /// This adds the member as a pending invite. They will receive a group invite
+    /// notification and must accept to become a full member. No profile key is needed.
+    ///
+    /// The `invitee` may be either an ACI or a PNI. When only a PNI is known (e.g.
+    /// the invitee has ACI disclosure disabled in CDSI), passing `ServiceId::Pni`
+    /// allows the pending-invite path to proceed without an ACI. The Signal server
+    /// stores whichever service ID is provided in the encrypted `user_id` field of
+    /// the `PendingMember` proto. The `added_by_aci` must always be an ACI.
+    ///
+    /// # Role Parameter
+    ///
+    /// The `role` parameter is accepted for API consistency, but note that
+    /// Signal-Android only ever adds pending members with `Role::Default`.
+    pub fn build_add_pending_member_action(
+        &self,
+        invitee: ServiceId,
+        added_by_aci: Aci,
+        role: super::model::Role,
+    ) -> Result<
+        proto::group_change::actions::AddPendingMemberAction,
+        GroupDecodingError,
+    > {
+        Ok(proto::group_change::actions::AddPendingMemberAction {
+            added: Some(proto::PendingMember {
+                member: Some(proto::Member {
+                    user_id: self.encrypt_service_id(invitee)?,
+                    profile_key: vec![],
+                    presentation: vec![],
+                    role: role.into(),
+                    joined_at_revision: 0,
+                }),
+                added_by_user_id: self.encrypt_aci(added_by_aci)?,
+                timestamp: 0, // Server sets
+            }),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use zkgroup::groups::GroupMasterKey;
+
+    fn create_group_operations() -> GroupOperations {
+        // Create a test group master key (32 bytes)
+        let master_key_bytes = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+            0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16,
+            0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
+        ];
+        let group_master_key = GroupMasterKey::new(master_key_bytes);
+        let group_secret_params =
+            GroupSecretParams::derive_from_master_key(group_master_key);
+        GroupOperations::new(group_secret_params)
+    }
+
+    #[test]
+    fn roundtrip_title() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let title = "Test Group Title";
+        let encrypted = ops.encrypt_title(title, &mut rng);
+        let decrypted = ops.decrypt_title(&encrypted);
+        assert_eq!(decrypted, title);
+    }
+
+    #[test]
+    fn roundtrip_description() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let description = "This is a test group description";
+        let encrypted = ops.encrypt_description(Some(description), &mut rng);
+        let decrypted = ops.decrypt_description(&encrypted);
+        assert_eq!(decrypted, Some(description.to_string()));
+    }
+
+    #[test]
+    fn roundtrip_disappearing_message_timer() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let timer = Timer { duration: 3600 };
+        let encrypted =
+            ops.encrypt_disappearing_message_timer(Some(&timer), &mut rng);
+        let decrypted = ops.decrypt_disappearing_message_timer(&encrypted);
+        assert_eq!(decrypted, Some(timer));
+    }
+
+    #[test]
+    fn roundtrip_aci_encryption() {
+        let ops = create_group_operations();
+
+        // Use a known ACI string (UUID format from existing test patterns)
+        let aci = Aci::parse_from_service_id_string(
+            "550e8400-e29b-41d4-a716-446655440000",
+        )
+        .expect("valid ACI");
+        let encrypted =
+            ops.encrypt_aci(aci).expect("encrypt_aci should succeed");
+        let decrypted = ops
+            .decrypt_aci(&encrypted)
+            .expect("decrypt_aci should succeed");
+        assert_eq!(decrypted, aci);
+    }
+
+    #[test]
+    fn roundtrip_service_id_encryption() {
+        let ops = create_group_operations();
+
+        // Use a known UUID string for the service ID
+        let service_id: ServiceId = ServiceId::parse_from_service_id_string(
+            "550e8400-e29b-41d4-a716-446655440000",
+        )
+        .expect("valid service ID");
+        let encrypted = ops
+            .encrypt_service_id(service_id)
+            .expect("encrypt_service_id should succeed");
+        let decrypted = ops
+            .decrypt_service_id(&encrypted)
+            .expect("decrypt_service_id should succeed");
+        assert_eq!(decrypted, service_id);
+    }
+
+    #[test]
+    fn encrypt_title_different_each_time() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let title = "Test Title";
+        let encrypted1 = ops.encrypt_title(title, &mut rng);
+        let encrypted2 = ops.encrypt_title(title, &mut rng);
+
+        // Same plaintext should produce different ciphertext due to random padding
+        // but both should decrypt to the same value
+        assert_ne!(encrypted1, encrypted2);
+        assert_eq!(ops.decrypt_title(&encrypted1), title);
+        assert_eq!(ops.decrypt_title(&encrypted2), title);
     }
 }
