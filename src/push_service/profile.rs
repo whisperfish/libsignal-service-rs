@@ -12,7 +12,7 @@ use crate::{
 
 use super::{DeviceCapabilities, HttpAuthOverride, PushService, ReqwestExt};
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignalServiceProfile {
     #[serde(default, with = "serde_optional_base64")]
