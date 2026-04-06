@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use libsignal_core::DeviceId;
 use libsignal_protocol::{
     IdentityKey, PreKeyBundle, SenderCertificate, ServiceId, ServiceIdKind,
 };
@@ -113,7 +114,7 @@ impl PushService {
     pub async fn get_pre_key(
         &mut self,
         destination: &ServiceId,
-        device_id: u32,
+        device_id: DeviceId,
     ) -> Result<PreKeyBundle, ServiceError> {
         let path = format!(
             "/v2/keys/{}/{}",

@@ -1,4 +1,5 @@
 use base64::prelude::*;
+use libsignal_core::DeviceId;
 use phonenumber::PhoneNumber;
 use rand::{CryptoRng, Rng};
 use reqwest::Method;
@@ -446,8 +447,14 @@ impl AccountManager {
                             },
                         }
                     }),
-                    created: i.created,
+                    registration_id: i.registration_id,
                     last_seen: i.last_seen,
+                    created_at: decrypt_device_created_at_from_device_info(
+                        i.id,
+                        i.registration_id,
+                        &i.created_at_ciphertext,
+                        &aci_identity_keypair,
+                    )?,
                 })
             })
             .collect()
@@ -655,7 +662,7 @@ impl AccountManager {
     /// Update (encrypted) device name
     pub async fn update_device_name<R: Rng + CryptoRng>(
         &mut self,
-        device_id: libsignal_core::DeviceId,
+        device_id: DeviceId,
         device_name: &str,
         aci: Aci,
         aci_identity_store: &dyn IdentityKeyStore,
@@ -983,6 +990,33 @@ fn decrypt_device_name_from_device_info(
     crate::decrypt_device_name(aci.private_key(), &name)
 }
 
+// Analogous to https://github.com/signalapp/Signal-Android/blob/d88a862e0985cc2bbc463c5f504f5bb4e91ad4fc/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt#L121.
+fn decrypt_device_created_at_from_device_info(
+    id: DeviceId,
+    registration_id: i32,
+    string: &str,
+    aci: &IdentityKeyPair,
+) -> Result<chrono::DateTime<chrono::Utc>, ServiceError> {
+    use signal_crypto::SimpleHpkeReceiver;
+
+    let mut associated_data = [0; 5];
+    associated_data[0] = id.into();
+    associated_data[1..].copy_from_slice(&registration_id.to_be_bytes());
+
+    let data = BASE64_RELAXED.decode(string)?;
+
+    let result =
+        aci.private_key()
+            .open(b"deviceCreatedAt", &associated_data, &data)?;
+
+    let timestamp = i64::from_be_bytes(result.try_into().map_err(|_| {
+        ServiceError::DecryptDeviceInfoFieldError("created-at")
+    })?);
+
+    chrono::DateTime::<chrono::Utc>::from_timestamp_millis(timestamp)
+        .ok_or(ServiceError::DecryptDeviceInfoFieldError("created-at"))
+}
+
 #[expect(clippy::result_large_err)]
 pub fn decrypt_device_name(
     private_key: &PrivateKey,
@@ -994,7 +1028,7 @@ pub fn decrypt_device_name(
         ciphertext: Some(ciphertext),
     } = device_name
     else {
-        return Err(ServiceError::InvalidDeviceName);
+        return Err(ServiceError::DecryptDeviceInfoFieldError("name"));
     };
 
     let synthetic_iv: [u8; 16] = synthetic_iv[..synthetic_iv.len().min(16)]

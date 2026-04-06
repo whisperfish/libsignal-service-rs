@@ -5,6 +5,7 @@ use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeyEntity, SignedPreKeyEntity},
     prelude::ServiceConfiguration,
     utils::serde_base64,
+    utils::serde_device_id_vec,
     websocket::SignalWebSocket,
 };
 
@@ -126,14 +127,17 @@ impl PreKeyResponseItem {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MismatchedDevices {
-    pub missing_devices: Vec<u32>,
-    pub extra_devices: Vec<u32>,
+    #[serde(with = "serde_device_id_vec")]
+    pub missing_devices: Vec<libsignal_core::DeviceId>,
+    #[serde(with = "serde_device_id_vec")]
+    pub extra_devices: Vec<libsignal_core::DeviceId>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaleDevices {
-    pub stale_devices: Vec<u32>,
+    #[serde(with = "serde_device_id_vec")]
+    pub stale_devices: Vec<libsignal_core::DeviceId>,
 }
 
 #[derive(Clone)]

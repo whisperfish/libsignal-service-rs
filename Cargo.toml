@@ -9,6 +9,7 @@ readme = "README.md"
 [dependencies]
 libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
 libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
+signal-crypto = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
 zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
 
 aes = "0.8"

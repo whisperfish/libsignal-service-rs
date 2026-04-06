@@ -29,7 +29,7 @@ use crate::{
     service_address::ServiceIdExt,
     session_store::SessionStoreExt,
     unidentified_access::UnidentifiedAccess,
-    utils::serde_service_id,
+    utils::{serde_device_id, serde_service_id},
     websocket::SignalWebSocket,
 };
 
@@ -39,7 +39,8 @@ pub use crate::proto::ContactDetails;
 #[serde(rename_all = "camelCase")]
 pub struct OutgoingPushMessage {
     pub r#type: u32,
-    pub destination_device_id: u32,
+    #[serde(with = "serde_device_id")]
+    pub destination_device_id: DeviceId,
     pub destination_registration_id: u32,
     pub content: String,
 }
@@ -632,9 +633,8 @@ where
                         );
                         self.protocol_store
                             .delete_service_addr_device_session(
-                                &recipient.to_protocol_address(
-                                    (*extra_device_id).try_into()?,
-                                )?,
+                                &recipient
+                                    .to_protocol_address(*extra_device_id)?,
                             )
                             .await?;
                     }
@@ -644,9 +644,8 @@ where
                             "creating session with missing device {}",
                             missing_device_id
                         );
-                        let remote_address = recipient.to_protocol_address(
-                            (*missing_device_id).try_into()?,
-                        )?;
+                        let remote_address = recipient
+                            .to_protocol_address(*missing_device_id)?;
                         let pre_key = self
                             .service
                             .get_pre_key(&recipient, *missing_device_id)
@@ -678,9 +677,8 @@ where
                         );
                         self.protocol_store
                             .delete_service_addr_device_session(
-                                &recipient.to_protocol_address(
-                                    (*extra_device_id).try_into()?,
-                                )?,
+                                &recipient
+                                    .to_protocol_address(*extra_device_id)?,
                             )
                             .await?;
                     }

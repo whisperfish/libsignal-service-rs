@@ -332,7 +332,7 @@ pub async fn link_device<
             NewDeviceRegistration {
                 phone_number,
                 service_ids: ServiceIds { aci, pni },
-                device_id: device_id.try_into()?,
+                device_id,
                 registration_id,
                 pni_registration_id,
                 aci_private_key,

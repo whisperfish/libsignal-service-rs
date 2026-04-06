@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     configuration::Endpoint,
-    utils::{serde_optional_base64, serde_phone_number},
+    utils::{serde_device_id, serde_optional_base64, serde_phone_number},
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -41,16 +41,31 @@ impl fmt::Display for ServiceIds {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceId {
-    pub device_id: u32,
+    #[serde(with = "serde_device_id")]
+    pub device_id: libsignal_core::DeviceId,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
-    pub id: u8,
+    #[serde(with = "serde_device_id")]
+    pub id: libsignal_core::DeviceId,
+    pub registration_id: i32,
     pub name: Option<String>,
     #[serde(with = "chrono::serde::ts_milliseconds")]
-    pub created: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub last_seen: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct DeviceInfoEncrypted {
+    #[serde(with = "serde_device_id")]
+    pub id: libsignal_core::DeviceId,
+    pub name: Option<String>,
+    pub registration_id: i32,
+    pub created_at_ciphertext: String,
     #[serde(with = "chrono::serde::ts_milliseconds")]
     pub last_seen: DateTime<Utc>,
 }
@@ -130,10 +145,12 @@ impl PushService {
     /// Fetches a list of all devices tied to the authenticated account.
     ///
     /// This list include the device that sends the request.
-    pub async fn devices(&mut self) -> Result<Vec<DeviceInfo>, ServiceError> {
+    pub(crate) async fn devices(
+        &mut self,
+    ) -> Result<Vec<DeviceInfoEncrypted>, ServiceError> {
         #[derive(serde::Deserialize)]
         struct DeviceInfoList {
-            devices: Vec<DeviceInfo>,
+            devices: Vec<DeviceInfoEncrypted>,
         }
 
         let devices: DeviceInfoList = self
