@@ -1,7 +1,9 @@
 use libsignal_protocol::Aci;
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
-use zkgroup::profiles::{ProfileKey, ProfileKeyCredentialRequest};
+use zkgroup::profiles::{
+    ExpiringProfileKeyCredential, ProfileKey, ProfileKeyCredentialRequest,
+};
 
 use crate::profile_cipher::ProfileCipher;
 use crate::profile_name::ProfileName;
@@ -13,6 +15,8 @@ pub struct ProfileManager {
     websocket: SignalWebSocket<websocket::Identified>,
     unidentified_websocket: SignalWebSocket<websocket::Unidentified>,
     profile_key: ProfileKey,
+
+    server_params: zkgroup::ServerPublicParams,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -29,11 +33,14 @@ impl ProfileManager {
         websocket: SignalWebSocket<websocket::Identified>,
         unidentified_websocket: SignalWebSocket<websocket::Unidentified>,
         profile_key: ProfileKey,
+        server_params: zkgroup::ServerPublicParams,
     ) -> Self {
         Self {
             websocket,
             unidentified_websocket,
             profile_key,
+
+            server_params,
         }
     }
 
@@ -130,7 +137,6 @@ impl ProfileManager {
         skip(self, sealed_sender_access),
         fields(
             sealed_sender_access=sealed_sender_access.is_some(),
-            credential_request=credential_request.is_some(),
         ),
     )]
     pub async fn retrieve_profile(
@@ -138,19 +144,70 @@ impl ProfileManager {
         address: Aci,
         profile_key: ProfileKey,
         sealed_sender_access: Option<UnidentifiedAccess>,
-        credential_request: Option<ProfileKeyCredentialRequest>,
     ) -> Result<Profile, ServiceError> {
         let service_profile = self
             .retrieve_service_profile(
                 address,
                 Some(profile_key),
                 sealed_sender_access,
-                credential_request,
+                None,
             )
             .await?;
 
         let profile_cipher = ProfileCipher::new(profile_key);
         Ok(profile_cipher.decrypt(service_profile)?)
+    }
+
+    /// Retrieves and decrypts a profile.
+    #[tracing::instrument(
+        skip(self, sealed_sender_access),
+        fields(
+            sealed_sender_access=sealed_sender_access.is_some(),
+        ),
+    )]
+    pub async fn retrieve_profile_and_credential(
+        &mut self,
+        address: Aci,
+        profile_key: ProfileKey,
+        sealed_sender_access: Option<UnidentifiedAccess>,
+    ) -> Result<(Profile, ExpiringProfileKeyCredential), ServiceError> {
+        let request_context = self
+            .server_params
+            .create_profile_key_credential_request_context(
+                rand::random(),
+                address,
+                profile_key,
+            );
+
+        let service_profile = self
+            .retrieve_service_profile(
+                address,
+                Some(profile_key),
+                sealed_sender_access,
+                Some(request_context.get_request()),
+            )
+            .await?;
+
+        let credential_response: zkgroup::profiles::ExpiringProfileKeyCredentialResponse =
+            zkgroup::deserialize(
+                service_profile.credential.as_deref().ok_or_else(|| {
+                    ServiceError::InvalidFrame {
+                        reason: "credential not present in response",
+                    }
+                })?,
+            )?;
+
+        let credential =
+            self.server_params.receive_expiring_profile_key_credential(
+                &request_context,
+                &credential_response,
+                std::time::SystemTime::now().into(),
+            )?;
+
+        let profile_cipher = ProfileCipher::new(profile_key);
+        let profile = profile_cipher.decrypt(service_profile)?;
+
+        Ok((profile, credential))
     }
 
     /// Upload a profile
