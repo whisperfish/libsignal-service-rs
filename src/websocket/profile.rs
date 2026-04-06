@@ -175,34 +175,40 @@ impl SignalWebSocket<websocket::Identified> {
             commitment: &commitment,
         };
 
-        // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
-        let upload_url: Result<String, _> = self
+        let response = self
             .http_request(Method::PUT, "/v1/profile")?
             .send_json(&command)
             .await?
             .service_error_for_status()
-            .await?
-            .json()
-            .await;
+            .await?;
 
-        match (upload_url, avatar) {
-            (_url, AvatarWrite::NewAvatar(_avatar)) => {
-                // FIXME
+        #[derive(Debug, Deserialize)]
+        #[allow(unused)]
+        struct ProfileAvatarUploadAttributes {
+            key: String,
+            credential: String,
+            acl: String,
+            algorithm: String,
+            date: String,
+            policy: String,
+            signature: String,
+        }
+
+        match avatar {
+            AvatarWrite::NewAvatar(_avatar) => {
+                // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
+                let _upload_attributes: Result<
+                    ProfileAvatarUploadAttributes,
+                    _,
+                > = response.json().await;
+                tracing::trace!("received upload attributes");
                 unreachable!("Uploading avatar unimplemented");
             },
-            // FIXME cleanup when #54883 is stable and MSRV:
-            // or-patterns syntax is experimental
-            // see issue #54883 <https://github.com/rust-lang/rust/issues/54883> for more information
-            (Err(_), AvatarWrite::RetainAvatar)
-            | (Err(_), AvatarWrite::NoAvatar) => {
+            AvatarWrite::RetainAvatar | AvatarWrite::NoAvatar => {
                 // OWS sends an empty string when there's no attachment
-                Ok(None)
-            },
-            (Ok(_resp), AvatarWrite::RetainAvatar)
-            | (Ok(_resp), AvatarWrite::NoAvatar) => {
-                tracing::warn!(
-                    "No avatar supplied but got avatar upload URL. Ignoring"
-                );
+                if !response.body().is_empty() {
+                    tracing::warn!(response_len=%response.body().len(), "expected empty response");
+                }
                 Ok(None)
             },
         }
