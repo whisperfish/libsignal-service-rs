@@ -118,6 +118,7 @@ pub struct AccessControl {
     pub attributes: AccessRequired,
     pub members: AccessRequired,
     pub add_from_invite_link: AccessRequired,
+    pub member_label: AccessRequired,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -268,6 +269,7 @@ impl TryFrom<crate::proto::AccessControl> for AccessControl {
             attributes: value.attributes.try_into()?,
             members: value.members.try_into()?,
             add_from_invite_link: value.add_from_invite_link.try_into()?,
+            member_label: value.member_label.try_into()?,
         })
     }
 }
