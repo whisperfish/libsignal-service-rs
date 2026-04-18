@@ -2,11 +2,33 @@ use std::{convert::TryFrom, convert::TryInto};
 
 use libsignal_protocol::{Aci, Pni, ServiceId};
 use serde::{Deserialize, Serialize};
-use zkgroup::profiles::ProfileKey;
+use zkgroup::profiles::{ExpiringProfileKeyCredential, ProfileKey};
 
 use crate::sender::GroupV2Id;
 
 use super::GroupDecodingError;
+
+/// A candidate member for group creation/modification.
+///
+/// If credential is Some, member will be added with a presentation.
+/// If credential is None, member will be added as pending (invite).
+#[derive(Clone)]
+pub struct GroupMemberCandidate {
+    pub service_id: ServiceId,
+    pub credential: Option<ExpiringProfileKeyCredential>,
+}
+
+impl std::fmt::Debug for GroupMemberCandidate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GroupCandidate")
+            .field("service_id", &self.service_id)
+            .field(
+                "credential",
+                &self.credential.as_ref().map(|_| "[credential]"),
+            )
+            .finish()
+    }
+}
 
 #[derive(Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Role {
@@ -118,6 +140,7 @@ pub struct AccessControl {
     pub attributes: AccessRequired,
     pub members: AccessRequired,
     pub add_from_invite_link: AccessRequired,
+    pub member_label: AccessRequired,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -264,6 +287,7 @@ impl TryFrom<crate::proto::AccessControl> for AccessControl {
             attributes: value.attributes.try_into()?,
             members: value.members.try_into()?,
             add_from_invite_link: value.add_from_invite_link.try_into()?,
+            member_label: value.member_label.try_into()?,
         })
     }
 }
