@@ -202,11 +202,11 @@ impl TryFrom<i32> for Role {
     type Error = GroupDecodingError;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
-        use crate::proto::member::Role::*;
+        use crate::proto::member::Role as ProtoRole;
         match crate::proto::member::Role::try_from(value) {
-            Ok(Unknown) => Ok(Role::Unknown),
-            Ok(Default) => Ok(Role::Default),
-            Ok(Administrator) => Ok(Role::Administrator),
+            Ok(ProtoRole::Unknown) => Ok(Role::Unknown),
+            Ok(ProtoRole::Default) => Ok(Role::Default),
+            Ok(ProtoRole::Administrator) => Ok(Role::Administrator),
             Err(_e) => Err(GroupDecodingError::WrongEnumValue),
         }
     }
@@ -228,13 +228,17 @@ impl TryFrom<i32> for AccessRequired {
     type Error = GroupDecodingError;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
-        use crate::proto::access_control::AccessRequired::*;
+        use crate::proto::access_control::AccessRequired as ProtoAccessRequired;
         match crate::proto::access_control::AccessRequired::try_from(value) {
-            Ok(Unknown) => Ok(AccessRequired::Unknown),
-            Ok(Any) => Ok(AccessRequired::Any),
-            Ok(Member) => Ok(AccessRequired::Member),
-            Ok(Administrator) => Ok(AccessRequired::Administrator),
-            Ok(Unsatisfiable) => Ok(AccessRequired::Unsatisfiable),
+            Ok(ProtoAccessRequired::Unknown) => Ok(AccessRequired::Unknown),
+            Ok(ProtoAccessRequired::Any) => Ok(AccessRequired::Any),
+            Ok(ProtoAccessRequired::Member) => Ok(AccessRequired::Member),
+            Ok(ProtoAccessRequired::Administrator) => {
+                Ok(AccessRequired::Administrator)
+            },
+            Ok(ProtoAccessRequired::Unsatisfiable) => {
+                Ok(AccessRequired::Unsatisfiable)
+            },
             Err(_e) => Err(GroupDecodingError::WrongEnumValue),
         }
     }
