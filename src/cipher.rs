@@ -758,11 +758,28 @@ async fn sealed_sender_decrypt_with_validated_usmc(
             group_decrypt(usmc.contents()?, sender_key_store, remote_address)
                 .await?
         },
-        msg_type => {
-            return Err(SignalProtocolError::InvalidMessage(
-                msg_type,
-                "unexpected message type for sealed_sender_decrypt",
-            ));
+        CiphertextMessageType::Plaintext => {
+            // Sealed sender envelope wrapping a PlaintextContent, used by
+            // recipients to send a DecryptionErrorMessage back to the sender
+            // when their local session state is out of sync and they need a
+            // new session established. Without this branch the envelope is
+            // dropped and the sender never learns to reset the session,
+            // leaving the two parties stuck in a decryption-failure loop.
+            //
+            // The PlaintextContent wire format is:
+            //   0xC0 (identifier) | Content proto encoding | 0x80 (pad) | 0x00*
+            // Strip the 0xC0 prefix here; the caller's strip_padding() removes
+            // the 0x80-terminated ISO7816 padding, leaving the raw Content
+            // proto bytes that the existing envelope pipeline already decodes
+            // into ContentBody::DecryptionErrorMessage via Content::from_proto.
+            let contents = usmc.contents()?;
+            if contents.first() != Some(&0xC0) {
+                return Err(SignalProtocolError::InvalidMessage(
+                    CiphertextMessageType::Plaintext,
+                    "sealed sender PlaintextContent missing identifier byte",
+                ));
+            }
+            contents[1..].to_vec()
         },
     };
 
@@ -772,4 +789,173 @@ async fn sealed_sender_decrypt_with_validated_usmc(
         device_id: usmc.sender()?.sender_device_id()?,
         message,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use libsignal_protocol::{
+        ContentHint, DecryptionErrorMessage, IdentityKeyPair,
+        InMemSignalProtocolStore, KeyPair, SenderCertificate, ServerCertificate,
+        Timestamp,
+    };
+    use rand::rngs::OsRng;
+    use rand::TryRngCore as _;
+
+    use super::*;
+    use crate::content::ContentBody;
+
+    /// Round-trip a sealed-sender USMC whose inner message type is
+    /// CiphertextMessageType::Plaintext (the wrapper Signal clients use for
+    /// DecryptionErrorMessage session-restart requests) and verify that the
+    /// raw Content proto bytes fall out the other side with the trailing
+    /// 0x80 boundary byte intact for strip_padding() to consume.
+    ///
+    /// Before the fix this returned
+    /// `InvalidMessage(Plaintext, "unexpected message type ...")` and the
+    /// envelope was dropped, leaving sender and recipient stuck.
+    #[tokio::test]
+    async fn sealed_sender_plaintext_usmc_returns_content_proto(
+    ) -> Result<(), SignalProtocolError> {
+        let mut rng = OsRng.unwrap_err();
+
+        // Certificate chain so UnidentifiedSenderMessageContent::new's sender
+        // cert field verifies structurally. We don't feed the result through
+        // trust-root validation (that runs upstream in sealed_sender_decrypt),
+        // so any valid chain works.
+        let trust_root = KeyPair::generate(&mut rng);
+        let server_key = KeyPair::generate(&mut rng);
+        let server_cert = ServerCertificate::new(
+            1,
+            server_key.public_key,
+            &trust_root.private_key,
+            &mut rng,
+        )?;
+
+        let sender_identity = KeyPair::generate(&mut rng);
+        let sender_uuid = "9d0652a3-dcc3-4d11-975f-74d61598733f";
+        let sender_e164 = "+14151111111";
+        let sender_device: DeviceId = 1u32.try_into()
+            .expect("1 is a valid device id");
+        let sender_cert = SenderCertificate::new(
+            sender_uuid.to_string(),
+            Some(sender_e164.to_string()),
+            sender_identity.public_key,
+            sender_device,
+            Timestamp::from_epoch_millis(1605722925000),
+            server_cert,
+            &server_key.private_key,
+            &mut rng,
+        )?;
+
+        // Real DecryptionErrorMessage payload — build via SenderKey so we
+        // don't need a concrete SignalMessage/PreKeySignalMessage to seed
+        // for_original's ratchet-key extraction. The DEM contents don't
+        // matter for what this test asserts; we just want a byte string
+        // that DecryptionErrorMessage::decode will accept so Content::from_proto
+        // unambiguously lands in the DecryptionErrorMessage arm.
+        let dem = DecryptionErrorMessage::for_original(
+            &[],
+            CiphertextMessageType::SenderKey,
+            Timestamp::from_epoch_millis(1),
+            1,
+        )?;
+        let dem_bytes = dem.serialized().to_vec();
+        let content_proto = crate::proto::Content {
+            decryption_error_message: Some(dem_bytes.clone()),
+            ..Default::default()
+        };
+        let content_proto_bytes = content_proto.encode_to_vec();
+
+        let mut plaintext_content = Vec::with_capacity(content_proto_bytes.len() + 2);
+        plaintext_content.push(0xC0);
+        plaintext_content.extend_from_slice(&content_proto_bytes);
+        plaintext_content.push(0x80);
+
+        let usmc = UnidentifiedSenderMessageContent::new(
+            CiphertextMessageType::Plaintext,
+            sender_cert,
+            plaintext_content,
+            ContentHint::Default,
+            None,
+        )?;
+
+        // Plaintext arm doesn't touch the session/pre-key/sender-key stores,
+        // but the function signature requires them; an empty InMem store
+        // satisfies the trait objects.
+        let store = InMemSignalProtocolStore::new(
+            IdentityKeyPair::generate(&mut rng),
+            0x4000,
+        )?;
+        let remote_address = ProtocolAddress::new(
+            sender_uuid.to_string(),
+            sender_device,
+        );
+        let local_address = ProtocolAddress::new(
+            "12345678-1234-1234-1234-123456789012".to_string(),
+            sender_device,
+        );
+
+        let result = sealed_sender_decrypt_with_validated_usmc(
+            &usmc,
+            &remote_address,
+            &local_address,
+            &mut store.clone(),
+            &mut store.clone(),
+            &mut store.clone(),
+            &mut store.clone(),
+            &mut store.clone(),
+            &mut store.clone(),
+        )
+        .await?;
+
+        // The returned message should be the Content proto bytes followed
+        // by the 0x80 pad byte — the 0xC0 identifier byte is stripped here
+        // and the caller's strip_padding() strips the trailing 0x80.
+        assert_eq!(result.sender_uuid, sender_uuid);
+        assert_eq!(result.device_id, sender_device);
+
+        let expected_len = content_proto_bytes.len() + 1;
+        assert_eq!(result.message.len(), expected_len);
+        assert_eq!(&result.message[..content_proto_bytes.len()], &content_proto_bytes[..]);
+        assert_eq!(result.message.last(), Some(&0x80));
+
+        // Simulate every step open_envelope() runs downstream of decrypt():
+        // strip_padding -> Content::decode -> Content::from_proto. If any of
+        // these fails on our output, the fix doesn't actually reach
+        // registered.rs's DecryptionErrorMessage handler in production.
+        let mut message = result.message;
+        strip_padding(&mut message).expect("0x80 boundary byte strips cleanly");
+
+        let decoded = crate::proto::Content::decode(message.as_slice())
+            .expect("Content proto decodes after strip_padding");
+        assert_eq!(decoded.decryption_error_message.as_deref(), Some(&dem_bytes[..]));
+
+        // Build a Metadata matching what decrypt() would produce for the
+        // sealed-sender branch (was_plaintext: false — we deliberately don't
+        // change that, and the test guards against a downstream regression
+        // where from_proto would depend on it).
+        let metadata = Metadata {
+            destination: ServiceId::parse_from_service_id_string(
+                "12345678-1234-1234-1234-123456789012",
+            )
+            .expect("valid destination"),
+            sender: ServiceId::parse_from_service_id_string(sender_uuid)
+                .expect("valid sender"),
+            sender_device,
+            timestamp: 0,
+            needs_receipt: true,
+            unidentified_sender: true,
+            was_plaintext: false,
+            server_guid: None,
+        };
+        let content = Content::from_proto(decoded, metadata)
+            .expect("Content::from_proto accepts a real DEM payload");
+        assert!(
+            matches!(content.body, ContentBody::DecryptionErrorMessage(_)),
+            "expected DecryptionErrorMessage body, got {:?}",
+            content.body,
+        );
+
+        Ok(())
+    }
 }
