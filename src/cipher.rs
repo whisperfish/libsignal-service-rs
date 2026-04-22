@@ -8,8 +8,8 @@ use libsignal_protocol::{
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
     CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
-    PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
-    PublicKey, SealedSenderDecryptionResult, SenderCertificate,
+    PlaintextContent, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
+    ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
     SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
     UnidentifiedSenderMessageContent,
@@ -758,11 +758,12 @@ async fn sealed_sender_decrypt_with_validated_usmc(
             group_decrypt(usmc.contents()?, sender_key_store, remote_address)
                 .await?
         },
-        msg_type => {
-            return Err(SignalProtocolError::InvalidMessage(
-                msg_type,
-                "unexpected message type for sealed_sender_decrypt",
-            ));
+        CiphertextMessageType::Plaintext => {
+            // Sealed sender envelope wrapping a PlaintextContent.
+            // Should contain a DecryptionErrorMessage.
+            let plaintext_content =
+                PlaintextContent::try_from(usmc.contents()?)?;
+            plaintext_content.body().to_vec()
         },
     };
 
