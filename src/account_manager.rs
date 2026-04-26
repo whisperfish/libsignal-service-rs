@@ -291,7 +291,7 @@ impl AccountManager {
         };
 
         self.websocket
-            .register_pre_keys(service_id_kind, pre_key_state)
+            .register_pre_keys(service_id_kind, &pre_key_state)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Uploading pre keys"
