@@ -272,11 +272,11 @@ pub async fn link_device<
             IdentityKeyPair::new(pni_public_key, pni_private_key);
 
         let (
-            _aci_pre_keys,
+            aci_pre_keys,
             aci_signed_pre_key,
-            _aci_pq_pre_keys,
+            aci_pq_pre_keys,
             aci_pq_last_resort_pre_key,
-        ) = crate::pre_keys::replenish_pre_keys(
+        ) = crate::pre_keys::generate_pre_keys(
             aci_store,
             csprng,
             &aci_key_pair,
@@ -286,17 +286,21 @@ pub async fn link_device<
         )
         .await?;
 
+        // Clone for persistence after successful link_device
+        let aci_signed_for_persist = aci_signed_pre_key.clone();
+        let aci_last_resort_for_persist = aci_pq_last_resort_pre_key.clone();
+
         let aci_pq_last_resort_pre_key =
             aci_pq_last_resort_pre_key.expect("requested last resort key");
-        assert!(_aci_pre_keys.is_empty());
-        assert!(_aci_pq_pre_keys.is_empty());
+        assert!(aci_pre_keys.is_empty());
+        assert!(aci_pq_pre_keys.is_empty());
 
         let (
-            _pni_pre_keys,
+            pni_pre_keys,
             pni_signed_pre_key,
-            _pni_pq_pre_keys,
+            pni_pq_pre_keys,
             pni_pq_last_resort_pre_key,
-        ) = crate::pre_keys::replenish_pre_keys(
+        ) = crate::pre_keys::generate_pre_keys(
             pni_store,
             csprng,
             &pni_key_pair,
@@ -306,10 +310,14 @@ pub async fn link_device<
         )
         .await?;
 
+        // Clone for persistence after successful link_device
+        let pni_signed_for_persist = pni_signed_pre_key.clone();
+        let pni_last_resort_for_persist = pni_pq_last_resort_pre_key.clone();
+
         let pni_pq_last_resort_pre_key =
             pni_pq_last_resort_pre_key.expect("requested last resort key");
-        assert!(_pni_pre_keys.is_empty());
-        assert!(_pni_pq_pre_keys.is_empty());
+        assert!(pni_pre_keys.is_empty());
+        assert!(pni_pq_pre_keys.is_empty());
 
         let encrypted_device_name = BASE64_RELAXED.encode(
             encrypt_device_name(csprng, device_name, &aci_public_key)?
@@ -355,6 +363,25 @@ pub async fn link_device<
                 },
             )
             .await?;
+
+        // Now persist the keys after successful link_device
+        crate::pre_keys::store_pre_key_bundle(
+            aci_store,
+            &aci_pre_keys,
+            &aci_signed_for_persist,
+            &aci_pq_pre_keys,
+            aci_last_resort_for_persist.as_ref(),
+        )
+        .await?;
+
+        crate::pre_keys::store_pre_key_bundle(
+            pni_store,
+            &pni_pre_keys,
+            &pni_signed_for_persist,
+            &pni_pq_pre_keys,
+            pni_last_resort_for_persist.as_ref(),
+        )
+        .await?;
 
         tx.send(SecondaryDeviceProvisioning::NewDeviceRegistration(
             NewDeviceRegistration {

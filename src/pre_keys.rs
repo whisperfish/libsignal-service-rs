@@ -14,7 +14,6 @@ use libsignal_protocol::{
 
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
 
 #[async_trait(?Send)]
 /// Additional methods for the Kyber pre key store
@@ -87,6 +86,18 @@ pub trait PreKeysStore:
     async fn last_resort_kyber_prekey_id(
         &self,
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError>;
+
+    /// Replace one-time EC pre-keys with a new set.
+    async fn replace_one_time_ec_pre_keys(
+        &mut self,
+        keys: &[PreKeyRecord],
+    ) -> Result<(), SignalProtocolError>;
+
+    /// Replace one-time Kyber pre-keys with a new set.
+    async fn replace_one_time_kyber_pre_keys(
+        &mut self,
+        keys: &[KyberPreKeyRecord],
+    ) -> Result<(), SignalProtocolError>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -180,11 +191,18 @@ pub struct PreKeyState {
     pub pq_pre_keys: Vec<KyberPreKeyEntity>,
 }
 
-pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
+pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
-pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
+/// Generate pre-keys without persisting them to storage.
+///
+/// This function performs in-memory generation of pre-keys but does not persist them.
+/// It may still call `next_pre_key_id()`, `next_signed_pre_key_id()`, and `next_pq_pre_key_id()`
+/// to obtain offsets for IDs.
+///
+/// Returns the generated records for the caller to persist as needed.
+pub(crate) async fn generate_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     protocol_store: &mut P,
     csprng: &mut R,
     identity_key_pair: &IdentityKeyPair,
@@ -205,7 +223,8 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
         protocol_store.next_signed_pre_key_id().await?;
     let pq_pre_keys_offset_id = protocol_store.next_pq_pre_key_id().await?;
 
-    let span = tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
+    let _span =
+        tracing::span!(tracing::Level::DEBUG, "Generating pre keys").entered();
 
     let mut pre_keys = vec![];
     let mut pq_pre_keys = vec![];
@@ -217,12 +236,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
             (((pre_keys_offset_id + i) % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1)
                 .into();
         let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-        protocol_store
-                    .save_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
 
         pre_keys.push(pre_key_record);
     }
@@ -238,12 +251,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
             pre_key_id,
             identity_key_pair.private_key(),
         )?;
-        protocol_store
-                    .save_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
 
         pq_pre_keys.push(pre_key_record);
     }
@@ -261,13 +268,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
         &signed_pre_key_pair,
         &signed_pre_key_signature,
     );
-
-    protocol_store
-                .save_signed_pre_key(
-                    next_signed_pre_key_id.into(),
-                    &signed_prekey_record,
-                )
-                    .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
 
     let pq_last_resort_key = if use_last_resort_key {
         let pre_key_id = (((pq_pre_keys_offset_id + kyber_pre_key_count)
@@ -287,12 +287,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
             pre_key_id,
             identity_key_pair.private_key(),
         )?;
-        protocol_store
-                    .store_last_resort_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save last resort kyber pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
 
         Some(pre_key_record)
     } else {
@@ -305,4 +299,41 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
         pq_pre_keys,
         pq_last_resort_key,
     ))
+}
+
+/// Stores a complete pre-key bundle to the protocol store.
+/// Takes references to all keys and persists them.
+/// Returns the first error encountered (if any), or Ok(()) on success.
+pub(crate) async fn store_pre_key_bundle<P: PreKeysStore>(
+    protocol_store: &mut P,
+    pre_keys: &[PreKeyRecord],
+    signed_pre_key: &SignedPreKeyRecord,
+    pq_pre_keys: &[KyberPreKeyRecord],
+    pq_last_resort_key: Option<&KyberPreKeyRecord>,
+) -> Result<(), SignalProtocolError> {
+    // Persist EC pre-keys (replace all)
+    protocol_store
+        .replace_one_time_ec_pre_keys(&pre_keys)
+        .await?;
+
+    // Persist Kyber pre-keys
+    protocol_store
+        .replace_one_time_kyber_pre_keys(&pq_pre_keys)
+        .await?;
+
+    // Persist signed pre-key
+    let signed_pre_key_id = signed_pre_key.id()?;
+    protocol_store
+        .save_signed_pre_key(signed_pre_key_id, &signed_pre_key)
+        .await?;
+
+    // Persist last resort Kyber key if present
+    if let Some(ref k) = pq_last_resort_key {
+        let id = k.id()?;
+        protocol_store
+            .store_last_resort_kyber_pre_key(id, k)
+            .await?;
+    }
+
+    Ok(())
 }
