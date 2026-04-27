@@ -163,6 +163,37 @@ where
         }
     }
 
+    /// Unwraps the outer sealed-sender layer of an `UnidentifiedSender`
+    /// envelope without decrypting the inner message. Returns the
+    /// `(sender, device_id, inner msg type, inner ciphertext)` tuple. Useful
+    /// on the decrypt-failure path: when the inner Whisper/PreKey decrypt
+    /// fails (typically a stale session), this lets the caller still construct
+    /// a DecryptionErrorMessage targeted at the right sender, since the
+    /// outer envelope's `source_service_id` is intentionally absent for
+    /// sealed sender.
+    pub async fn peek_unidentified_sender(
+        &mut self,
+        ciphertext: &[u8],
+    ) -> Result<(ServiceId, DeviceId, CiphertextMessageType, Vec<u8>), SignalProtocolError>
+    {
+        let usmc = sealed_sender_decrypt_to_usmc(
+            ciphertext,
+            &mut self.protocol_store,
+        )
+        .await?;
+        let sender_uuid = usmc.sender()?.sender_uuid()?;
+        let sender = ServiceId::parse_from_service_id_string(sender_uuid)
+            .ok_or_else(|| {
+                SignalProtocolError::InvalidSealedSenderMessage(
+                    "invalid sender UUID".to_string(),
+                )
+            })?;
+        let device_id = usmc.sender()?.sender_device_id()?;
+        let msg_type = usmc.msg_type()?;
+        let contents = usmc.contents()?.to_vec();
+        Ok((sender, device_id, msg_type, contents))
+    }
+
     /// Equivalent of decrypt(Envelope, ciphertext)
     ///
     /// Triage of legacy messages happens inside this method, as opposed to the
