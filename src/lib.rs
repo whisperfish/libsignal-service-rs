@@ -27,6 +27,7 @@ pub mod receiver;
 pub mod sender;
 pub mod service_address;
 pub mod session_store;
+mod storage_service;
 mod timestamp;
 pub mod unidentified_access;
 pub mod utils;
@@ -37,6 +38,7 @@ pub use crate::account_manager::{
     ProfileManagerError,
 };
 pub use crate::service_address::*;
+pub use crate::storage_service::{StorageService, StorageServiceError};
 
 pub const USER_AGENT: &str =
     concat!(env!("CARGO_PKG_NAME"), "-rs-", env!("CARGO_PKG_VERSION"));
@@ -83,5 +85,7 @@ pub mod protocol {
     pub use libsignal_protocol::*;
     pub use usernames::{Username, UsernameError};
 }
+
+pub use libsignal_account_keys;
 
 pub use zkgroup;
