@@ -91,21 +91,16 @@ struct SignalWebSocketInner {
     stream: Option<SignalRequestStream>,
 }
 
-/// Default value for [`SignalWebSocket::with_max_outstanding_keepalives`].
-/// `1` matches the historical "close on first unacked keepalive"
-/// behavior — every existing caller of [`SignalWebSocket::new`] sees
-/// this default and is therefore unaffected by the introduction of
-/// the knob.
+/// Default for [`SignalWebSocket::with_max_outstanding_keepalives`]:
+/// close on the first unacked keepalive.
 pub const DEFAULT_MAX_OUTSTANDING_KEEPALIVES: usize = 1;
 
 struct SignalWebSocketProcess {
     /// Whether to enable keep-alive or not (and send a request to this path)
     keep_alive_path: String,
 
-    /// Number of unacked keepalive requests that may be in flight before
-    /// `run()` decides the WebSocket is dead and closes it. Set via
-    /// [`SignalWebSocket::with_max_outstanding_keepalives`]; defaults to
-    /// [`DEFAULT_MAX_OUTSTANDING_KEEPALIVES`].
+    /// Close threshold for unacked keepalives; see
+    /// [`SignalWebSocket::with_max_outstanding_keepalives`].
     max_outstanding_keepalives: usize,
 
     /// Receives requests from the application, which we forward to Signal.
@@ -242,17 +237,10 @@ impl SignalWebSocketProcess {
             futures::select! {
                 _ = ka_interval.tick().fuse() => {
                     use prost::Message;
-                    // Close trigger gated by max_outstanding_keepalives,
-                    // which defaults to 1 (the historical "close on any
-                    // unacked keepalive" behavior). Callers that need
-                    // tolerance for executor-scheduling races can pass
-                    // a larger value via with_max_outstanding_keepalives.
+                    // Close once unacked keepalives reach the configured
+                    // threshold; see SignalWebSocket::with_max_outstanding_keepalives.
                     if self.outgoing_keep_alive_set.len() >= self.max_outstanding_keepalives {
-                        tracing::warn!(
-                            outstanding = self.outgoing_keep_alive_set.len(),
-                            threshold = self.max_outstanding_keepalives,
-                            "Websocket will be closed due to failed keepalives.",
-                        );
+                        tracing::warn!("Websocket will be closed due to failed keepalives.");
                         if let Err(e) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
                             tracing::debug!("Could not close WebSocket: {:?}", e);
                         }
@@ -374,6 +362,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         self.inner.lock().unwrap()
     }
 
+    /// Alias for [`Self::with_max_outstanding_keepalives`] with [`DEFAULT_MAX_OUTSTANDING_KEEPALIVES`].
     pub fn new(
         ws: WebSocket,
         keep_alive_path: String,
@@ -387,18 +376,10 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         )
     }
 
-    /// Like [`Self::new`] but lets the caller raise the threshold for
-    /// "outstanding keepalives at which `run()` decides the WebSocket
-    /// is dead and closes it." Default (used by [`Self::new`]) is 1,
-    /// matching the historical close-on-first-unacked-keepalive
-    /// behavior. Callers running on platforms where the
-    /// `futures::select!` arm-dispatch race can spuriously trip the
-    /// close (single-threaded executors, slow rv32 cores, etc.) can
-    /// pass a small constant like 3 to absorb a few cycles of
-    /// scheduling jitter before deciding the connection is dead.
-    /// Real TCP failures still surface independently via the
-    /// underlying transport's `io::Error` path; this only changes the
-    /// application-level KA watchdog.
+    /// Construct `SignalWebSocket` with configurable KA threshold.
+    ///
+    /// A more lenient `max_outstanding_keepalives` can potentially
+    /// compensate for spotty or slow networks, or for slower processors.
     pub fn with_max_outstanding_keepalives(
         ws: WebSocket,
         keep_alive_path: String,
