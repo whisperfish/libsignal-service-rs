@@ -42,3 +42,35 @@ Bad:
 > WHY THIS MATTERS: On resource-constrained platforms (RISC-V @ 100 MHz), race conditions
 > in the keepalive timer can destabilize long-lived WebSockets. Verified locally.
 > Happy to discuss. Smallest possible blast radius.
+
+## Code Style
+
+Generally, follow the patterns, or lack thereof, already present in the library.
+
+Keep comments short. One or two lines is usually enough. The reviewer will read the code.
+
+Regarding comments:
+- **Don't narrate the code.** `strip_padding()` removes padding — the name already says so.
+- **Don't spread docs across field + const + constructor.** Pick one place as the
+  single source of truth and link to it (`See with_max_outstanding_keepalives()`).
+- **Don't leave plan markers or TODO history in the code.** Git already records history.
+- **Do document the "why", not the "how"**, when the reason is non-obvious. When obvious, do not write a comment.
+- Doc comments document behaviour, not implementation.
+
+Good:
+
+```rust
+/// Close if unacked keepalives exceed the threshold.
+/// See `with_max_outstanding_keepalives` for tuning.
+```
+
+Bad:
+
+```rust
+/// Under the hood, we orchestrate a sophisticated HKDF-SHA256 key-derivation pipeline
+/// (info string: "20240801_SIGNAL_STORAGE_SERVICE_MANIFEST_" + version) feeding into
+/// AES-256-GCM with 12-byte nonce prepended and 16-byte tag appended. The caller's
+/// existing strip_padding() gracefully removes the trailing 0x80 ISO7816 pad, leaving
+/// pristine protobuf bytes ready for the envelope pipeline. Our test suite validates
+/// the full downstream flow end-to-end.
+```
