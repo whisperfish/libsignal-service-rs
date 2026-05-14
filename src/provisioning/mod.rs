@@ -4,6 +4,8 @@ mod pipe;
 use std::array::TryFromSliceError;
 use std::convert::TryInto;
 
+use libsignal_account_keys::{AccountEntropyPool, InvalidAccountEntropyPool};
+
 pub use cipher::ProvisioningCipher;
 
 use base64::Engine;
@@ -88,6 +90,8 @@ pub enum ProvisioningError {
     EncryptOnlyProvisioningCipher,
     #[error("invalid profile key bytes")]
     InvalidProfileKey(TryFromSliceError),
+    #[error("invalid account entropy pool: {0}")]
+    InvalidAccountEntropyPool(#[from] InvalidAccountEntropyPool),
 }
 
 impl ProvisioningError {
@@ -144,6 +148,19 @@ pub struct NewDeviceRegistration {
     pub pni_public_key: IdentityKey,
     #[debug(ignore)]
     pub profile_key: ProfileKey,
+    /// Account master key — the deprecated `masterKey` field 13 of
+    /// `ProvisionMessage`. Required by linked devices for legacy state
+    /// (Storage Service, KBS) and still sent by primary devices. May be
+    /// absent if the primary is on a build that has fully migrated to
+    /// `account_entropy_pool` only.
+    #[debug(ignore)]
+    pub master_key: Option<Vec<u8>>,
+    /// Account Entropy Pool — the modern `accountEntropyPool` field 15.
+    /// 64-character alphanumeric string from which the canonical master
+    /// key is derived (`AccountEntropyPool::derive_svr_key`). When present,
+    /// it should be preferred over the deprecated `master_key` field.
+    #[debug(ignore)]
+    pub account_entropy_pool: Option<AccountEntropyPool>,
 }
 
 pub async fn link_device<
@@ -227,6 +244,15 @@ pub async fn link_device<
         let profile_key = message
             .profile_key
             .ok_or(ProvisioningError::MissingProfileKey)?;
+
+        // Optional in the proto (field 13 deprecated, field 15 modern).
+        // Moved out — partial move, the remaining field accesses below are
+        // independent. presage prefers AEP if both are present.
+        let master_key = message.master_key;
+        let account_entropy_pool = message
+            .account_entropy_pool
+            .map(|s| s.parse())
+            .transpose()?;
 
         let phone_number = message
             .number
@@ -342,6 +368,8 @@ pub async fn link_device<
                 pni_private_key,
                 pni_public_key,
                 profile_key,
+                master_key,
+                account_entropy_pool,
             },
         ))
         .await

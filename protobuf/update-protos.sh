@@ -17,6 +17,7 @@ update_proto Signal-Android Groups.proto
 update_proto Signal-Android Provisioning.proto
 update_proto Signal-Android SignalService.proto
 update_proto Signal-Android StickerResources.proto
+update_proto Signal-Android StorageService.proto
 update_proto Signal-Android WebSocketResources.proto
 
 update_proto Signal-Desktop DeviceName.proto
