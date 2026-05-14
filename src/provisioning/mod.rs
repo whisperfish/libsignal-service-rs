@@ -4,6 +4,8 @@ mod pipe;
 use std::array::TryFromSliceError;
 use std::convert::TryInto;
 
+use libsignal_account_keys::{AccountEntropyPool, InvalidAccountEntropyPool};
+
 pub use cipher::ProvisioningCipher;
 
 use base64::Engine;
@@ -88,6 +90,8 @@ pub enum ProvisioningError {
     EncryptOnlyProvisioningCipher,
     #[error("invalid profile key bytes")]
     InvalidProfileKey(TryFromSliceError),
+    #[error("invalid account entropy pool: {0}")]
+    InvalidAccountEntropyPool(#[from] InvalidAccountEntropyPool),
 }
 
 impl ProvisioningError {
@@ -156,7 +160,7 @@ pub struct NewDeviceRegistration {
     /// key is derived (`AccountEntropyPool::derive_svr_key`). When present,
     /// it should be preferred over the deprecated `master_key` field.
     #[debug(ignore)]
-    pub account_entropy_pool: Option<String>,
+    pub account_entropy_pool: Option<AccountEntropyPool>,
 }
 
 pub async fn link_device<
@@ -245,7 +249,10 @@ pub async fn link_device<
         // Moved out — partial move, the remaining field accesses below are
         // independent. presage prefers AEP if both are present.
         let master_key = message.master_key;
-        let account_entropy_pool = message.account_entropy_pool;
+        let account_entropy_pool = message
+            .account_entropy_pool
+            .map(|s| s.parse())
+            .transpose()?;
 
         let phone_number = message
             .number
