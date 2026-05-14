@@ -73,6 +73,7 @@ prost-build = "0.14"
 [dev-dependencies]
 anyhow = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt"] }
+clap = { version = "4.4", features = ["derive"] }
 
 [features]
 default = ["cdsi"]
@@ -83,6 +84,10 @@ key-transparency = [
   "dep:curve25519-dalek",
   "dep:libsignal-keytrans",
 ]
+
+[[example]]
+name = "key_transparency"
+required-features = ["key-transparency"]
 
 [patch.crates-io]
 curve25519-dalek = { git = 'https://github.com/signalapp/curve25519-dalek', tag = 'signal-curve25519-4.1.3' }
