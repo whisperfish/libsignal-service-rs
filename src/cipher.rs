@@ -361,6 +361,7 @@ where
                 let mut data = message_decrypt_signal(
                     &SignalMessage::try_from(&ciphertext[..])?,
                     &sender,
+                    &self.local_address,
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store.clone(),
                     csprng,
@@ -753,6 +754,7 @@ async fn sealed_sender_decrypt_with_validated_usmc(
             message_decrypt_signal(
                 &ctext,
                 remote_address,
+                local_address,
                 session_store,
                 identity_store,
                 &mut rng,
