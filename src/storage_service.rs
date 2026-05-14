@@ -142,7 +142,7 @@ impl StorageService {
             .await?
             .protobuf()
             .await?;
-        self.decrypt_manifest(&manifest)
+        Self::decrypt_manifest(&self.storage_key, &manifest)
     }
 
     /// Fetch and decrypt the manifest only if the server's version differs
@@ -169,7 +169,7 @@ impl StorageService {
             return Ok(None);
         }
         let manifest: StorageManifest = response.protobuf().await?;
-        Ok(Some(self.decrypt_manifest(&manifest)?))
+        Ok(Some(Self::decrypt_manifest(&self.storage_key, &manifest)?))
     }
 
     /// Fetch and decrypt storage items by key.
@@ -207,7 +207,7 @@ impl StorageService {
         items
             .items
             .iter()
-            .map(|item| self.decrypt_item(item, record_ikm))
+            .map(|item| Self::decrypt_item(&self.storage_key, item, record_ikm))
             .collect()
     }
 
@@ -215,17 +215,20 @@ impl StorageService {
 
     /// Decrypt a [`StorageManifest`] into a [`ManifestRecord`].
     pub fn decrypt_manifest(
-        &self,
+        storage_key: &StorageServiceKey,
         manifest: &StorageManifest,
     ) -> Result<ManifestRecord, StorageServiceError> {
-        let key = self.manifest_key(manifest.version);
+        let key = Self::manifest_key(storage_key, manifest.version);
         let plaintext = decrypt(&key, &manifest.value)?;
         Ok(ManifestRecord::decode(&*plaintext)?)
     }
 
     /// Encrypt a [`ManifestRecord`] into a [`StorageManifest`] ready to PUT.
-    pub fn encrypt_manifest(&self, record: &ManifestRecord) -> StorageManifest {
-        let key = self.manifest_key(record.version);
+    pub fn encrypt_manifest(
+        storage_key: &StorageServiceKey,
+        record: &ManifestRecord,
+    ) -> StorageManifest {
+        let key = Self::manifest_key(storage_key, record.version);
         StorageManifest {
             version: record.version,
             value: encrypt(&key, &record.encode_to_vec()),
@@ -234,11 +237,11 @@ impl StorageService {
 
     /// Decrypt a [`StorageItem`] into a [`StorageRecord`].
     pub fn decrypt_item(
-        &self,
+        storage_key: &StorageServiceKey,
         item: &StorageItem,
         record_ikm: Option<&[u8]>,
     ) -> Result<StorageRecord, StorageServiceError> {
-        let key = self.item_key(&item.key, record_ikm);
+        let key = Self::item_key(storage_key, &item.key, record_ikm);
         let plaintext = decrypt(&key, &item.value)?;
         Ok(StorageRecord::decode(&*plaintext)?)
     }
@@ -248,12 +251,12 @@ impl StorageService {
     /// `raw_id` is the item's identifier; `record_ikm` should match what's
     /// in the manifest this item will be referenced from.
     pub fn encrypt_item(
-        &self,
+        storage_key: &StorageServiceKey,
         raw_id: Vec<u8>,
         record: &StorageRecord,
         record_ikm: Option<&[u8]>,
     ) -> StorageItem {
-        let key = self.item_key(&raw_id, record_ikm);
+        let key = Self::item_key(storage_key, &raw_id, record_ikm);
         StorageItem {
             key: raw_id,
             value: encrypt(&key, &record.encode_to_vec()),
@@ -261,10 +264,9 @@ impl StorageService {
     }
 
     /// `HMAC-SHA256(storage_key, "Manifest_{version}")`.
-    fn manifest_key(&self, version: u64) -> [u8; 32] {
-        let mut mac =
-            <HmacSha256 as Mac>::new_from_slice(&self.storage_key.inner)
-                .expect("HMAC accepts any key length");
+    fn manifest_key(storage_key: &StorageServiceKey, version: u64) -> [u8; 32] {
+        let mut mac = <HmacSha256 as Mac>::new_from_slice(&storage_key.inner)
+            .expect("HMAC accepts any key length");
         mac.update(b"Manifest_");
         mac.update(version.to_string().as_bytes());
         mac.finalize().into_bytes().into()
@@ -272,7 +274,11 @@ impl StorageService {
 
     /// Per-item key. Modern accounts carry a `record_ikm` in the manifest and
     /// derive via HKDF; legacy accounts derive straight off the storage key.
-    fn item_key(&self, raw_id: &[u8], record_ikm: Option<&[u8]>) -> [u8; 32] {
+    fn item_key(
+        storage_key: &StorageServiceKey,
+        raw_id: &[u8],
+        record_ikm: Option<&[u8]>,
+    ) -> [u8; 32] {
         match record_ikm {
             Some(ikm) if !ikm.is_empty() => {
                 let hk = Hkdf::<Sha256>::new(None, ikm);
@@ -284,10 +290,9 @@ impl StorageService {
             _ => {
                 let b64 =
                     base64::engine::general_purpose::STANDARD.encode(raw_id);
-                let mut mac = <HmacSha256 as Mac>::new_from_slice(
-                    &self.storage_key.inner,
-                )
-                .expect("HMAC accepts any key length");
+                let mut mac =
+                    <HmacSha256 as Mac>::new_from_slice(&storage_key.inner)
+                        .expect("HMAC accepts any key length");
                 mac.update(b"Item_");
                 mac.update(b64.as_bytes());
                 mac.finalize().into_bytes().into()
@@ -329,80 +334,88 @@ fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::configuration::SignalServers;
-
-    /// Build a [`StorageService`] with a throwaway [`PushService`] — enough
-    /// for exercising the crypto, which never touches the network.
-    fn test_service(storage_key: StorageServiceKey) -> StorageService {
-        StorageService {
-            service: PushService::new(SignalServers::Staging, None, "test"),
-            credentials: HttpAuth {
-                username: String::new(),
-                password: String::new(),
-            },
-            storage_key,
-        }
-    }
 
     #[test]
     fn manifest_round_trip() {
-        let svc = test_service(StorageServiceKey { inner: [7u8; 32] });
+        let storage_key = StorageServiceKey { inner: [7u8; 32] };
         let record = ManifestRecord {
             version: 42,
             source_device: 1,
             identifiers: vec![],
             record_ikm: vec![],
         };
-        let encrypted = svc.encrypt_manifest(&record);
+        let encrypted = StorageService::encrypt_manifest(&storage_key, &record);
         assert_eq!(encrypted.version, 42);
-        let decrypted = svc.decrypt_manifest(&encrypted).unwrap();
+        let decrypted =
+            StorageService::decrypt_manifest(&storage_key, &encrypted).unwrap();
         assert_eq!(decrypted, record);
     }
 
     #[test]
     fn item_round_trip_modern_and_legacy() {
-        let svc = test_service(StorageServiceKey { inner: [9u8; 32] });
+        let storage_key = StorageServiceKey { inner: [9u8; 32] };
         let raw_id = vec![0xABu8; 16];
         let record = StorageRecord { record: None };
 
         // Legacy path (no record_ikm).
-        let legacy = svc.encrypt_item(raw_id.clone(), &record, None);
-        assert_eq!(svc.decrypt_item(&legacy, None).unwrap(), record);
+        let legacy = StorageService::encrypt_item(
+            &storage_key,
+            raw_id.clone(),
+            &record,
+            None,
+        );
+        assert_eq!(
+            StorageService::decrypt_item(&storage_key, &legacy, None).unwrap(),
+            record
+        );
 
         // Modern path (HKDF off a record_ikm).
         let ikm = [4u8; 32];
-        let modern = svc.encrypt_item(raw_id.clone(), &record, Some(&ikm));
-        assert_eq!(svc.decrypt_item(&modern, Some(&ikm)).unwrap(), record);
+        let modern = StorageService::encrypt_item(
+            &storage_key,
+            raw_id.clone(),
+            &record,
+            Some(&ikm),
+        );
+        assert_eq!(
+            StorageService::decrypt_item(&storage_key, &modern, Some(&ikm))
+                .unwrap(),
+            record
+        );
     }
 
     #[test]
     fn modern_and_legacy_keys_differ() {
-        let svc = test_service(StorageServiceKey { inner: [3u8; 32] });
+        let storage_key = StorageServiceKey { inner: [3u8; 32] };
         let raw_id = [5u8; 16];
-        let legacy = svc.item_key(&raw_id, None);
-        let modern = svc.item_key(&raw_id, Some(&[4u8; 32]));
+        let legacy = StorageService::item_key(&storage_key, &raw_id, None);
+        let modern =
+            StorageService::item_key(&storage_key, &raw_id, Some(&[4u8; 32]));
         assert_ne!(legacy, modern);
     }
 
     #[test]
     fn manifest_key_changes_with_version() {
-        let svc = test_service(StorageServiceKey { inner: [1u8; 32] });
-        assert_ne!(svc.manifest_key(1), svc.manifest_key(2));
+        let storage_key = StorageServiceKey { inner: [1u8; 32] };
+        assert_ne!(
+            StorageService::manifest_key(&storage_key, 1),
+            StorageService::manifest_key(&storage_key, 2)
+        );
     }
 
     #[test]
     fn wrong_key_fails_to_decrypt() {
-        let a = test_service(StorageServiceKey { inner: [1u8; 32] });
-        let b = test_service(StorageServiceKey { inner: [2u8; 32] });
+        let a = StorageServiceKey { inner: [1u8; 32] };
+        let b = StorageServiceKey { inner: [2u8; 32] };
         let record = ManifestRecord {
             version: 1,
             source_device: 0,
             identifiers: vec![],
             record_ikm: vec![],
         };
-        let encrypted = a.encrypt_manifest(&record);
+        let encrypted = StorageService::encrypt_manifest(&a, &record);
         assert!(matches!(
-            b.decrypt_manifest(&encrypted),
+            StorageService::decrypt_manifest(&b, &encrypted),
             Err(StorageServiceError::Invalid)
         ));
     }
