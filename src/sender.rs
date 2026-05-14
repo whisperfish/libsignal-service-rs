@@ -653,6 +653,10 @@ where
 
                         process_prekey_bundle(
                             &remote_address,
+                            &self
+                                .local_aci
+                                .to_protocol_address(self.device_id)
+                                .expect("valid device id"),
                             &mut self.protocol_store.clone(),
                             &mut self.protocol_store,
                             &pre_key,
@@ -1028,6 +1032,10 @@ where
 
                 process_prekey_bundle(
                     &pre_key_address,
+                    &self
+                        .local_aci
+                        .to_protocol_address(self.device_id)
+                        .expect("valid device id"),
                     &mut self.protocol_store.clone(),
                     &mut self.protocol_store,
                     &pre_key_bundle,

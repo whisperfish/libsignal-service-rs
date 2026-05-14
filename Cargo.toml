@@ -1,20 +1,23 @@
 [package]
 name = "libsignal-service"
 version = "0.1.0"
-authors = ["Ruben De Smet <ruben.de.smet@rubdos.be>", "Gabriel Féron <g@leirbag.net>"]
+authors = [
+  "Ruben De Smet <ruben.de.smet@rubdos.be>",
+  "Gabriel Féron <g@leirbag.net>",
+]
 edition = "2021"
 license = "AGPL-3.0-only"
 readme = "README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
-libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
-libsignal-account-keys = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
-libsignal-net = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0", optional = true }
-libsignal-net-infra = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0", optional = true }
-signal-crypto = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
-zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
-usernames = { git = "https://github.com/signalapp/libsignal", tag = "v0.91.0" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4" }
+libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4" }
+libsignal-account-keys = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4" }
+libsignal-net = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4", optional = true }
+libsignal-net-infra = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4", optional = true }
+signal-crypto = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4" }
+zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4" }
+usernames = { git = "https://github.com/signalapp/libsignal", tag = "v0.94.4" }
 
 aes = "0.8"
 aes-gcm = "0.10"
@@ -24,7 +27,10 @@ async-trait = "0.1"
 base64 = "0.22"
 bincode = "1.3"
 bytes = "1"
-chrono = { version = "0.4", features = ["serde", "clock"], default-features = false }
+chrono = { version = "0.4", features = [
+  "serde",
+  "clock",
+], default-features = false }
 derive_more = { version = "2.1", features = ["debug"] }
 futures = "0.3"
 hex = "0.4"
@@ -42,7 +48,12 @@ url = { version = "2.1", features = ["serde"] }
 uuid = { version = "1", features = ["serde"] }
 
 # http
-reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls-manual-roots", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "multipart",
+  "rustls-tls-manual-roots",
+  "stream",
+] }
 reqwest-websocket = { version = "0.4.2", features = ["json"] }
 
 tracing = { version = "0.1", features = ["log"] }
