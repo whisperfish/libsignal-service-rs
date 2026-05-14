@@ -23,7 +23,8 @@
 //! - `lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/storage/RecordIkm.kt`
 //! - `core/models-jvm/src/main/java/org/signal/core/models/storageservice/StorageKey.kt`
 
-use aes_gcm::aead::Aead;
+use aes::cipher::Unsigned;
+use aes_gcm::aead::{Aead, AeadCore, AeadInPlace};
 use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
 use base64::Engine;
 use hkdf::Hkdf;
@@ -322,12 +323,26 @@ fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
     rand::rngs::OsRng
         .try_fill_bytes(&mut iv)
         .expect("OS RNG available");
-    let ct = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
-        .encrypt(Nonce::from_slice(&iv), plaintext)
-        .expect("AES-256-GCM encryption is infallible for valid keys");
-    let mut out = Vec::with_capacity(IV_LEN + ct.len());
+
+    // Single allocation: IV + plaintext + tag
+    let mut out = Vec::with_capacity(
+        IV_LEN + plaintext.len() + <Aes256Gcm as AeadCore>::TagSize::to_usize(),
+    );
     out.extend_from_slice(&iv);
-    out.extend_from_slice(&ct);
+    out.extend_from_slice(plaintext);
+
+    // Encrypt in place - returns tag separately
+    let tag = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
+        .encrypt_in_place_detached(
+            Nonce::from_slice(&iv),
+            b"",
+            &mut out[IV_LEN..],
+        )
+        .expect("AES-256-GCM encryption is infallible for valid keys");
+
+    // Append the tag
+    out.extend_from_slice(&tag);
+
     out
 }
 
