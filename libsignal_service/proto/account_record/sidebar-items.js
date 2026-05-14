@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PhoneNumberSharingMode"],"mod":["iap_subscriber_data","notification_profile_manual_override","pinned_conversation","username_link"],"struct":["BackupTierHistory","IapSubscriberData","NotificationProfileManualOverride","PinnedConversation","UsernameLink"]};
