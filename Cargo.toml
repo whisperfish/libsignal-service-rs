@@ -37,7 +37,7 @@ hex = "0.4"
 hkdf = "0.12"
 hmac = "0.12"
 phonenumber = { version = "0.3", optional = true }
-prost = "0.13"
+prost = "0.14"
 rand = "0.9"
 rand_core_06 = { version = "0.6", package = "rand_core" }
 serde = { version = "1.0", features = ["derive"] }
@@ -62,7 +62,7 @@ tracing-futures = "0.2"
 tokio = { version = "1.0", features = ["macros"] }
 
 [build-dependencies]
-prost-build = "0.13"
+prost-build = "0.14"
 
 [dev-dependencies]
 anyhow = "1.0"
