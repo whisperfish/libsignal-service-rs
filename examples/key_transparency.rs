@@ -56,6 +56,9 @@ struct Args {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt::init();
+
     let args = Args::parse();
 
     // Create credentials with stubbed phone number
