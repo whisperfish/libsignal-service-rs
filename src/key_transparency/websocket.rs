@@ -23,7 +23,7 @@ use thiserror::Error;
 
 use crate::push_service::ServiceError;
 use crate::utils::{
-    serde_base64, serde_optional_base64, serde_optional_base64url,
+    serde_base64, serde_optional_base64, serde_optional_base64url, TryIntoE164,
 };
 use crate::websocket::SignalWebSocket;
 
@@ -54,7 +54,7 @@ pub struct ValueMonitor {
 /// JSON request body for `POST /v1/key-transparency/search`.
 ///
 /// Corresponds to the request body expected by Signal-Server:
-/// `service/src/main/java/org/whispersystems/textsecuregcm/controllers/KeyTransparencyController.java`
+/// `service/src/main/java/org/wfromhispersystems/textsecuregcm/controllers/KeyTransparencyController.java`
 ///
 /// See also libsignal-net:
 /// - `rust/net/chat/src/api/keytrans.rs`
@@ -83,11 +83,28 @@ struct RawChatSearchRequest {
     pub distinguished_tree_head_size: u64,
 }
 
-impl From<super::ChatSearchParams> for RawChatSearchRequest {
-    fn from(params: super::ChatSearchParams) -> Self {
-        RawChatSearchRequest {
+impl<P> TryFrom<super::ChatSearchParams<P>> for RawChatSearchRequest
+where
+    P: TryIntoE164,
+{
+    type Error = KeyTransparencyWebSocketError;
+
+    fn try_from(
+        params: super::ChatSearchParams<P>,
+    ) -> Result<Self, Self::Error> {
+        Ok(RawChatSearchRequest {
             aci: params.target_aci.service_id_string(),
-            e164: params.target_e164.as_ref().map(|e| e.to_string()),
+            e164: params
+                .target_e164
+                .map(|e| e.try_into_e164())
+                .transpose()
+                .map_err(|_e| {
+                    KeyTransparencyWebSocketError::RequestError(
+                        "unparsable phone number",
+                    )
+                })?
+                .as_ref()
+                .map(E164::to_string),
             username_hash: params
                 .target_username
                 .as_ref()
@@ -101,7 +118,7 @@ impl From<super::ChatSearchParams> for RawChatSearchRequest {
             distinguished_tree_head_size: params
                 .distinguished_tree_head_size
                 .unwrap_or(0),
-        }
+        })
     }
 }
 
@@ -253,11 +270,14 @@ impl SignalWebSocket<crate::websocket::Identified> {
     /// See also libsignal-net:
     /// - `rust/net/chat/src/api/keytrans.rs`
     /// - `rust/net/chat/src/ws/keytrans.rs`
-    pub async fn key_transparency_search(
+    pub async fn key_transparency_search<P>(
         &mut self,
-        params: super::ChatSearchParams,
-    ) -> Result<ChatSearchResponse, KeyTransparencyWebSocketError> {
-        let request: RawChatSearchRequest = params.into();
+        params: super::ChatSearchParams<P>,
+    ) -> Result<ChatSearchResponse, KeyTransparencyWebSocketError>
+    where
+        P: TryIntoE164,
+    {
+        let request: RawChatSearchRequest = params.try_into()?;
 
         let raw: RawChatSearchResponse = self
             .http_request(Method::POST, "/v1/key-transparency/search")?

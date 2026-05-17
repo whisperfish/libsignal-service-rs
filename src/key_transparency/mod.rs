@@ -16,6 +16,7 @@ pub use websocket::{KeyTransparencyWebSocketError, ValueMonitor};
 // Re-export core KT types that consumers will need alongside our wrappers.
 pub use libsignal_keytrans::{MonitoringData, TreeHead, TreeRoot};
 
+use crate::utils::TryIntoE164;
 use crate::websocket::SignalWebSocket;
 use libsignal_core::{Aci, E164};
 use libsignal_keytrans::PublicConfig;
@@ -33,13 +34,13 @@ use zkgroup::profiles::ProfileKey;
 /// Signal Key Transparency log. All fields describe the **target** user
 /// (the one being searched for), not the searching user.
 #[derive(Debug)]
-pub struct ChatSearchParams {
+pub struct ChatSearchParams<P = E164> {
     /// The target user's ACI (always required).
     pub target_aci: Aci,
     /// The target user's identity key.
     pub target_identity_key: PublicKey,
-    /// Optional target E164 phone number for cross-verification.
-    pub target_e164: Option<E164>,
+    /// Optional target phone number for cross-verification.
+    pub target_e164: Option<P>,
     /// Optional target username for cross-verification.
     pub target_username: Option<Username>,
     /// Optional profile key used to derive the unidentified access key.
@@ -297,10 +298,13 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
     ///
     /// Combines transport + verification in one call.
     /// This is the most convenient entry point for consumers.
-    pub async fn search_and_verify(
+    pub async fn search_and_verify<P>(
         &mut self,
-        params: ChatSearchParams,
-    ) -> Result<VerifiedSearchResult, KeyTransparencyError> {
+        params: ChatSearchParams<P>,
+    ) -> Result<VerifiedSearchResult, KeyTransparencyError>
+    where
+        P: TryIntoE164,
+    {
         let _response = self
             .socket
             .key_transparency_search(params)

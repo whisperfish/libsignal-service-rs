@@ -123,7 +123,7 @@ async fn main() -> Result<()> {
         PublicKey::deserialize(&key_bytes).expect("valid identity key bytes");
 
     // Build search params with flat, high-level types
-    let params = ChatSearchParams {
+    let params = ChatSearchParams::<E164> {
         target_aci: args.target_aci.into(),
         target_identity_key,
         target_e164: None,
