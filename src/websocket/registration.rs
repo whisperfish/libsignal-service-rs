@@ -1,13 +1,13 @@
-use libsignal_protocol::IdentityKey;
+use libsignal_protocol::{IdentityKey, IdentityKeyStore};
+use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use uuid::Uuid;
 
 use super::ServiceError;
 use crate::{
-    pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
-    utils::serde_base64,
-    websocket::{self, account::AccountAttributes, SignalWebSocket},
+    pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity}, provisioning::ProvisioningError, utils::serde_base64, websocket::{self, SignalWebSocket, account::AccountAttributes}
 };
 
 /// This type is used in registration lock handling.
@@ -231,7 +231,7 @@ impl SignalWebSocket<websocket::Unidentified> {
     }
 }
 
-impl SignalWebSocket<websocket::Identified> {
+impl SignalWebSocket<websocket::Unidentified> {
     pub async fn submit_registration_request(
         &mut self,
         registration_method: RegistrationMethod<'_>,
@@ -303,5 +303,85 @@ impl SignalWebSocket<websocket::Identified> {
         .await?
         .json()
         .await
+    }
+
+    pub async fn register_account<
+        R: Rng + CryptoRng,
+        Aci: PreKeysStore + IdentityKeyStore,
+        Pni: PreKeysStore + IdentityKeyStore,
+    >(
+        &mut self,
+        csprng: &mut R,
+        registration_method: RegistrationMethod<'_>,
+        account_attributes: AccountAttributes,
+        aci_protocol_store: &mut Aci,
+        pni_protocol_store: &mut Pni,
+        skip_device_transfer: bool,
+    ) -> Result<VerifyAccountResponse, ProvisioningError> {
+        let aci_identity_key_pair = aci_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get ACI identity key pair"))
+            .await?;
+        let pni_identity_key_pair = pni_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get PNI identity key pair"))
+            .await?;
+
+        let (
+            _aci_pre_keys,
+            aci_signed_pre_key,
+            _aci_kyber_pre_keys,
+            aci_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            aci_protocol_store,
+            csprng,
+            &aci_identity_key_pair,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let (
+            _pni_pre_keys,
+            pni_signed_pre_key,
+            _pni_kyber_pre_keys,
+            pni_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            pni_protocol_store,
+            csprng,
+            &pni_identity_key_pair,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let aci_identity_key = aci_identity_key_pair.identity_key();
+        let pni_identity_key = pni_identity_key_pair.identity_key();
+
+        let dar = DeviceActivationRequest {
+            aci_signed_pre_key: aci_signed_pre_key.try_into()?,
+            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+            aci_pq_last_resort_pre_key: aci_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+            pni_pq_last_resort_pre_key: pni_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+        };
+
+        let result = self
+            .submit_registration_request(
+                registration_method,
+                account_attributes,
+                skip_device_transfer,
+                aci_identity_key,
+                pni_identity_key,
+                dar,
+            )
+            .await?;
+
+        Ok(result)
     }
 }
