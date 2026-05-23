@@ -27,6 +27,17 @@ pub const BASE64_URL_SAFE_NO_PAD: base64::engine::GeneralPurpose =
             ),
     );
 
+/// Standard alphabet base64 without padding, used for KT monitor `commitmentIndex`.
+pub const BASE64_STANDARD_NO_PAD: base64::engine::GeneralPurpose =
+    base64::engine::GeneralPurpose::new(
+        &base64::alphabet::STANDARD,
+        base64::engine::GeneralPurposeConfig::new()
+            .with_encode_padding(false)
+            .with_decode_padding_mode(
+                base64::engine::DecodePaddingMode::Indifferent,
+            ),
+    );
+
 pub fn parse_aci_with_fallback(
     bytes: Option<&[u8]>,
     utf8: Option<&str>,
@@ -165,6 +176,34 @@ pub mod serde_base64 {
         use serde::de::Error;
         <&str>::deserialize(deserializer).and_then(|string| {
             BASE64_RELAXED
+                .decode(string)
+                .map_err(|err| Error::custom(err.to_string()))
+        })
+    }
+}
+
+/// Serde for standard-alphabet base64 encoded with no padding.
+/// Used for the KT monitor `commitmentIndex` field.
+pub mod serde_base64_no_pad {
+    use super::BASE64_STANDARD_NO_PAD;
+    use base64::prelude::*;
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<T, S>(bytes: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: AsRef<[u8]>,
+        S: Serializer,
+    {
+        serializer.serialize_str(&BASE64_STANDARD_NO_PAD.encode(bytes.as_ref()))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+        <&str>::deserialize(deserializer).and_then(|string| {
+            BASE64_STANDARD_NO_PAD
                 .decode(string)
                 .map_err(|err| Error::custom(err.to_string()))
         })

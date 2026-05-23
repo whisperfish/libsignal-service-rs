@@ -150,6 +150,7 @@ mod tests {
             ptrs: HashMap::new(),
             owned: false,
             search_key: vec![1, 2, 3],
+            max_observed_version: 0,
         };
         store.set_monitoring_data(key, data.clone()).await;
 
@@ -178,6 +179,7 @@ mod tests {
                     ptrs: HashMap::new(),
                     owned: false,
                     search_key: vec![],
+                    max_observed_version: 0,
                 },
             )
             .await;

@@ -17,7 +17,7 @@ pub use websocket::{KeyTransparencyWebSocketError, ValueMonitor};
 pub use libsignal_keytrans::{MonitoringData, TreeHead, TreeRoot};
 
 use crate::utils::TryIntoE164;
-use crate::websocket::SignalWebSocket;
+use crate::websocket::{SignalWebSocket, Unidentified};
 use libsignal_core::{Aci, E164};
 use libsignal_keytrans::PublicConfig;
 use libsignal_protocol::PublicKey;
@@ -55,9 +55,12 @@ pub struct ChatSearchParams<P = E164> {
 // Public Config Constructors
 // ---------------------------------------------------------------------------
 
-/// Returns a PublicConfig for the production Key Transparency deployment.
+/// Returns a `PublicConfig` for the production Key Transparency deployment.
 ///
-/// Uses hardcoded keys from libsignal-net v0.91.0.
+/// Mirrors the key material in `libsignal_net::env::PROD.keytrans_config`
+/// (rust/net/src/env.rs, consts `KEYTRANS_*_PROD`). Hardcoded rather than sourced
+/// from `libsignal-net` so the `key-transparency` feature does not pull in the
+/// `cdsi` transport; re-check these on libsignal bumps.
 pub fn production_public_config() -> PublicConfig {
     use libsignal_keytrans::DeploymentMode;
     use libsignal_keytrans::VerifyingKey;
@@ -114,9 +117,10 @@ pub fn production_public_config() -> PublicConfig {
     }
 }
 
-/// Returns a PublicConfig for the staging Key Transparency deployment.
+/// Returns a `PublicConfig` for the staging Key Transparency deployment.
 ///
-/// Uses hardcoded keys from libsignal-net v0.91.0.
+/// Mirrors `libsignal_net::env::STAGING.keytrans_config`; see
+/// [`production_public_config`] for why these are hardcoded.
 pub fn staging_public_config() -> PublicConfig {
     use libsignal_keytrans::DeploymentMode;
     use libsignal_keytrans::VerifyingKey;
@@ -261,7 +265,7 @@ pub struct KeyTransparencyClient<'a, S: KeyTransparencyStore> {
     /// Persistent KT state.
     store: &'a S,
     /// WebSocket connection for KT server communication.
-    socket: &'a mut SignalWebSocket<crate::websocket::Identified>,
+    socket: &'a mut SignalWebSocket<Unidentified>,
 }
 
 impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
@@ -269,7 +273,7 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
     pub fn new(
         config: PublicConfig,
         store: &'a S,
-        socket: &'a mut SignalWebSocket<crate::websocket::Identified>,
+        socket: &'a mut SignalWebSocket<Unidentified>,
     ) -> Self {
         let inner = libsignal_keytrans::KeyTransparency { config };
         Self {

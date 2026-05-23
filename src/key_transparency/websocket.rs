@@ -25,7 +25,7 @@ use crate::push_service::ServiceError;
 use crate::utils::{
     serde_base64, serde_optional_base64, serde_optional_base64url, TryIntoE164,
 };
-use crate::websocket::SignalWebSocket;
+use crate::websocket::{SignalWebSocket, Unidentified};
 
 use super::KeyTransparencyStore;
 
@@ -171,7 +171,7 @@ pub(crate) struct RawChatDistinguishedResponse {
 struct RawChatValueMonitorRequest {
     pub value: String,
     pub entry_position: u64,
-    #[serde(with = "serde_base64")]
+    #[serde(with = "crate::utils::serde_base64_no_pad")]
     pub commitment_index: Vec<u8>,
 }
 
@@ -261,7 +261,7 @@ pub(crate) enum WebSocketChatEvent {
 // ---------------------------------------------------------------------------
 // SignalWebSocket helper methods
 
-impl SignalWebSocket<crate::websocket::Identified> {
+impl SignalWebSocket<Unidentified> {
     /// Sends a KT search request.
     ///
     /// Corresponds to `POST /v1/key-transparency/search` in Signal-Server:
@@ -402,12 +402,16 @@ impl SignalWebSocket<crate::websocket::Identified> {
             )
         })?;
 
+        let consistency = request.consistency.as_ref();
+
         let body = RawChatMonitorRequest {
             aci,
             e164,
             username_hash,
-            last_non_distinguished_tree_head_size: None,
-            last_distinguished_tree_head_size: None,
+            last_non_distinguished_tree_head_size: consistency
+                .and_then(|c| c.last),
+            last_distinguished_tree_head_size: consistency
+                .and_then(|c| c.distinguished),
         };
 
         let raw: RawChatMonitorResponse = self

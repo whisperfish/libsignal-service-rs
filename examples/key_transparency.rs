@@ -5,7 +5,7 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use libsignal_core::E164;
-use libsignal_service::configuration::{ServiceCredentials, SignalServers};
+use libsignal_service::configuration::SignalServers;
 use libsignal_service::key_transparency::{
     production_public_config, staging_public_config, ChatSearchParams,
     InMemoryKeyTransparencyStore,
@@ -14,7 +14,6 @@ use libsignal_service::protocol::PublicKey;
 use libsignal_service::push_service::PushService;
 use libsignal_service::websocket;
 use serde_json::json;
-use std::str::FromStr;
 use uuid::Uuid;
 use zkgroup::profiles::ProfileKey;
 
@@ -61,17 +60,6 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
 
-    // Create credentials with stubbed phone number
-    let phonenumber: E164 = E164::from_str("+10000000000")?;
-
-    let credentials = ServiceCredentials {
-        phonenumber,
-        aci: Some(args.aci),
-        password: Some(args.password.clone()),
-        device_id: None,
-        pni: None,
-    };
-
     // Create PushService and authenticated socket
     let servers = if args.staging {
         SignalServers::Staging
@@ -79,17 +67,16 @@ async fn main() -> Result<()> {
         SignalServers::Production
     };
 
-    let mut push_service =
-        PushService::new(servers, Some(credentials.clone()), "kt-example/1.0");
+    let mut push_service = PushService::new(servers, None, "kt-example/1.0");
     let mut socket = push_service
-        .ws::<websocket::Identified>(
+        .ws::<websocket::Unidentified>(
             "/v1/websocket/",
             "/v1/keepalive",
             &[],
-            Some(credentials),
+            None,
         )
         .await
-        .context("Failed to create authenticated WebSocket")?;
+        .context("Failed to create WebSocket")?;
 
     // Create KT store and client
     let store = InMemoryKeyTransparencyStore::new();
