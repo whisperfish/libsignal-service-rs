@@ -48,11 +48,11 @@ impl Contact {
         avatar_data: Option<Bytes>,
     ) -> Result<Self, ParseContactError> {
         Ok(Self {
-            uuid: contact_details
-                .aci
-                .as_ref()
-                .ok_or(ParseContactError::MissingUuid)?
-                .parse()?,
+            uuid: crate::utils::parse_uuid_with_fallback(
+                contact_details.aci_binary.as_deref(),
+                contact_details.aci.as_deref(),
+            )
+            .ok_or(ParseContactError::MissingUuid)?,
             phone_number: contact_details.number.as_ref().and_then(|n| {
                 n.parse::<E164>()
                     .inspect_err(|e| {
