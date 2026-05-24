@@ -182,14 +182,24 @@ impl SignalWebSocketProcess {
                     } else if let Some(_x) =
                         self.outgoing_keep_alive_set.take(&id)
                     {
-                        let status_code = response.status();
-                        if status_code != 200 {
+                        let status = reqwest::StatusCode::from_u16(
+                            response.status() as _,
+                        )
+                        .map_err(|e| {
+                            ServiceError::IO(std::io::Error::other(format!(
+                                "invalid http status code {} - {e}",
+                                response.status()
+                            )))
+                        })?;
+                        if !status.is_success() {
                             tracing::warn!(
-                                status_code,
-                                "response code for keep-alive != 200"
+                                %status,
+                                "response code for keep-alive not successful"
                             );
                             return Err(ServiceError::UnhandledResponseCode {
-                                http_code: response.status() as u16,
+                                status,
+                                body: String::from_utf8_lossy(response.body())
+                                    .into_owned(),
                             });
                         }
                     } else {
