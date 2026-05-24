@@ -3,6 +3,7 @@ use libsignal_core::curve::CurveError;
 use libsignal_protocol::{
     FingerprintError, ServiceIdKind, SignalProtocolError,
 };
+use reqwest::StatusCode;
 use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
 use crate::{
@@ -49,8 +50,9 @@ pub enum ServiceError {
     Unauthorized,
     #[error("Registration lock is set: {0:?}")]
     Locked(RegistrationLockFailure),
-    #[error("Unexpected response: HTTP {http_code}")]
-    UnhandledResponseCode { http_code: u16 },
+
+    #[error("Unexpected response: HTTP {status}: {body}")]
+    UnhandledResponseCode { status: StatusCode, body: String },
 
     #[error("Websocket error: {0}")]
     WsError(Box<reqwest_websocket::Error>),

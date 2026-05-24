@@ -4,6 +4,20 @@ use crate::proto::WebSocketResponseMessage;
 
 use super::ServiceError;
 
+async fn json_or_unhandled<R, T>(response: R) -> Result<T, ServiceError>
+where
+    T: for<'de> serde::Deserialize<'de>,
+    R: SignalServiceResponse,
+    ServiceError: From<<R as SignalServiceResponse>::Error>,
+{
+    let status = response.status_code();
+    let body = response.text().await?;
+    serde_json::from_str(&body).map_err(move |error| {
+        tracing::error!(%error, "JSON decoding in error handling failed; returning UnhandledResponseCode");
+        ServiceError::UnhandledResponseCode { status, body }
+    })
+}
+
 pub(crate) async fn service_error_for_status<R>(
     response: R,
 ) -> Result<R, ServiceError>
@@ -42,46 +56,19 @@ where
             })
         },
         StatusCode::CONFLICT => {
-            let mismatched_devices =
-                response.json().await.map_err(|error| {
-                    tracing::error!(
-                        %error,
-                        "failed to decode HTTP 409 status"
-                    );
-                    ServiceError::UnhandledResponseCode {
-                        http_code: StatusCode::CONFLICT.as_u16(),
-                    }
-                })?;
+            let mismatched_devices = json_or_unhandled(response).await?;
             Err(ServiceError::MismatchedDevicesException(mismatched_devices))
         },
         StatusCode::GONE => {
-            let stale_devices = response.json().await.map_err(|error| {
-                tracing::error!(%error, "failed to decode HTTP 410 status");
-                ServiceError::UnhandledResponseCode {
-                    http_code: StatusCode::GONE.as_u16(),
-                }
-            })?;
+            let stale_devices = json_or_unhandled(response).await?;
             Err(ServiceError::StaleDevices(stale_devices))
         },
         StatusCode::LOCKED => {
-            let locked = response.json().await.map_err(|error| {
-                tracing::error!(%error, "failed to decode HTTP 423 status");
-                ServiceError::UnhandledResponseCode {
-                    http_code: StatusCode::LOCKED.as_u16(),
-                }
-            })?;
+            let locked = json_or_unhandled(response).await?;
             Err(ServiceError::Locked(locked))
         },
         StatusCode::PRECONDITION_REQUIRED => {
-            let proof_required = response.json().await.map_err(|error| {
-                tracing::error!(
-                    %error,
-                    "failed to decode HTTP 428 status"
-                );
-                ServiceError::UnhandledResponseCode {
-                    http_code: StatusCode::PRECONDITION_REQUIRED.as_u16(),
-                }
-            })?;
+            let proof_required = json_or_unhandled(response).await?;
             Err(ServiceError::ProofRequiredError(proof_required))
         },
         StatusCode::LENGTH_REQUIRED => {
@@ -91,15 +78,7 @@ where
                 max: u32,
             }
             let error: LinkedDeviceNumberError =
-                response.json().await.map_err(|error| {
-                    tracing::warn!(
-                        %error,
-                        "failed to decode linked device HTTP 411 status"
-                    );
-                    ServiceError::UnhandledResponseCode {
-                        http_code: StatusCode::LENGTH_REQUIRED.as_u16(),
-                    }
-                })?;
+                json_or_unhandled(response).await?;
             Err(ServiceError::DeviceLimitReached {
                 current: error.current,
                 max: error.max,
@@ -107,11 +86,9 @@ where
         },
         // XXX: fill in rest from PushServiceSocket
         code => {
-            let response_text = response.text().await?;
-            tracing::trace!(status_code =% code, body = response_text, "unhandled HTTP response");
-            Err(ServiceError::UnhandledResponseCode {
-                http_code: code.as_u16(),
-            })
+            let body = response.text().await?;
+            tracing::debug!(status_code =% code, %body, "unhandled HTTP response");
+            Err(ServiceError::UnhandledResponseCode { status: code, body })
         },
     }
 }

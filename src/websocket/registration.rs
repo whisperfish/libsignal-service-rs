@@ -7,7 +7,10 @@ use uuid::Uuid;
 
 use super::ServiceError;
 use crate::{
-    pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity}, provisioning::ProvisioningError, utils::serde_base64, websocket::{self, SignalWebSocket, account::AccountAttributes}
+    pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
+    provisioning::ProvisioningError,
+    utils::serde_base64,
+    websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
 
 /// This type is used in registration lock handling.
