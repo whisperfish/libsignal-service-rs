@@ -516,9 +516,9 @@ impl AccountManager {
             .await?;
 
         let (
-            _aci_pre_keys,
+            aci_pre_keys,
             aci_signed_pre_key,
-            _aci_kyber_pre_keys,
+            aci_kyber_pre_keys,
             aci_last_resort_kyber_prekey,
         ) = crate::pre_keys::generate_pre_keys(
             aci_protocol_store,
@@ -531,10 +531,10 @@ impl AccountManager {
         .await?;
 
         // Persist the generated keys
-        for key in &_aci_pre_keys {
+        for key in &aci_pre_keys {
             aci_protocol_store.save_pre_key(key.id()?, key).await?;
         }
-        for key in &_aci_kyber_pre_keys {
+        for key in &aci_kyber_pre_keys {
             aci_protocol_store
                 .save_kyber_pre_key(key.id()?, key)
                 .await?;

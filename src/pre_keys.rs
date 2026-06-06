@@ -192,16 +192,10 @@ pub struct PreKeyState {
 }
 
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
-pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
+pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 
-/// Generate pre-keys without persisting them to storage.
-///
-/// This function performs in-memory generation of pre-keys but does not persist them.
-/// It may still call `next_pre_key_id()`, `next_signed_pre_key_id()`, and `next_pq_pre_key_id()`
-/// to obtain offsets for IDs.
-///
-/// Returns the generated records for the caller to persist as needed.
+/// Generate in-memory pre-keys for the caller to persist as needed.
 pub(crate) async fn generate_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     protocol_store: &mut P,
     csprng: &mut R,
@@ -313,22 +307,22 @@ pub(crate) async fn store_pre_key_bundle<P: PreKeysStore>(
 ) -> Result<(), SignalProtocolError> {
     // Persist EC pre-keys (replace all)
     protocol_store
-        .replace_one_time_ec_pre_keys(&pre_keys)
+        .replace_one_time_ec_pre_keys(pre_keys)
         .await?;
 
     // Persist Kyber pre-keys
     protocol_store
-        .replace_one_time_kyber_pre_keys(&pq_pre_keys)
+        .replace_one_time_kyber_pre_keys(pq_pre_keys)
         .await?;
 
     // Persist signed pre-key
     let signed_pre_key_id = signed_pre_key.id()?;
     protocol_store
-        .save_signed_pre_key(signed_pre_key_id, &signed_pre_key)
+        .save_signed_pre_key(signed_pre_key_id, signed_pre_key)
         .await?;
 
     // Persist last resort Kyber key if present
-    if let Some(ref k) = pq_last_resort_key {
+    if let Some(k) = pq_last_resort_key {
         let id = k.id()?;
         protocol_store
             .store_last_resort_kyber_pre_key(id, k)
