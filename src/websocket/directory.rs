@@ -36,15 +36,6 @@ impl SignalWebSocket<Identified> {
     /// # Returns
     /// * `Ok(CdsiAuth)` - Authentication credentials
     /// * `Err(ServiceError)` - Network or protocol error
-    ///
-    /// # Example
-    /// ```no_run
-    /// # use libsignal_service::websocket::{SignalWebSocket, Identified};
-    /// # async fn example(mut ws: SignalWebSocket<Identified>) {
-    /// let auth = ws.get_cdsi_auth().await.unwrap();
-    /// // Use auth.username and auth.password for CDSI connection
-    /// # }
-    /// ```
     async fn get_cdsi_auth(&mut self) -> Result<CdsiAuth, ServiceError> {
         let response = self
             .http_request(Method::GET, "/v2/directory/auth")?
