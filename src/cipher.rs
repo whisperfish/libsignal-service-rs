@@ -11,8 +11,8 @@ use libsignal_protocol::{
     PlaintextContent, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
     ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
-    SignalMessage, SignalProtocolError, SignedPreKeyStore, Timestamp,
-    UnidentifiedSenderMessageContent,
+    SessionUsabilityRequirements, SignalMessage, SignalProtocolError,
+    SignedPreKeyStore, Timestamp, UnidentifiedSenderMessageContent,
 };
 use prost::Message;
 use rand::{rng, CryptoRng, Rng};
@@ -486,6 +486,16 @@ where
             .ok_or_else(|| {
             SignalProtocolError::SessionNotFound(address.clone())
         })?;
+
+        let record_usable = session_record
+            .has_usable_sender_chain(
+                SystemTime::now(),
+                SessionUsabilityRequirements::NotStale,
+            )
+            .unwrap_or(false);
+        if !record_usable {
+            Err(SignalProtocolError::SessionNotFound(address.clone()))?;
+        }
 
         let padded_content =
             add_padding(session_record.session_version()?, content)?;
