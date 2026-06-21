@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AnyProfileKeyCredentialPresentation"],"struct":["ExpiringProfileKeyCredentialPresentation","ProfileKeyCredentialPresentationV1","ProfileKeyCredentialPresentationV2"]};
+window.SIDEBAR_ITEMS = {"enum":["AnyProfileKeyCredentialPresentation"],"struct":["ExpiringProfileKeyCredentialPresentation","ProfileKeyCredentialPresentationV1","ProfileKeyCredentialPresentationV2"],"type":["ExpiringProfileKeyCredentialPresentationV2"]};
