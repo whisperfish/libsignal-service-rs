@@ -1060,6 +1060,187 @@ where
         Ok(message)
     }
 
+    /// Send a PlaintextContent envelope (type = PLAINTEXT_CONTENT) to every
+    /// device on the recipient account. Used to deliver a
+    /// DecryptionErrorMessage (retry receipt) after failing to decrypt a
+    /// message: the device whose session is stale archives it and re-handshakes
+    /// via a fresh prekey; healthy devices ignore the DEM (mismatched ratchet
+    /// key). The payload bytes should be a serialized libsignal
+    /// `PlaintextContent` (DEM wrapper).
+    ///
+    /// Sends to *all* devices, not just the originator, because Signal-Server
+    /// validates the device set in `OutgoingPushMessages` and rejects partial
+    /// sends with `MismatchedDevices`. The `originating_device` argument is a
+    /// hint used to ensure that device is included even if no session exists.
+    #[tracing::instrument(level = "trace", skip(self, plaintext_content_bytes))]
+    pub async fn send_plaintext_content(
+        &mut self,
+        recipient: &ServiceId,
+        originating_device: DeviceId,
+        plaintext_content_bytes: &[u8],
+        timestamp: u64,
+    ) -> Result<(), MessageSenderError> {
+        use base64::prelude::*;
+        use crate::proto::envelope::Type;
+        use crate::utils::BASE64_RELAXED;
+
+        let mut rng = rng();
+
+        // Initial device set: anything we already have a session for, plus the
+        // primary, plus the device that originated the failed message.
+        let mut devices: HashSet<DeviceId> = self
+            .protocol_store
+            .get_sub_device_sessions(recipient)
+            .await?
+            .into_iter()
+            .collect();
+        devices.insert(*DEFAULT_DEVICE_ID);
+        devices.insert(originating_device);
+
+        // For any device without a session, fetch a prekey bundle for the
+        // whole account in one shot (`/v2/keys/<id>/*` returns all devices).
+        let any_missing = {
+            let mut any = false;
+            for d in &devices {
+                let addr = recipient.to_protocol_address(*d);
+                if self.protocol_store.load_session(&addr).await?.is_none() {
+                    any = true;
+                    break;
+                }
+            }
+            any
+        };
+        if any_missing {
+            let pre_keys = match self
+                .identified_ws
+                .get_pre_keys(recipient, *DEFAULT_DEVICE_ID)
+                .await
+            {
+                Ok(ok) => ok,
+                Err(ServiceError::NotFoundError) => {
+                    return Err(MessageSenderError::NotFound {
+                        service_id: *recipient,
+                    });
+                },
+                Err(e) => return Err(e.into()),
+            };
+            for bundle in pre_keys {
+                let dev = bundle.device_id()?;
+                devices.insert(dev);
+                let addr = recipient.to_protocol_address(dev);
+                if self.protocol_store.load_session(&addr).await?.is_none() {
+                    process_prekey_bundle(
+                        &addr,
+                        &mut self.protocol_store.clone(),
+                        &mut self.protocol_store,
+                        &bundle,
+                        SystemTime::now(),
+                        &mut rng,
+                    )
+                    .await?;
+                }
+            }
+        }
+
+        for attempt in 0..3u8 {
+            // Build one PlaintextContent message per device.
+            let mut msgs = Vec::with_capacity(devices.len());
+            for d in &devices {
+                let addr = recipient.to_protocol_address(*d);
+                let session = match self
+                    .protocol_store
+                    .load_session(&addr)
+                    .await?
+                {
+                    Some(s) => s,
+                    None => continue,
+                };
+                let reg_id = session.remote_registration_id()?;
+                msgs.push(OutgoingPushMessage {
+                    r#type: Type::PlaintextContent as u32,
+                    destination_device_id: *d,
+                    destination_registration_id: reg_id,
+                    content: BASE64_RELAXED
+                        .encode(plaintext_content_bytes),
+                });
+            }
+            if msgs.is_empty() {
+                return Err(MessageSenderError::NotFound {
+                    service_id: *recipient,
+                });
+            }
+
+            let out = OutgoingPushMessages {
+                destination: *recipient,
+                timestamp,
+                messages: msgs,
+                online: false,
+            };
+
+            match self.identified_ws.send_messages(out).await {
+                Ok(_) => return Ok(()),
+                Err(ServiceError::MismatchedDevicesException(m)) => {
+                    tracing::debug!(
+                        ?m,
+                        attempt,
+                        "DEM send returned MismatchedDevices; reconciling"
+                    );
+                    for extra in &m.extra_devices {
+                        let addr = recipient.to_protocol_address(*extra);
+                        self.protocol_store
+                            .delete_service_addr_device_session(&addr)
+                            .await?;
+                        devices.remove(extra);
+                    }
+                    for missing in &m.missing_devices {
+                        let addr = recipient.to_protocol_address(*missing);
+                        let bundle = self
+                            .identified_ws
+                            .get_pre_key(recipient, *missing)
+                            .await?;
+                        process_prekey_bundle(
+                            &addr,
+                            &mut self.protocol_store.clone(),
+                            &mut self.protocol_store,
+                            &bundle,
+                            SystemTime::now(),
+                            &mut rng,
+                        )
+                        .await
+                        .map_err(|_| {
+                            MessageSenderError::UntrustedIdentity {
+                                address: *recipient,
+                            }
+                        })?;
+                        devices.insert(*missing);
+                    }
+                    if attempt == 2 {
+                        return Err(MessageSenderError::ServiceError(
+                            ServiceError::MismatchedDevicesException(m),
+                        ));
+                    }
+                },
+                Err(ServiceError::StaleDevices(s)) => {
+                    tracing::debug!(?s, attempt, "DEM send returned StaleDevices; dropping");
+                    for stale in &s.stale_devices {
+                        let addr = recipient.to_protocol_address(*stale);
+                        self.protocol_store
+                            .delete_service_addr_device_session(&addr)
+                            .await?;
+                        devices.remove(stale);
+                    }
+                    if attempt == 2 {
+                        return Err(MessageSenderError::ServiceError(
+                            ServiceError::StaleDevices(s),
+                        ));
+                    }
+                },
+                Err(e) => return Err(e.into()),
+            }
+        }
+        unreachable!("DEM send loop must return inside the match")
+    }
+
     fn create_multi_device_sent_transcript_content<'a>(
         &mut self,
         recipient: Option<&ServiceId>,
