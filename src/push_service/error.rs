@@ -69,6 +69,9 @@ pub enum ServiceError {
     #[error("MAC error")]
     MacError,
 
+    #[error("Profile cipher error: {0}")]
+    ProfileCipherError(#[from] crate::profile_cipher::ProfileCipherError),
+
     #[error("Protocol error: {0}")]
     SignalProtocolError(#[from] SignalProtocolError),
 

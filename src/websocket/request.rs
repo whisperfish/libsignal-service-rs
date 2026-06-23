@@ -77,6 +77,17 @@ impl<C: WebSocketType> SignalWebSocket<C> {
 }
 
 impl<C: WebSocketType> WebSocketRequestBuilder<'_, C> {
+    pub(crate) async fn header(
+        self,
+        key: &str,
+        val: impl AsRef<str>,
+    ) -> Result<Self, ServiceError> {
+        Ok(Self {
+            ws: self.ws,
+            message_builder: self.message_builder.header(key, val),
+        })
+    }
+
     pub(crate) async fn send_json<B: Serialize>(
         self,
         value: B,

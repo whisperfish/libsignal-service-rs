@@ -7,6 +7,7 @@ mod account_manager;
 pub mod attachment_cipher;
 pub mod cipher;
 pub mod profile_cipher;
+mod profile_manager;
 pub mod sticker_cipher;
 
 pub mod configuration;
@@ -34,9 +35,9 @@ pub mod utils;
 pub mod websocket;
 
 pub use crate::account_manager::{
-    decrypt_device_name, encrypt_device_name, AccountManager, Profile,
-    ProfileManagerError,
+    decrypt_device_name, encrypt_device_name, AccountManager,
 };
+pub use crate::profile_manager::{Profile, ProfileManager};
 pub use crate::service_address::*;
 pub use crate::storage_service::{StorageService, StorageServiceError};
 

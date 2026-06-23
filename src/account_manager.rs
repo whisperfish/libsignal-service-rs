@@ -14,7 +14,7 @@ use libsignal_protocol::{
     PublicKey, SenderKeyStore, ServiceIdKind, SignedPreKeyRecord, Timestamp,
 };
 use prost::Message;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
@@ -29,9 +29,7 @@ use crate::prelude::{MessageSender, MessageSenderError};
 use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::generate_registration_id;
-use crate::push_service::{
-    AvatarWrite, HttpAuthOverride, ReqwestExt, DEFAULT_DEVICE_ID,
-};
+use crate::push_service::{HttpAuthOverride, ReqwestExt, DEFAULT_DEVICE_ID};
 use crate::sender::OutgoingPushMessage;
 use crate::service_address::ServiceIdExt;
 use crate::session_store::SessionStoreExt;
@@ -47,8 +45,6 @@ use crate::websocket::{self, SignalWebSocket};
 use crate::{
     configuration::{Endpoint, ServiceCredentials},
     pre_keys::PreKeyState,
-    profile_cipher::{ProfileCipher, ProfileCipherError},
-    profile_name::ProfileName,
     proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
     provisioning::{ProvisioningCipher, ProvisioningError},
     push_service::{PushService, ServiceError},
@@ -62,23 +58,6 @@ pub struct AccountManager {
     service: PushService,
     websocket: SignalWebSocket<websocket::Identified>,
     profile_key: Option<ProfileKey>,
-}
-
-#[derive(thiserror::Error, Debug)]
-pub enum ProfileManagerError {
-    #[error(transparent)]
-    ServiceError(#[from] ServiceError),
-    #[error(transparent)]
-    ProfileCipherError(#[from] ProfileCipherError),
-}
-
-#[derive(Debug, Default, Serialize, Deserialize, Clone)]
-pub struct Profile {
-    pub name: Option<ProfileName<String>>,
-    pub about: Option<String>,
-    pub about_emoji: Option<String>,
-    pub avatar: Option<String>,
-    pub unrestricted_unidentified_access: bool,
 }
 
 impl AccountManager {
@@ -549,114 +528,6 @@ impl AccountManager {
             .await?;
 
         Ok(result)
-    }
-
-    /// Upload a profile
-    ///
-    /// Panics if no `profile_key` was set.
-    ///
-    /// Convenience method for
-    /// ```ignore
-    /// manager.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _>(uuid, name, about, about_emoji, _)
-    /// ```
-    /// in which the `retain_avatar` parameter sets whether to remove (`false`) or retain (`true`) the
-    /// currently set avatar.
-    pub async fn upload_versioned_profile_without_avatar<
-        R: Rng + CryptoRng,
-        S: AsRef<str>,
-    >(
-        &mut self,
-        aci: libsignal_protocol::Aci,
-        name: ProfileName<S>,
-        about: Option<String>,
-        about_emoji: Option<String>,
-        retain_avatar: bool,
-        csprng: &mut R,
-    ) -> Result<(), ProfileManagerError> {
-        self.upload_versioned_profile::<std::io::Cursor<Vec<u8>>, _, _>(
-            aci,
-            name,
-            about,
-            about_emoji,
-            if retain_avatar {
-                AvatarWrite::RetainAvatar
-            } else {
-                AvatarWrite::NoAvatar
-            },
-            csprng,
-        )
-        .await?;
-        Ok(())
-    }
-
-    pub async fn retrieve_profile(
-        &mut self,
-        address: Aci,
-    ) -> Result<Profile, ProfileManagerError> {
-        let profile_key =
-            self.profile_key.expect("set profile key in AccountManager");
-
-        let encrypted_profile = self
-            .websocket
-            .retrieve_profile_by_id(address, Some(profile_key))
-            .await?;
-
-        let profile_cipher = ProfileCipher::new(profile_key);
-        Ok(profile_cipher.decrypt(encrypted_profile)?)
-    }
-
-    /// Upload a profile
-    ///
-    /// Panics if no `profile_key` was set.
-    ///
-    /// Returns the avatar url path.
-    pub async fn upload_versioned_profile<
-        's,
-        C: std::io::Read + Send + 's,
-        R: Rng + CryptoRng,
-        S: AsRef<str>,
-    >(
-        &mut self,
-        aci: libsignal_protocol::Aci,
-        name: ProfileName<S>,
-        about: Option<String>,
-        about_emoji: Option<String>,
-        avatar: AvatarWrite<&'s mut C>,
-        csprng: &mut R,
-    ) -> Result<Option<String>, ProfileManagerError> {
-        let profile_key =
-            self.profile_key.expect("set profile key in AccountManager");
-        let profile_cipher = ProfileCipher::new(profile_key);
-
-        // Profile encryption
-        let name = profile_cipher.encrypt_name(name.as_ref(), csprng)?;
-        let about = about.unwrap_or_default();
-        let about = profile_cipher.encrypt_about(about, csprng)?;
-        let about_emoji = about_emoji.unwrap_or_default();
-        let about_emoji = profile_cipher.encrypt_emoji(about_emoji, csprng)?;
-
-        // If avatar -> upload
-        if matches!(avatar, AvatarWrite::NewAvatar(_)) {
-            // FIXME ProfileCipherOutputStream.java
-            // It's just AES GCM, but a bit of work to decently implement it with a stream.
-            unimplemented!("Setting avatar requires ProfileCipherStream")
-        }
-
-        let profile_key = profile_cipher.into_inner();
-        let commitment = profile_key.get_commitment(aci);
-        let profile_key_version = profile_key.get_profile_key_version(aci);
-
-        Ok(self
-            .websocket
-            .write_profile::<C, S>(
-                &profile_key_version,
-                &name,
-                &about,
-                &about_emoji,
-                &commitment,
-                avatar,
-            )
-            .await?)
     }
 
     /// Set profile attributes

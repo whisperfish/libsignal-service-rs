@@ -1,13 +1,19 @@
+use base64::Engine;
 use libsignal_protocol::Aci;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
+use zkgroup::profiles::{
+    ProfileKeyCommitment, ProfileKeyCredentialRequest, ProfileKeyVersion,
+};
 
 use crate::{
     content::ServiceError,
     push_service::AvatarWrite,
-    utils::{serde_base64, serde_optional_base64},
-    websocket::{self, account::DeviceCapabilities, SignalWebSocket},
+    unidentified_access::UnidentifiedAccess,
+    utils::{serde_base64, serde_optional_base64, BASE64_RELAXED},
+    websocket::{
+        self, account::DeviceCapabilities, SignalWebSocket, WebSocketType,
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -32,6 +38,9 @@ pub struct SignalServiceProfile {
     pub unrestricted_unidentified_access: bool,
 
     pub capabilities: DeviceCapabilities,
+
+    #[serde(default, with = "serde_optional_base64")]
+    pub credential: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -51,29 +60,84 @@ struct SignalServiceProfileWrite<'s> {
     commitment: &'s [u8],
 }
 
+impl<T: WebSocketType> SignalWebSocket<T> {
+    fn retrieve_versioned_profile_and_credential_path(
+        address: Aci,
+        profile_key: Option<zkgroup::profiles::ProfileKey>,
+        credential_request: Option<
+            impl std::borrow::Borrow<ProfileKeyCredentialRequest>,
+        >,
+    ) -> Result<String, ServiceError> {
+        let path = if let Some(key) = profile_key {
+            let version = key.get_profile_key_version(address);
+            if let Some(req) = credential_request {
+                let req = zkgroup::serialize(req.borrow());
+                format!(
+                    "/v1/profile/{}/{}/{}?credentialType=expiringProfileKey",
+                    address.service_id_string(),
+                    version.as_ref(),
+                    hex::encode(req),
+                )
+            } else {
+                format!(
+                    "/v1/profile/{}/{}",
+                    address.service_id_string(),
+                    version.as_ref()
+                )
+            }
+        } else {
+            format!("/v1/profile/{}", address.service_id_string())
+        };
+        Ok(path)
+    }
+}
+
 impl SignalWebSocket<websocket::Identified> {
+    /// Retrieve a profile by service ID using authenticated access.
+    ///
+    /// Prefer the unauthenticated call when possible. See
+    /// [SignalWebSocket<websocket::Unidentified>::retrieve_profile_by_id] for documentation.
     pub async fn retrieve_profile_by_id(
         &mut self,
         address: Aci,
         profile_key: Option<zkgroup::profiles::ProfileKey>,
     ) -> Result<SignalServiceProfile, ServiceError> {
-        let path = if let Some(key) = profile_key {
-            let version =
-                bincode::serialize(&key.get_profile_key_version(address))?;
-            let version = std::str::from_utf8(&version)
-                .expect("hex encoded profile key version");
-            format!("/v1/profile/{}/{}", address.service_id_string(), version)
-        } else {
-            format!("/v1/profile/{}", address.service_id_string())
-        };
+        // Delegate to the more general method with no credential request
+        self.retrieve_versioned_profile_and_credential(
+            address,
+            profile_key,
+            None::<ProfileKeyCredentialRequest>,
+        )
+        .await
+    }
+
+    /// Retrieve a versioned profile with optional credential support using authenticated access.
+    ///
+    /// Prefer the unauthenticated call when possible. See
+    /// [SignalWebSocket<websocket::Unidentified>::retrieve_versioned_profile_and_credential] for documentation.
+    pub async fn retrieve_versioned_profile_and_credential(
+        &mut self,
+        address: Aci,
+        profile_key: Option<zkgroup::profiles::ProfileKey>,
+        credential_request: Option<
+            impl std::borrow::Borrow<ProfileKeyCredentialRequest>,
+        >,
+    ) -> Result<SignalServiceProfile, ServiceError> {
         // TODO: set locale to en_US
-        self.http_request(Method::GET, path)?
-            .send()
-            .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await
+        self.http_request(
+            Method::GET,
+            Self::retrieve_versioned_profile_and_credential_path(
+                address,
+                profile_key,
+                credential_request,
+            )?,
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
     }
 
     /// Writes a profile and returns the avatar URL, if one was provided.
@@ -111,34 +175,40 @@ impl SignalWebSocket<websocket::Identified> {
             commitment: &commitment,
         };
 
-        // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
-        let upload_url: Result<String, _> = self
+        let response = self
             .http_request(Method::PUT, "/v1/profile")?
             .send_json(&command)
             .await?
             .service_error_for_status()
-            .await?
-            .json()
-            .await;
+            .await?;
 
-        match (upload_url, avatar) {
-            (_url, AvatarWrite::NewAvatar(_avatar)) => {
-                // FIXME
+        #[derive(Debug, Deserialize)]
+        #[allow(unused)]
+        struct ProfileAvatarUploadAttributes {
+            key: String,
+            credential: String,
+            acl: String,
+            algorithm: String,
+            date: String,
+            policy: String,
+            signature: String,
+        }
+
+        match avatar {
+            AvatarWrite::NewAvatar(_avatar) => {
+                // XXX this should  be a struct; cfr ProfileAvatarUploadAttributes
+                let _upload_attributes: Result<
+                    ProfileAvatarUploadAttributes,
+                    _,
+                > = response.json().await;
+                tracing::trace!("received upload attributes");
                 unreachable!("Uploading avatar unimplemented");
             },
-            // FIXME cleanup when #54883 is stable and MSRV:
-            // or-patterns syntax is experimental
-            // see issue #54883 <https://github.com/rust-lang/rust/issues/54883> for more information
-            (Err(_), AvatarWrite::RetainAvatar)
-            | (Err(_), AvatarWrite::NoAvatar) => {
+            AvatarWrite::RetainAvatar | AvatarWrite::NoAvatar => {
                 // OWS sends an empty string when there's no attachment
-                Ok(None)
-            },
-            (Ok(_resp), AvatarWrite::RetainAvatar)
-            | (Ok(_resp), AvatarWrite::NoAvatar) => {
-                tracing::warn!(
-                    "No avatar supplied but got avatar upload URL. Ignoring"
-                );
+                if !response.body().is_empty() {
+                    tracing::warn!(response_len=%response.body().len(), "expected empty response");
+                }
                 Ok(None)
             },
         }
@@ -146,6 +216,94 @@ impl SignalWebSocket<websocket::Identified> {
 }
 
 impl SignalWebSocket<websocket::Unidentified> {
+    /// Retrieve a profile by service ID using sealed sender access.
+    ///
+    /// This method fetches a profile using the unauthenticated websocket with sealed sender access.
+    /// If a profile key is provided, it will fetch the versioned profile.
+    /// Otherwise, it falls back to the unversioned profile.
+    ///
+    /// This is a convenience method that calls `retrieve_versioned_profile_and_credential`
+    /// with no credential request.
+    ///
+    /// # Arguments
+    ///
+    /// * `address` - The ACI of the user whose profile to retrieve
+    /// * `profile_key` - Optional profile key for fetching versioned profiles
+    /// * `access` - Sealed sender access credentials for unauthenticated access
+    ///
+    /// # Returns
+    ///
+    /// The retrieved profile or an error (401 indicates fallback to authenticated method)
+    ///
+    /// # See Also
+    ///
+    /// For the version with credential support, see `retrieve_versioned_profile_and_credential`
+    pub async fn retrieve_profile_by_id(
+        &mut self,
+        address: Aci,
+        profile_key: Option<zkgroup::profiles::ProfileKey>,
+        access: UnidentifiedAccess,
+    ) -> Result<SignalServiceProfile, ServiceError> {
+        // Delegate to the more general method with no credential request
+        self.retrieve_versioned_profile_and_credential(
+            address,
+            profile_key,
+            None::<ProfileKeyCredentialRequest>,
+            access,
+        )
+        .await
+    }
+
+    /// Retrieve a versioned profile with optional credential support using sealed sender access.
+    ///
+    /// This method fetches a profile using the unauthenticated websocket with sealed sender access.
+    /// It supports fetching versioned profiles with or without expiring profile key credentials.
+    ///
+    /// This is the primary method for profile retrieval when sealed sender access is available.
+    /// On 401 errors, callers should fall back to the authenticated version:
+    /// `SignalWebSocket<websocket::Identified>::retrieve_versioned_profile_and_credential`
+    ///
+    /// # Arguments
+    ///
+    /// * `address` - The ACI of the user whose profile to retrieve
+    /// * `profile_key` - Optional profile key for fetching versioned profiles
+    /// * `credential_request` - Optional credential request for expiring profile keys
+    /// * `access` - Sealed sender access credentials for unauthenticated access
+    ///
+    /// # Returns
+    ///
+    /// The retrieved profile or an error (401 indicates fallback to authenticated method)
+    pub async fn retrieve_versioned_profile_and_credential(
+        &mut self,
+        address: Aci,
+        profile_key: Option<zkgroup::profiles::ProfileKey>,
+        credential_request: Option<
+            impl std::borrow::Borrow<ProfileKeyCredentialRequest>,
+        >,
+        access: UnidentifiedAccess,
+    ) -> Result<SignalServiceProfile, ServiceError> {
+        // TODO: set locale to en_US
+        self.http_request(
+            Method::GET,
+            Self::retrieve_versioned_profile_and_credential_path(
+                address,
+                profile_key,
+                credential_request,
+            )?,
+        )?
+        .header(
+            "Unidentified-Access-Key",
+            BASE64_RELAXED.encode(&access.key),
+        )
+        .await?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+    }
+
     pub async fn retrieve_profile_avatar(
         &mut self,
         path: &str,
