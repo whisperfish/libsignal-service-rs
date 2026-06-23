@@ -91,9 +91,17 @@ struct SignalWebSocketInner {
     stream: Option<SignalRequestStream>,
 }
 
+/// Default for [`SignalWebSocket::with_max_outstanding_keepalives`]:
+/// close on the first unacked keepalive.
+pub const DEFAULT_MAX_OUTSTANDING_KEEPALIVES: usize = 1;
+
 struct SignalWebSocketProcess {
     /// Whether to enable keep-alive or not (and send a request to this path)
     keep_alive_path: String,
+
+    /// Close threshold for unacked keepalives; see
+    /// [`SignalWebSocket::with_max_outstanding_keepalives`].
+    max_outstanding_keepalives: usize,
 
     /// Receives requests from the application, which we forward to Signal.
     requests: mpsc::Receiver<(
@@ -229,7 +237,9 @@ impl SignalWebSocketProcess {
             futures::select! {
                 _ = ka_interval.tick().fuse() => {
                     use prost::Message;
-                    if !self.outgoing_keep_alive_set.is_empty() {
+                    // Close once unacked keepalives reach the configured
+                    // threshold; see SignalWebSocket::with_max_outstanding_keepalives.
+                    if self.outgoing_keep_alive_set.len() >= self.max_outstanding_keepalives {
                         tracing::warn!("Websocket will be closed due to failed keepalives.");
                         if let Err(e) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
                             tracing::debug!("Could not close WebSocket: {:?}", e);
@@ -352,10 +362,29 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         self.inner.lock().unwrap()
     }
 
+    /// Alias for [`Self::with_max_outstanding_keepalives`] with [`DEFAULT_MAX_OUTSTANDING_KEEPALIVES`].
     pub fn new(
         ws: WebSocket,
         keep_alive_path: String,
         unidentified_push_service: PushService,
+    ) -> (Self, impl Future<Output = ()>) {
+        Self::with_max_outstanding_keepalives(
+            ws,
+            keep_alive_path,
+            unidentified_push_service,
+            DEFAULT_MAX_OUTSTANDING_KEEPALIVES,
+        )
+    }
+
+    /// Construct `SignalWebSocket` with configurable KA threshold.
+    ///
+    /// A more lenient `max_outstanding_keepalives` can potentially
+    /// compensate for spotty or slow networks, or for slower processors.
+    pub fn with_max_outstanding_keepalives(
+        ws: WebSocket,
+        keep_alive_path: String,
+        unidentified_push_service: PushService,
+        max_outstanding_keepalives: usize,
     ) -> (Self, impl Future<Output = ()>) {
         // Create process
         let (incoming_request_sink, incoming_request_stream) =
@@ -364,6 +393,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
 
         let process = SignalWebSocketProcess {
             keep_alive_path,
+            max_outstanding_keepalives,
             requests: outgoing_requests,
             request_sink: incoming_request_sink,
             outgoing_requests: HashMap::default(),
