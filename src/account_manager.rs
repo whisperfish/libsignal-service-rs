@@ -145,6 +145,10 @@ impl AccountManager {
     /// signed pre-keys.
     ///
     /// Equivalent to Java's RefreshPreKeysJob
+    ///
+    /// **WARNING**: Callers must ensure the message queue is exhausted (no pending messages requiring pre-keys)
+    /// before calling this method. The replace operations are not atomic with message handling and
+    /// can cause a race condition where messages use a pre-key was removed during this operation.
     #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(skip(self, protocol_store))]
     pub async fn update_pre_key_bundle<P: PreKeysStore>(
@@ -176,6 +180,12 @@ impl AccountManager {
         };
         tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
 
+        tracing::info!(
+            "Server pre-key counts: EC={}, Kyber={}",
+            prekey_status.count,
+            prekey_status.pq_count
+        );
+
         let check_pre_keys = self
             .check_pre_keys(protocol_store, service_id_kind)
             .instrument(tracing::span!(
@@ -191,26 +201,21 @@ impl AccountManager {
             tracing::debug!("Last resort pre-keys are up to date.");
         }
 
-        // XXX We should honestly compare the pre-key count with the number of pre-keys we have
-        // locally. If we have more than the server, we should upload them.
-        // Currently the trait doesn't allow us to do that, so we just upload the batch size and
-        // pray.
-        if check_pre_keys
-            && (prekey_status.count >= PRE_KEY_MINIMUM
-                && prekey_status.pq_count >= PRE_KEY_MINIMUM)
+        // Early return if server has enough keys (hysteresis to avoid thrashing)
+        if prekey_status.count >= PRE_KEY_MINIMUM
+            && prekey_status.pq_count >= PRE_KEY_MINIMUM
+            && protocol_store.signed_pre_keys_count().await? > 0
+            && protocol_store.kyber_pre_keys_count(true).await? > 0
+            && protocol_store.signed_prekey_id().await?.is_some()
+            && protocol_store
+                .last_resort_kyber_prekey_id()
+                .await?
+                .is_some()
         {
-            if protocol_store.signed_pre_keys_count().await? > 0
-                && protocol_store.kyber_pre_keys_count(true).await? > 0
-                && protocol_store.signed_prekey_id().await?.is_some()
-                && protocol_store
-                    .last_resort_kyber_prekey_id()
-                    .await?
-                    .is_some()
-            {
-                tracing::debug!("Available keys sufficient");
-                return Ok(());
-            }
-            tracing::info!("Available keys sufficient; forcing refresh.");
+            tracing::debug!(
+                "Server and local keys sufficient; skipping generation"
+            );
+            return Ok(());
         }
 
         let identity_key_pair = protocol_store
@@ -227,7 +232,7 @@ impl AccountManager {
         let has_last_resort_key = !last_resort_keys.is_empty();
 
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
-            crate::pre_keys::replenish_pre_keys(
+            crate::pre_keys::generate_pre_keys(
                 protocol_store,
                 &mut rand::rng(),
                 &identity_key_pair,
@@ -237,7 +242,8 @@ impl AccountManager {
             )
             .await?;
 
-        let pq_last_resort_key = if has_last_resort_key {
+        // Now convert to entities for upload
+        let pq_last_resort_key_entity = if has_last_resort_key {
             if last_resort_keys.len() > 1 {
                 tracing::warn!(
                     "More than one last resort key found; only uploading first"
@@ -246,44 +252,61 @@ impl AccountManager {
             Some(KyberPreKeyEntity::try_from(last_resort_keys[0].clone())?)
         } else {
             pq_last_resort_key
+                .clone()
                 .map(KyberPreKeyEntity::try_from)
                 .transpose()?
         };
 
         let identity_key = *identity_key_pair.identity_key();
 
-        let pre_keys: Vec<_> = pre_keys
-            .into_iter()
+        let pre_keys_entities: Vec<_> = pre_keys
+            .iter()
+            .cloned()
             .map(PreKeyEntity::try_from)
             .collect::<Result<_, _>>()?;
-        let signed_pre_key = signed_pre_key.try_into()?;
-        let pq_pre_keys: Vec<_> = pq_pre_keys
-            .into_iter()
+        let signed_pre_key_entity = signed_pre_key.clone().try_into()?;
+        let pq_pre_keys_entities: Vec<_> = pq_pre_keys
+            .iter()
+            .cloned()
             .map(KyberPreKeyEntity::try_from)
             .collect::<Result<_, _>>()?;
 
         tracing::info!(
             "Uploading pre-keys: {} one-time, {} PQ, {} PQ last resort",
-            pre_keys.len(),
-            pq_pre_keys.len(),
-            if pq_last_resort_key.is_some() { 1 } else { 0 }
+            pre_keys_entities.len(),
+            pq_pre_keys_entities.len(),
+            if pq_last_resort_key_entity.is_some() {
+                1
+            } else {
+                0
+            }
         );
 
         let pre_key_state = PreKeyState {
-            pre_keys,
-            signed_pre_key,
+            pre_keys: pre_keys_entities,
+            signed_pre_key: signed_pre_key_entity,
             identity_key,
-            pq_pre_keys,
-            pq_last_resort_key,
+            pq_pre_keys: pq_pre_keys_entities,
+            pq_last_resort_key: pq_last_resort_key_entity,
         };
 
         self.websocket
-            .register_pre_keys(service_id_kind, pre_key_state)
+            .register_pre_keys(service_id_kind, &pre_key_state)
             .instrument(tracing::span!(
                 tracing::Level::DEBUG,
                 "Uploading pre keys"
             ))
             .await?;
+
+        // Persist all pre-keys using the bundle wrapper
+        crate::pre_keys::store_pre_key_bundle(
+            protocol_store,
+            &pre_keys,
+            &signed_pre_key,
+            &pq_pre_keys,
+            pq_last_resort_key.as_ref(),
+        )
+        .await?;
 
         Ok(())
     }
@@ -493,11 +516,11 @@ impl AccountManager {
             .await?;
 
         let (
-            _aci_pre_keys,
+            aci_pre_keys,
             aci_signed_pre_key,
-            _aci_kyber_pre_keys,
+            aci_kyber_pre_keys,
             aci_last_resort_kyber_prekey,
-        ) = crate::pre_keys::replenish_pre_keys(
+        ) = crate::pre_keys::generate_pre_keys(
             aci_protocol_store,
             csprng,
             &aci_identity_key_pair,
@@ -507,12 +530,30 @@ impl AccountManager {
         )
         .await?;
 
+        // Persist the generated keys
+        for key in &aci_pre_keys {
+            aci_protocol_store.save_pre_key(key.id()?, key).await?;
+        }
+        for key in &aci_kyber_pre_keys {
+            aci_protocol_store
+                .save_kyber_pre_key(key.id()?, key)
+                .await?;
+        }
+        aci_protocol_store
+            .save_signed_pre_key(aci_signed_pre_key.id()?, &aci_signed_pre_key)
+            .await?;
+        if let Some(ref k) = aci_last_resort_kyber_prekey {
+            aci_protocol_store
+                .store_last_resort_kyber_pre_key(k.id()?, k)
+                .await?;
+        }
+
         let (
             _pni_pre_keys,
             pni_signed_pre_key,
             _pni_kyber_pre_keys,
             pni_last_resort_kyber_prekey,
-        ) = crate::pre_keys::replenish_pre_keys(
+        ) = crate::pre_keys::generate_pre_keys(
             pni_protocol_store,
             csprng,
             &pni_identity_key_pair,
@@ -521,6 +562,24 @@ impl AccountManager {
             0,
         )
         .await?;
+
+        // Persist the generated keys
+        for key in &_pni_pre_keys {
+            pni_protocol_store.save_pre_key(key.id()?, key).await?;
+        }
+        for key in &_pni_kyber_pre_keys {
+            pni_protocol_store
+                .save_kyber_pre_key(key.id()?, key)
+                .await?;
+        }
+        pni_protocol_store
+            .save_signed_pre_key(pni_signed_pre_key.id()?, &pni_signed_pre_key)
+            .await?;
+        if let Some(ref k) = pni_last_resort_kyber_prekey {
+            pni_protocol_store
+                .store_last_resort_kyber_pre_key(k.id()?, k)
+                .await?;
+        }
 
         let aci_identity_key = aci_identity_key_pair.identity_key();
         let pni_identity_key = pni_identity_key_pair.identity_key();
@@ -818,7 +877,12 @@ impl AccountManager {
                 _kyber_pre_keys,
                 last_resort_kyber_prekey,
             ) = if local_device_id == *DEFAULT_DEVICE_ID {
-                crate::pre_keys::replenish_pre_keys(
+                let (
+                    pre_keys,
+                    signed_pre_key,
+                    kyber_pre_keys,
+                    last_resort_kyber_prekey,
+                ) = crate::pre_keys::generate_pre_keys(
                     pni_protocol_store,
                     csprng,
                     &pni_identity_key_pair,
@@ -826,7 +890,32 @@ impl AccountManager {
                     0,
                     0,
                 )
-                .await?
+                .await?;
+
+                // Persist the generated keys
+                for key in &pre_keys {
+                    pni_protocol_store.save_pre_key(key.id()?, key).await?;
+                }
+                for key in &kyber_pre_keys {
+                    pni_protocol_store
+                        .save_kyber_pre_key(key.id()?, key)
+                        .await?;
+                }
+                pni_protocol_store
+                    .save_signed_pre_key(signed_pre_key.id()?, &signed_pre_key)
+                    .await?;
+                if let Some(ref k) = last_resort_kyber_prekey {
+                    pni_protocol_store
+                        .store_last_resort_kyber_pre_key(k.id()?, k)
+                        .await?;
+                }
+
+                (
+                    pre_keys,
+                    signed_pre_key,
+                    kyber_pre_keys,
+                    last_resort_kyber_prekey,
+                )
             } else {
                 // Generate a signed prekey
                 let signed_pre_key_pair = KeyPair::generate(csprng);
