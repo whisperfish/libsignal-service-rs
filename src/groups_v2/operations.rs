@@ -207,11 +207,17 @@ impl GroupOperations {
             &member.profile_key,
             &member.presentation,
         )?;
+
+        let label = self.decrypt_member_label_text(&member.label_string);
+        let label_emoji = self.decrypt_member_label_emoji(&member.label_emoji);
+
         Ok(Member {
             aci,
             profile_key,
             role: member.role.try_into()?,
             joined_at_version: member.joined_at_version,
+            label,
+            label_emoji,
         })
     }
 

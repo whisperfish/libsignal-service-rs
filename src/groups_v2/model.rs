@@ -45,6 +45,8 @@ pub struct Member {
     #[debug(ignore)]
     pub profile_key: ProfileKey,
     pub joined_at_version: u32,
+    pub label: Option<String>,
+    pub label_emoji: Option<String>,
 }
 
 impl PartialEq for Member {
