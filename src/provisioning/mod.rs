@@ -24,6 +24,8 @@ use zkgroup::profiles::ProfileKey;
 
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
+use crate::master_key::MasterKey;
+use crate::messagepipe::ServiceCredentials;
 use crate::prelude::ServiceError;
 use crate::push_service::linking::{
     LinkAccountAttributes, LinkCapabilities, LinkRequest, LinkResponse,
@@ -39,6 +41,14 @@ use crate::{
 pub use crate::proto::{
     ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
 };
+
+pub struct ProvisioningSecrets {
+    pub credentials: ServiceCredentials,
+    pub master_key: Option<MasterKey>,
+    pub ephemeral_backup_key: Option<[u8; 32]>,
+    pub account_entropy_pool: AccountEntropyPool,
+    pub media_root_backup_key: Option<[u8; 32]>,
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum ProvisioningError {

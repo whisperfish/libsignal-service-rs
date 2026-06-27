@@ -20,7 +20,6 @@ use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
 use crate::content::ContentBody;
-use crate::master_key::MasterKey;
 use crate::pre_keys::{
     KyberPreKeyEntity, PreKeyEntity, PreKeysStore, SignedPreKeyEntity,
     PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
@@ -28,7 +27,7 @@ use crate::pre_keys::{
 use crate::prelude::{MessageSender, MessageSenderError};
 use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
-use crate::provisioning::generate_registration_id;
+use crate::provisioning::{generate_registration_id, ProvisioningSecrets};
 use crate::push_service::{
     AvatarWrite, HttpAuthOverride, ReqwestExt, DEFAULT_DEVICE_ID,
 };
@@ -45,7 +44,7 @@ use crate::websocket::registration::{
 };
 use crate::websocket::{self, SignalWebSocket};
 use crate::{
-    configuration::{Endpoint, ServiceCredentials},
+    configuration::Endpoint,
     pre_keys::PreKeyState,
     profile_cipher::{ProfileCipher, ProfileCipherError},
     profile_name::ProfileName,
@@ -362,9 +361,16 @@ impl AccountManager {
         url: url::Url,
         aci_identity_store: &dyn IdentityKeyStore,
         pni_identity_store: &dyn IdentityKeyStore,
-        credentials: ServiceCredentials,
-        master_key: Option<MasterKey>,
+        secrets: ProvisioningSecrets,
     ) -> Result<(), ProvisioningError> {
+        let ProvisioningSecrets {
+            credentials,
+            master_key,
+            ephemeral_backup_key,
+            account_entropy_pool,
+            media_root_backup_key,
+        } = secrets;
+
         let query: HashMap<_, _> = url.query_pairs().collect();
         let ephemeral_id =
             query.get("uuid").ok_or(ProvisioningError::MissingUuid)?;
@@ -392,36 +398,37 @@ impl AccountManager {
 
         let provisioning_code = self.new_device_provisioning_code().await?;
 
+        // Same order as in Provisioning.proto for helping comparison.
         let msg = ProvisionMessage {
-            aci: credentials.aci.as_ref().map(|u| u.to_string()),
-            aci_binary: credentials.aci.map(|u| u.into_bytes().into()),
             aci_identity_key_public: Some(
                 aci_identity_key_pair.public_key().serialize().into_vec(),
             ),
             aci_identity_key_private: Some(
                 aci_identity_key_pair.private_key().serialize(),
             ),
-            number: Some(credentials.e164()),
             pni_identity_key_public: Some(
                 pni_identity_key_pair.public_key().serialize().into_vec(),
             ),
             pni_identity_key_private: Some(
                 pni_identity_key_pair.private_key().serialize(),
             ),
+            aci: credentials.aci.as_ref().map(|u| u.to_string()),
             pni: credentials.pni.as_ref().map(uuid::Uuid::to_string),
-            pni_binary: credentials.pni.map(|u| u.into_bytes().into()),
+            number: Some(credentials.e164()),
+            provisioning_code: Some(provisioning_code),
+            user_agent: None,
             profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
             // CURRENT is not exposed by prost :(
+            read_receipts: None,
             provisioning_version: Some(i32::from(
                 ProvisioningVersion::TabletSupport,
             ) as _),
-            provisioning_code: Some(provisioning_code),
-            read_receipts: None,
-            user_agent: None,
             master_key: master_key.map(|x| x.into()),
-            ephemeral_backup_key: None,
-            account_entropy_pool: None,
-            media_root_backup_key: None,
+            ephemeral_backup_key: ephemeral_backup_key.map(|k| k.to_vec()), // 32-bytes
+            account_entropy_pool: Some(account_entropy_pool.to_string()),
+            media_root_backup_key: media_root_backup_key.map(|k| k.to_vec()), // 32-bytes
+            aci_binary: credentials.aci.map(|u| u.into_bytes().into()),
+            pni_binary: credentials.pni.map(|u| u.into_bytes().into()),
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);
