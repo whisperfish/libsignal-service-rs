@@ -92,28 +92,31 @@ where
     fn try_from(
         params: super::ChatSearchParams<P>,
     ) -> Result<Self, Self::Error> {
+        // `unidentifiedAccessKey` is the e164's UAK (derived from the target's
+        // profile key) and is only sent alongside an e164; see libsignal-net
+        // `RawChatSearchRequest::new` and Signal-Android.
+        let e164 = params
+            .target_e164
+            .map(|e| e.try_into_e164())
+            .transpose()
+            .map_err(|_e| {
+                KeyTransparencyWebSocketError::RequestError(
+                    "unparsable phone number",
+                )
+            })?;
+        let unidentified_access_key = e164
+            .as_ref()
+            .and(params.target_profile_key.as_ref())
+            .map(|pk| pk.derive_access_key().to_vec());
         Ok(RawChatSearchRequest {
             aci: params.target_aci.service_id_string(),
-            e164: params
-                .target_e164
-                .map(|e| e.try_into_e164())
-                .transpose()
-                .map_err(|_e| {
-                    KeyTransparencyWebSocketError::RequestError(
-                        "unparsable phone number",
-                    )
-                })?
-                .as_ref()
-                .map(E164::to_string),
+            e164: e164.as_ref().map(E164::to_string),
             username_hash: params
                 .target_username
                 .as_ref()
                 .map(|u| u.hash().to_vec()),
             aci_identity_key: params.target_identity_key.serialize().to_vec(),
-            unidentified_access_key: params
-                .target_profile_key
-                .as_ref()
-                .map(|pk| pk.derive_access_key().to_vec()),
+            unidentified_access_key,
             last_tree_head_size: params.last_tree_head_size,
             distinguished_tree_head_size: params
                 .distinguished_tree_head_size
