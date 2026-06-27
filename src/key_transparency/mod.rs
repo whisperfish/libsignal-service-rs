@@ -239,10 +239,12 @@ pub struct VerifiedMonitorResult {
 // KeyTransparencyClient
 // ---------------------------------------------------------------------------
 
+use libsignal_core::ServiceId;
 use libsignal_keytrans::{
     FullSearchResponse, MonitorContext, MonitorKey, MonitorRequest,
     SearchContext, SlimSearchRequest,
 };
+use std::time::SystemTime;
 
 /// High-level Key Transparency client.
 ///
@@ -297,11 +299,13 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
 /// Transport methods require the `key-transparency` feature.
 #[cfg(feature = "key-transparency")]
 impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
-    /// Search for a contact's identity key in the KT log,
-    /// fetch the response from the server, and verify it.
+    /// Search for a contact's identity key in the KT log, fetch the response
+    /// from the server, and verify it.
     ///
-    /// Combines transport + verification in one call.
-    /// This is the most convenient entry point for consumers.
+    /// Refreshes the distinguished tree head (anchoring consistency), issues
+    /// the search, cryptographically verifies the ACI entry, and persists the
+    /// resulting monitoring data. `key_matches` is whether the committed value
+    /// equals `params.target_identity_key`.
     pub async fn search_and_verify<P>(
         &mut self,
         params: ChatSearchParams<P>,
@@ -309,13 +313,104 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
     where
         P: TryIntoE164,
     {
-        let _response = self
+        // Anchoring distinguished head first: the search request's
+        // `distinguishedTreeHeadSize` must be a real, verified size.
+        self.check_distinguished().await?;
+        let distinguished = self
+            .store
+            .get_last_distinguished_tree_head()
+            .await
+            .expect("check_distinguished persists a head");
+        let distinguished_size = distinguished.tree_head.tree_size;
+        let last_distinguished = libsignal_keytrans::LastTreeHead(
+            distinguished.tree_head,
+            distinguished.root,
+        );
+
+        // Capture what we need for verification before `params` moves into
+        // the transport call.
+        let target_aci = params.target_aci;
+        let expected_value = params.target_identity_key.serialize();
+        let search_key = [
+            b"a",
+            ServiceId::from(target_aci).service_id_binary().as_slice(),
+        ]
+        .concat();
+
+        // Seed incremental params from the store when the caller didn't.
+        let mut params = params;
+        params.distinguished_tree_head_size = Some(distinguished_size);
+        if params.last_tree_head_size.is_none() {
+            params.last_tree_head_size = self
+                .store
+                .get_last_tree_head()
+                .await
+                .map(|h| h.tree_head.tree_size);
+        }
+
+        let response = self
             .socket
             .key_transparency_search(params)
             .await
             .map_err(|e| KeyTransparencyError::Transport(e.to_string()))?;
-        // TODO: slim request from response, call self.verify_search()
-        todo!()
+
+        let tree_head = response.tree_head.ok_or_else(|| {
+            KeyTransparencyError::VerificationFailed(
+                "search response without tree head".into(),
+            )
+        })?;
+        let aci = response.aci.ok_or_else(|| {
+            KeyTransparencyError::VerificationFailed(
+                "search response without ACI entry".into(),
+            )
+        })?;
+
+        let last_tree_head = self
+            .store
+            .get_last_tree_head()
+            .await
+            .map(|h| libsignal_keytrans::LastTreeHead(h.tree_head, h.root));
+        let monitoring = self.store.get_monitoring_data(&search_key).await;
+
+        let search_response = FullSearchResponse::new(aci, &tree_head);
+        let context = SearchContext {
+            last_tree_head: last_tree_head.as_ref(),
+            last_distinguished_tree_head: Some(&last_distinguished),
+            data: monitoring,
+        };
+        let result = self.inner.verify_search(
+            SlimSearchRequest {
+                search_key: search_key.clone(),
+                version: None,
+            },
+            search_response,
+            context,
+            true,
+            SystemTime::now(),
+        )?;
+
+        // Persist the updated state.
+        if let Some(md) = &result.state_update.monitoring_data {
+            self.store
+                .set_monitoring_data(&search_key, md.clone())
+                .await;
+        }
+        self.store
+            .set_last_tree_head(
+                result.state_update.tree_head.clone(),
+                result.state_update.tree_root,
+            )
+            .await;
+
+        // Constant-time compare would be ideal; for the example a plain eq
+        // suffices. Upstream uses SearchValue::check_equal.
+        let key_matches = result.value.as_slice() == expected_value.as_ref();
+
+        Ok(VerifiedSearchResult {
+            aci: target_aci,
+            key_matches,
+            now_monitored: result.state_update.monitoring_data.is_some(),
+        })
     }
 
     /// Monitor a previously-searched contact for key changes.
@@ -323,10 +418,6 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
         &mut self,
         aci: libsignal_core::Aci,
     ) -> Result<VerifiedMonitorResult, KeyTransparencyError> {
-        // TODO:
-        // 1. Build MonitorRequest from stored monitoring data
-        // 2. Send via socket
-        // 3. Call self.verify_monitor()
         let _ = aci;
         let _request = MonitorRequest::default();
         let _response =
@@ -334,19 +425,67 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
                 .key_transparency_monitor(&_request)
                 .await
                 .map_err(|e| KeyTransparencyError::Transport(e.to_string()))?;
-        todo!()
+        todo!("monitor verify wiring; see bugs #5/#6")
     }
 
     /// Fetch and verify the distinguished tree head.
+    ///
+    /// Refreshes (and persists) the store's distinguished tree head and returns
+    /// its root hash. Mirrors `libsignal-net`'s `distinguished()`, which drives
+    /// the public `verify_search` with `SlimSearchRequest::new(b"distinguished")`.
     pub async fn check_distinguished(
         &mut self,
     ) -> Result<TreeRoot, KeyTransparencyError> {
-        let _response = self
+        let last_distinguished =
+            self.store.get_last_distinguished_tree_head().await;
+        let last_for_context = last_distinguished.as_ref().map(|h| {
+            libsignal_keytrans::LastTreeHead(h.tree_head.clone(), h.root)
+        });
+        let last_tree_head_size =
+            last_distinguished.as_ref().map(|h| h.tree_head.tree_size);
+
+        let response = self
             .socket
-            .key_transparency_distinguished(None)
+            .key_transparency_distinguished(last_tree_head_size)
             .await
             .map_err(|e| KeyTransparencyError::Transport(e.to_string()))?;
-        // TODO: call self.verify_distinguished()
-        todo!()
+
+        let tree_head = response.tree_head.ok_or_else(|| {
+            KeyTransparencyError::VerificationFailed(
+                "distinguished response without tree head".into(),
+            )
+        })?;
+        let distinguished = response.distinguished.ok_or_else(|| {
+            KeyTransparencyError::VerificationFailed(
+                "distinguished response without distinguished entry".into(),
+            )
+        })?;
+
+        let search_response =
+            FullSearchResponse::new(distinguished, &tree_head);
+        let context = SearchContext {
+            last_tree_head: None,
+            last_distinguished_tree_head: last_for_context.as_ref(),
+            data: None,
+        };
+        let result = self.inner.verify_search(
+            SlimSearchRequest {
+                search_key: b"distinguished".to_vec(),
+                version: None,
+            },
+            search_response,
+            context,
+            false,
+            SystemTime::now(),
+        )?;
+
+        let root = result.state_update.tree_root;
+        self.store
+            .set_last_distinguished_tree_head(
+                result.state_update.tree_head,
+                root,
+            )
+            .await;
+        Ok(root)
     }
 }
