@@ -128,6 +128,7 @@ pub struct ConfirmCodeResponse {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum SecondaryDeviceProvisioning {
     Url(Url),
     NewDeviceRegistration(NewDeviceRegistration),
