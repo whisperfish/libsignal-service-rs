@@ -268,7 +268,8 @@ impl GroupOperations {
         &self,
         bytes: &[u8],
     ) -> Result<String, GroupDecodingError> {
-        let bytes = self.group_secret_params.decrypt_blob(bytes)?;
+        let bytes =
+            self.group_secret_params.decrypt_blob_with_padding(bytes)?;
         String::from_utf8(bytes).map_err(|_| GroupDecodingError::WrongBlob)
     }
 
@@ -1086,6 +1087,7 @@ impl GroupOperations {
 mod tests {
     use super::*;
 
+    use rand::RngCore;
     use zkgroup::groups::GroupMasterKey;
 
     fn create_group_operations() -> GroupOperations {
@@ -1121,6 +1123,26 @@ mod tests {
         let encrypted = ops.encrypt_description(Some(description), &mut rng);
         let decrypted = ops.decrypt_description_text(&encrypted);
         assert_eq!(decrypted, Some(description.to_string()));
+    }
+
+    #[test]
+    fn roundtrip_member_label() {
+        let ops = create_group_operations();
+        let mut rng = rand::rng();
+
+        let label = "Whisperfish / rubdos";
+        let mut randomness = [0u8; 32];
+        rng.fill_bytes(&mut randomness);
+        let encrypted = ops.group_secret_params.encrypt_blob_with_padding(
+            randomness,
+            label.as_bytes(),
+            0,
+        );
+
+        assert_eq!(
+            ops.decrypt_member_label_text(&encrypted),
+            Some(label.to_string())
+        );
     }
 
     #[test]
