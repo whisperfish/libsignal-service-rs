@@ -714,8 +714,8 @@ impl GroupOperations {
         let modify_member_labels = modify_member_labels.into_iter().map(|m| {
             Ok(GroupChange::MemberLabel {
                 user_id: self.decrypt_service_id(&m.user_id)?,
-                label_emoji: self.decrypt_string(&m.label_emoji)?,
-                label_string: self.decrypt_string(&m.label_string)?,
+                label_emoji: self.decrypt_member_label_emoji(&m.label_emoji),
+                label_string: self.decrypt_member_label_text(&m.label_string),
             })
         });
 
