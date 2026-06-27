@@ -13,8 +13,8 @@ use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
 use libsignal_core::{Aci, E164};
 use libsignal_keytrans::{
-    ChatDistinguishedResponse, ChatSearchResponse, MonitorRequest,
-    MonitorResponse,
+    ChatDistinguishedResponse, ChatMonitorResponse, ChatSearchResponse,
+    MonitorRequest, MonitorResponse,
 };
 use prost::Message;
 use reqwest::Method;
@@ -338,6 +338,8 @@ impl SignalWebSocket<Unidentified> {
     pub async fn key_transparency_monitor(
         &mut self,
         request: &MonitorRequest,
+        last_non_distinguished_tree_head_size: Option<u64>,
+        last_distinguished_tree_head_size: Option<u64>,
     ) -> Result<MonitorResponse, KeyTransparencyWebSocketError> {
         let mut aci = None;
         let mut e164 = None;
@@ -405,16 +407,15 @@ impl SignalWebSocket<Unidentified> {
             )
         })?;
 
-        let consistency = request.consistency.as_ref();
+        let has_e164 = e164.is_some();
+        let has_username_hash = username_hash.is_some();
 
         let body = RawChatMonitorRequest {
             aci,
             e164,
             username_hash,
-            last_non_distinguished_tree_head_size: consistency
-                .and_then(|c| c.last),
-            last_distinguished_tree_head_size: consistency
-                .and_then(|c| c.distinguished),
+            last_non_distinguished_tree_head_size,
+            last_distinguished_tree_head_size,
         };
 
         let raw: RawChatMonitorResponse = self
@@ -425,7 +426,30 @@ impl SignalWebSocket<Unidentified> {
             .await?
             .json()
             .await?;
-        let response = MonitorResponse::decode(&*raw.serialized_response)?;
+        // The chat server sends a `ChatMonitorResponse` (per-identifier
+        // proofs); `verify_monitor` expects a `MonitorResponse` with proofs
+        // in request order. Map aci, then e164, then username_hash.
+        let chat = ChatMonitorResponse::decode(&*raw.serialized_response)?;
+        let mut proofs = Vec::with_capacity(
+            1 + has_e164 as usize + has_username_hash as usize,
+        );
+        let aci_proof = chat.aci.ok_or_else(|| {
+            KeyTransparencyWebSocketError::RequestError(
+                "missing ACI monitor proof",
+            )
+        })?;
+        proofs.push(aci_proof);
+        if let Some(p) = chat.e164 {
+            proofs.push(p);
+        }
+        if let Some(p) = chat.username_hash {
+            proofs.push(p);
+        }
+        let response = MonitorResponse {
+            tree_head: chat.tree_head,
+            proofs,
+            inclusion: chat.inclusion,
+        };
         Ok(response)
     }
 
