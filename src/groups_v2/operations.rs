@@ -266,6 +266,42 @@ impl GroupOperations {
         String::from_utf8(bytes).map_err(|_| GroupDecodingError::WrongBlob)
     }
 
+    /// Decrypts an optional string field, returning `None` when `bytes` is empty
+    /// so absent labels don't fail the whole decode.
+    fn maybe_decrypt_string(
+        &self,
+        bytes: &[u8],
+    ) -> Result<Option<String>, GroupDecodingError> {
+        if bytes.is_empty() {
+            return Ok(None);
+        }
+        self.decrypt_string(bytes).map(Some)
+    }
+
+    /// Decrypts a member label, treating both empty input and decryption failure
+    /// as unset, matching Signal-Android's `decryptMemberLabelText`.
+    fn decrypt_member_label_text(&self, bytes: &[u8]) -> Option<String> {
+        match self.maybe_decrypt_string(bytes) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("failed to decrypt member label string: {e}");
+                None
+            },
+        }
+    }
+
+    /// Decrypts a member label emoji, treating both empty input and decryption
+    /// failure as unset, matching Signal-Android's `decryptMemberLabelEmoji`.
+    fn decrypt_member_label_emoji(&self, bytes: &[u8]) -> Option<String> {
+        match self.maybe_decrypt_string(bytes) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("failed to decrypt member label emoji: {e}");
+                None
+            },
+        }
+    }
+
     fn decrypt_blob(&self, bytes: &[u8]) -> GroupAttributeBlob {
         if bytes.is_empty() {
             GroupAttributeBlob::default()
