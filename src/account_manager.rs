@@ -990,8 +990,23 @@ fn decrypt_device_name_from_device_info(
     string: &str,
     aci: &IdentityKeyPair,
 ) -> Result<String, ServiceError> {
-    let data = BASE64_RELAXED.decode(string)?;
-    let name = DeviceName::decode(&*data)?;
+    let Ok(data) = BASE64_RELAXED.decode(string) else {
+        tracing::trace!(
+            "Device name not base64 encoded, assuming plaintext: {}",
+            string.to_string()
+        );
+        return Ok(string.to_string());
+    };
+    let name = match DeviceName::decode(data.as_slice()) {
+        Ok(decoded) => decoded,
+        Err(_) => {
+            tracing::trace!(
+                "Decoding device name failed, assuming plaintext: {}",
+                string.to_string()
+            );
+            return Ok(string.to_string());
+        },
+    };
     crate::decrypt_device_name(aci.private_key(), &name)
 }
 
