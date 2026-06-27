@@ -28,14 +28,6 @@ struct Args {
     #[arg(long)]
     staging: bool,
 
-    /// Your ACI (for authentication)
-    #[arg(long)]
-    aci: Uuid,
-
-    /// Your Signal access password (hex-encoded)
-    #[arg(long)]
-    password: String,
-
     /// Target ACI to verify
     #[arg(long)]
     target_aci: Uuid,
