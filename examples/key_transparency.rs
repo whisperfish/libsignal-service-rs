@@ -47,10 +47,17 @@ struct Args {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
-    // Initialize tracing
-    tracing_subscriber::fmt::init();
-
     let args = Args::parse();
+
+    if args.verbose {
+        tracing_subscriber::fmt()
+            .with_env_filter(tracing_subscriber::EnvFilter::new(
+                "libsignal_service=trace",
+            ))
+            .init();
+    } else {
+        tracing_subscriber::fmt::init();
+    }
 
     // Create PushService and authenticated socket
     let servers = if args.staging {
@@ -79,14 +86,12 @@ async fn main() -> Result<()> {
     };
     let mut client = socket.key_transparency(config, &store);
 
-    // Clone target_profile_key for later use in output
-    let target_profile_key_for_output = args.target_profile_key.clone();
-
     // Build profile key from hex string if provided
     let profile_key: Option<ProfileKey> = args
         .target_profile_key
+        .as_ref()
         .map(|pk_hex| -> Result<ProfileKey> {
-            let pk_bytes = hex::decode(&pk_hex)?;
+            let pk_bytes = hex::decode(pk_hex)?;
             let pk_array: [u8; 32] = pk_bytes
                 .try_into()
                 .map_err(|_| anyhow::anyhow!("Profile key must be 32 bytes"))?;
@@ -124,18 +129,13 @@ async fn main() -> Result<()> {
         .await
         .context("KT search and verify failed")?;
 
-    if args.verbose {
-        eprintln!("Verification successful");
-    }
-
-    // Build JSON output
+    // Emit a structured result. Identity keys are public, so echoing the
+    // target key is fine; the profile key is not (it gates profile access).
     let json = json!({
-        "status": "success",
-        "result": format!("{:?}", result),
-        "validated": result.key_matches,
-        "target_aci": args.target_aci.to_string(),
-        "target_identity": args.target_identity,
-        "target_profile_key": target_profile_key_for_output,
+        "status": "ok",
+        "aci": args.target_aci.to_string(),
+        "key_matches": result.key_matches,
+        "now_monitored": result.now_monitored,
     });
     println!("{}", serde_json::to_string_pretty(&json)?);
 
