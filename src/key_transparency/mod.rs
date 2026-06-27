@@ -227,12 +227,17 @@ pub struct VerifiedSearchResult {
 }
 
 /// Outcome of a verified monitor operation.
+///
+/// Monitor proves that a previously-searched entry is still correctly placed
+/// in a consistently-grown tree; it does not surface value changes (that
+/// requires re-searching). Mirrors `libsignal-net`'s `monitor()`, which returns
+/// updated `AccountData` rather than a change flag.
 #[derive(Debug, Clone)]
 pub struct VerifiedMonitorResult {
-    /// Whether the monitored contact's key has changed since last check.
-    pub key_changed: bool,
-    /// The new identity key, if a change was detected.
-    pub new_key: Option<libsignal_protocol::PublicKey>,
+    /// Whether the monitor proof verified against the current tree head.
+    pub verified: bool,
+    /// Root hash of the tree head the monitor proof was checked against.
+    pub tree_root: TreeRoot,
 }
 
 // ---------------------------------------------------------------------------
@@ -244,6 +249,7 @@ use libsignal_keytrans::{
     FullSearchResponse, MonitorContext, MonitorKey, MonitorRequest,
     SearchContext, SlimSearchRequest,
 };
+use std::collections::HashMap;
 use std::time::SystemTime;
 
 /// High-level Key Transparency client.
@@ -385,6 +391,10 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
             },
             search_response,
             context,
+            // Always start monitoring on search; `false` is only used for the
+            // distinguished key (which isn't monitored). Mirrors
+            // libsignal-net's `verify_single_search_response`
+            // (rust/net/chat/src/api/keytrans/verify_ext.rs).
             true,
             SystemTime::now(),
         )?;
@@ -421,19 +431,121 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
         })
     }
 
-    /// Monitor a previously-searched contact for key changes.
+    /// Monitor a previously-searched contact for consistency.
+    ///
+    /// After [`search_and_verify`] establishes a contact's position in the
+    /// log, monitor proves — cheaply, via path proofs rather than a fresh
+    /// binary search — that the entry is still correctly placed in a
+    /// consistently-grown tree. Loads stored `MonitoringData` for the ACI's
+    /// search key, refreshes the distinguished head, builds a `MonitorRequest`
+    /// (with `entry_position`/`commitment_index` from the stored data and
+    /// `consistency` sizes from the store), POSTs, and verifies.
+    ///
+    /// Mirrors `libsignal-net`'s `monitor()`
+    /// (rust/net/chat/src/api/keytrans.rs); the public `verify_monitor` skips
+    /// upstream's `try_from_untyped` conversion, which the transport already
+    /// does on the `ChatMonitorResponse` bytes.
     pub async fn monitor_and_verify(
         &mut self,
         aci: libsignal_core::Aci,
     ) -> Result<VerifiedMonitorResult, KeyTransparencyError> {
-        let _ = aci;
-        let _request = MonitorRequest::default();
-        let _response =
-            self.socket
-                .key_transparency_monitor(&_request)
-                .await
-                .map_err(|e| KeyTransparencyError::Transport(e.to_string()))?;
-        todo!("monitor verify wiring; see bugs #5/#6")
+        let search_key =
+            [b"a", ServiceId::from(aci).service_id_binary().as_slice()]
+                .concat();
+        let monitoring = self
+            .store
+            .get_monitoring_data(&search_key)
+            .await
+            .ok_or(KeyTransparencyError::NotMonitored)?;
+        // Refresh the distinguished head first and read it back: it anchors
+        // consistency and seeds `lastDistinguishedTreeHeadSize`.
+        self.check_distinguished().await?;
+        let distinguished = self
+            .store
+            .get_last_distinguished_tree_head()
+            .await
+            .expect("check_distinguished persists a head");
+        let last_distinguished = libsignal_keytrans::LastTreeHead(
+            distinguished.tree_head.clone(),
+            distinguished.root,
+        );
+
+        // Sourced from the store per upstream (rust/net/chat/src/ws/keytrans.rs
+        // takes these directly, not from the proto `Consistency`). `verify_monitor`
+        // uses a `Consistency`-less request.
+        let last_tree_head_size = self
+            .store
+            .get_last_tree_head()
+            .await
+            .map(|h| h.tree_head.tree_size);
+        let distinguished_size = self
+            .store
+            .get_last_distinguished_tree_head()
+            .await
+            .map(|h| h.tree_head.tree_size);
+
+        let request = MonitorRequest {
+            keys: vec![MonitorKey {
+                search_key: search_key.clone(),
+                entry_position: monitoring.latest_log_position(),
+                commitment_index: monitoring.index.to_vec(),
+            }],
+            consistency: None,
+        };
+
+        let response = self
+            .socket
+            .key_transparency_monitor(
+                &request,
+                last_tree_head_size,
+                distinguished_size,
+            )
+            .await
+            .map_err(|e| KeyTransparencyError::Transport(e.to_string()))?;
+
+        if response.tree_head.is_none() {
+            return Err(KeyTransparencyError::VerificationFailed(
+                "monitor response without tree head".into(),
+            ));
+        }
+        let last_tree = self
+            .store
+            .get_last_tree_head()
+            .await
+            .map(|h| libsignal_keytrans::LastTreeHead(h.tree_head, h.root));
+        let mut data_map = HashMap::new();
+        data_map.insert(search_key.clone(), monitoring);
+        let context = MonitorContext {
+            last_tree_head: last_tree.as_ref(),
+            last_distinguished_tree_head: &last_distinguished,
+            data: data_map,
+        };
+        let mut verified = self.inner.verify_monitor(
+            &request,
+            &response,
+            context,
+            SystemTime::now(),
+        )?;
+
+        // Persist the updated monitoring data + tree head.
+        if let Some(md) = verified.monitoring_data.remove(&search_key) {
+            self.store.set_monitoring_data(&search_key, md).await;
+        }
+        self.store
+            .set_last_tree_head(verified.tree_head.clone(), verified.tree_root)
+            .await;
+        // The distinguished head is the same root; keep it fresh too.
+        self.store
+            .set_last_distinguished_tree_head(
+                verified.tree_head,
+                verified.tree_root,
+            )
+            .await;
+
+        Ok(VerifiedMonitorResult {
+            verified: true,
+            tree_root: verified.tree_root,
+        })
     }
 
     /// Fetch and verify the distinguished tree head.
