@@ -94,10 +94,16 @@ async fn main() -> Result<()> {
         })
         .transpose()?;
 
-    // Deserialize the target's identity key from hex bytes
-    let mut key_bytes = Vec::with_capacity(33);
-    key_bytes.push(0x05u8); // Djb key type prefix (KeyType::Djb = 0x05)
-    key_bytes.extend_from_slice(&hex::decode(&args.target_identity)?);
+    // Deserialize the target's identity key. Accept either the raw 32-byte
+    // Ed25519 key (prepend the Djb 0x05 prefix) or the full 33-byte serialized
+    // form (already prefixed).
+    let mut key_bytes = hex::decode(&args.target_identity)?;
+    if key_bytes.len() == 32 {
+        let mut v = Vec::with_capacity(33);
+        v.push(0x05u8);
+        v.extend_from_slice(&key_bytes);
+        key_bytes = v;
+    }
     let target_identity_key =
         PublicKey::deserialize(&key_bytes).expect("valid identity key bytes");
 
