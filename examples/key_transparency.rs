@@ -129,6 +129,19 @@ async fn main() -> Result<()> {
         .await
         .context("KT search and verify failed")?;
 
+    // Once monitored, exercise the cheaper monitor path too: proves the ACI is
+    // still correctly placed in a consistently-grown tree. In one session this
+    // validates the full monitor wiring end-to-end.
+    let mut monitor = None;
+    if result.now_monitored {
+        monitor = Some(
+            client
+                .monitor_and_verify(args.target_aci.into())
+                .await
+                .context("KT monitor and verify failed")?,
+        );
+    }
+
     // Emit a structured result. Identity keys are public, so echoing the
     // target key is fine; the profile key is not (it gates profile access).
     let json = json!({
@@ -136,6 +149,9 @@ async fn main() -> Result<()> {
         "aci": args.target_aci.to_string(),
         "key_matches": result.key_matches,
         "now_monitored": result.now_monitored,
+        "monitor": monitor.as_ref().map(|m| json!({
+            "verified": m.verified,
+        })),
     });
     println!("{}", serde_json::to_string_pretty(&json)?);
 
