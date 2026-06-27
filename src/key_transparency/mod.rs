@@ -404,7 +404,15 @@ impl<'a, S: KeyTransparencyStore> KeyTransparencyClient<'a, S> {
 
         // Constant-time compare would be ideal; for the example a plain eq
         // suffices. Upstream uses SearchValue::check_equal.
-        let key_matches = result.value.as_slice() == expected_value.as_ref();
+        // The committed value is version-prefixed (0x00 + serialized
+        // identity key); strip the version byte before comparing, mirroring
+        // libsignal-net's SearchValue::check_equal.
+        let key_matches = result
+            .value
+            .split_first()
+            .filter(|(version, _)| **version == 0)
+            .map(|(_, rest)| rest == expected_value.as_ref())
+            .unwrap_or(false);
 
         Ok(VerifiedSearchResult {
             aci: target_aci,
