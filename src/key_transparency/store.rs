@@ -23,6 +23,20 @@ pub trait KeyTransparencyStore: Send + Sync {
     /// Persist the most recently verified tree head and its root hash.
     async fn set_last_tree_head(&self, head: TreeHead, root: TreeRoot);
 
+    /// Return the last verified *distinguished* tree head.
+    ///
+    /// Distinct from [`get_last_tree_head`]: the distinguished head anchors log
+    /// consistency across accounts and seeds every search's
+    /// `distinguishedTreeHeadSize`. `None` until the first `check_distinguished`.
+    async fn get_last_distinguished_tree_head(&self) -> Option<LastTreeHead>;
+
+    /// Persist the most recently verified distinguished tree head.
+    async fn set_last_distinguished_tree_head(
+        &self,
+        head: TreeHead,
+        root: TreeRoot,
+    );
+
     /// Return the monitoring data for an identifier key (e.g. an ACI as raw
     /// bytes). Returns `None` if the identifier is not being tracked.
     async fn get_monitoring_data(&self, key: &[u8]) -> Option<MonitoringData>;
@@ -61,6 +75,7 @@ use std::sync::Mutex;
 /// In-memory [`KeyTransparencyStore`] suitable for tests.
 pub struct InMemoryKeyTransparencyStore {
     last_tree_head: Mutex<Option<LastTreeHead>>,
+    last_distinguished_tree_head: Mutex<Option<LastTreeHead>>,
     monitoring_data: Mutex<HashMap<Vec<u8>, MonitoringData>>,
 }
 
@@ -68,6 +83,7 @@ impl InMemoryKeyTransparencyStore {
     pub fn new() -> Self {
         Self {
             last_tree_head: Mutex::new(None),
+            last_distinguished_tree_head: Mutex::new(None),
             monitoring_data: Mutex::new(HashMap::new()),
         }
     }
@@ -96,6 +112,27 @@ impl KeyTransparencyStore for InMemoryKeyTransparencyStore {
             });
     }
 
+    async fn get_last_distinguished_tree_head(&self) -> Option<LastTreeHead> {
+        self.last_distinguished_tree_head
+            .lock()
+            .expect("last_distinguished_tree_head lock")
+            .clone()
+    }
+
+    async fn set_last_distinguished_tree_head(
+        &self,
+        head: TreeHead,
+        root: TreeRoot,
+    ) {
+        *self
+            .last_distinguished_tree_head
+            .lock()
+            .expect("last_distinguished_tree_head lock") = Some(LastTreeHead {
+            tree_head: head,
+            root,
+        });
+    }
+
     async fn get_monitoring_data(&self, key: &[u8]) -> Option<MonitoringData> {
         self.monitoring_data
             .lock()
@@ -113,6 +150,10 @@ impl KeyTransparencyStore for InMemoryKeyTransparencyStore {
 
     async fn clear(&self) {
         *self.last_tree_head.lock().expect("last_tree_head lock") = None;
+        *self
+            .last_distinguished_tree_head
+            .lock()
+            .expect("last_distinguished_tree_head lock") = None;
         self.monitoring_data
             .lock()
             .expect("monitoring_data lock")
