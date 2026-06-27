@@ -210,8 +210,8 @@ pub enum GroupChange {
     PromotePendingPniAciMemberProfileKey(PromotedMember),
     MemberLabel {
         user_id: ServiceId,
-        label_emoji: String,
-        label_string: String,
+        label_emoji: Option<String>,
+        label_string: Option<String>,
     },
     MemberLabelAccess(AccessRequired),
 }
