@@ -50,6 +50,7 @@ pub(crate) struct DeviceInfoEncrypted {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 /// kept in sync with https://github.com/signalapp/Signal-Server/blob/main/service/src/main/java/org/whispersystems/textsecuregcm/entities/AccountAttributes.java#L25
+/// XXX should this be https://github.com/signalapp/Signal-Android/blob/main/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/account/AccountAttributes.kt
 pub struct AccountAttributes {
     pub fetches_messages: bool,
     pub registration_id: u32,
@@ -61,15 +62,17 @@ pub struct AccountAttributes {
     #[serde(default, with = "serde_optional_base64")]
     pub unidentified_access_key: Option<Vec<u8>>,
     pub unrestricted_unidentified_access: bool,
-    pub capabilities: DeviceCapabilities,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<DeviceCapabilities>,
     pub discoverable_by_phone_number: bool,
-    pub pin: Option<String>,
     #[serde(
         default,
         with = "serde_optional_base64",
         skip_serializing_if = "Option::is_none"
     )]
     pub recovery_password: Option<Vec<u8>>,
+    pub voice: bool,
+    pub video: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
@@ -146,11 +149,6 @@ impl SignalWebSocket<websocket::Identified> {
         &mut self,
         attributes: AccountAttributes,
     ) -> Result<(), ServiceError> {
-        assert!(
-            attributes.pin.is_none() || attributes.registration_lock.is_none(),
-            "only one of PIN and registration lock can be set."
-        );
-
         self.http_request(Method::PUT, "/v1/accounts/attributes")?
             .send_json(&attributes)
             .await?
