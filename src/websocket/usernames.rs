@@ -1,4 +1,4 @@
-use crate::utils::serde_base64;
+use crate::utils::serde_base64_url_safe_no_pad;
 use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
 use libsignal_core::{Aci, ServiceIdKind};
 use reqwest::Method;
@@ -60,7 +60,7 @@ impl SignalWebSocket<Unidentified> {
         #[derive(serde::Deserialize)]
         struct UsernameLinkResponse {
             #[serde(rename = "usernameLinkEncryptedValue")]
-            #[serde(with = "serde_base64")]
+            #[serde(with = "serde_base64_url_safe_no_pad")]
             encrypted_username: Vec<u8>,
         }
 
