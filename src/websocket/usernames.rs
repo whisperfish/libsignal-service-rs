@@ -2,10 +2,11 @@ use crate::utils::serde_base64_url_safe_no_pad;
 use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
 use libsignal_core::{Aci, ServiceIdKind};
 use reqwest::Method;
+use serde::Serialize;
 
 use crate::content::ServiceError;
 
-use super::{SignalWebSocket, Unidentified};
+use super::{Identified, SignalWebSocket, Unidentified};
 
 impl SignalWebSocket<Unidentified> {
     pub async fn look_up_username(
@@ -164,4 +165,106 @@ fn parse_username_link(
     })?;
 
     Ok((handle_uuid, *entropy))
+}
+
+impl SignalWebSocket<Identified> {
+    /// Sets the account's username link to encrypt `username` and returns the
+    /// shareable `https://signal.me/#eu/...` link.
+    ///
+    /// Generates fresh entropy and, unless `keep_link_handle` is `true` and the
+    /// account already has a link handle, a fresh server-assigned handle.
+    // Based on libsignal-net
+    pub async fn set_username_link(
+        &mut self,
+        username: &usernames::Username,
+        keep_link_handle: bool,
+    ) -> Result<String, ServiceError> {
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct SetUsernameLinkRequest {
+            #[serde(with = "serde_base64_url_safe_no_pad")]
+            username_link_encrypted_value: Vec<u8>,
+            keep_link_handle: bool,
+        }
+
+        #[derive(serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct UsernameLinkHandleResponse {
+            username_link_handle: uuid::Uuid,
+        }
+
+        let (entropy, ciphertext) = usernames::create_for_username(
+            &mut rand::rng(),
+            username.to_string(),
+            None,
+        )
+        .map_err(|_e| ServiceError::InvalidFrame {
+            reason: "username too long to encrypt",
+        })?;
+
+        let response = self
+            .http_request(Method::PUT, "/v1/accounts/username_link")?
+            .send_json(SetUsernameLinkRequest {
+                username_link_encrypted_value: ciphertext,
+                keep_link_handle,
+            })
+            .await?
+            .service_error_for_status()
+            .await?;
+
+        let result: UsernameLinkHandleResponse = response.json().await?;
+
+        Ok(generate_username_link(
+            result.username_link_handle,
+            &entropy,
+        ))
+    }
+}
+
+/// Builds the `https://signal.me/#eu/<base64url>` link from its parts.
+///
+/// `entropy` is the 32-byte link entropy; `handle` is the server-assigned
+/// link handle UUID. The payload is the URL-safe base64 (no padding) of
+/// `entropy || handle`.
+pub fn generate_username_link(
+    handle: uuid::Uuid,
+    entropy: &[u8; usernames::constants::USERNAME_LINK_ENTROPY_SIZE],
+) -> String {
+    let mut payload = entropy.to_vec();
+    payload.extend_from_slice(handle.as_bytes());
+    format!(
+        "https://signal.me/#eu/{}",
+        BASE64_URL_SAFE_NO_PAD.encode(&payload)
+    )
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn generate_and_parse_link_round_trip() {
+        let entropy = [0x42; usernames::constants::USERNAME_LINK_ENTROPY_SIZE];
+        let handle = uuid::uuid!("9d0652a3-dcc3-4d11-975f-74d61598733f");
+        // deliberately chosen to round-trip cleanly through URL-safe base64
+        let link = generate_username_link(handle, &entropy);
+        assert!(link.starts_with("https://signal.me/#eu/"));
+
+        let (parsed_handle, parsed_entropy) =
+            parse_username_link(&link).unwrap();
+        assert_eq!(parsed_handle, handle);
+        assert_eq!(parsed_entropy, entropy);
+    }
+
+    #[test]
+    fn parse_link_accepts_bare_payload() {
+        let entropy = [0x11; usernames::constants::USERNAME_LINK_ENTROPY_SIZE];
+        let handle = uuid::uuid!("00000000-0000-0000-0000-000000000000");
+        let link = generate_username_link(handle, &entropy);
+        let payload = link.rsplit_once("#eu/").unwrap().1;
+        let (parsed_handle, parsed_entropy) =
+            parse_username_link(payload).unwrap();
+        assert_eq!(parsed_handle, handle);
+        assert_eq!(parsed_entropy, entropy);
+    }
 }
