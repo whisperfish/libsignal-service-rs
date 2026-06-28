@@ -8,7 +8,7 @@ use crate::{
     proto::DeviceName,
     utils::{
         serde_device_id, serde_e164, serde_optional_base64,
-        serde_optional_prost_base64,
+        serde_optional_base64_url_safe_no_pad, serde_optional_prost_base64,
     },
     websocket,
 };
@@ -105,6 +105,15 @@ pub struct WhoAmIResponse {
     pub pni: Uuid,
     #[serde(with = "serde_e164")]
     pub number: libsignal_core::E164,
+    /// Hash of the account's username, if one is set.
+    #[serde(default, with = "serde_optional_base64_url_safe_no_pad")]
+    pub username_hash: Option<Vec<u8>>,
+    /// Handle (UUID) of the account's username link, if one is set.
+    ///
+    /// Decrypting the username also requires the link entropy, which the
+    /// server never sees; only the full `signal.me` link carries it.
+    #[serde(default)]
+    pub username_link_handle: Option<Uuid>,
 }
 
 impl SignalWebSocket<websocket::Identified> {
