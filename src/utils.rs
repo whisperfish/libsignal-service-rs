@@ -198,6 +198,31 @@ pub mod serde_optional_base64 {
     }
 }
 
+pub mod serde_base64_url_safe_no_pad {
+    use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
+    use serde::{Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<T, S>(bytes: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: AsRef<[u8]>,
+        S: Serializer,
+    {
+        serializer.serialize_str(&BASE64_URL_SAFE_NO_PAD.encode(bytes.as_ref()))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+        <&str>::deserialize(deserializer).and_then(|string| {
+            BASE64_URL_SAFE_NO_PAD
+                .decode(string)
+                .map_err(|err| Error::custom(err.to_string()))
+        })
+    }
+}
+
 pub mod serde_identity_key {
     use super::BASE64_RELAXED;
     use base64::prelude::*;
