@@ -1,11 +1,14 @@
-use libsignal_protocol::IdentityKey;
+use libsignal_protocol::IdentityKeyStore;
+use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use uuid::Uuid;
 
 use super::ServiceError;
 use crate::{
-    pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
+    pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
+    provisioning::ProvisioningError,
     utils::serde_base64,
     websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
@@ -71,11 +74,29 @@ impl<'a> RegistrationMethod<'a> {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct RegistrationKeyPackage {
+    pub aci_identity_key: Vec<u8>,
+    pub pni_identity_key: Vec<u8>,
+    pub aci_signed_pre_key: SignedPreKeyEntity,
+    pub pni_signed_pre_key: SignedPreKeyEntity,
+    pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
+    pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeviceActivationRequest {
     pub aci_signed_pre_key: SignedPreKeyEntity,
     pub pni_signed_pre_key: SignedPreKeyEntity,
     pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
     pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GcmRegistrationId<'a> {
+    pub gcm_registration_id: &'a str,
+    pub web_socket_channel: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -229,50 +250,51 @@ impl SignalWebSocket<websocket::Unidentified> {
         .json()
         .await
     }
-}
 
-impl SignalWebSocket<websocket::Identified> {
     pub async fn submit_registration_request(
         &mut self,
         registration_method: RegistrationMethod<'_>,
+        phonenumber: &str,
+        password: &str,
         account_attributes: AccountAttributes,
         skip_device_transfer: bool,
-        aci_identity_key: &IdentityKey,
-        pni_identity_key: &IdentityKey,
-        device_activation_request: DeviceActivationRequest,
+        keys: RegistrationKeyPackage,
     ) -> Result<VerifyAccountResponse, ServiceError> {
         #[derive(serde::Serialize, Debug)]
         #[serde(rename_all = "camelCase")]
+        /// https://github.com/signalapp/Signal-Android/blob/main/lib/libsignal-service/src/main/java/org/whispersystems/signalservice/internal/push/RegistrationSessionRequestBody.kt
         struct RegistrationSessionRequestBody<'a> {
-            // Unhandled response 422 with body:
-            // {"errors":["deviceActivationRequest.pniSignedPreKey must not be
-            // null","deviceActivationRequest.pniPqLastResortPreKey must not be
-            // null","everySignedKeyValid must be true","aciIdentityKey must not be
-            // null","pniIdentityKey must not be null","deviceActivationRequest.aciSignedPreKey
-            // must not be null","deviceActivationRequest.aciPqLastResortPreKey must not be null"]}
             session_id: Option<&'a str>,
             recovery_password: Option<&'a str>,
             account_attributes: AccountAttributes,
             skip_device_transfer: bool,
-            every_signed_key_valid: bool,
             #[serde(default, with = "serde_base64")]
             pni_identity_key: Vec<u8>,
             #[serde(default, with = "serde_base64")]
             aci_identity_key: Vec<u8>,
-            #[serde(flatten)]
-            device_activation_request: DeviceActivationRequest,
+            aci_signed_pre_key: SignedPreKeyEntity,
+            pni_signed_pre_key: SignedPreKeyEntity,
+            aci_pq_last_resort_pre_key: KyberPreKeyEntity,
+            pni_pq_last_resort_pre_key: KyberPreKeyEntity,
+            gcm_token: Option<GcmRegistrationId<'a>>,
+            require_atomic: bool,
         }
 
         self.http_request(Method::POST, "/v1/registration")?
+            .auth_header(phonenumber, password)
             .send_json(&RegistrationSessionRequestBody {
                 session_id: registration_method.session_id(),
                 recovery_password: registration_method.recovery_password(),
                 account_attributes,
                 skip_device_transfer,
-                aci_identity_key: aci_identity_key.serialize().into(),
-                pni_identity_key: pni_identity_key.serialize().into(),
-                device_activation_request,
-                every_signed_key_valid: true,
+                aci_identity_key: keys.aci_identity_key,
+                pni_identity_key: keys.pni_identity_key,
+                aci_signed_pre_key: keys.aci_signed_pre_key,
+                pni_signed_pre_key: keys.pni_signed_pre_key,
+                aci_pq_last_resort_pre_key: keys.aci_pq_last_resort_pre_key,
+                pni_pq_last_resort_pre_key: keys.pni_pq_last_resort_pre_key,
+                gcm_token: None,
+                require_atomic: true, // XXX default = true but what does this signify?
             })
             .await?
             .service_error_for_status()
@@ -303,5 +325,92 @@ impl SignalWebSocket<websocket::Identified> {
         .await?
         .json()
         .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn register_account<
+        R: Rng + CryptoRng,
+        Aci: PreKeysStore + IdentityKeyStore,
+        Pni: PreKeysStore + IdentityKeyStore,
+    >(
+        &mut self,
+        csprng: &mut R,
+        registration_method: RegistrationMethod<'_>,
+        account_attributes: AccountAttributes,
+        aci_protocol_store: &mut Aci,
+        pni_protocol_store: &mut Pni,
+        skip_device_transfer: bool,
+        phonenumber: &str,
+        password: &str,
+    ) -> Result<VerifyAccountResponse, ProvisioningError> {
+        let aci_identity_key_pair = aci_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get ACI identity key pair"))
+            .await?;
+        let pni_identity_key_pair = pni_protocol_store
+            .get_identity_key_pair()
+            .instrument(tracing::trace_span!("get PNI identity key pair"))
+            .await?;
+
+        let (
+            _aci_pre_keys,
+            aci_signed_pre_key,
+            _aci_kyber_pre_keys,
+            aci_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            aci_protocol_store,
+            csprng,
+            &aci_identity_key_pair,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let (
+            _pni_pre_keys,
+            pni_signed_pre_key,
+            _pni_kyber_pre_keys,
+            pni_last_resort_kyber_prekey,
+        ) = crate::pre_keys::replenish_pre_keys(
+            pni_protocol_store,
+            csprng,
+            &pni_identity_key_pair,
+            true,
+            0,
+            0,
+        )
+        .await?;
+
+        let aci_identity_key = aci_identity_key_pair.identity_key();
+        let pni_identity_key = pni_identity_key_pair.identity_key();
+        let keys = RegistrationKeyPackage {
+            aci_identity_key: aci_identity_key.serialize().into(),
+            pni_identity_key: pni_identity_key.serialize().into(),
+            aci_signed_pre_key: SignedPreKeyEntity::try_from(
+                &aci_signed_pre_key,
+            )
+            .unwrap(),
+            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
+            aci_pq_last_resort_pre_key: aci_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+            pni_pq_last_resort_pre_key: pni_last_resort_kyber_prekey
+                .expect("requested last resort prekey")
+                .try_into()?,
+        };
+
+        let result = self
+            .submit_registration_request(
+                registration_method,
+                phonenumber,
+                password,
+                account_attributes,
+                skip_device_transfer,
+                keys,
+            )
+            .await?;
+
+        Ok(result)
     }
 }
