@@ -51,11 +51,17 @@ impl SignalWebSocket<Unidentified> {
         ))
     }
 
+    /// Looks up the encrypted username stored at a username link handle and
+    /// decrypts it.
+    ///
+    /// `link` is accepted either as a full `https://signal.me/#eu/<payload>`
+    /// link or as the bare `<payload>` that follows `#eu/`. The payload is the
+    /// URL-safe base64 encoding of the 32-byte link entropy followed by the
+    /// 16-byte link handle UUID.
     // Based on libsignal-net
     pub async fn look_up_username_link(
         &mut self,
-        uuid: uuid::Uuid,
-        entropy: &[u8; usernames::constants::USERNAME_LINK_ENTROPY_SIZE],
+        link: &str,
     ) -> Result<Option<usernames::Username>, ServiceError> {
         #[derive(serde::Deserialize)]
         struct UsernameLinkResponse {
@@ -64,10 +70,12 @@ impl SignalWebSocket<Unidentified> {
             encrypted_username: Vec<u8>,
         }
 
+        let (uuid, entropy) = parse_username_link(link)?;
+
         let response = self
             .http_request(
                 Method::GET,
-                format!("/v1/accounts/username_link/{uuid}",),
+                format!("/v1/accounts/username_link/{uuid}"),
             )?
             .send()
             .await?;
@@ -81,13 +89,13 @@ impl SignalWebSocket<Unidentified> {
             response.service_error_for_status().await?.json().await?;
 
         let plaintext_username =
-            usernames::decrypt_username(entropy, &result.encrypted_username)
-                .map_err(|_e| {
-                    tracing::error!(error=%_e, "undecryptable username");
-                    ServiceError::InvalidFrame {
-                        reason: "undecryptable username link",
-                    }
-                })?;
+            usernames::decrypt_username(&entropy, &result.encrypted_username)
+                .map_err(|error| {
+                tracing::error!(%error, "undecryptable username");
+                ServiceError::InvalidFrame {
+                    reason: "undecryptable username link",
+                }
+            })?;
 
         let validated_username = usernames::Username::new(&plaintext_username).map_err(|e| {
             // Exhaustively match UsernameError to make sure there's nothing we shouldn't log.
@@ -120,4 +128,40 @@ impl SignalWebSocket<Unidentified> {
 
         Ok(Some(validated_username))
     }
+}
+
+/// Splits a username link into its link handle UUID and link entropy.
+///
+/// Accepts either a full `https://signal.me/#eu/<payload>` link or the bare
+/// `<payload>` after `#eu/`. The payload is URL-safe base64 (no padding) of
+/// the 32-byte entropy followed by the 16-byte handle UUID.
+fn parse_username_link(
+    link: &str,
+) -> Result<
+    (
+        uuid::Uuid,
+        [u8; usernames::constants::USERNAME_LINK_ENTROPY_SIZE],
+    ),
+    ServiceError,
+> {
+    let payload = link
+        .rsplit_once("#eu/")
+        .map(|(_, payload)| payload)
+        .unwrap_or(link);
+
+    let bytes = BASE64_URL_SAFE_NO_PAD.decode(payload)?;
+
+    let (entropy, rest) = bytes
+        .split_first_chunk::<{ usernames::constants::USERNAME_LINK_ENTROPY_SIZE }>()
+        .ok_or_else(|| ServiceError::InvalidFrame {
+            reason: "username link payload shorter than entropy",
+        })?;
+
+    let handle_uuid = uuid::Uuid::from_slice(rest).map_err(|_| {
+        ServiceError::InvalidFrame {
+            reason: "username link payload missing handle UUID",
+        }
+    })?;
+
+    Ok((handle_uuid, *entropy))
 }
