@@ -65,6 +65,7 @@ tokio = { version = "1.0", features = ["macros"] }
 prost-build = "0.14"
 
 [dev-dependencies]
+regex = "1"
 anyhow = "1.0"
 tokio = { version = "1.0", features = ["macros", "rt"] }
 clap = { version = "4.4", features = ["derive"] }
