@@ -6,8 +6,12 @@ use uuid::Uuid;
 use super::ServiceError;
 use crate::{
     pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity},
-    utils::serde_base64,
-    websocket::{self, account::AccountAttributes, SignalWebSocket},
+    utils::{serde_base64, serde_optional_base64, serde_optional_prost_base64},
+    websocket::{
+        self,
+        account::{AccountAttributes, DeviceCapabilities},
+        SignalWebSocket,
+    },
 };
 
 /// This type is used in registration lock handling.
@@ -76,6 +80,48 @@ pub struct DeviceActivationRequest {
     pub pni_signed_pre_key: SignedPreKeyEntity,
     pub aci_pq_last_resort_pre_key: KyberPreKeyEntity,
     pub pni_pq_last_resort_pre_key: KyberPreKeyEntity,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RegistrationAccountAttributesPayload {
+    fetches_messages: bool,
+    registration_id: u32,
+    pni_registration_id: u32,
+    #[serde(default, with = "serde_optional_prost_base64")]
+    name: Option<crate::proto::DeviceName>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    registration_lock: Option<String>,
+    #[serde(default, with = "serde_optional_base64")]
+    unidentified_access_key: Option<Vec<u8>>,
+    unrestricted_unidentified_access: bool,
+    capabilities: DeviceCapabilities,
+    discoverable_by_phone_number: bool,
+    #[serde(
+        default,
+        with = "serde_optional_base64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    recovery_password: Option<Vec<u8>>,
+}
+
+impl From<AccountAttributes> for RegistrationAccountAttributesPayload {
+    fn from(attributes: AccountAttributes) -> Self {
+        Self {
+            fetches_messages: attributes.fetches_messages,
+            registration_id: attributes.registration_id,
+            pni_registration_id: attributes.pni_registration_id,
+            name: attributes.name,
+            registration_lock: attributes.registration_lock,
+            unidentified_access_key: attributes.unidentified_access_key,
+            unrestricted_unidentified_access: attributes
+                .unrestricted_unidentified_access,
+            capabilities: attributes.capabilities,
+            discoverable_by_phone_number: attributes
+                .discoverable_by_phone_number,
+            recovery_password: attributes.recovery_password,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -229,6 +275,73 @@ impl SignalWebSocket<websocket::Unidentified> {
         .json()
         .await
     }
+
+    pub async fn submit_verification_code(
+        &mut self,
+        session_id: &str,
+        verification_code: &str,
+    ) -> Result<RegistrationSessionMetadataResponse, ServiceError> {
+        #[derive(Debug, Serialize)]
+        struct VerificationCode<'a> {
+            code: &'a str,
+        }
+
+        self.http_request(
+            Method::PUT,
+            format!("/v1/verification/session/{}/code", session_id),
+        )?
+        .send_json(&VerificationCode {
+            code: verification_code,
+        })
+        .await?
+        .service_error_for_status()
+        .await?
+        .json()
+        .await
+    }
+
+    pub async fn submit_registration_request(
+        &mut self,
+        registration_method: RegistrationMethod<'_>,
+        account_attributes: AccountAttributes,
+        skip_device_transfer: bool,
+        aci_identity_key: &IdentityKey,
+        pni_identity_key: &IdentityKey,
+        device_activation_request: DeviceActivationRequest,
+    ) -> Result<VerifyAccountResponse, ServiceError> {
+        #[derive(serde::Serialize, Debug)]
+        #[serde(rename_all = "camelCase")]
+        struct RegistrationSessionRequestBody<'a> {
+            session_id: Option<&'a str>,
+            recovery_password: Option<&'a str>,
+            account_attributes: RegistrationAccountAttributesPayload,
+            skip_device_transfer: bool,
+            every_signed_key_valid: bool,
+            #[serde(default, with = "serde_base64")]
+            pni_identity_key: Vec<u8>,
+            #[serde(default, with = "serde_base64")]
+            aci_identity_key: Vec<u8>,
+            #[serde(flatten)]
+            device_activation_request: DeviceActivationRequest,
+        }
+
+        self.http_request(Method::POST, "/v1/registration")?
+            .send_json(&RegistrationSessionRequestBody {
+                session_id: registration_method.session_id(),
+                recovery_password: registration_method.recovery_password(),
+                account_attributes: account_attributes.into(),
+                skip_device_transfer,
+                aci_identity_key: aci_identity_key.serialize().into(),
+                pni_identity_key: pni_identity_key.serialize().into(),
+                device_activation_request,
+                every_signed_key_valid: true,
+            })
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await
+    }
 }
 
 impl SignalWebSocket<websocket::Identified> {
@@ -252,7 +365,7 @@ impl SignalWebSocket<websocket::Identified> {
             // must not be null","deviceActivationRequest.aciPqLastResortPreKey must not be null"]}
             session_id: Option<&'a str>,
             recovery_password: Option<&'a str>,
-            account_attributes: AccountAttributes,
+            account_attributes: RegistrationAccountAttributesPayload,
             skip_device_transfer: bool,
             every_signed_key_valid: bool,
             #[serde(default, with = "serde_base64")]
@@ -267,7 +380,7 @@ impl SignalWebSocket<websocket::Identified> {
             .send_json(&RegistrationSessionRequestBody {
                 session_id: registration_method.session_id(),
                 recovery_password: registration_method.recovery_password(),
-                account_attributes,
+                account_attributes: account_attributes.into(),
                 skip_device_transfer,
                 aci_identity_key: aci_identity_key.serialize().into(),
                 pni_identity_key: pni_identity_key.serialize().into(),
