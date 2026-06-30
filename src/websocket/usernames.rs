@@ -55,14 +55,13 @@ impl SignalWebSocket<Unidentified> {
     /// Looks up the encrypted username stored at a username link handle and
     /// decrypts it.
     ///
-    /// `link` is accepted either as a full `https://signal.me/#eu/<payload>`
-    /// link or as the bare `<payload>` that follows `#eu/`. The payload is the
-    /// URL-safe base64 encoding of the 32-byte link entropy followed by the
-    /// 16-byte link handle UUID.
+    /// `link` must be a full `https://signal.me/#eu/<payload>` URL. The payload
+    /// is the URL-safe base64 encoding of the 32-byte link entropy followed by
+    /// the 16-byte link handle UUID.
     // Based on libsignal-net
     pub async fn look_up_username_link(
         &mut self,
-        link: &str,
+        link: &url::Url,
     ) -> Result<Option<usernames::Username>, ServiceError> {
         #[derive(serde::Deserialize)]
         struct UsernameLinkResponse {
@@ -133,11 +132,11 @@ impl SignalWebSocket<Unidentified> {
 
 /// Splits a username link into its link handle UUID and link entropy.
 ///
-/// Accepts either a full `https://signal.me/#eu/<payload>` link or the bare
-/// `<payload>` after `#eu/`. The payload is URL-safe base64 (no padding) of
-/// the 32-byte entropy followed by the 16-byte handle UUID.
+/// `link` must be a full `https://signal.me/#eu/<payload>` URL. The payload is
+/// URL-safe base64 (no padding) of the 32-byte entropy followed by the 16-byte
+/// handle UUID.
 fn parse_username_link(
-    link: &str,
+    link: &url::Url,
 ) -> Result<
     (
         uuid::Uuid,
@@ -145,10 +144,31 @@ fn parse_username_link(
     ),
     ServiceError,
 > {
-    let payload = link
-        .rsplit_once("#eu/")
-        .map(|(_, payload)| payload)
-        .unwrap_or(link);
+    if link.scheme() != "https" || link.host_str() != Some("signal.me") {
+        return Err(ServiceError::InvalidFrame {
+            reason: "username link base is not https://signal.me",
+        });
+    }
+
+    let fragment =
+        link.fragment().ok_or_else(|| ServiceError::InvalidFrame {
+            reason: "username link missing fragment",
+        })?;
+    let mut segments = fragment.split('/');
+    if segments.next() != Some("eu") {
+        return Err(ServiceError::InvalidFrame {
+            reason: "username link must start with #eu/",
+        });
+    }
+    let payload =
+        segments.next().ok_or_else(|| ServiceError::InvalidFrame {
+            reason: "username link payload missing",
+        })?;
+    if segments.next().is_some() {
+        return Err(ServiceError::InvalidFrame {
+            reason: "username link has extra path segments",
+        });
+    }
 
     let bytes = BASE64_URL_SAFE_NO_PAD.decode(payload)?;
 
@@ -178,7 +198,7 @@ impl SignalWebSocket<Identified> {
         &mut self,
         username: &usernames::Username,
         keep_link_handle: bool,
-    ) -> Result<String, ServiceError> {
+    ) -> Result<url::Url, ServiceError> {
         #[derive(Serialize)]
         #[serde(rename_all = "camelCase")]
         struct SetUsernameLinkRequest {
@@ -229,13 +249,13 @@ impl SignalWebSocket<Identified> {
 pub fn generate_username_link(
     handle: uuid::Uuid,
     entropy: &[u8; usernames::constants::USERNAME_LINK_ENTROPY_SIZE],
-) -> String {
+) -> url::Url {
     let mut payload = entropy.to_vec();
     payload.extend_from_slice(handle.as_bytes());
-    format!(
-        "https://signal.me/#eu/{}",
-        BASE64_URL_SAFE_NO_PAD.encode(&payload)
-    )
+    let mut result = String::from("https://signal.me/#eu/");
+    BASE64_URL_SAFE_NO_PAD.encode_string(&payload, &mut result);
+
+    url::Url::parse(&result).expect("can only generate valid URLs")
 }
 
 #[cfg(test)]
@@ -248,7 +268,7 @@ mod test {
         let handle = uuid::uuid!("9d0652a3-dcc3-4d11-975f-74d61598733f");
         // deliberately chosen to round-trip cleanly through URL-safe base64
         let link = generate_username_link(handle, &entropy);
-        assert!(link.starts_with("https://signal.me/#eu/"));
+        assert!(link.as_str().starts_with("https://signal.me/#eu/"));
 
         let (parsed_handle, parsed_entropy) =
             parse_username_link(&link).unwrap();
@@ -257,14 +277,29 @@ mod test {
     }
 
     #[test]
-    fn parse_link_accepts_bare_payload() {
-        let entropy = [0x11; usernames::constants::USERNAME_LINK_ENTROPY_SIZE];
-        let handle = uuid::uuid!("00000000-0000-0000-0000-000000000000");
-        let link = generate_username_link(handle, &entropy);
-        let payload = link.rsplit_once("#eu/").unwrap().1;
-        let (parsed_handle, parsed_entropy) =
-            parse_username_link(payload).unwrap();
-        assert_eq!(parsed_handle, handle);
-        assert_eq!(parsed_entropy, entropy);
+    fn parse_link_rejects_wrong_base() {
+        let entropy = [0x42; usernames::constants::USERNAME_LINK_ENTROPY_SIZE];
+        let handle = uuid::uuid!("9d0652a3-dcc3-4d11-975f-74d61598733f");
+        let bad_link = generate_username_link(handle, &entropy)
+            .to_string()
+            .replace("signal.me", "example.com");
+        let bad_link = url::Url::parse(&bad_link).unwrap();
+        assert!(parse_username_link(&bad_link).is_err());
+    }
+
+    #[test]
+    fn parse_link_rejects_missing_eu_marker() {
+        let bad_link = url::Url::parse(
+            "https://signal.me/#foo/R_rHg5IQLE60Qad5l8rV-6x2TMcVnDYvOV-igYXJj6GK1NuNeE9LKI3V_VZ8IH2p",
+        )
+        .unwrap();
+        assert!(parse_username_link(&bad_link).is_err());
+    }
+
+    #[test]
+    fn parse_link_rejects_extra_fragment_segments() {
+        let bad_link =
+            url::Url::parse("https://signal.me/#eu/payload/extra").unwrap();
+        assert!(parse_username_link(&bad_link).is_err());
     }
 }

@@ -7,27 +7,12 @@
 //!     cargo run --example usernames -- https://signal.me/#eu/R_rHg5IQLE60Qad5l8rV-6x2TMcVnDYvOV-igYXJj6GK1NuNeE9LKI3V_VZ8IH2p
 //!     cargo run --example usernames -- rubdos.95 "https://signal.me/#eu/..."
 
-use std::sync::LazyLock;
-
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use libsignal_service::configuration::SignalServers;
 use libsignal_service::push_service::PushService;
 use libsignal_service::websocket;
 use usernames::Username;
-
-/// A bare username: `<nickname>.<discriminator>`, e.g. `rubdos.95`.
-static USERNAME: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"^[A-Za-z_][A-Za-z0-9_]{2,31}\.[0-9]{2,9}$")
-        .expect("valid regex")
-});
-
-/// A `signal.me` username link, full or payload form.
-static LINK: LazyLock<regex::Regex> = LazyLock::new(|| {
-    // Matches the bare URL-safe base64 payload too; it can't contain '#' or '/'.
-    regex::Regex::new(r"signal\.me/?#eu/|^[A-Za-z0-9_-]{20,}$")
-        .expect("valid regex")
-});
 
 #[derive(Parser, Debug)]
 #[command(name = "usernames")]
@@ -80,14 +65,13 @@ async fn main() -> Result<()> {
         .context("Failed to create WebSocket")?;
 
     for query in args.queries {
-        let username = if USERNAME.is_match(&query) {
+        let username = if let Ok(username) = Username::new(&query) {
             println!("\n=== username: {query} ===");
-            Username::new(&query)
-                .map_err(|e| anyhow!("invalid username '{query}': {e}"))?
-        } else if LINK.is_match(&query) {
+            username
+        } else if let Ok(link) = url::Url::parse(&query) {
             println!("\n=== username link: {query} ===");
             match socket
-                .look_up_username_link(&query)
+                .look_up_username_link(&link)
                 .await
                 .context("username link lookup failed")?
             {
