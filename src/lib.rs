@@ -33,6 +33,9 @@ pub mod unidentified_access;
 pub mod utils;
 pub mod websocket;
 
+#[cfg(feature = "key-transparency")]
+pub mod key_transparency;
+
 pub use crate::account_manager::{
     decrypt_device_name, encrypt_device_name, AccountManager, Profile,
     ProfileManagerError,
