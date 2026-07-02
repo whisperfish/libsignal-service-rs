@@ -327,10 +327,13 @@ where
 
                     server_guid,
                 };
-                Plaintext {
-                    metadata,
-                    data: ciphertext.clone(),
-                }
+                // Unsealed envelope wrapping a PlaintextContent.
+                // Should contain a DecryptionErrorMessage.
+                let plaintext_content =
+                    PlaintextContent::try_from(&ciphertext[..])?;
+                let mut data = plaintext_content.body().to_vec();
+                strip_padding(&mut data)?;
+                Plaintext { metadata, data }
             },
             Type::Ciphertext => {
                 let sender = get_preferred_protocol_address(
