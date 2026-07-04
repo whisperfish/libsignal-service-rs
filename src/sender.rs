@@ -11,7 +11,7 @@ use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
-use zkgroup::GROUP_IDENTIFIER_LEN;
+use zkgroup::{groups::GroupSendFullToken, GROUP_IDENTIFIER_LEN};
 
 use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
@@ -28,8 +28,10 @@ use crate::{
     push_service::*,
     service_address::ServiceIdExt,
     session_store::SessionStoreExt,
-    unidentified_access::UnidentifiedAccess,
-    utils::{serde_device_id, serde_service_id},
+    unidentified_access::{
+        CombinedUnidentifiedSenderAccessKeys, UnidentifiedAccess,
+    },
+    utils::{serde_device_id, serde_service_id, BASE64_RELAXED},
     websocket::{self, SignalWebSocket},
 };
 
@@ -68,6 +70,65 @@ pub struct SentMessage {
     pub used_identity_key: IdentityKey,
     pub unidentified: bool,
     pub needs_sync: bool,
+}
+
+/// Authorization for `PUT /v1/messages/multi_recipient`.
+///
+/// For non-story multi-recipient sends Signal requires **exactly one** of:
+/// - a combined unidentified-access key (the bitwise XOR of every
+///   recipient's 16-byte UAK), sent base64-encoded in the
+///   `Unidentified-Access-Key` header, or
+/// - a group-send endorsement full token, sent base64-encoded in the
+///   `Group-Send-Token` header.
+///
+/// Stories carry neither header; pass `None` for `access` in
+/// [`MultiRecipientMessagesRequest`] when `story` is `true`.
+#[derive(Clone)]
+pub enum MultiRecipientAccess {
+    /// Combined unidentified-access keys.
+    UnidentifiedAccessKey(CombinedUnidentifiedSenderAccessKeys),
+    /// A group-send endorsement token covering the recipients.
+    GroupSendToken(GroupSendFullToken),
+}
+
+impl MultiRecipientAccess {
+    /// `(header name, base64-encoded value)` for the access strategy.
+    pub(crate) fn header(&self) -> (&'static str, String) {
+        use base64::Engine;
+        match self {
+            MultiRecipientAccess::UnidentifiedAccessKey(keys) => {
+                ("Unidentified-Access-Key", BASE64_RELAXED.encode(keys.0))
+            },
+            MultiRecipientAccess::GroupSendToken(token) => (
+                "Group-Send-Token",
+                BASE64_RELAXED.encode(zkgroup::serialize(token)),
+            ),
+        }
+    }
+}
+
+/// Request to `PUT /v1/messages/multi_recipient`.
+///
+/// `payload` is the raw Sealed Sender v2 multi-recipient message produced by
+/// `libsignal_protocol::sealed_sender_multi_recipient_encrypt`.
+///
+/// `timestamp`/`online`/`urgent`/`story` mirror the server's query parameters.
+pub struct MultiRecipientMessagesRequest<'a> {
+    /// Sender's timestamp for the envelope.
+    pub timestamp: u64,
+    /// Deliver only to recipients that are online when the message is sent.
+    pub online: bool,
+    /// Whether the message should trigger push notifications.
+    pub urgent: bool,
+    /// Story message: access tokens are not checked and sending to
+    /// nonexistent recipients is permitted.
+    pub story: bool,
+    /// Raw Sealed Sender v2 multi-recipient payload
+    /// (`application/vnd.signal-messenger.mrm`).
+    pub payload: &'a [u8],
+    /// `None` for stories; otherwise [`MultiRecipientAccess::UnidentifiedAccessKey`]
+    /// xor [`MultiRecipientAccess::GroupSendToken`].
+    pub access: Option<MultiRecipientAccess>,
 }
 
 /// Attachment specification to be used for uploading.
