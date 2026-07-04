@@ -10,6 +10,39 @@ use crate::{
     websocket::{self, account::DeviceCapabilities, SignalWebSocket},
 };
 
+/// A donation badge returned by the server on profile fetch.
+///
+/// Mirrors the JSON shape of Signal-Android's `SignalServiceProfile.Badge`.
+/// Display metadata is render-ready (name, description, sprites6 image URLs).
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Badge {
+    /// Server catalog id (e.g. "BOOSTING").
+    #[serde(default)]
+    pub id: String,
+    /// Badge category string.
+    #[serde(default)]
+    pub category: String,
+    /// Render-ready display name.
+    #[serde(default)]
+    pub name: String,
+    /// Render-ready description.
+    #[serde(default)]
+    pub description: String,
+    /// Sprite image URLs (density-tagged).
+    #[serde(default)]
+    pub sprites6: Vec<String>,
+    /// Expiration epoch millis. Java sends this as BigDecimal.
+    #[serde(default)]
+    pub expiration: Option<f64>,
+    /// Whether the badge is displayed on the profile.
+    #[serde(default)]
+    pub visible: bool,
+    /// Duration badge is valid for, in seconds.
+    #[serde(default)]
+    pub duration: i64,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignalServiceProfile {
@@ -32,6 +65,10 @@ pub struct SignalServiceProfile {
     pub unrestricted_unidentified_access: bool,
 
     pub capabilities: DeviceCapabilities,
+
+    /// Donation badges the server reports for this profile.
+    #[serde(default)]
+    pub badges: Vec<Badge>,
 }
 
 #[derive(Debug, Serialize)]
