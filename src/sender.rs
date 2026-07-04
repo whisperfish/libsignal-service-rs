@@ -3,9 +3,11 @@ use std::{collections::HashSet, time::SystemTime};
 use chrono::prelude::*;
 use libsignal_core::{curve::CurveError, InvalidDeviceId};
 use libsignal_protocol::{
-    process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
+    create_sender_key_distribution_message, process_prekey_bundle,
+    sealed_sender_encrypt_from_usmc, Aci, CiphertextMessageType, ContentHint,
+    DeviceId, IdentityKey, IdentityKeyPair, Pni, ProtocolAddress,
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
-    SessionNotFound, SignalProtocolError,
+    SessionNotFound, SignalProtocolError, UnidentifiedSenderMessageContent,
 };
 use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
@@ -514,24 +516,17 @@ where
         result
     }
 
-    /// Send a message to the recipients in a group.
+    /// Fallback: send to a group recipient using legacy 1:1 encryption per device.
     ///
-    /// Recipients are a list of tuples, each containing:
-    /// - The recipient's address
-    /// - The recipient's unidentified access
-    /// - Whether the recipient requires a PNI signature
-    #[tracing::instrument(
-        skip(self, recipients, message),
-        fields(recipients = recipients.as_ref().len()),
-    )]
-    pub async fn send_message_to_group(
+    /// Used when the recipient does not support sealed sender or when the
+    /// sender-key path cannot be used for a specific recipient.
+    async fn send_message_to_group_legacy_1to1(
         &mut self,
         recipients: impl AsRef<[(ServiceId, Option<UnidentifiedAccess>, bool)]>,
-        message: impl Into<ContentBody>,
+        content_body: &ContentBody,
         timestamp: u64,
         online: bool,
     ) -> Vec<SendMessageResult> {
-        let content_body: ContentBody = message.into();
         let mut results = vec![];
 
         let mut needs_sync_in_results = false;
@@ -543,7 +538,7 @@ where
                 .try_send_message(
                     *recipient,
                     unidentified_access.as_ref(),
-                    &content_body,
+                    content_body,
                     timestamp,
                     *include_pni_signature,
                     online,
@@ -579,6 +574,150 @@ where
                         &sync_message,
                         timestamp,
                         false, // XXX: maybe the sync device does want a PNI signature?
+                        false,
+                    )
+                    .await
+                {
+                    error!(%error, "failed to send a synchronization message");
+                }
+            } else {
+                error!("could not create sync message from a group message")
+            }
+        }
+
+        results
+    }
+
+    /// Send a message to the recipients in a group using sender keys.
+    ///
+    /// Recipients are a list of tuples, each containing:
+    /// - The recipient's address
+    /// - The recipient's unidentified access
+    /// - Whether the recipient requires a PNI signature
+    ///
+    /// `distribution_id` identifies the sender-key chain for this group. The
+    /// caller is responsible for rotation (generate a new UUID on member leave
+    /// or safety-number change).
+    #[tracing::instrument(
+        skip(self, recipients, message),
+        fields(recipients = recipients.as_ref().len(), dist_id = %distribution_id),
+    )]
+    pub async fn send_message_to_group(
+        &mut self,
+        distribution_id: Uuid,
+        recipients: impl AsRef<[(ServiceId, Option<UnidentifiedAccess>, bool)]>,
+        message: impl Into<ContentBody>,
+        timestamp: u64,
+        online: bool,
+    ) -> Vec<SendMessageResult> {
+        let content_body: ContentBody = message.into();
+
+        // Share SKDMs with any devices that haven't received them yet.
+        // XXX Ideally, we *attach* the SKDM to the message-to-be-sent.
+        //     This is an ugly hack
+        if let Err(e) = self
+            .share_sender_key_if_needed(
+                distribution_id,
+                timestamp,
+                recipients.as_ref(),
+            )
+            .await
+        {
+            return vec![Err(e)];
+        }
+
+        // Encode the content once.
+        use prost::Message;
+        let content_bytes = content_body.clone().into_proto().encode_to_vec();
+
+        let sender_address = match self
+            .local_aci
+            .to_protocol_address(self.device_id)
+        {
+            Ok(addr) => addr,
+            Err(e) => return vec![Err(MessageSenderError::InvalidDeviceId(e))],
+        };
+        // Pad + group-encrypt once for the whole group, inside `cipher.rs` so
+        // the send-side padding invariant stays co-located with the receive
+        // path's `strip_padding` (`Type::UnidentifiedSender` arm). See D.4.
+        let mut rng = rng();
+        let skm_serialized = match crate::cipher::encrypt_sender_key_message(
+            &mut self.protocol_store,
+            &sender_address,
+            distribution_id,
+            &content_bytes,
+            &mut rng,
+        )
+        .await
+        {
+            Ok(bytes) => bytes,
+            Err(e) => return vec![Err(MessageSenderError::ServiceError(e))],
+        };
+
+        let mut results: Vec<SendMessageResult> = vec![];
+        let mut needs_sync_in_results = false;
+
+        for (recipient, unidentified_access, _include_pni_signature) in
+            recipients.as_ref()
+        {
+            let Some(unidentified) = unidentified_access else {
+                // Fall back to legacy 1:1 for this recipient (no sealed-sender
+                // capability).
+                let legacy_results = self
+                    .send_message_to_group_legacy_1to1(
+                        std::slice::from_ref(&(*recipient, None, false)),
+                        &content_body,
+                        timestamp,
+                        online,
+                    )
+                    .await;
+                if let Some(Ok(SentMessage { needs_sync, .. })) =
+                    legacy_results.first()
+                {
+                    if *needs_sync {
+                        needs_sync_in_results = true;
+                    }
+                }
+                results.extend(legacy_results);
+                continue;
+            };
+
+            let result = self
+                .send_sender_key_to_recipient(
+                    *recipient,
+                    unidentified,
+                    &skm_serialized,
+                    timestamp,
+                    online,
+                )
+                .await;
+
+            match result {
+                Ok(SentMessage { needs_sync, .. }) if needs_sync => {
+                    needs_sync_in_results = true;
+                },
+                _ => (),
+            };
+            results.push(result);
+        }
+
+        // Multi-device sync transcript (unchanged from the legacy path).
+        if needs_sync_in_results || self.is_multi_device().await {
+            if let Some(sync_message) = self
+                .create_multi_device_sent_transcript_content(
+                    None,
+                    content_body.clone(),
+                    timestamp,
+                    &results,
+                )
+            {
+                if let Err(error) = self
+                    .try_send_message(
+                        self.local_aci.into(),
+                        None,
+                        &sync_message,
+                        timestamp,
+                        false,
                         false,
                     )
                     .await
@@ -647,6 +786,219 @@ where
         .await?;
 
         Ok(())
+    }
+
+    /// Build per-device sealed-sender SenderKey messages for a single recipient
+    /// and send them via the sealed-sender path with the full retry loop.
+    async fn send_sender_key_to_recipient(
+        &mut self,
+        recipient: ServiceId,
+        unidentified_access: &UnidentifiedAccess,
+        skm_serialized: &[u8],
+        timestamp: u64,
+        online: bool,
+    ) -> SendMessageResult {
+        // Retry up to 4 times (matches try_send_message).
+        use base64::Engine;
+        for _ in 0..4u8 {
+            let devices = self.enumerate_recipient_devices(&recipient).await?;
+
+            let mut recipient_messages = vec![];
+            for &device_id in &devices {
+                let dest_address =
+                    match recipient.to_protocol_address(device_id) {
+                        Ok(addr) => addr,
+                        Err(_) => continue,
+                    };
+
+                let session_record = match self
+                    .protocol_store
+                    .load_session(&dest_address)
+                    .await?
+                {
+                    Some(s) => s,
+                    None => {
+                        tracing::debug!(
+                            "no session for {dest_address}; skipping sender-key send"
+                        );
+                        continue;
+                    },
+                };
+
+                let registration_id = match session_record
+                    .remote_registration_id()
+                {
+                    Ok(id) => id,
+                    Err(e) => {
+                        tracing::debug!(%e, "failed to get registration id for {dest_address}");
+                        continue;
+                    },
+                };
+
+                let usmc = match UnidentifiedSenderMessageContent::new(
+                    CiphertextMessageType::SenderKey,
+                    unidentified_access.certificate.clone(),
+                    skm_serialized.to_vec(),
+                    ContentHint::Resendable,
+                    None,
+                ) {
+                    Ok(u) => u,
+                    Err(e) => {
+                        tracing::debug!(%e, "failed to build USMC for {dest_address}");
+                        continue;
+                    },
+                };
+
+                let mut rng = rng();
+                let sealed_bytes = match sealed_sender_encrypt_from_usmc(
+                    &dest_address,
+                    &usmc,
+                    &self.protocol_store,
+                    &mut rng,
+                )
+                .await
+                {
+                    Ok(b) => b,
+                    Err(e) => {
+                        tracing::debug!(%e, "failed to sealed-sender-encrypt for {dest_address}");
+                        continue;
+                    },
+                };
+
+                use crate::proto::envelope::Type;
+                recipient_messages.push(OutgoingPushMessage {
+                    r#type: Type::UnidentifiedSender as u32,
+                    destination_device_id: device_id,
+                    destination_registration_id: registration_id,
+                    content: BASE64_RELAXED.encode(sealed_bytes),
+                });
+            }
+
+            if recipient_messages.is_empty() {
+                return Err(MessageSenderError::NoMessagesToSend);
+            }
+
+            let messages = OutgoingPushMessages {
+                destination: recipient,
+                timestamp,
+                messages: recipient_messages,
+                online,
+            };
+
+            let send = self
+                .unidentified_ws
+                .send_messages_unidentified(messages, unidentified_access)
+                .await;
+
+            match send {
+                Ok(SendMessageResponse { needs_sync }) => {
+                    let used_identity_key = self
+                        .protocol_store
+                        .get_identity(
+                            &recipient
+                                .to_protocol_address(*DEFAULT_DEVICE_ID)?,
+                        )
+                        .await?
+                        .ok_or(MessageSenderError::UntrustedIdentity {
+                            address: recipient,
+                        })?;
+                    return Ok(SentMessage {
+                        recipient,
+                        used_identity_key,
+                        unidentified: true,
+                        needs_sync,
+                    });
+                },
+                Err(ServiceError::MismatchedDevicesException(ref m)) => {
+                    tracing::debug!("{:?}", m);
+                    for extra_device_id in &m.extra_devices {
+                        tracing::debug!(
+                            "dropping session with device {}",
+                            extra_device_id
+                        );
+                        self.protocol_store
+                            .delete_service_addr_device_session(
+                                &recipient
+                                    .to_protocol_address(*extra_device_id)?,
+                            )
+                            .await?;
+                    }
+
+                    for missing_device_id in &m.missing_devices {
+                        tracing::debug!(
+                            "creating session with missing device {}",
+                            missing_device_id
+                        );
+                        let remote_address = recipient
+                            .to_protocol_address(*missing_device_id)?;
+                        let mut rng = rng();
+                        let pre_key = self
+                            .identified_ws
+                            .get_pre_key(&recipient, *missing_device_id)
+                            .await?;
+
+                        process_prekey_bundle(
+                            &remote_address,
+                            &self
+                                .local_aci
+                                .to_protocol_address(self.device_id)
+                                .expect("valid device id"),
+                            &mut self.protocol_store.clone(),
+                            &mut self.protocol_store.clone(),
+                            &pre_key,
+                            SystemTime::now(),
+                            &mut rng,
+                        )
+                        .await
+                        .map_err(|e| {
+                            error!("failed to create session: {}", e);
+                            MessageSenderError::UntrustedIdentity {
+                                address: recipient,
+                            }
+                        })?;
+                    }
+                    // Loop to rebuild messages with the updated sessions.
+                },
+                Err(ServiceError::StaleDevices(ref m)) => {
+                    tracing::debug!("{:?}", m);
+                    for extra_device_id in &m.stale_devices {
+                        tracing::debug!(
+                            "dropping session with device {}",
+                            extra_device_id
+                        );
+                        self.protocol_store
+                            .delete_service_addr_device_session(
+                                &recipient
+                                    .to_protocol_address(*extra_device_id)?,
+                            )
+                            .await?;
+                    }
+                    // Loop to rebuild messages.
+                },
+                Err(ServiceError::ProofRequiredError(ref p)) => {
+                    tracing::debug!("{:?}", p);
+                    return Err(MessageSenderError::ProofRequired {
+                        token: p.token.clone(),
+                        options: p.options.clone(),
+                    });
+                },
+                Err(ServiceError::NotFoundError) => {
+                    tracing::debug!("Not found when sending a message");
+                    return Err(MessageSenderError::NotFound {
+                        service_id: recipient,
+                    });
+                },
+                Err(e) => {
+                    tracing::debug!(
+                        "Default error handler for ws.send_messages: {}",
+                        e
+                    );
+                    return Err(MessageSenderError::ServiceError(e));
+                },
+            }
+        }
+
+        Err(MessageSenderError::MaximumRetriesLimitExceeded)
     }
 
     /// Send a message (`content`) to an address (`recipient`).
@@ -1008,6 +1360,93 @@ where
         Ok(devices)
     }
 
+    /// For every recipient device that does not yet have our SKDM for
+    /// `distribution_id`, build it (idempotent: libsignal creates the chain on
+    /// first call) and send it as an identified 1:1
+    /// `ContentBody::SenderKeyDistributionMessage`. Mark each device shared on
+    /// success.
+    #[tracing::instrument(skip(self, recipients), fields(recipients = recipients.as_ref().len(), dist_id = %distribution_id))]
+    async fn share_sender_key_if_needed(
+        &mut self,
+        distribution_id: Uuid,
+        timestamp: u64,
+        recipients: &[(ServiceId, Option<UnidentifiedAccess>, bool)],
+    ) -> Result<(), MessageSenderError> {
+        let sender_address =
+            self.local_aci.to_protocol_address(self.device_id)?;
+
+        // PNI signatures are an individual-send concern (matches Signal-Android's
+        // IndividualSendJob); the SKDM is sender-key infrastructure, so we don't
+        // attach one here even when the recipient needs one.
+        for (recipient, unidentified_access, _include_pni_signature) in
+            recipients
+        {
+            // `try_send_message` fans out to *every* device of the recipient
+            // (and creates sessions for any the server knows about but we
+            // don't). So we send at most ONE SKDM per recipient, not one per
+            // device — otherwise a D-device recipient gets the SKDM D times.
+            let devices = self.enumerate_recipient_devices(recipient).await?;
+            let mut needs_share = false;
+            for &device_id in &devices {
+                let recipient_address =
+                    match (*recipient).to_protocol_address(device_id) {
+                        Ok(a) => a,
+                        Err(_) => {
+                            needs_share = true;
+                            break;
+                        },
+                    };
+                if !self
+                    .protocol_store
+                    .is_sender_key_shared(distribution_id, &recipient_address)
+                    .await?
+                {
+                    needs_share = true;
+                }
+            }
+            if !needs_share {
+                continue;
+            }
+
+            let mut rng = rng();
+            let skdm = create_sender_key_distribution_message(
+                &sender_address,
+                distribution_id,
+                &mut self.protocol_store,
+                &mut rng,
+            )
+            .await?;
+
+            let body = ContentBody::from(skdm);
+            let _result = self
+                .try_send_message(
+                    *recipient,
+                    unidentified_access.as_ref(),
+                    &body,
+                    timestamp,
+                    false,
+                    false,
+                )
+                .await?;
+            // `try_send_message` may have established sessions with
+            // devices we didn't know about; re-enumerate so we mark
+            // the *complete* device set shared.
+            let devices_after =
+                self.enumerate_recipient_devices(recipient).await?;
+            for &device_id in &devices_after {
+                let recipient_address =
+                    (*recipient).to_protocol_address(device_id)?;
+                self.protocol_store
+                    .mark_sender_key_shared(distribution_id, &recipient_address)
+                    .await?;
+            }
+        }
+
+        // No SKDM sync transcript.
+
+        Ok(())
+    }
+
     // Equivalent with `getEncryptedMessages`
     #[tracing::instrument(
         level = "trace",
@@ -1253,5 +1692,50 @@ where
             })),
             ..SyncMessage::with_padding(&mut rng())
         }))
+    }
+
+    /// Handle an inbound `DecryptionErrorMessage` for sender-key recovery.
+    ///
+    /// When `ratchet_key` is `None`, the failure was a `SenderKeyMessage`
+    /// decryption (a `DecryptionErrorMessage` built from a `SenderKeyMessage`
+    /// carries no ratchet key). In that case we clear all shared sender-key
+    /// state for `sender`, so the next group send re-distributes the SKDM
+    /// and re-sends the payload to them.
+    ///
+    /// When `ratchet_key` is `Some`, the failure was a 1:1 `Whisper`/`PreKey`
+    /// message; that's session-recovery territory, not sender keys, and this
+    /// method is a no-op for it.
+    ///
+    /// This does NOT reset the 1:1 session.
+    ///
+    /// `error` is the *proto* `DecryptionErrorMessage` (as received on the wire
+    /// and surfaced via `ContentBody::DecryptionErrorMessage`); we re-derive
+    /// the `libsignal_protocol` type to inspect `ratchet_key`.
+    #[tracing::instrument(skip(self))]
+    pub async fn handle_decryption_error_message(
+        &mut self,
+        error: &crate::proto::DecryptionErrorMessage,
+        sender: &ProtocolAddress,
+    ) -> Result<(), MessageSenderError> {
+        use prost::Message as _;
+        let bytes = error.encode_to_vec();
+        let crypto_error =
+            libsignal_protocol::DecryptionErrorMessage::try_from(&bytes[..])
+                .map_err(MessageSenderError::ProtocolError)?;
+        if crypto_error.ratchet_key().is_some() {
+            tracing::trace!(
+                ?sender,
+                "DecryptionErrorMessage has a ratchet key; 1:1 session recovery, not sender keys"
+            );
+            return Ok(());
+        }
+        tracing::info!(
+            ?sender,
+            "SenderKey DecryptionErrorMessage from; clearing shared state so next send re-shares"
+        );
+        self.protocol_store
+            .clear_sender_key_shared_for_address(sender)
+            .await?;
+        Ok(())
     }
 }

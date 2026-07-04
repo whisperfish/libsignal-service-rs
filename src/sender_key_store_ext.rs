@@ -33,4 +33,10 @@ pub trait SenderKeyStoreExt: SenderKeyStore {
         &mut self,
         distribution_id: Uuid,
     ) -> Result<(), SignalProtocolError>;
+
+    /// Clear the shared mark for ALL distribution_ids for `recipient`.
+    async fn clear_sender_key_shared_for_address(
+        &mut self,
+        recipient: &ProtocolAddress,
+    ) -> Result<(), SignalProtocolError>;
 }
