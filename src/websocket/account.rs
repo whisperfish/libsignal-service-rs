@@ -72,6 +72,7 @@ pub struct AccountAttributes {
     pub recovery_password: Option<Vec<u8>>,
 }
 
+// Keep in sync with https://github.com/signalapp/Signal-Server/blob/main/service/src/main/java/org/whispersystems/textsecuregcm/storage/DeviceCapability.java.
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
@@ -83,6 +84,11 @@ pub struct DeviceCapabilities {
     pub attachment_backfill: bool,
     #[serde(default)]
     pub spqr: bool,
+    // For some reason, this uses snake case while everything else uses camel case.
+    #[serde(default, rename = "profiles_v2")]
+    pub profiles_v2: bool,
+    #[serde(default)]
+    pub username_change_sync_message: bool,
 }
 
 impl Default for DeviceCapabilities {
@@ -92,7 +98,21 @@ impl Default for DeviceCapabilities {
             transfer: false,
             attachment_backfill: false,
             spqr: true,
+            profiles_v2: false,
+            username_change_sync_message: false,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn device_capabilities_serialization_weird_casing() {
+        let capabilities = super::DeviceCapabilities::default();
+        let json = serde_json::to_string(&capabilities)
+            .expect("Serialize capabilities");
+        assert!(json.contains("usernameChangeSyncMessage"));
+        assert!(json.contains("profiles_v2"));
     }
 }
 
