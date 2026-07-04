@@ -26,6 +26,7 @@ use crate::{
         AttachmentPointer, SyncMessage,
     },
     push_service::*,
+    sender_key_store_ext::SenderKeyStoreExt,
     service_address::ServiceIdExt,
     session_store::SessionStoreExt,
     unidentified_access::{
@@ -223,7 +224,12 @@ pub struct EncryptedMessages {
 
 impl<S> MessageSender<S>
 where
-    S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
+    S: ProtocolStore
+        + SenderKeyStore
+        + SenderKeyStoreExt
+        + SessionStoreExt
+        + Sync
+        + Clone,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -966,20 +972,15 @@ where
         })
     }
 
-    // Equivalent with `getEncryptedMessages`
-    #[tracing::instrument(
-        level = "trace",
-        skip(self, unidentified_access, content),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
-    )]
-    async fn create_encrypted_messages(
-        &mut self,
+    /// Enumerate all known devices for a recipient, always including the primary
+    /// device, never including the local sender device.
+    ///
+    /// Mirrors Java's group-send device enumeration: the local device is excluded
+    /// because we never need to send to ourselves.
+    async fn enumerate_recipient_devices(
+        &self,
         recipient: &ServiceId,
-        unidentified_access: Option<&SenderCertificate>,
-        content: &[u8],
-    ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
-        let mut messages = vec![];
-
+    ) -> Result<HashSet<DeviceId>, MessageSenderError> {
         let mut devices: HashSet<DeviceId> = self
             .protocol_store
             .get_sub_device_sessions(recipient)
@@ -1003,6 +1004,25 @@ where
                 }
             },
         };
+
+        Ok(devices)
+    }
+
+    // Equivalent with `getEncryptedMessages`
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
+    )]
+    async fn create_encrypted_messages(
+        &mut self,
+        recipient: &ServiceId,
+        unidentified_access: Option<&SenderCertificate>,
+        content: &[u8],
+    ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
+        let mut messages = vec![];
+
+        let devices = self.enumerate_recipient_devices(recipient).await?;
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
