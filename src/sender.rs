@@ -221,7 +221,13 @@ pub enum ThreadIdentifier {
 #[derive(Debug)]
 pub struct EncryptedMessages {
     messages: Vec<OutgoingPushMessage>,
-    used_identity_key: IdentityKey,
+}
+
+/// Outcome of attempting to recover from a send error: retry the loop, or
+/// give up and propagate.
+enum SendRecovery {
+    Retry,
+    Terminal(MessageSenderError),
 }
 
 impl<S> MessageSender<S>
@@ -788,6 +794,145 @@ where
         Ok(())
     }
 
+    /// Handle the `Err` arm of a websocket send, shared by the sender-key and
+    /// 1:1 send retry loops. Performs session bookkeeping for
+    /// `MismatchedDevicesException`/`StaleDevices` so the caller can rebuild and
+    /// retry; all other errors are terminal.
+    async fn recover_from_send_error(
+        &mut self,
+        recipient: ServiceId,
+        err: ServiceError,
+    ) -> Result<SendRecovery, MessageSenderError> {
+        match err {
+            ServiceError::MismatchedDevicesException(ref m) => {
+                tracing::debug!("{:?}", m);
+                for extra_device_id in &m.extra_devices {
+                    tracing::debug!(
+                        "dropping session with device {}",
+                        extra_device_id
+                    );
+                    self.protocol_store
+                        .delete_service_addr_device_session(
+                            &recipient.to_protocol_address(*extra_device_id)?,
+                        )
+                        .await?;
+                }
+
+                for missing_device_id in &m.missing_devices {
+                    tracing::debug!(
+                        "creating session with missing device {}",
+                        missing_device_id
+                    );
+                    let remote_address =
+                        recipient.to_protocol_address(*missing_device_id)?;
+                    let mut rng = rng();
+                    let pre_key = self
+                        .identified_ws
+                        .get_pre_key(&recipient, *missing_device_id)
+                        .await?;
+
+                    process_prekey_bundle(
+                        &remote_address,
+                        &self
+                            .local_aci
+                            .to_protocol_address(self.device_id)
+                            .expect("valid device id"),
+                        &mut self.protocol_store.clone(),
+                        &mut self.protocol_store,
+                        &pre_key,
+                        SystemTime::now(),
+                        &mut rng,
+                    )
+                    .await
+                    .map_err(|e| {
+                        error!("failed to create session: {}", e);
+                        MessageSenderError::UntrustedIdentity {
+                            address: recipient,
+                        }
+                    })?;
+                }
+                Ok(SendRecovery::Retry)
+            },
+            ServiceError::StaleDevices(ref m) => {
+                tracing::debug!("{:?}", m);
+                for extra_device_id in &m.stale_devices {
+                    tracing::debug!(
+                        "dropping session with device {}",
+                        extra_device_id
+                    );
+                    self.protocol_store
+                        .delete_service_addr_device_session(
+                            &recipient.to_protocol_address(*extra_device_id)?,
+                        )
+                        .await?;
+                }
+                Ok(SendRecovery::Retry)
+            },
+            ServiceError::ProofRequiredError(ref p) => {
+                tracing::debug!("{:?}", p);
+                Ok(SendRecovery::Terminal(MessageSenderError::ProofRequired {
+                    token: p.token.clone(),
+                    options: p.options.clone(),
+                }))
+            },
+            ServiceError::NotFoundError => {
+                tracing::debug!("Not found when sending a message");
+                Ok(SendRecovery::Terminal(MessageSenderError::NotFound {
+                    service_id: recipient,
+                }))
+            },
+            e => {
+                tracing::debug!(
+                    "Default error handler for ws.send_messages: {}",
+                    e
+                );
+                Ok(SendRecovery::Terminal(MessageSenderError::ServiceError(e)))
+            },
+        }
+    }
+
+    /// Dispatch a built `OutgoingPushMessages` to the websocket, via the
+    /// unidentified channel when `unidentified_access` is supplied, else the
+    /// identified channel.
+    async fn dispatch_outgoing(
+        &mut self,
+        messages: OutgoingPushMessages,
+        unidentified_access: Option<&UnidentifiedAccess>,
+    ) -> Result<SendMessageResponse, ServiceError> {
+        if let Some(unidentified) = unidentified_access {
+            tracing::debug!("sending via unidentified");
+            self.unidentified_ws
+                .send_messages_unidentified(messages, unidentified)
+                .await
+        } else {
+            tracing::debug!("sending identified");
+            self.identified_ws.send_messages(messages).await
+        }
+    }
+
+    /// Build the `SentMessage` result after a successful dispatch, looking up
+    /// the recipient's identity key on the default device.
+    async fn build_sent_message(
+        &mut self,
+        recipient: ServiceId,
+        unidentified: bool,
+        needs_sync: bool,
+    ) -> Result<SentMessage, MessageSenderError> {
+        let used_identity_key = self
+            .protocol_store
+            .get_identity(&recipient.to_protocol_address(*DEFAULT_DEVICE_ID)?)
+            .await?
+            .ok_or(MessageSenderError::UntrustedIdentity {
+                address: recipient,
+            })?;
+        Ok(SentMessage {
+            recipient,
+            used_identity_key,
+            unidentified,
+            needs_sync,
+        })
+    }
+
     /// Build per-device sealed-sender SenderKey messages for a single recipient
     /// and send them via the sealed-sender path with the full retry loop.
     async fn send_sender_key_to_recipient(
@@ -798,202 +943,161 @@ where
         timestamp: u64,
         online: bool,
     ) -> SendMessageResult {
-        // Retry up to 4 times (matches try_send_message).
         use base64::Engine;
-        for _ in 0..4u8 {
-            let devices = self.enumerate_recipient_devices(&recipient).await?;
 
-            let mut recipient_messages = vec![];
-            for &device_id in &devices {
-                let dest_address =
-                    match recipient.to_protocol_address(device_id) {
-                        Ok(addr) => addr,
-                        Err(_) => continue,
+        self.send_with_retries(
+            recipient,
+            Some(unidentified_access),
+            timestamp,
+            online,
+            // Sender-key payloads ride the unidentified (sealed-sender)
+            // channel only; there is no identified fallback for them.
+            false,
+            async |sender, _certificate| {
+                let devices = sender
+                    .enumerate_recipient_devices(&recipient)
+                    .await?;
+
+                let mut recipient_messages = vec![];
+                for &device_id in &devices {
+                    let dest_address =
+                        match recipient.to_protocol_address(device_id) {
+                            Ok(addr) => addr,
+                            Err(_) => continue,
+                        };
+
+                    let session_record = sender
+                        .protocol_store
+                        .load_session(&dest_address)
+                        .await?;
+                    let session_record = match session_record {
+                        Some(s) => s,
+                        None => {
+                            tracing::debug!(
+                                "no session for {dest_address}; skipping sender-key send"
+                            );
+                            continue;
+                        },
                     };
 
-                let session_record = match self
-                    .protocol_store
-                    .load_session(&dest_address)
-                    .await?
-                {
-                    Some(s) => s,
-                    None => {
-                        tracing::debug!(
-                            "no session for {dest_address}; skipping sender-key send"
-                        );
-                        continue;
-                    },
-                };
+                    let registration_id =
+                        match session_record.remote_registration_id() {
+                            Ok(id) => id,
+                            Err(e) => {
+                                tracing::debug!(%e, "failed to get registration id for {dest_address}");
+                                continue;
+                            },
+                        };
 
-                let registration_id = match session_record
-                    .remote_registration_id()
-                {
-                    Ok(id) => id,
-                    Err(e) => {
-                        tracing::debug!(%e, "failed to get registration id for {dest_address}");
-                        continue;
-                    },
-                };
+                    let usmc = match UnidentifiedSenderMessageContent::new(
+                        CiphertextMessageType::SenderKey,
+                        unidentified_access.certificate.clone(),
+                        skm_serialized.to_vec(),
+                        ContentHint::Resendable,
+                        None,
+                    ) {
+                        Ok(u) => u,
+                        Err(e) => {
+                            tracing::debug!(%e, "failed to build USMC for {dest_address}");
+                            continue;
+                        },
+                    };
 
-                let usmc = match UnidentifiedSenderMessageContent::new(
-                    CiphertextMessageType::SenderKey,
-                    unidentified_access.certificate.clone(),
-                    skm_serialized.to_vec(),
-                    ContentHint::Resendable,
-                    None,
-                ) {
-                    Ok(u) => u,
-                    Err(e) => {
-                        tracing::debug!(%e, "failed to build USMC for {dest_address}");
-                        continue;
-                    },
-                };
-
-                let mut rng = rng();
-                let sealed_bytes = match sealed_sender_encrypt_from_usmc(
-                    &dest_address,
-                    &usmc,
-                    &self.protocol_store,
-                    &mut rng,
-                )
-                .await
-                {
-                    Ok(b) => b,
-                    Err(e) => {
-                        tracing::debug!(%e, "failed to sealed-sender-encrypt for {dest_address}");
-                        continue;
-                    },
-                };
-
-                use crate::proto::envelope::Type;
-                recipient_messages.push(OutgoingPushMessage {
-                    r#type: Type::UnidentifiedSender as u32,
-                    destination_device_id: device_id,
-                    destination_registration_id: registration_id,
-                    content: BASE64_RELAXED.encode(sealed_bytes),
-                });
-            }
-
-            if recipient_messages.is_empty() {
-                return Err(MessageSenderError::NoMessagesToSend);
-            }
-
-            let messages = OutgoingPushMessages {
-                destination: recipient,
-                timestamp,
-                messages: recipient_messages,
-                online,
-            };
-
-            let send = self
-                .unidentified_ws
-                .send_messages_unidentified(messages, unidentified_access)
-                .await;
-
-            match send {
-                Ok(SendMessageResponse { needs_sync }) => {
-                    let used_identity_key = self
-                        .protocol_store
-                        .get_identity(
-                            &recipient
-                                .to_protocol_address(*DEFAULT_DEVICE_ID)?,
-                        )
-                        .await?
-                        .ok_or(MessageSenderError::UntrustedIdentity {
-                            address: recipient,
-                        })?;
-                    return Ok(SentMessage {
-                        recipient,
-                        used_identity_key,
-                        unidentified: true,
-                        needs_sync,
-                    });
-                },
-                Err(ServiceError::MismatchedDevicesException(ref m)) => {
-                    tracing::debug!("{:?}", m);
-                    for extra_device_id in &m.extra_devices {
-                        tracing::debug!(
-                            "dropping session with device {}",
-                            extra_device_id
-                        );
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id)?,
-                            )
-                            .await?;
-                    }
-
-                    for missing_device_id in &m.missing_devices {
-                        tracing::debug!(
-                            "creating session with missing device {}",
-                            missing_device_id
-                        );
-                        let remote_address = recipient
-                            .to_protocol_address(*missing_device_id)?;
-                        let mut rng = rng();
-                        let pre_key = self
-                            .identified_ws
-                            .get_pre_key(&recipient, *missing_device_id)
-                            .await?;
-
-                        process_prekey_bundle(
-                            &remote_address,
-                            &self
-                                .local_aci
-                                .to_protocol_address(self.device_id)
-                                .expect("valid device id"),
-                            &mut self.protocol_store.clone(),
-                            &mut self.protocol_store.clone(),
-                            &pre_key,
-                            SystemTime::now(),
+                    let mut rng = rng();
+                    let sealed_bytes =
+                        match sealed_sender_encrypt_from_usmc(
+                            &dest_address,
+                            &usmc,
+                            &sender.protocol_store,
                             &mut rng,
                         )
                         .await
-                        .map_err(|e| {
-                            error!("failed to create session: {}", e);
-                            MessageSenderError::UntrustedIdentity {
-                                address: recipient,
-                            }
-                        })?;
-                    }
-                    // Loop to rebuild messages with the updated sessions.
-                },
-                Err(ServiceError::StaleDevices(ref m)) => {
-                    tracing::debug!("{:?}", m);
-                    for extra_device_id in &m.stale_devices {
-                        tracing::debug!(
-                            "dropping session with device {}",
-                            extra_device_id
-                        );
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id)?,
-                            )
-                            .await?;
-                    }
-                    // Loop to rebuild messages.
-                },
-                Err(ServiceError::ProofRequiredError(ref p)) => {
-                    tracing::debug!("{:?}", p);
-                    return Err(MessageSenderError::ProofRequired {
-                        token: p.token.clone(),
-                        options: p.options.clone(),
+                        {
+                            Ok(b) => b,
+                            Err(e) => {
+                                tracing::debug!(%e, "failed to sealed-sender-encrypt for {dest_address}");
+                                continue;
+                            },
+                        };
+
+                    use crate::proto::envelope::Type;
+                    recipient_messages.push(OutgoingPushMessage {
+                        r#type: Type::UnidentifiedSender as u32,
+                        destination_device_id: device_id,
+                        destination_registration_id: registration_id,
+                        content: BASE64_RELAXED.encode(sealed_bytes),
                     });
+                }
+
+                if recipient_messages.is_empty() {
+                    return Err(MessageSenderError::NoMessagesToSend);
+                }
+                Ok(recipient_messages)
+            },
+        )
+        .await
+    }
+
+    /// Send the messages built by `make_messages` to a single recipient,
+    /// retrying up to 4 times on recoverable errors (`recover_from_send_error`
+    /// repairs server-reported device discrepancies and retries).
+    /// `make_messages` runs on every attempt because recovery may change the
+    /// session set.
+    ///
+    /// When `allow_unidentified_downgrade` is set and the send fails with
+    /// `Unauthorized`, the send is retried over the identified channel; the
+    /// builder's certificate argument then reads `None`.
+    async fn send_with_retries(
+        &mut self,
+        recipient: ServiceId,
+        mut unidentified_access: Option<&UnidentifiedAccess>,
+        timestamp: u64,
+        online: bool,
+        allow_unidentified_downgrade: bool,
+        mut make_messages: impl AsyncFnMut(
+            &mut Self,
+            Option<&SenderCertificate>,
+        ) -> Result<
+            Vec<OutgoingPushMessage>,
+            MessageSenderError,
+        >,
+    ) -> SendMessageResult {
+        for _ in 0..4u8 {
+            let messages = make_messages(
+                self,
+                unidentified_access.map(|x| &x.certificate),
+            )
+            .await?;
+            let messages = OutgoingPushMessages {
+                destination: recipient,
+                timestamp,
+                messages,
+                online,
+            };
+
+            match self.dispatch_outgoing(messages, unidentified_access).await {
+                Ok(SendMessageResponse { needs_sync }) => {
+                    tracing::debug!("message sent!");
+                    return self
+                        .build_sent_message(
+                            recipient,
+                            unidentified_access.is_some(),
+                            needs_sync,
+                        )
+                        .await;
                 },
-                Err(ServiceError::NotFoundError) => {
-                    tracing::debug!("Not found when sending a message");
-                    return Err(MessageSenderError::NotFound {
-                        service_id: recipient,
-                    });
+                Err(ServiceError::Unauthorized)
+                    if allow_unidentified_downgrade
+                        && unidentified_access.is_some() =>
+                {
+                    tracing::trace!("unauthorized error using unidentified; retry over identified");
+                    unidentified_access = None;
                 },
                 Err(e) => {
-                    tracing::debug!(
-                        "Default error handler for ws.send_messages: {}",
-                        e
-                    );
-                    return Err(MessageSenderError::ServiceError(e));
+                    match self.recover_from_send_error(recipient, e).await? {
+                        SendRecovery::Retry => {},
+                        SendRecovery::Terminal(err) => return Err(err),
+                    }
                 },
             }
         }
@@ -1010,7 +1114,7 @@ where
     async fn try_send_message(
         &mut self,
         recipient: ServiceId,
-        mut unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
         timestamp: u64,
         include_pni_signature: bool,
@@ -1027,146 +1131,30 @@ where
 
         let content_bytes = content.encode_to_vec();
 
-        let mut rng = rng();
-
-        for _ in 0..4u8 {
-            let Some(EncryptedMessages {
-                messages,
-                used_identity_key,
-            }) = self
-                .create_encrypted_messages(
-                    &recipient,
-                    unidentified_access.map(|x| &x.certificate),
-                    &content_bytes,
-                )
-                .await?
-            else {
-                // this can happen for example when a device is primary, without any secondaries
-                // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
-                // addressed to self
-                return Err(MessageSenderError::NoMessagesToSend);
-            };
-
-            let messages = OutgoingPushMessages {
-                destination: recipient,
-                timestamp,
-                messages,
-                online,
-            };
-
-            let send = if let Some(unidentified) = &unidentified_access {
-                tracing::debug!("sending via unidentified");
-                self.unidentified_ws
-                    .send_messages_unidentified(messages, unidentified)
-                    .await
-            } else {
-                tracing::debug!("sending identified");
-                self.identified_ws.send_messages(messages).await
-            };
-
-            match send {
-                Ok(SendMessageResponse { needs_sync }) => {
-                    tracing::debug!("message sent!");
-                    return Ok(SentMessage {
-                        recipient,
-                        used_identity_key,
-                        unidentified: unidentified_access.is_some(),
-                        needs_sync,
-                    });
-                },
-                Err(ServiceError::Unauthorized)
-                    if unidentified_access.is_some() =>
-                {
-                    tracing::trace!("unauthorized error using unidentified; retry over identified");
-                    unidentified_access = None;
-                },
-                Err(ServiceError::MismatchedDevicesException(ref m)) => {
-                    tracing::debug!("{:?}", m);
-                    for extra_device_id in &m.extra_devices {
-                        tracing::debug!(
-                            "dropping session with device {}",
-                            extra_device_id
-                        );
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id)?,
-                            )
-                            .await?;
-                    }
-
-                    for missing_device_id in &m.missing_devices {
-                        tracing::debug!(
-                            "creating session with missing device {}",
-                            missing_device_id
-                        );
-                        let remote_address = recipient
-                            .to_protocol_address(*missing_device_id)?;
-                        let pre_key = self
-                            .identified_ws
-                            .get_pre_key(&recipient, *missing_device_id)
-                            .await?;
-
-                        process_prekey_bundle(
-                            &remote_address,
-                            &self
-                                .local_aci
-                                .to_protocol_address(self.device_id)
-                                .expect("valid device id"),
-                            &mut self.protocol_store.clone(),
-                            &mut self.protocol_store,
-                            &pre_key,
-                            SystemTime::now(),
-                            &mut rng,
-                        )
-                        .await
-                        .map_err(|e| {
-                            error!("failed to create session: {}", e);
-                            MessageSenderError::UntrustedIdentity {
-                                address: recipient,
-                            }
-                        })?;
-                    }
-                },
-                Err(ServiceError::StaleDevices(ref m)) => {
-                    tracing::debug!("{:?}", m);
-                    for extra_device_id in &m.stale_devices {
-                        tracing::debug!(
-                            "dropping session with device {}",
-                            extra_device_id
-                        );
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id)?,
-                            )
-                            .await?;
-                    }
-                },
-                Err(ServiceError::ProofRequiredError(ref p)) => {
-                    tracing::debug!("{:?}", p);
-                    return Err(MessageSenderError::ProofRequired {
-                        token: p.token.clone(),
-                        options: p.options.clone(),
-                    });
-                },
-                Err(ServiceError::UnregisteredRecipient) => {
-                    tracing::debug!(?recipient, "recipient is not registered");
-                    return Err(MessageSenderError::NotFound {
-                        service_id: recipient,
-                    });
-                },
-                Err(e) => {
-                    tracing::debug!(
-                        "Default error handler for ws.send_messages: {}",
-                        e
-                    );
-                    return Err(MessageSenderError::ServiceError(e));
-                },
-            }
-        }
-
-        Err(MessageSenderError::MaximumRetriesLimitExceeded)
+        self.send_with_retries(
+            recipient,
+            unidentified_access,
+            timestamp,
+            online,
+            true,
+            async |sender, certificate| {
+                let Some(EncryptedMessages { messages, .. }) = sender
+                    .create_encrypted_messages(
+                        &recipient,
+                        certificate,
+                        &content_bytes,
+                    )
+                    .await?
+                else {
+                    // this can happen for example when a device is primary, without any secondaries
+                    // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
+                    // addressed to self
+                    return Err(MessageSenderError::NoMessagesToSend);
+                };
+                Ok(messages)
+            },
+        )
+        .await
     }
 
     /// Upload contact details to the CDN and send a sync message
@@ -1518,18 +1506,7 @@ where
         if messages.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(EncryptedMessages {
-                messages,
-                used_identity_key: self
-                    .protocol_store
-                    .get_identity(
-                        &recipient.to_protocol_address(*DEFAULT_DEVICE_ID),
-                    )
-                    .await?
-                    .ok_or(MessageSenderError::UntrustedIdentity {
-                        address: *recipient,
-                    })?,
-            }))
+            Ok(Some(EncryptedMessages { messages }))
         }
     }
 
