@@ -26,7 +26,7 @@ pub struct Metadata {
     pub sender: ServiceId,
     pub destination: ServiceId,
     pub sender_device: DeviceId,
-    pub timestamp: chrono::DateTime<Utc>,
+    pub client_timestamp: chrono::DateTime<Utc>,
     pub server_timestamp: chrono::DateTime<Utc>,
     pub needs_receipt: bool,
     pub unidentified_sender: bool,
@@ -81,41 +81,26 @@ impl Content {
         p: crate::proto::Content,
         metadata: Metadata,
     ) -> Result<Self, ServiceError> {
-        // The Java version also assumes only one content type at a time.
-        // It's a bit sad that we cannot really match here, we've got no
-        // r#type() method.
-        // Allow the manual map (if let Some -> option.map(||)), because it
-        // reduces the git diff when more types would be added.
-        #[allow(clippy::manual_map)]
-        if let Some(msg) = p.data_message {
-            Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.sync_message {
-            Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.call_message {
-            Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.receipt_message {
-            Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.typing_message {
-            Ok(Self::from_body(msg, metadata))
-        // } else if let Some(msg) = p.sender_key_distribution_message {
-        //     Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.decryption_error_message {
-            Ok(Self {
+        let Some(content) = p.content else {
+            return Err(ServiceError::UnsupportedContent);
+        };
+
+        use crate::proto::content::Content;
+        match content {
+            Content::DataMessage(msg) => Ok(Self::from_body(msg, metadata)),
+            Content::SyncMessage(msg) => Ok(Self::from_body(msg, metadata)),
+            Content::CallMessage(msg) => Ok(Self::from_body(msg, metadata)),
+            Content::NullMessage(msg) => Ok(Self::from_body(msg, metadata)),
+            Content::ReceiptMessage(msg) => Ok(Self::from_body(msg, metadata)),
+            Content::TypingMessage(msg) => Ok(Self::from_body(msg, metadata)),
+            Content::DecryptionErrorMessage(msg) => Ok(Self {
                 metadata,
                 body: ContentBody::DecryptionErrorMessage(
                     DecryptionErrorMessage::decode(msg.as_ref())?,
                 ),
-            })
-        } else if let Some(msg) = p.story_message {
-            Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.pni_signature_message {
-            Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.edit_message {
-            Ok(Self::from_body(msg, metadata))
-        } else if let Some(msg) = p.null_message {
-            Ok(Self::from_body(msg, metadata))
-        } else {
-            Err(ServiceError::UnsupportedContent)
+            }),
+            Content::StoryMessage(msg) => Ok(Self::from_body(msg, metadata)),
+            Content::EditMessage(msg) => Ok(Self::from_body(msg, metadata)),
         }
     }
 }
@@ -156,6 +141,7 @@ impl fmt::Display for ContentBody {
                 write!(f, "DecryptionErrorMessage")
             },
             Self::StoryMessage(_) => write!(f, "StoryMessage"),
+            #[allow(deprecated)]
             Self::PniSignatureMessage(_) => write!(f, "PniSignatureMessage"),
             Self::EditMessage(_) => write!(f, "EditMessage"),
         }
@@ -174,6 +160,7 @@ pub enum ContentBody {
     // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
     DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
+    #[deprecated = "PNI signature messages are constructed as side-car during message delivery"]
     PniSignatureMessage(PniSignatureMessage),
     EditMessage(EditMessage),
 }
@@ -192,53 +179,38 @@ impl NullMessage {
 
 impl ContentBody {
     pub fn into_proto(self) -> crate::proto::Content {
-        match self {
-            Self::NullMessage(msg) => crate::proto::Content {
-                null_message: Some(msg),
-                ..Default::default()
+        use crate::proto::content::Content;
+
+        let inner = match self {
+            Self::NullMessage(msg) => Content::NullMessage(msg),
+            Self::DataMessage(msg) => Content::DataMessage(msg),
+            Self::SynchronizeMessage(msg) => Content::SyncMessage(msg),
+            Self::CallMessage(msg) => Content::CallMessage(msg),
+            Self::ReceiptMessage(msg) => Content::ReceiptMessage(msg),
+            Self::TypingMessage(msg) => Content::TypingMessage(msg),
+            Self::DecryptionErrorMessage(msg) => {
+                Content::DecryptionErrorMessage(msg.encode_to_vec())
             },
-            Self::DataMessage(msg) => crate::proto::Content {
-                data_message: Some(msg),
-                ..Default::default()
+            Self::StoryMessage(msg) => Content::StoryMessage(msg),
+            #[allow(deprecated)]
+            Self::PniSignatureMessage(msg) => {
+                tracing::warn!("manually constructed PniSignatureMessage");
+                return crate::proto::Content {
+                    content: None,
+                    sender_key_distribution_message: None,
+                    // PNI signature gets added down the message sender stream
+                    pni_signature_message: Some(msg),
+                };
             },
-            Self::SynchronizeMessage(msg) => crate::proto::Content {
-                sync_message: Some(msg),
-                ..Default::default()
-            },
-            Self::CallMessage(msg) => crate::proto::Content {
-                call_message: Some(msg),
-                ..Default::default()
-            },
-            Self::ReceiptMessage(msg) => crate::proto::Content {
-                receipt_message: Some(msg),
-                ..Default::default()
-            },
-            Self::TypingMessage(msg) => crate::proto::Content {
-                typing_message: Some(msg),
-                ..Default::default()
-            },
-            // XXX Those two are serialized as Vec<u8> and I'm not currently sure how to handle
-            // them.
-            // Self::SenderKeyDistributionMessage(msg) => crate::proto::Content {
-            //     sender_key_distribution_message: Some(msg),
-            //     ..Default::default()
-            // },
-            Self::DecryptionErrorMessage(msg) => crate::proto::Content {
-                decryption_error_message: Some(msg.encode_to_vec()),
-                ..Default::default()
-            },
-            Self::StoryMessage(msg) => crate::proto::Content {
-                story_message: Some(msg),
-                ..Default::default()
-            },
-            Self::PniSignatureMessage(msg) => crate::proto::Content {
-                pni_signature_message: Some(msg),
-                ..Default::default()
-            },
-            Self::EditMessage(msg) => crate::proto::Content {
-                edit_message: Some(msg),
-                ..Default::default()
-            },
+            Self::EditMessage(msg) => Content::EditMessage(msg),
+        };
+        crate::proto::Content {
+            content: Some(inner),
+            // TODO: handle SKDM; ideally this is also "tacked on" when needed,
+            // and not handled as a separate message.
+            sender_key_distribution_message: None,
+            // PNI signature gets added down the message sender stream
+            pni_signature_message: None,
         }
     }
 }
@@ -247,6 +219,8 @@ macro_rules! impl_from_for_content_body {
     ($enum:ident ($t:ty)) => {
         impl From<$t> for ContentBody {
             fn from(inner: $t) -> ContentBody {
+                // Remove #[allow(deprecated)] when PniSignatureMessage is removed.
+                #[allow(deprecated)]
                 ContentBody::$enum(inner)
             }
         }

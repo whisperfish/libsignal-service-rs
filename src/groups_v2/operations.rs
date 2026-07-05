@@ -459,6 +459,7 @@ impl GroupOperations {
             description,
             announcements_only,
             members_banned,
+            terminated,
         } = group;
 
         let title = self.decrypt_title(&title);
@@ -504,6 +505,7 @@ impl GroupOperations {
             description_text,
             announcements_only,
             members_banned,
+            terminated,
         })
     }
 
@@ -546,6 +548,7 @@ impl GroupOperations {
             promote_members_pending_pni_aci_profile_key,
             modify_member_labels,
             modify_member_label_access,
+            terminate_group,
         } = Message::decode(Bytes::from(actions))?;
 
         let source_user_id = self.decrypt_aci(&source_user_id)?;
@@ -727,6 +730,12 @@ impl GroupOperations {
                 ))
             });
 
+        let terminate_group = terminate_group.into_iter().map(|_m| {
+            // The *presence* of the field signifies termination.
+            // TerminateGroupAction is a unit struct.
+            Ok(GroupChange::TerminateGroup)
+        });
+
         let changes: Result<Vec<GroupChange>, GroupDecodingError> = new_members
             .chain(delete_members)
             .chain(modify_member_roles)
@@ -751,6 +760,7 @@ impl GroupOperations {
             .chain(modify_announcements_only)
             .chain(modify_member_labels)
             .chain(modify_member_label_access)
+            .chain(terminate_group)
             .collect();
 
         Ok(GroupChanges {
@@ -1000,6 +1010,7 @@ impl GroupOperations {
             description: encrypted_description,
             announcements_only: false,
             members_banned: vec![],
+            terminated: false,
         })
     }
 

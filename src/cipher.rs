@@ -57,13 +57,13 @@ fn debug_envelope(envelope: &Envelope) -> String {
                  source_address: {:?}, \
                  source_device: {:?}, \
                  server_guid: {:?}, \
-                 timestamp: {:?}, \
+                 client_timestamp: {:?}, \
                  content: {} bytes, \
              }}",
             envelope.parse_source_service_id(),
-            envelope.source_device(),
+            envelope.source_device_id(),
             envelope.server_guid(),
-            envelope.timestamp(),
+            envelope.client_timestamp(),
             envelope.content().len(),
         )
     }
@@ -107,38 +107,31 @@ where
             tracing::Span::current()
                 .record("envelope_metadata", plaintext.metadata.to_string());
 
+            let Some(content) = &message.content else {
+                tracing::warn!("empty decrypted content");
+                return Ok(None);
+            };
+
             // Sanity test: if the envelope was plaintext, the message should *only* be a
             // decryption failure error
             if was_plaintext {
-                if let crate::proto::Content {
-                    data_message: None,
-                    sync_message: None,
-                    call_message: None,
-                    null_message: None,
-                    receipt_message: None,
-                    typing_message: None,
-                    sender_key_distribution_message: None,
-                    decryption_error_message: Some(decryption_error_message),
-                    story_message: None,
-                    pni_signature_message: None,
-                    edit_message: None,
-                } = &message
-                {
-                    tracing::warn!(
-                        ?envelope,
-                        "Received a decryption error message: {}.",
-                        String::from_utf8_lossy(decryption_error_message)
-                    );
-                } else {
+                let crate::proto::content::Content::DecryptionErrorMessage(dme) =
+                    content
+                else {
                     tracing::error!(
                         ?envelope,
                         "Received a plaintext envelope with a non-decryption error message."
                     );
                     return Ok(None);
-                }
+                };
+                tracing::warn!(
+                    ?envelope,
+                    "Received a decryption error message: {}.",
+                    String::from_utf8_lossy(dme)
+                );
             }
 
-            if message.sync_message.is_some()
+            if matches!(content, crate::proto::content::Content::SyncMessage(_))
                 && plaintext.metadata.sender.aci().map(Uuid::from)
                     != Some(local_service.raw_uuid())
                 && local_service.kind() == ServiceIdKind::Aci
@@ -243,8 +236,8 @@ where
         // Extract both kinds of timestamps.
         // Note that we do not `?` here, but rather only later, in case we ever have a branch which
         // is not concerned with envelope metadata.
-        let timestamp = chrono::DateTime::from_timestamp_millis(
-            envelope.timestamp() as i64,
+        let client_timestamp = chrono::DateTime::from_timestamp_millis(
+            envelope.client_timestamp() as i64,
         )
         .ok_or(ServiceError::InvalidFrame {
             reason: "unparseable timestamp",
@@ -258,13 +251,13 @@ where
 
         use crate::proto::envelope::Type;
         let plaintext = match envelope.r#type() {
-            Type::PrekeyBundle => {
+            Type::PrekeyMessage => {
                 let source_service_id = source_service_id
                     .expect("prekey bundle format contains source_service_id");
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &source_service_id,
-                    envelope.source_device().try_into()?,
+                    envelope.source_device_id().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
@@ -272,8 +265,8 @@ where
                         .parse_destination_service_id()
                         .expect("prekey bundle format"),
                     sender: source_service_id,
-                    sender_device: envelope.source_device().try_into()?,
-                    timestamp: timestamp?,
+                    sender_device: envelope.source_device_id().try_into()?,
+                    client_timestamp: client_timestamp?,
                     server_timestamp: server_timestamp?,
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -318,8 +311,8 @@ where
                         .parse_destination_service_id()
                         .expect("plaintext content format"),
                     sender: source_service_id,
-                    sender_device: envelope.source_device().try_into()?,
-                    timestamp: timestamp?,
+                    sender_device: envelope.source_device_id().try_into()?,
+                    client_timestamp: client_timestamp?,
                     server_timestamp: server_timestamp?,
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -335,13 +328,13 @@ where
                 strip_padding(&mut data)?;
                 Plaintext { metadata, data }
             },
-            Type::Ciphertext => {
+            Type::DoubleRatchet => {
                 let source_service_id = source_service_id
                     .expect("prekey bundle format contains source_service_id");
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &source_service_id,
-                    envelope.source_device().try_into()?,
+                    envelope.source_device_id().try_into()?,
                 )
                 .await?;
                 let metadata = Metadata {
@@ -351,8 +344,8 @@ where
                     sender: envelope
                         .parse_source_service_id()
                         .expect("ciphertext envelope format"),
-                    sender_device: envelope.source_device().try_into()?,
-                    timestamp: timestamp?,
+                    sender_device: envelope.source_device_id().try_into()?,
+                    client_timestamp: client_timestamp?,
                     server_timestamp: server_timestamp?,
                     needs_receipt: false,
                     unidentified_sender: false,
@@ -394,7 +387,7 @@ where
                 } = sealed_sender_decrypt(
                     ciphertext,
                     &self.trust_roots,
-                    Timestamp::from_epoch_millis(envelope.timestamp()),
+                    Timestamp::from_epoch_millis(envelope.client_timestamp()),
                     None,
                     self.local_address.clone(),
                     &mut self.protocol_store.clone(),
@@ -439,7 +432,7 @@ where
                         .expect("unidentified sender envelope format"),
                     sender,
                     sender_device: device_id,
-                    timestamp: timestamp?,
+                    client_timestamp: client_timestamp?,
                     server_timestamp: server_timestamp?,
                     unidentified_sender: true,
                     needs_receipt,
@@ -544,8 +537,8 @@ where
 
             use crate::proto::envelope::Type;
             let message_type = match message.message_type() {
-                CiphertextMessageType::PreKey => Type::PrekeyBundle,
-                CiphertextMessageType::Whisper => Type::Ciphertext,
+                CiphertextMessageType::PreKey => Type::PrekeyMessage,
+                CiphertextMessageType::Whisper => Type::DoubleRatchet,
                 t => panic!("Bad type: {:?}", t),
             } as u32;
             Ok(OutgoingPushMessage {

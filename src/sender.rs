@@ -366,15 +366,6 @@ where
             matches!(content_body, ContentBody::SynchronizeMessage(..));
         let is_multi_device = self.is_multi_device().await;
 
-        use crate::proto::data_message::Flags;
-
-        let end_session = match &content_body {
-            ContentBody::DataMessage(message) => {
-                message.flags == Some(Flags::EndSession as u32)
-            },
-            _ => false,
-        };
-
         // only send a sync message when sending to self and skip the rest of the process
         if message_to_self && is_multi_device && !sync_message {
             debug!("sending note to self");
@@ -404,9 +395,8 @@ where
             }
         }
 
-        // don't send session enders as sealed sender
         // sync messages are never sent as unidentified (reasons unclear), see: https://github.com/signalapp/Signal-Android/blob/main/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java#L779
-        if end_session || sync_message {
+        if sync_message {
             unidentified_access.take();
         }
 
@@ -452,15 +442,6 @@ where
                 )
                 .await?;
             }
-        }
-
-        if end_session {
-            let n = self.protocol_store.delete_all_sessions(recipient).await?;
-            tracing::debug!(
-                "ended {} sessions with {}",
-                n,
-                recipient.raw_uuid()
-            );
         }
 
         result
@@ -735,10 +716,12 @@ where
         let ptr = self.upload_contact_details(contacts).await?;
 
         let msg = SyncMessage {
-            contacts: Some(sync_message::Contacts {
-                blob: Some(ptr),
-                complete: Some(complete),
-            }),
+            content: Some(crate::proto::sync_message::Content::Contacts(
+                sync_message::Contacts {
+                    blob: Some(ptr),
+                    complete: Some(complete),
+                },
+            )),
             ..SyncMessage::with_padding(&mut rng())
         };
 
@@ -755,7 +738,7 @@ where
         thread: &ThreadIdentifier,
         action: message_request_response::Type,
     ) -> Result<(), MessageSenderError> {
-        let message_request_response = Some(match thread {
+        let message_request_response = match thread {
             ThreadIdentifier::Aci(aci) => {
                 tracing::debug!(
                     "sending message request response {:?} for recipient {:?}",
@@ -782,10 +765,14 @@ where
                     r#type: Some(action.into()),
                 }
             },
-        });
+        };
 
         let msg = SyncMessage {
-            message_request_response,
+            content: Some(
+                crate::proto::sync_message::Content::MessageRequestResponse(
+                    message_request_response,
+                ),
+            ),
             ..SyncMessage::with_padding(&mut rng())
         };
 
@@ -832,9 +819,11 @@ where
         }
 
         let msg = SyncMessage {
-            request: Some(sync_message::Request {
-                r#type: Some(request_type.into()),
-            }),
+            content: Some(crate::proto::sync_message::Content::Request(
+                sync_message::Request {
+                    r#type: Some(request_type.into()),
+                },
+            )),
             ..SyncMessage::with_padding(&mut rng())
         };
         self.send_sync_message(msg).await?;
@@ -1102,7 +1091,7 @@ where
                 })
                 .collect();
         Some(ContentBody::SynchronizeMessage(SyncMessage {
-            sent: Some(sync_message::Sent {
+            content: Some(sync_message::Content::Sent(sync_message::Sent {
                 destination_service_id: recipient
                     .map(ServiceId::service_id_string),
                 destination_service_id_binary: recipient
@@ -1117,7 +1106,7 @@ where
                 timestamp: Some(timestamp),
                 unidentified_status,
                 ..Default::default()
-            }),
+            })),
             ..SyncMessage::with_padding(&mut rng())
         }))
     }
