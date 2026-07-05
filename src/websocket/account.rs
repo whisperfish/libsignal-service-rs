@@ -73,6 +73,7 @@ pub struct AccountAttributes {
 }
 
 // Keep in sync with https://github.com/signalapp/Signal-Server/blob/main/service/src/main/java/org/whispersystems/textsecuregcm/storage/DeviceCapability.java.
+// When updating this, also consider updating LinkCapabilities.
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceCapabilities {
