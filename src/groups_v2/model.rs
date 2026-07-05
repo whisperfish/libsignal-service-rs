@@ -159,6 +159,7 @@ pub struct Group {
     pub description_text: Option<String>,
     pub announcements_only: bool,
     pub members_banned: Vec<BannedMember>,
+    pub terminated: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -214,6 +215,7 @@ pub enum GroupChange {
         label_string: Option<String>,
     },
     MemberLabelAccess(AccessRequired),
+    TerminateGroup,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]

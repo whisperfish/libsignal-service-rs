@@ -362,7 +362,6 @@ impl AccountManager {
     ) -> Result<(), ProvisioningError> {
         let ProvisioningSecrets {
             credentials,
-            master_key,
             ephemeral_backup_key,
             account_entropy_pool,
             media_root_backup_key,
@@ -420,7 +419,6 @@ impl AccountManager {
             provisioning_version: Some(i32::from(
                 ProvisioningVersion::TabletSupport,
             ) as _),
-            master_key: master_key.map(|x| x.into()),
             ephemeral_backup_key: ephemeral_backup_key.map(|k| k.to_vec()), // 32-bytes
             account_entropy_pool: Some(account_entropy_pool.to_string()),
             media_root_backup_key: media_root_backup_key.map(|k| k.to_vec()), // 32-bytes
@@ -820,19 +818,23 @@ impl AccountManager {
             }
             // cfr. SignalServiceMessageSender::getEncryptedSyncPniInitializeDeviceMessage
             let msg = SyncMessage {
-                pni_change_number: Some(PniChangeNumber {
-                    identity_key_pair: Some(
-                        pni_identity_key_pair.serialize().to_vec(),
+                content: Some(
+                    crate::proto::sync_message::Content::PniChangeNumber(
+                        PniChangeNumber {
+                            identity_key_pair: Some(
+                                pni_identity_key_pair.serialize().to_vec(),
+                            ),
+                            signed_pre_key: Some(signed_pre_key.serialize()?),
+                            last_resort_kyber_pre_key: Some(
+                                last_resort_kyber_prekey
+                                    .expect("requested last resort key")
+                                    .serialize()?,
+                            ),
+                            registration_id: Some(registration_id),
+                            new_e164: Some(e164.to_string()),
+                        },
                     ),
-                    signed_pre_key: Some(signed_pre_key.serialize()?),
-                    last_resort_kyber_pre_key: Some(
-                        last_resort_kyber_prekey
-                            .expect("requested last resort key")
-                            .serialize()?,
-                    ),
-                    registration_id: Some(registration_id),
-                    new_e164: Some(e164.to_string()),
-                }),
+                ),
                 padding: Some(random_length_padding(csprng, 512)),
                 ..SyncMessage::default()
             };

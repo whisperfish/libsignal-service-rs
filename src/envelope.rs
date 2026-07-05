@@ -8,7 +8,7 @@ impl Envelope {
     }
 
     pub fn is_prekey_signal_message(&self) -> bool {
-        self.r#type() == crate::proto::envelope::Type::PrekeyBundle
+        self.r#type() == crate::proto::envelope::Type::PrekeyMessage
     }
 
     pub fn is_receipt(&self) -> bool {
@@ -16,7 +16,7 @@ impl Envelope {
     }
 
     pub fn is_signal_message(&self) -> bool {
-        self.r#type() == crate::proto::envelope::Type::Ciphertext
+        self.r#type() == crate::proto::envelope::Type::DoubleRatchet
     }
 
     pub fn is_urgent(&self) -> bool {
