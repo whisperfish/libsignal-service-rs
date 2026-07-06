@@ -240,3 +240,39 @@ impl_from_for_content_body!(TypingMessage(TypingMessage));
 impl_from_for_content_body!(StoryMessage(StoryMessage));
 impl_from_for_content_body!(PniSignatureMessage(PniSignatureMessage));
 impl_from_for_content_body!(EditMessage(EditMessage));
+
+macro_rules! impl_from_for_sync_message {
+    ($t:ident) => {
+        impl From<$crate::proto::sync_message::$t> for SyncMessage {
+            fn from(inner: sync_message::$t) -> SyncMessage {
+                SyncMessage {
+                    content: Some($crate::proto::sync_message::Content::$t(
+                        inner,
+                    )),
+                    ..SyncMessage::with_padding(&mut rand::rng())
+                }
+            }
+        }
+    };
+}
+
+impl_from_for_sync_message!(Sent);
+impl_from_for_sync_message!(Contacts);
+impl_from_for_sync_message!(Request);
+impl_from_for_sync_message!(Blocked);
+// impl_from_for_sync_message!(Verified); // maps on crate::proto::Verified instead?
+impl_from_for_sync_message!(Configuration);
+impl_from_for_sync_message!(ViewOnceOpen);
+impl_from_for_sync_message!(FetchLatest);
+impl_from_for_sync_message!(Keys);
+impl_from_for_sync_message!(MessageRequestResponse);
+impl_from_for_sync_message!(OutgoingPayment);
+impl_from_for_sync_message!(PniChangeNumber);
+impl_from_for_sync_message!(CallEvent);
+impl_from_for_sync_message!(CallLinkUpdate);
+impl_from_for_sync_message!(CallLogEvent);
+impl_from_for_sync_message!(DeleteForMe);
+impl_from_for_sync_message!(DeviceNameChange);
+impl_from_for_sync_message!(AttachmentBackfillRequest);
+impl_from_for_sync_message!(AttachmentBackfillResponse);
+impl_from_for_sync_message!(UsernameChange);
