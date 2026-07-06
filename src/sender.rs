@@ -456,7 +456,7 @@ where
                     .try_send_message(
                         *recipient,
                         None,
-                        &sync_message,
+                        sync_message.into_proto(),
                         timestamp,
                         include_pni_signature,
                         online,
@@ -480,7 +480,7 @@ where
             .try_send_message(
                 *recipient,
                 unidentified_access,
-                &content_body,
+                content_body.clone().into_proto(),
                 timestamp,
                 include_pni_signature,
                 online,
@@ -510,7 +510,7 @@ where
                 self.try_send_message(
                     self.local_aci.into(),
                     None,
-                    &body,
+                    body.into_proto(),
                     timestamp,
                     false,
                     false,
@@ -544,7 +544,7 @@ where
                 .try_send_message(
                     *recipient,
                     unidentified_access.as_ref(),
-                    content_body,
+                    content_body.clone().into_proto(),
                     timestamp,
                     *include_pni_signature,
                     online,
@@ -577,7 +577,7 @@ where
                     .try_send_message(
                         self.local_aci.into(),
                         None,
-                        &sync_message,
+                        sync_message.into_proto(),
                         timestamp,
                         false, // XXX: maybe the sync device does want a PNI signature?
                         false,
@@ -721,7 +721,7 @@ where
                     .try_send_message(
                         self.local_aci.into(),
                         None,
-                        &sync_message,
+                        sync_message.into_proto(),
                         timestamp,
                         false,
                         false,
@@ -784,7 +784,7 @@ where
         self.try_send_message(
             *recipient,
             unidentified_access,
-            &content_body,
+            content_body.into_proto(),
             Utc::now().timestamp_millis() as u64,
             false,
             false,
@@ -1108,14 +1108,14 @@ where
     /// Send a message (`content`) to an address (`recipient`).
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content_body, recipient),
+        skip(self, unidentified_access, content, recipient),
         fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
     )]
     async fn try_send_message(
         &mut self,
         recipient: ServiceId,
         unidentified_access: Option<&UnidentifiedAccess>,
-        content_body: &ContentBody,
+        mut content: crate::proto::Content,
         timestamp: u64,
         include_pni_signature: bool,
         online: bool,
@@ -1124,7 +1124,6 @@ where
 
         use prost::Message;
 
-        let mut content = content_body.clone().into_proto();
         if include_pni_signature {
             content.pni_signature_message = Some(self.create_pni_signature()?);
         }
@@ -1252,7 +1251,7 @@ where
         sync: impl Into<SyncMessage>,
     ) -> Result<(), MessageSenderError> {
         if self.is_multi_device().await {
-            let content = sync.into().into();
+            let content: ContentBody = sync.into().into();
             let timestamp = Utc::now().timestamp_millis() as u64;
             debug!(
                 "sending multi-device sync message with content {content:?}"
@@ -1260,7 +1259,7 @@ where
             self.try_send_message(
                 self.local_aci.into(),
                 None,
-                &content,
+                content.into_proto(),
                 timestamp,
                 false,
                 false,
@@ -1350,9 +1349,8 @@ where
 
     /// For every recipient device that does not yet have our SKDM for
     /// `distribution_id`, build it (idempotent: libsignal creates the chain on
-    /// first call) and send it as an identified 1:1
-    /// `ContentBody::SenderKeyDistributionMessage`. Mark each device shared on
-    /// success.
+    /// first call) and send it as a wire-only `proto::Content` with the SKDM
+    /// attached. Mark each device shared on success.
     #[tracing::instrument(skip(self, recipients), fields(recipients = recipients.as_ref().len(), dist_id = %distribution_id))]
     async fn share_sender_key_if_needed(
         &mut self,
@@ -1405,12 +1403,16 @@ where
             )
             .await?;
 
-            let body = ContentBody::from(skdm);
+            let content = crate::proto::Content {
+                content: None,
+                sender_key_distribution_message: Some(skdm.as_ref().to_vec()),
+                pni_signature_message: None,
+            };
             let _result = self
                 .try_send_message(
                     *recipient,
                     unidentified_access.as_ref(),
-                    &body,
+                    content,
                     timestamp,
                     false,
                     false,
