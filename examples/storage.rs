@@ -237,6 +237,20 @@ impl PreKeysStore for ExampleStore {
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError> {
         todo!()
     }
+
+    async fn replace_one_time_ec_pre_keys(
+        &mut self,
+        _keys: &[PreKeyRecord],
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn replace_one_time_kyber_pre_keys(
+        &mut self,
+        _keys: &[KyberPreKeyRecord],
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
 }
 
 #[allow(dead_code)]

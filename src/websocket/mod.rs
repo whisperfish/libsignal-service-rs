@@ -1,3 +1,4 @@
+#![allow(async_fn_in_trait)]
 use std::collections::{HashMap, HashSet};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};

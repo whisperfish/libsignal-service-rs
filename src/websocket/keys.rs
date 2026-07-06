@@ -145,13 +145,13 @@ impl SignalWebSocket<websocket::Identified> {
     pub async fn register_pre_keys(
         &mut self,
         service_id_kind: ServiceIdKind,
-        pre_key_state: PreKeyState,
+        pre_key_state: &PreKeyState,
     ) -> Result<(), ServiceError> {
         self.http_request(
             Method::PUT,
             format!("/v2/keys?identity={}", service_id_kind),
         )?
-        .send_json(&pre_key_state)
+        .send_json(pre_key_state)
         .await?
         .service_error_for_status()
         .await?;
