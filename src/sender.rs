@@ -786,10 +786,10 @@ where
     /// Send a `SyncMessage` to own devices, if any.
     pub async fn send_sync_message(
         &mut self,
-        sync: SyncMessage,
+        sync: impl Into<SyncMessage>,
     ) -> Result<(), MessageSenderError> {
         if self.is_multi_device().await {
-            let content = sync.into();
+            let content = sync.into().into();
             let timestamp = Utc::now().timestamp_millis() as u64;
             debug!(
                 "sending multi-device sync message with content {content:?}"
