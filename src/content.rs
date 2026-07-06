@@ -1,8 +1,6 @@
 use chrono::Utc;
 use libsignal_core::DeviceId;
-use libsignal_protocol::{
-    Pni, ProtocolAddress, SenderKeyDistributionMessage, ServiceId,
-};
+use libsignal_protocol::{Pni, ProtocolAddress, ServiceId};
 use prost::Message;
 use std::fmt;
 use uuid::Uuid;
@@ -140,10 +138,6 @@ impl fmt::Display for ContentBody {
             Self::CallMessage(_) => write!(f, "CallMessage"),
             Self::ReceiptMessage(_) => write!(f, "ReceiptMessage"),
             Self::TypingMessage(_) => write!(f, "TypingMessage"),
-            #[allow(deprecated)]
-            Self::SenderKeyDistributionMessage(_) => {
-                write!(f, "SenderKeyDistributionMessage")
-            },
             Self::DecryptionErrorMessage(_) => {
                 write!(f, "DecryptionErrorMessage")
             },
@@ -162,8 +156,6 @@ pub enum ContentBody {
     CallMessage(CallMessage),
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
-    #[deprecated = "SKDMs are constructed as side-car during group message delivery"]
-    SenderKeyDistributionMessage(Vec<u8>),
     DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
     EditMessage(EditMessage),
@@ -196,23 +188,10 @@ impl ContentBody {
                 Content::DecryptionErrorMessage(msg.encode_to_vec())
             },
             Self::StoryMessage(msg) => Content::StoryMessage(msg),
-            #[allow(deprecated)]
-            Self::SenderKeyDistributionMessage(msg) => {
-                tracing::warn!(
-                    "manually constructed SenderKeyDistributionMessage"
-                );
-                return crate::proto::Content {
-                    content: None,
-                    sender_key_distribution_message: Some(msg),
-                    pni_signature_message: None,
-                };
-            },
             Self::EditMessage(msg) => Content::EditMessage(msg),
         };
         crate::proto::Content {
             content: Some(inner),
-            // TODO: handle SKDM; ideally this is also "tacked on" when needed,
-            // and not handled as a separate message.
             sender_key_distribution_message: None,
             // PNI signature gets added down the message sender stream
             pni_signature_message: None,
@@ -236,14 +215,6 @@ impl_from_for_content_body!(SynchronizeMessage(SyncMessage));
 impl_from_for_content_body!(CallMessage(CallMessage));
 impl_from_for_content_body!(ReceiptMessage(ReceiptMessage));
 impl_from_for_content_body!(TypingMessage(TypingMessage));
-impl From<SenderKeyDistributionMessage> for ContentBody {
-    fn from(msg: SenderKeyDistributionMessage) -> Self {
-        // Pre-serialize at construction to keep into_proto infallible.
-        // .as_ref() returns the already-serialized bytes.
-        #[allow(deprecated)]
-        ContentBody::SenderKeyDistributionMessage(msg.as_ref().to_vec())
-    }
-}
 // impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
 impl_from_for_content_body!(StoryMessage(StoryMessage));
 impl_from_for_content_body!(EditMessage(EditMessage));
