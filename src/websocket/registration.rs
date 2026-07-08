@@ -9,7 +9,7 @@ use super::ServiceError;
 use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
     provisioning::ProvisioningError,
-    utils::serde_base64,
+    utils::{serde_base64, TryIntoE164},
     websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
 
@@ -254,7 +254,7 @@ impl SignalWebSocket<websocket::Unidentified> {
     pub async fn submit_registration_request(
         &mut self,
         registration_method: RegistrationMethod<'_>,
-        phonenumber: &str,
+        phonenumber: impl TryIntoE164,
         password: &str,
         account_attributes: AccountAttributes,
         skip_device_transfer: bool,
@@ -280,8 +280,12 @@ impl SignalWebSocket<websocket::Unidentified> {
             require_atomic: bool,
         }
 
+        let phonenumber = phonenumber
+            .try_into_e164()
+            .map_err(|_| ServiceError::InvalidPhoneNumber)?;
+
         self.http_request(Method::POST, "/v1/registration")?
-            .auth_header(phonenumber, password)
+            .registration_auth_header(phonenumber, password)
             .send_json(&RegistrationSessionRequestBody {
                 session_id: registration_method.session_id(),
                 recovery_password: registration_method.recovery_password(),
@@ -340,7 +344,7 @@ impl SignalWebSocket<websocket::Unidentified> {
         aci_protocol_store: &mut Aci,
         pni_protocol_store: &mut Pni,
         skip_device_transfer: bool,
-        phonenumber: &str,
+        phonenumber: impl TryIntoE164,
         password: &str,
     ) -> Result<VerifyAccountResponse, ProvisioningError> {
         let aci_identity_key_pair = aci_protocol_store
