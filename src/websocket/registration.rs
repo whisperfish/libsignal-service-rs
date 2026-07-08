@@ -251,6 +251,7 @@ impl SignalWebSocket<websocket::Unidentified> {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn submit_registration_request(
         &mut self,
         registration_method: RegistrationMethod<'_>,
