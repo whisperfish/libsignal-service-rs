@@ -254,6 +254,7 @@ impl SignalWebSocket<websocket::Unidentified> {
     pub async fn submit_registration_request(
         &mut self,
         registration_method: RegistrationMethod<'_>,
+        gcm_token: Option<GcmRegistrationId<'_>>,
         phonenumber: impl TryIntoE164,
         password: &str,
         account_attributes: AccountAttributes,
@@ -297,7 +298,7 @@ impl SignalWebSocket<websocket::Unidentified> {
                 pni_signed_pre_key: keys.pni_signed_pre_key,
                 aci_pq_last_resort_pre_key: keys.aci_pq_last_resort_pre_key,
                 pni_pq_last_resort_pre_key: keys.pni_pq_last_resort_pre_key,
-                gcm_token: None,
+                gcm_token,
                 require_atomic: true, // XXX default = true but what does this signify?
             })
             .await?
@@ -340,6 +341,7 @@ impl SignalWebSocket<websocket::Unidentified> {
         &mut self,
         csprng: &mut R,
         registration_method: RegistrationMethod<'_>,
+        gcm_token: Option<GcmRegistrationId<'_>>,
         account_attributes: AccountAttributes,
         aci_protocol_store: &mut Aci,
         pni_protocol_store: &mut Pni,
@@ -407,6 +409,7 @@ impl SignalWebSocket<websocket::Unidentified> {
         let result = self
             .submit_registration_request(
                 registration_method,
+                gcm_token,
                 phonenumber,
                 password,
                 account_attributes,
