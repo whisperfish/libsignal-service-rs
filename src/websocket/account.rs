@@ -51,8 +51,6 @@ pub(crate) struct DeviceInfoEncrypted {
 #[serde(rename_all = "camelCase")]
 /// kept in sync with https://github.com/signalapp/Signal-Server/blob/main/service/src/main/java/org/whispersystems/textsecuregcm/entities/AccountAttributes.java#L25
 pub struct AccountAttributes {
-    // #[serde(default, skip_serializing_if = "Option::is_none")]
-    // pub signaling_key: Option<String>,
     pub registration_id: u32,
     pub voice: bool,
     pub video: bool,
