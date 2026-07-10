@@ -1,4 +1,6 @@
-use libsignal_service::pre_keys::{KyberPreKeyStoreExt, PreKeysStore};
+use libsignal_service::pre_keys::{
+    KyberPreKeyStoreExt, PreKeysStore, SignedPreKeyStoreExt,
+};
 use libsignal_service::protocol::{
     Direction, IdentityChange, IdentityKey, IdentityKeyPair, IdentityKeyStore,
     KyberPreKeyId, KyberPreKeyRecord, KyberPreKeyStore, PreKeyId, PreKeyRecord,
@@ -92,6 +94,23 @@ impl SignedPreKeyStore for ExampleStore {
         &mut self,
         _signed_prekey_id: SignedPreKeyId,
         _record: &SignedPreKeyRecord,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
+impl SignedPreKeyStoreExt for ExampleStore {
+    async fn load_signed_pre_keys(
+        &self,
+    ) -> Result<Vec<SignedPreKeyRecord>, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn remove_signed_pre_key(
+        &self,
+        _pre_key_id: SignedPreKeyId,
     ) -> Result<(), SignalProtocolError> {
         todo!()
     }
@@ -226,15 +245,85 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 
-    async fn signed_prekey_id(
+    async fn ec_one_time_pre_keys_count(
+        &self,
+    ) -> Result<usize, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn active_signed_prekey_id(
         &self,
     ) -> Result<Option<SignedPreKeyId>, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn store_one_time_ec_pre_keys(
+        &mut self,
+        _keys: &[PreKeyRecord],
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn mark_all_one_time_ec_pre_keys_stale_if_necessary(
+        &mut self,
+        _stale_time: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn delete_all_stale_one_time_ec_pre_keys(
+        &mut self,
+        _threshold: chrono::DateTime<chrono::Utc>,
+        _min_count: usize,
+    ) -> Result<(), SignalProtocolError> {
         todo!()
     }
 
     async fn last_resort_kyber_prekey_id(
         &self,
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn store_one_time_kyber_pre_keys(
+        &mut self,
+        _keys: &[KyberPreKeyRecord],
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_next_pre_key_id(
+        &mut self,
+        _id: u32,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_next_signed_pre_key_id(
+        &mut self,
+        _id: u32,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_next_pq_pre_key_id(
+        &mut self,
+        _id: u32,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_active_signed_prekey_id(
+        &mut self,
+        _id: SignedPreKeyId,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_active_last_resort_kyber_prekey_id(
+        &mut self,
+        _id: KyberPreKeyId,
+    ) -> Result<(), SignalProtocolError> {
         todo!()
     }
 }
