@@ -286,11 +286,11 @@ pub async fn link_device<
             IdentityKeyPair::new(pni_public_key, pni_private_key);
 
         let (
-            _aci_pre_keys,
+            aci_pre_keys,
             aci_signed_pre_key,
-            _aci_pq_pre_keys,
+            aci_pq_pre_keys,
             aci_pq_last_resort_pre_key,
-        ) = crate::pre_keys::replenish_pre_keys(
+        ) = crate::pre_keys::generate_pre_keys(
             aci_store,
             csprng,
             &aci_key_pair,
@@ -300,17 +300,12 @@ pub async fn link_device<
         )
         .await?;
 
-        let aci_pq_last_resort_pre_key =
-            aci_pq_last_resort_pre_key.expect("requested last resort key");
-        assert!(_aci_pre_keys.is_empty());
-        assert!(_aci_pq_pre_keys.is_empty());
-
         let (
-            _pni_pre_keys,
+            pni_pre_keys,
             pni_signed_pre_key,
-            _pni_pq_pre_keys,
+            pni_pq_pre_keys,
             pni_pq_last_resort_pre_key,
-        ) = crate::pre_keys::replenish_pre_keys(
+        ) = crate::pre_keys::generate_pre_keys(
             pni_store,
             csprng,
             &pni_key_pair,
@@ -320,10 +315,37 @@ pub async fn link_device<
         )
         .await?;
 
-        let pni_pq_last_resort_pre_key =
-            pni_pq_last_resort_pre_key.expect("requested last resort key");
-        assert!(_pni_pre_keys.is_empty());
-        assert!(_pni_pq_pre_keys.is_empty());
+        crate::pre_keys::store_pre_key_bundle(
+            aci_store,
+            &aci_pre_keys,
+            &aci_signed_pre_key,
+            &aci_pq_pre_keys,
+            aci_pq_last_resort_pre_key.as_ref(),
+        )
+        .await?;
+
+        crate::pre_keys::mark_pre_key_bundle_active(
+            aci_store,
+            &aci_signed_pre_key,
+            aci_pq_last_resort_pre_key.as_ref(),
+        )
+        .await?;
+
+        crate::pre_keys::store_pre_key_bundle(
+            pni_store,
+            &pni_pre_keys,
+            &pni_signed_pre_key,
+            &pni_pq_pre_keys,
+            pni_pq_last_resort_pre_key.as_ref(),
+        )
+        .await?;
+
+        crate::pre_keys::mark_pre_key_bundle_active(
+            pni_store,
+            &pni_signed_pre_key,
+            pni_pq_last_resort_pre_key.as_ref(),
+        )
+        .await?;
 
         let encrypted_device_name = BASE64_RELAXED.encode(
             encrypt_device_name(csprng, device_name, &aci_public_key)?
@@ -350,8 +372,10 @@ pub async fn link_device<
                 aci_signed_pre_key: aci_signed_pre_key.try_into()?,
                 pni_signed_pre_key: pni_signed_pre_key.try_into()?,
                 aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
+                    .expect("ACI last resort key when linking")
                     .try_into()?,
                 pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
+                    .expect("PNI last resort key when linking")
                     .try_into()?,
             },
         };
