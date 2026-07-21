@@ -60,7 +60,7 @@ fn debug_envelope(envelope: &Envelope) -> String {
                  timestamp: {:?}, \
                  content: {} bytes, \
              }}",
-            envelope.source_service_id,
+            envelope.parse_source_service_id(),
             envelope.source_device(),
             envelope.server_guid(),
             envelope.timestamp(),
@@ -217,8 +217,10 @@ where
             });
         }
 
+        let source_service_id = envelope.parse_source_service_id();
+
         if destination_service_id.kind() == ServiceIdKind::Pni
-            && envelope.source_service_id.is_none()
+            && source_service_id.is_none()
         {
             tracing::warn!("received sealed sender message to our PNI; ignoring invalid message");
             return Err(ServiceError::InvalidFrame {
@@ -227,7 +229,7 @@ where
         }
 
         // TODO: let chain in edition 2024
-        if let Some(source_service_id) = envelope.parse_source_service_id() {
+        if let Some(source_service_id) = source_service_id {
             if source_service_id.kind() == ServiceIdKind::Pni
                 && envelope.r#type() != Type::ServerDeliveryReceipt
             {
@@ -257,11 +259,11 @@ where
         use crate::proto::envelope::Type;
         let plaintext = match envelope.r#type() {
             Type::PrekeyBundle => {
+                let source_service_id = source_service_id
+                    .expect("prekey bundle format contains source_service_id");
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
-                    &envelope
-                        .parse_source_service_id()
-                        .expect("prekey bundle format"),
+                    &source_service_id,
                     envelope.source_device().try_into()?,
                 )
                 .await?;
@@ -269,9 +271,7 @@ where
                     destination: envelope
                         .parse_destination_service_id()
                         .expect("prekey bundle format"),
-                    sender: envelope
-                        .parse_source_service_id()
-                        .expect("prekey bundle format"),
+                    sender: source_service_id,
                     sender_device: envelope.source_device().try_into()?,
                     timestamp: timestamp?,
                     server_timestamp: server_timestamp?,
@@ -311,13 +311,13 @@ where
             },
             Type::PlaintextContent => {
                 tracing::warn!(?envelope, "Envelope with plaintext content.  This usually indicates a decryption retry.");
+                let source_service_id = source_service_id
+                    .expect("prekey bundle format contains source_service_id");
                 let metadata = Metadata {
                     destination: envelope
                         .parse_destination_service_id()
                         .expect("plaintext content format"),
-                    sender: envelope
-                        .parse_source_service_id()
-                        .expect("plaintext content format"),
+                    sender: source_service_id,
                     sender_device: envelope.source_device().try_into()?,
                     timestamp: timestamp?,
                     server_timestamp: server_timestamp?,
@@ -336,11 +336,11 @@ where
                 Plaintext { metadata, data }
             },
             Type::Ciphertext => {
+                let source_service_id = source_service_id
+                    .expect("prekey bundle format contains source_service_id");
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
-                    &envelope
-                        .parse_source_service_id()
-                        .expect("ciphertext envelope format"),
+                    &source_service_id,
                     envelope.source_device().try_into()?,
                 )
                 .await?;
@@ -417,7 +417,7 @@ where
                     );
                 };
 
-                let needs_receipt = if envelope.source_service_id.is_some() {
+                let needs_receipt = if source_service_id.is_some() {
                     tracing::warn!(?envelope, "Received an unidentified delivery over an identified channel.  Marking needs_receipt=false");
                     false
                 } else {
