@@ -48,13 +48,14 @@ url = { version = "2.1", features = ["serde"] }
 uuid = { version = "1", features = ["serde"] }
 
 # http
-reqwest = { version = "0.12", default-features = false, features = [
+reqwest = { version = "0.13", default-features = false, features = [
   "json",
   "multipart",
-  "rustls-tls-manual-roots",
+  "rustls-no-provider",
   "stream",
 ] }
-reqwest-websocket = { version = "0.4.2", features = ["json"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+reqwest-websocket = { version = "0.6.0", features = ["json"] }
 
 tracing = { version = "0.1", features = ["log"] }
 tracing-futures = "0.2"

@@ -10,7 +10,7 @@ use crate::{
 use libsignal_core::DeviceId;
 use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
-use reqwest_websocket::RequestBuilderExt;
+use reqwest_websocket::Upgrade;
 use serde::{Deserialize, Serialize};
 use tracing::{debug_span, Instrument};
 
@@ -87,14 +87,17 @@ impl PushService {
         user_agent: impl AsRef<str>,
     ) -> Self {
         let cfg: ServiceConfiguration = env.into();
+
+        // Use the ring provider except if the application already installed one.
+        if rustls::crypto::CryptoProvider::get_default().is_none() {
+            let _ = rustls::crypto::ring::default_provider().install_default();
+        }
+
         let client = reqwest::ClientBuilder::new()
-            .tls_built_in_root_certs(false)
-            .add_root_certificate(
-                reqwest::Certificate::from_pem(
-                    cfg.certificate_authority.as_bytes(),
-                )
-                .unwrap(),
+            .tls_certs_only([reqwest::Certificate::from_pem(
+                cfg.certificate_authority.as_bytes(),
             )
+            .unwrap()])
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(65))
             .user_agent(user_agent.as_ref())

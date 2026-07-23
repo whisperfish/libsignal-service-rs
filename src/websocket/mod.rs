@@ -120,10 +120,10 @@ struct SignalWebSocketProcess {
 impl SignalWebSocketProcess {
     async fn process_frame(
         &mut self,
-        frame: Vec<u8>,
+        frame: Bytes,
     ) -> Result<(), ServiceError> {
         use prost::Message;
-        let msg = WebSocketMessage::decode(Bytes::from(frame))?;
+        let msg = WebSocketMessage::decode(frame)?;
         if let Some(request) = &msg.request {
             tracing::trace!(
                 msg_type =? msg.r#type(),
@@ -259,7 +259,7 @@ impl SignalWebSocketProcess {
                         ..Default::default()
                     };
                     let buffer = msg.encode_to_vec();
-                    if let Err(e) = self.ws.send(reqwest_websocket::Message::Binary(buffer)).await {
+                    if let Err(e) = self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await {
                         tracing::info!("Websocket sink has closed: {:?}.", e);
                         break;
                     };
@@ -293,7 +293,7 @@ impl SignalWebSocketProcess {
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            self.ws.send(reqwest_websocket::Message::Binary(buffer)).await?
+                            self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await?
                         }
                         None => {
                             debug!("end of application request stream; websocket closing");
