@@ -1,10 +1,7 @@
 use std::convert::TryInto;
 
-use aes_gcm::{
-    aead::{Aead, Generate},
-    AeadInOut, Aes256Gcm, KeyInit, Nonce,
-};
-use rand_010::CryptoRng;
+use aes_gcm::{aead::Aead, AeadInOut, Aes256Gcm, KeyInit};
+use rand::{CryptoRng, RngCore};
 use zkgroup::profiles::ProfileKey;
 
 use crate::{
@@ -19,8 +16,8 @@ use crate::{
 /// ```rust
 /// # use libsignal_service::{profile_name::ProfileName, profile_cipher::ProfileCipher};
 /// # use zkgroup::profiles::ProfileKey;
-/// # use rand_010::RngExt;
-/// # let mut rng = rand_010::rng();
+/// # use rand::Rng;
+/// # let mut rng = rand::rng();
 /// # let some_randomness = rng.random();
 /// let profile_key = ProfileKey::generate(some_randomness);
 /// let name = ProfileName::<&str> {
@@ -87,7 +84,7 @@ impl ProfileCipher {
         self.profile_key
     }
 
-    fn pad_and_encrypt<R: CryptoRng>(
+    fn pad_and_encrypt<R: RngCore + CryptoRng>(
         &self,
         mut bytes: Vec<u8>,
         padding_brackets: &[usize],
@@ -96,10 +93,11 @@ impl ProfileCipher {
         let _len = pad_plaintext(&mut bytes, padding_brackets)?;
 
         let cipher = Aes256Gcm::new(&self.profile_key.get_bytes().into());
-        let nonce = Nonce::generate_from_rng(csprng);
+        let mut nonce = [0u8; 12];
+        csprng.fill_bytes(&mut nonce);
 
         cipher
-            .encrypt_in_place(&nonce, b"", &mut bytes)
+            .encrypt_in_place(&nonce.into(), b"", &mut bytes)
             .map_err(|_| ProfileCipherError::EncryptionError)?;
 
         let mut concat = Vec::with_capacity(nonce.len() + bytes.len());
@@ -173,7 +171,7 @@ impl ProfileCipher {
         self.decrypt_and_unpad(bytes)
     }
 
-    pub fn encrypt_name<'inp, R: CryptoRng>(
+    pub fn encrypt_name<'inp, R: RngCore + CryptoRng>(
         &self,
         name: impl std::borrow::Borrow<ProfileName<&'inp str>>,
         csprng: &mut R,
@@ -194,7 +192,7 @@ impl ProfileCipher {
         Ok(ProfileName::<String>::deserialize(&plaintext)?)
     }
 
-    pub fn encrypt_about<R: CryptoRng>(
+    pub fn encrypt_about<R: RngCore + CryptoRng>(
         &self,
         about: String,
         csprng: &mut R,
@@ -215,7 +213,7 @@ impl ProfileCipher {
         Ok(std::str::from_utf8(&plaintext)?.into())
     }
 
-    pub fn encrypt_emoji<R: CryptoRng>(
+    pub fn encrypt_emoji<R: RngCore + CryptoRng>(
         &self,
         emoji: String,
         csprng: &mut R,
@@ -241,7 +239,7 @@ impl ProfileCipher {
 mod tests {
     use super::*;
     use crate::profile_name::ProfileName;
-    use rand_010::RngExt;
+    use rand::Rng;
     use zkgroup::profiles::ProfileKey;
 
     #[test]
@@ -259,7 +257,7 @@ mod tests {
         assert_eq!(names[2].len(), NAME_PADDED_LENGTH_1);
         assert_eq!(names[3].len(), NAME_PADDED_LENGTH_1 + 1);
 
-        let mut rng = rand_010::rng();
+        let mut rng = rand::rng();
         let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
@@ -285,7 +283,7 @@ mod tests {
             "Me and my guitar", // shorter that 53
         ];
 
-        let mut rng = rand_010::rng();
+        let mut rng = rand::rng();
         let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
@@ -303,7 +301,7 @@ mod tests {
     fn roundtrip_emoji() {
         let emojii = ["❤️", "💩", "🤣", "😲", "🐠"];
 
-        let mut rng = rand_010::rng();
+        let mut rng = rand::rng();
         let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
