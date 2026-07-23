@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 use aes::cipher::{KeyIvInit, StreamCipher as _};
-use hmac::digest::Output;
+use hmac::{digest::Output, KeyInit};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair,

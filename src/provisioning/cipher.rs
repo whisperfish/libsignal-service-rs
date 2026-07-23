@@ -4,7 +4,7 @@ use aes::cipher::block_padding::Pkcs7;
 use aes::cipher::{BlockModeDecrypt as _, BlockModeEncrypt as _, KeyIvInit};
 use aes::Aes256;
 use bytes::Bytes;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use libsignal_protocol::{KeyPair, PublicKey};
 use prost::Message;
 use rand::{CryptoRng, Rng};

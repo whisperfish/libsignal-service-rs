@@ -25,10 +25,10 @@
 
 use aes::cipher::typenum::Unsigned;
 use aes_gcm::aead::{Aead, AeadCore, AeadInPlace};
-use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
+use aes_gcm::{Aes256Gcm, Key, KeyInit as _, Nonce};
 use base64::Engine;
 use hkdf::Hkdf;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit as _, Mac};
 use prost::Message;
 use rand::TryRngCore;
 use reqwest::Method;
@@ -49,8 +49,6 @@ use crate::push_service::{
 
 const IV_LEN: usize = 12;
 const ITEM_KEY_INFO_PREFIX: &[u8] = b"20240801_SIGNAL_STORAGE_SERVICE_ITEM_";
-
-type HmacSha256 = Hmac<Sha256>;
 
 /// Errors from the Storage Service.
 #[derive(Debug, thiserror::Error)]
@@ -266,7 +264,7 @@ impl StorageService {
 
     /// `HMAC-SHA256(storage_key, "Manifest_{version}")`.
     fn manifest_key(storage_key: &StorageServiceKey, version: u64) -> [u8; 32] {
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(&storage_key.inner)
+        let mut mac = Hmac::<Sha256>::new_from_slice(&storage_key.inner)
             .expect("HMAC accepts any key length");
         mac.update(b"Manifest_");
         mac.update(version.to_string().as_bytes());
@@ -292,7 +290,7 @@ impl StorageService {
                 let b64 =
                     base64::engine::general_purpose::STANDARD.encode(raw_id);
                 let mut mac =
-                    <HmacSha256 as Mac>::new_from_slice(&storage_key.inner)
+                    Hmac::<Sha256>::new_from_slice(&storage_key.inner)
                         .expect("HMAC accepts any key length");
                 mac.update(b"Item_");
                 mac.update(b64.as_bytes());

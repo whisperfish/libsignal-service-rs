@@ -1,6 +1,6 @@
 use aes::cipher::{block_padding::Pkcs7, BlockModeEncrypt};
 use aes::cipher::{BlockModeDecrypt, KeyIvInit};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha256;
 
 type Aes256CbcEnc = cbc::Encryptor<aes::Aes256>;
