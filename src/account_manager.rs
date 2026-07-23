@@ -1,6 +1,7 @@
 use base64::prelude::*;
 use libsignal_core::{DeviceId, E164};
 use rand::{CryptoRng, Rng};
+use rand_010::CryptoRng as CryptoRng010;
 use reqwest::Method;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -485,7 +486,7 @@ impl AccountManager {
     /// in which the `retain_avatar` parameter sets whether to remove (`false`) or retain (`true`) the
     /// currently set avatar.
     pub async fn upload_versioned_profile_without_avatar<
-        R: Rng + CryptoRng,
+        R: CryptoRng010,
         S: AsRef<str>,
     >(
         &mut self,
@@ -536,7 +537,7 @@ impl AccountManager {
     pub async fn upload_versioned_profile<
         's,
         C: std::io::Read + Send + 's,
-        R: Rng + CryptoRng,
+        R: CryptoRng010,
         S: AsRef<str>,
     >(
         &mut self,

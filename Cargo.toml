@@ -20,7 +20,7 @@ zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.99.0" }
 usernames = { git = "https://github.com/signalapp/libsignal", tag = "v0.99.0" }
 
 aes = "0.9"
-aes-gcm = "0.10"
+aes-gcm = "0.11"
 cbc = "0.2"
 ctr = "0.10"
 async-trait = "0.1"
@@ -39,7 +39,7 @@ hmac = "0.13"
 phonenumber = { version = "0.3", optional = true }
 prost = "0.14"
 rand = "0.9"
-rand_core_06 = { version = "0.6", package = "rand_core" }
+rand_010 = { version = "0.10", package = "rand" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.85"
 sha2 = "0.11"

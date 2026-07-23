@@ -1,7 +1,10 @@
 use std::convert::TryInto;
 
-use aes_gcm::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
-use rand::{rand_core, CryptoRng, RngCore};
+use aes_gcm::{
+    aead::{Aead, Generate},
+    AeadInOut, Aes256Gcm, KeyInit, Nonce,
+};
+use rand_010::CryptoRng;
 use zkgroup::profiles::ProfileKey;
 
 use crate::{
@@ -16,8 +19,8 @@ use crate::{
 /// ```rust
 /// # use libsignal_service::{profile_name::ProfileName, profile_cipher::ProfileCipher};
 /// # use zkgroup::profiles::ProfileKey;
-/// # use rand::Rng;
-/// # let mut rng = rand::rng();
+/// # use rand_010::RngExt;
+/// # let mut rng = rand_010::rng();
 /// # let some_randomness = rng.random();
 /// let profile_key = ProfileKey::generate(some_randomness);
 /// let name = ProfileName::<&str> {
@@ -84,7 +87,7 @@ impl ProfileCipher {
         self.profile_key
     }
 
-    fn pad_and_encrypt<R: RngCore + CryptoRng>(
+    fn pad_and_encrypt<R: CryptoRng>(
         &self,
         mut bytes: Vec<u8>,
         padding_brackets: &[usize],
@@ -92,10 +95,8 @@ impl ProfileCipher {
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let _len = pad_plaintext(&mut bytes, padding_brackets)?;
 
-        let csprng = Rng06Shiv(csprng);
-
         let cipher = Aes256Gcm::new(&self.profile_key.get_bytes().into());
-        let nonce = Aes256Gcm::generate_nonce(csprng);
+        let nonce = Nonce::generate_from_rng(csprng);
 
         cipher
             .encrypt_in_place(&nonce, b"", &mut bytes)
@@ -172,7 +173,7 @@ impl ProfileCipher {
         self.decrypt_and_unpad(bytes)
     }
 
-    pub fn encrypt_name<'inp, R: RngCore + CryptoRng>(
+    pub fn encrypt_name<'inp, R: CryptoRng>(
         &self,
         name: impl std::borrow::Borrow<ProfileName<&'inp str>>,
         csprng: &mut R,
@@ -193,7 +194,7 @@ impl ProfileCipher {
         Ok(ProfileName::<String>::deserialize(&plaintext)?)
     }
 
-    pub fn encrypt_about<R: RngCore + CryptoRng>(
+    pub fn encrypt_about<R: CryptoRng>(
         &self,
         about: String,
         csprng: &mut R,
@@ -214,7 +215,7 @@ impl ProfileCipher {
         Ok(std::str::from_utf8(&plaintext)?.into())
     }
 
-    pub fn encrypt_emoji<R: RngCore + CryptoRng>(
+    pub fn encrypt_emoji<R: CryptoRng>(
         &self,
         emoji: String,
         csprng: &mut R,
@@ -236,37 +237,11 @@ impl ProfileCipher {
     }
 }
 
-struct Rng06Shiv<'a, T>(&'a mut T);
-
-impl<T: rand_core::RngCore> rand_core_06::RngCore for Rng06Shiv<'_, T> {
-    fn next_u32(&mut self) -> u32 {
-        self.0.next_u32()
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        self.0.next_u64()
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.fill_bytes(dest)
-    }
-
-    fn try_fill_bytes(
-        &mut self,
-        dest: &mut [u8],
-    ) -> Result<(), rand_core_06::Error> {
-        self.0.fill_bytes(dest);
-        Ok(())
-    }
-}
-
-impl<T: rand_core::CryptoRng> rand_core_06::CryptoRng for Rng06Shiv<'_, T> {}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::profile_name::ProfileName;
-    use rand::Rng;
+    use rand_010::RngExt;
     use zkgroup::profiles::ProfileKey;
 
     #[test]
@@ -284,7 +259,7 @@ mod tests {
         assert_eq!(names[2].len(), NAME_PADDED_LENGTH_1);
         assert_eq!(names[3].len(), NAME_PADDED_LENGTH_1 + 1);
 
-        let mut rng = rand::rng();
+        let mut rng = rand_010::rng();
         let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
@@ -310,7 +285,7 @@ mod tests {
             "Me and my guitar", // shorter that 53
         ];
 
-        let mut rng = rand::rng();
+        let mut rng = rand_010::rng();
         let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);
@@ -328,7 +303,7 @@ mod tests {
     fn roundtrip_emoji() {
         let emojii = ["❤️", "💩", "🤣", "😲", "🐠"];
 
-        let mut rng = rand::rng();
+        let mut rng = rand_010::rng();
         let some_randomness = rng.random();
         let profile_key = ProfileKey::generate(some_randomness);
         let cipher = ProfileCipher::new(profile_key);

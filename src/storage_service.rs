@@ -24,11 +24,14 @@
 //! - `core/models-jvm/src/main/java/org/signal/core/models/storageservice/StorageKey.kt`
 
 use aes::cipher::typenum::Unsigned;
-use aes_gcm::aead::{Aead, AeadCore, AeadInPlace};
-use aes_gcm::{Aes256Gcm, Key, KeyInit as _, Nonce};
+use aes_gcm::{
+    aead::{Aead, AeadCore},
+    AeadInOut,
+};
+use aes_gcm::{Aes256Gcm, KeyInit as _};
 use base64::Engine;
 use hkdf::Hkdf;
-use hmac::{Hmac, KeyInit as _, Mac};
+use hmac::{Hmac, Mac};
 use prost::Message;
 use rand::TryRngCore;
 use reqwest::Method;
@@ -309,8 +312,8 @@ fn decrypt(
         return Err(StorageServiceError::Invalid);
     }
     let (iv, ct) = blob.split_at(IV_LEN);
-    Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
-        .decrypt(Nonce::from_slice(iv), ct)
+    Aes256Gcm::new(key.into())
+        .decrypt(iv.try_into().unwrap(), ct)
         .map_err(|_| StorageServiceError::Invalid)
 }
 
@@ -330,12 +333,8 @@ fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
     out.extend_from_slice(plaintext);
 
     // Encrypt in place - returns tag separately
-    let tag = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
-        .encrypt_in_place_detached(
-            Nonce::from_slice(&iv),
-            b"",
-            &mut out[IV_LEN..],
-        )
+    let tag = Aes256Gcm::new(key.into())
+        .encrypt_inout_detached((&iv).into(), b"", (&mut out[IV_LEN..]).into())
         .expect("AES-256-GCM encryption is infallible for valid keys");
 
     // Append the tag
