@@ -308,12 +308,11 @@ fn decrypt(
     key: &[u8; 32],
     blob: &[u8],
 ) -> Result<Vec<u8>, StorageServiceError> {
-    if blob.len() < IV_LEN {
-        return Err(StorageServiceError::Invalid);
-    }
-    let (iv, ct) = blob.split_at(IV_LEN);
+    let (iv, ct) = blob
+        .split_first_chunk::<IV_LEN>()
+        .ok_or(StorageServiceError::Invalid)?;
     Aes256Gcm::new(key.into())
-        .decrypt(iv.try_into().unwrap(), ct)
+        .decrypt(iv.into(), ct)
         .map_err(|_| StorageServiceError::Invalid)
 }
 
