@@ -895,7 +895,7 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
     let mut ciphertext = plaintext;
 
     const IV: [u8; 16] = [0; 16];
-    let mut cipher = Aes256Ctr128BE::new(&cipher_key, &IV.into());
+    let mut cipher = Aes256Ctr128BE::new_from_slices(&cipher_key, &IV).unwrap();
     cipher.apply_keystream(&mut ciphertext);
 
     let device_name = DeviceName {
@@ -986,7 +986,7 @@ pub fn decrypt_device_name(
     let mut plaintext = ciphertext.to_vec();
     const IV: [u8; 16] = [0; 16];
     let mut cipher =
-        Aes256Ctr128BE::new(cipher_key.as_slice().into(), &IV.into());
+        Aes256Ctr128BE::new_from_slices(cipher_key.as_slice(), &IV).unwrap();
     cipher.apply_keystream(&mut plaintext);
 
     let key1 = calculate_hmac256(&master_secret, b"auth")?;

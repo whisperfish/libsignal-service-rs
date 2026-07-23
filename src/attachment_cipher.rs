@@ -1,5 +1,5 @@
-use aes::cipher::block_padding::Pkcs7;
-use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use aes::cipher::{block_padding::Pkcs7, BlockModeEncrypt};
+use aes::cipher::{BlockModeDecrypt, KeyIvInit};
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
@@ -34,11 +34,11 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
     // Pad with zeroes for padding
     plaintext.extend(&[0u8; 16]);
 
-    let cipher = Aes256CbcEnc::new(aes_half.into(), &iv.into());
+    let cipher = Aes256CbcEnc::new_from_slices(aes_half, &iv).unwrap();
 
     let buffer = plaintext;
     let ciphertext_slice = cipher
-        .encrypt_padded_mut::<Pkcs7>(&mut buffer[16..], plaintext_len)
+        .encrypt_padded::<Pkcs7>(&mut buffer[16..], plaintext_len)
         .expect("encrypted ciphertext");
     let ciphertext_len = ciphertext_slice.len();
     // Correct length for padding
@@ -75,10 +75,10 @@ pub fn decrypt_in_place(
 
     let (iv, buffer) = buffer.split_at_mut(16);
 
-    let cipher = Aes256CbcDec::new(aes_half.into(), (&*iv).into());
+    let cipher = Aes256CbcDec::new_from_slices(aes_half, iv).unwrap();
 
     let plaintext_slice = cipher
-        .decrypt_padded_mut::<Pkcs7>(buffer)
+        .decrypt_padded::<Pkcs7>(buffer)
         .map_err(|_| AttachmentCipherError::PaddingError)?;
 
     let plaintext_len = plaintext_slice.len();

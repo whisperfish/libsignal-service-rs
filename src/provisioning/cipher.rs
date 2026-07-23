@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug};
 
 use aes::cipher::block_padding::Pkcs7;
-use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use aes::cipher::{BlockModeDecrypt as _, BlockModeEncrypt as _, KeyIvInit};
 use aes::Aes256;
 use bytes::Bytes;
 use hmac::{Hmac, Mac};
@@ -91,8 +91,10 @@ impl ProvisioningCipher {
         let mac_key = &shared_secrets[32..];
         let iv: [u8; IV_LENGTH] = csprng.random();
 
-        let cipher = cbc::Encryptor::<Aes256>::new(aes_key.into(), &iv.into());
-        let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&msg);
+        // TODO
+        let cipher =
+            cbc::Encryptor::<Aes256>::new_from_slices(aes_key, &iv).unwrap();
+        let ciphertext = cipher.encrypt_padded_vec::<Pkcs7>(&msg);
         let mut mac = Hmac::<Sha256>::new_from_slice(mac_key)
             .expect("HMAC can take any size key");
         mac.update(&[VERSION]);
@@ -164,9 +166,10 @@ impl ProvisioningCipher {
         // libsignal-service-java uses Pkcs5,
         // but that should not matter.
         // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-        let cipher = cbc::Decryptor::<Aes256>::new(parts1.into(), iv.into());
+        let cipher =
+            cbc::Decryptor::<Aes256>::new_from_slices(parts1, iv).unwrap();
         let input = cipher
-            .decrypt_padded_vec_mut::<Pkcs7>(cipher_text)
+            .decrypt_padded_vec::<Pkcs7>(cipher_text)
             .map_err(ProvisioningError::AesPaddingError)?;
 
         Ok(prost::Message::decode(Bytes::from(input))?)

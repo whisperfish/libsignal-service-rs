@@ -10,7 +10,7 @@ use zkgroup::{
         AnyProfileKeyCredentialPresentation, ExpiringProfileKeyCredential,
         ProfileKey,
     },
-    ServerPublicParams, PRESENTATION_VERSION_3,
+    ServerPublicParams,
 };
 
 use crate::{
@@ -861,14 +861,14 @@ impl GroupOperations {
     // `PRESENTATION_VERSION_4`) without verifying that the Signal server accepts
     // it. A mismatched version will cause ZK proof verification to fail and
     // members will be rejected when joining groups.
-    pub fn create_member_presentation<const V: u8>(
+    pub fn create_member_presentation(
         &self,
         server_public_params: &ServerPublicParams,
         credential: &ExpiringProfileKeyCredential,
     ) -> Vec<u8> {
         let randomness: [u8; 32] = rand::random();
         let presentation = server_public_params
-            .create_expiring_profile_key_credential_presentation::<V>(
+            .create_expiring_profile_key_credential_presentation(
                 randomness,
                 self.group_secret_params,
                 *credential,
@@ -912,10 +912,7 @@ impl GroupOperations {
 
         // Add self as administrator with presentation
         let self_presentation = self
-            .create_member_presentation::<PRESENTATION_VERSION_3>(
-                server_public_params,
-                self_credential,
-            );
+            .create_member_presentation(server_public_params, self_credential);
         members.push(proto::Member {
             user_id: vec![],     // Server extracts from presentation
             profile_key: vec![], // Server extracts from presentation
@@ -930,11 +927,10 @@ impl GroupOperations {
         for candidate in member_candidates {
             if let Some(credential) = &candidate.credential {
                 // Has credential - add as full member with presentation
-                let presentation = self
-                    .create_member_presentation::<PRESENTATION_VERSION_3>(
-                        server_public_params,
-                        credential,
-                    );
+                let presentation = self.create_member_presentation(
+                    server_public_params,
+                    credential,
+                );
                 members.push(proto::Member {
                     user_id: vec![],
                     profile_key: vec![],
@@ -1020,11 +1016,8 @@ impl GroupOperations {
         role: super::model::Role,
         server_public_params: &ServerPublicParams,
     ) -> proto::group_change::actions::AddMemberAction {
-        let presentation = self
-            .create_member_presentation::<PRESENTATION_VERSION_3>(
-                server_public_params,
-                credential,
-            );
+        let presentation =
+            self.create_member_presentation(server_public_params, credential);
         proto::group_change::actions::AddMemberAction {
             added: Some(proto::Member {
                 user_id: vec![],     // Server extracts from presentation

@@ -23,7 +23,7 @@
 //! - `lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/storage/RecordIkm.kt`
 //! - `core/models-jvm/src/main/java/org/signal/core/models/storageservice/StorageKey.kt`
 
-use aes::cipher::Unsigned;
+use aes::cipher::typenum::Unsigned;
 use aes_gcm::aead::{Aead, AeadCore, AeadInPlace};
 use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
 use base64::Engine;

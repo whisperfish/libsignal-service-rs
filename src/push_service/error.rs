@@ -1,4 +1,4 @@
-use aes::cipher::block_padding::UnpadError;
+use aes::cipher::block_padding;
 use libsignal_core::curve::CurveError;
 use libsignal_protocol::{
     FingerprintError, ServiceIdKind, SignalProtocolError,
@@ -60,7 +60,7 @@ pub enum ServiceError {
     WsClosing { reason: &'static str },
 
     #[error("Invalid padding: {0}")]
-    Padding(#[from] UnpadError),
+    Padding(#[from] block_padding::Error),
 
     #[error("unknown padding version {0}")]
     PaddingVersion(u32),
