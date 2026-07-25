@@ -63,7 +63,8 @@ impl SignalWebSocket<Identified> {
         lookup_request: LookupRequest,
     ) -> Result<Vec<(libsignal_core::E164, Option<ServiceId>)>, ServiceError>
     {
-        let env: libsignal_net::env::Env<'_> = self.servers().into();
+        let env: libsignal_net::env::Env<'_> =
+            self.servers().ok_or(ServiceError::CdsiUnavailable)?.into();
 
         // 1. Get CDSI auth credentials from chat server
         let cdsi_auth_response = self.get_cdsi_auth().await?;

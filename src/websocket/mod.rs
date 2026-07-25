@@ -409,7 +409,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         )
     }
 
-    pub fn servers(&self) -> SignalServers {
+    pub fn servers(&self) -> Option<SignalServers> {
         self.unidentified_push_service.servers
     }
 

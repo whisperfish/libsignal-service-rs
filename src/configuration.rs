@@ -21,6 +21,43 @@ pub struct ServiceConfiguration {
     pub zkgroup_server_public_params: ServerPublicParams,
 }
 
+impl ServiceConfiguration {
+    /// Build a configuration for a custom (non-preset) Signal-compatible
+    /// deployment, e.g. a self-hosted Flatline instance.
+    ///
+    /// For the known Signal deployments, convert from [`SignalServers`] via
+    /// the `From<SignalServers>` impl instead.
+    pub fn new(
+        service_url: Url,
+        storage_url: Url,
+        cdn_urls: HashMap<u32, Url>,
+        certificate_authority: impl Into<String>,
+        unidentified_sender_trust_roots: Vec<PublicKey>,
+        zkgroup_server_public_params: ServerPublicParams,
+    ) -> Self {
+        Self {
+            service_url,
+            storage_url,
+            cdn_urls,
+            certificate_authority: certificate_authority.into(),
+            unidentified_sender_trust_roots,
+            zkgroup_server_public_params,
+        }
+    }
+
+    pub fn service_url(&self) -> &Url {
+        &self.service_url
+    }
+
+    pub fn storage_url(&self) -> &Url {
+        &self.storage_url
+    }
+
+    pub fn cdn_urls(&self) -> &HashMap<u32, Url> {
+        &self.cdn_urls
+    }
+}
+
 #[derive(Clone)]
 pub struct ServiceCredentials {
     pub aci: Option<uuid::Uuid>,

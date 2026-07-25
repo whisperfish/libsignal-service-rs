@@ -74,7 +74,11 @@ pub struct StaleDevices {
 
 #[derive(Clone)]
 pub struct PushService {
-    pub(crate) servers: SignalServers,
+    /// Preset the host was built from, if any.
+    ///
+    /// Only used for CDSI env mapping; custom configurations have no
+    /// `libsignal_net` env equivalent and degrade gracefully.
+    pub(crate) servers: Option<SignalServers>,
     cfg: ServiceConfiguration,
     credentials: Option<HttpAuth>,
     client: reqwest::Client,
@@ -87,15 +91,48 @@ impl PushService {
         user_agent: impl AsRef<str>,
     ) -> Self {
         let cfg: ServiceConfiguration = env.into();
+        let client =
+            Self::build_client(&cfg.certificate_authority, &user_agent);
+        Self {
+            servers: Some(env),
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+        }
+    }
 
+    /// Build a `PushService` from a custom [`ServiceConfiguration`] (e.g. a
+    /// self-hosted Flatline deployment).
+    ///
+    /// CDSI contact discovery is unavailable for such configurations; there
+    /// is no `libsignal_net::env` equivalent for an arbitrary deployment.
+    pub fn from_config(
+        cfg: ServiceConfiguration,
+        credentials: Option<ServiceCredentials>,
+        user_agent: impl AsRef<str>,
+    ) -> Self {
+        let client =
+            Self::build_client(&cfg.certificate_authority, &user_agent);
+        Self {
+            servers: None,
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+        }
+    }
+
+    fn build_client(
+        certificate_authority: &str,
+        user_agent: &impl AsRef<str>,
+    ) -> reqwest::Client {
         // Use the ring provider except if the application already installed one.
         if rustls::crypto::CryptoProvider::get_default().is_none() {
             let _ = rustls::crypto::ring::default_provider().install_default();
         }
 
-        let client = reqwest::ClientBuilder::new()
+        reqwest::ClientBuilder::new()
             .tls_certs_only([reqwest::Certificate::from_pem(
-                cfg.certificate_authority.as_bytes(),
+                certificate_authority.as_bytes(),
             )
             .unwrap()])
             .connect_timeout(Duration::from_secs(10))
@@ -103,14 +140,7 @@ impl PushService {
             .user_agent(user_agent.as_ref())
             .http1_only()
             .build()
-            .unwrap();
-
-        Self {
-            servers: env,
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
-        }
+            .unwrap()
     }
 
     #[tracing::instrument(skip(self), fields(endpoint = %endpoint))]
