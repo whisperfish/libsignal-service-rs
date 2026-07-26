@@ -1,3 +1,4 @@
+use hmac::KeyInit as _;
 use rand::{CryptoRng, Rng};
 
 const MASTER_KEY_LEN: usize = 32;

@@ -5,7 +5,7 @@ use libsignal_core::{curve::CurveError, InvalidDeviceId};
 use libsignal_protocol::{
     process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
     ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
-    SignalProtocolError,
+    SessionNotFound, SignalProtocolError,
 };
 use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
@@ -919,7 +919,12 @@ where
                     },
                     Err(MessageSenderError::ServiceError(
                         ServiceError::SignalProtocolError(
-                            SignalProtocolError::SessionNotFound(addr),
+                            SignalProtocolError::SessionNotFound(
+                                SessionNotFound {
+                                    address: Some(addr),
+                                    op,
+                                },
+                            ),
                         ),
                     )) => {
                         // SessionNotFound is returned on certain session corruption.
@@ -932,8 +937,10 @@ where
                             Err(error) => {
                                 tracing::warn!(%error, %addr, "failed to delete session");
                                 return Err(
-                                    SignalProtocolError::SessionNotFound(addr)
-                                        .into(),
+                                    SignalProtocolError::SessionNotFound(
+                                        SessionNotFound::new(addr, op),
+                                    )
+                                    .into(),
                                 );
                             },
                         }

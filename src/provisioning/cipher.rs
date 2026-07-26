@@ -1,10 +1,13 @@
 use std::fmt::{self, Debug};
 
 use aes::cipher::block_padding::Pkcs7;
-use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+use aes::cipher::consts::{U32, U64};
+use aes::cipher::{
+    Array, BlockModeDecrypt as _, BlockModeEncrypt as _, KeyIvInit,
+};
 use aes::Aes256;
 use bytes::Bytes;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use libsignal_protocol::{KeyPair, PublicKey};
 use prost::Message;
 use rand::{CryptoRng, Rng};
@@ -82,17 +85,16 @@ impl ProvisioningCipher {
             .calculate_agreement(self.public_key())
             .map_err(ProvisioningError::invalid_public_key)?;
 
-        let mut shared_secrets = [0; 64];
+        let mut shared_secrets = Array::<u8, U64>::default();
         hkdf::Hkdf::<sha2::Sha256>::new(None, &agreement)
             .expand(b"TextSecure Provisioning Message", &mut shared_secrets)
             .expect("valid output length");
 
-        let aes_key = &shared_secrets[0..32];
-        let mac_key = &shared_secrets[32..];
+        let (aes_key, mac_key) = shared_secrets.split_ref::<U32>();
         let iv: [u8; IV_LENGTH] = csprng.random();
 
-        let cipher = cbc::Encryptor::<Aes256>::new(aes_key.into(), &iv.into());
-        let ciphertext = cipher.encrypt_padded_vec_mut::<Pkcs7>(&msg);
+        let cipher = cbc::Encryptor::<Aes256>::new(aes_key, &iv.into());
+        let ciphertext = cipher.encrypt_padded_vec::<Pkcs7>(&msg);
         let mut mac = Hmac::<Sha256>::new_from_slice(mac_key)
             .expect("HMAC can take any size key");
         mac.update(&[VERSION]);
@@ -133,24 +135,24 @@ impl ProvisioningCipher {
             return Err(ProvisioningError::BadVersionNumber);
         }
 
-        let iv = &body[IV_OFFSET..(IV_LENGTH + IV_OFFSET)];
+        let iv: &[u8; IV_LENGTH] = body[IV_OFFSET..(IV_LENGTH + IV_OFFSET)]
+            .try_into()
+            .expect("fixed-size range");
         let mac = &body[(body.len() - 32)..];
         let cipher_text = &body[16 + 1..(body.len() - CIPHER_KEY_SIZE)];
         let iv_and_cipher_text = &body[0..(body.len() - CIPHER_KEY_SIZE)];
-        debug_assert_eq!(iv.len(), IV_LENGTH);
         debug_assert_eq!(mac.len(), 32);
 
         let agreement = key_pair
             .calculate_agreement(&master_ephemeral)
             .map_err(ProvisioningError::invalid_private_key)?;
 
-        let mut shared_secrets = [0; 64];
+        let mut shared_secrets = Array::<u8, U64>::default();
         hkdf::Hkdf::<sha2::Sha256>::new(None, &agreement)
             .expand(b"TextSecure Provisioning Message", &mut shared_secrets)
             .expect("valid output length");
 
-        let parts1 = &shared_secrets[0..32];
-        let parts2 = &shared_secrets[32..];
+        let (parts1, parts2) = shared_secrets.split_ref::<U32>();
 
         let mut verifier = Hmac::<Sha256>::new_from_slice(parts2)
             .expect("HMAC can take any size key");
@@ -164,9 +166,9 @@ impl ProvisioningCipher {
         // libsignal-service-java uses Pkcs5,
         // but that should not matter.
         // https://crypto.stackexchange.com/questions/9043/what-is-the-difference-between-pkcs5-padding-and-pkcs7-padding
-        let cipher = cbc::Decryptor::<Aes256>::new(parts1.into(), iv.into());
+        let cipher = cbc::Decryptor::<Aes256>::new(parts1, iv.into());
         let input = cipher
-            .decrypt_padded_vec_mut::<Pkcs7>(cipher_text)
+            .decrypt_padded_vec::<Pkcs7>(cipher_text)
             .map_err(ProvisioningError::AesPaddingError)?;
 
         Ok(prost::Message::decode(Bytes::from(input))?)

@@ -23,9 +23,12 @@
 //! - `lib/libsignal-service/src/main/java/org/whispersystems/signalservice/api/storage/RecordIkm.kt`
 //! - `core/models-jvm/src/main/java/org/signal/core/models/storageservice/StorageKey.kt`
 
-use aes::cipher::Unsigned;
-use aes_gcm::aead::{Aead, AeadCore, AeadInPlace};
-use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
+use aes::cipher::typenum::Unsigned;
+use aes_gcm::{
+    aead::{Aead, AeadCore},
+    AeadInOut,
+};
+use aes_gcm::{Aes256Gcm, KeyInit as _};
 use base64::Engine;
 use hkdf::Hkdf;
 use hmac::{Hmac, Mac};
@@ -49,8 +52,6 @@ use crate::push_service::{
 
 const IV_LEN: usize = 12;
 const ITEM_KEY_INFO_PREFIX: &[u8] = b"20240801_SIGNAL_STORAGE_SERVICE_ITEM_";
-
-type HmacSha256 = Hmac<Sha256>;
 
 /// Errors from the Storage Service.
 #[derive(Debug, thiserror::Error)]
@@ -266,7 +267,7 @@ impl StorageService {
 
     /// `HMAC-SHA256(storage_key, "Manifest_{version}")`.
     fn manifest_key(storage_key: &StorageServiceKey, version: u64) -> [u8; 32] {
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(&storage_key.inner)
+        let mut mac = Hmac::<Sha256>::new_from_slice(&storage_key.inner)
             .expect("HMAC accepts any key length");
         mac.update(b"Manifest_");
         mac.update(version.to_string().as_bytes());
@@ -292,7 +293,7 @@ impl StorageService {
                 let b64 =
                     base64::engine::general_purpose::STANDARD.encode(raw_id);
                 let mut mac =
-                    <HmacSha256 as Mac>::new_from_slice(&storage_key.inner)
+                    Hmac::<Sha256>::new_from_slice(&storage_key.inner)
                         .expect("HMAC accepts any key length");
                 mac.update(b"Item_");
                 mac.update(b64.as_bytes());
@@ -307,12 +308,11 @@ fn decrypt(
     key: &[u8; 32],
     blob: &[u8],
 ) -> Result<Vec<u8>, StorageServiceError> {
-    if blob.len() < IV_LEN {
-        return Err(StorageServiceError::Invalid);
-    }
-    let (iv, ct) = blob.split_at(IV_LEN);
-    Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
-        .decrypt(Nonce::from_slice(iv), ct)
+    let (iv, ct) = blob
+        .split_first_chunk::<IV_LEN>()
+        .ok_or(StorageServiceError::Invalid)?;
+    Aes256Gcm::new(key.into())
+        .decrypt(iv.into(), ct)
         .map_err(|_| StorageServiceError::Invalid)
 }
 
@@ -332,12 +332,8 @@ fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Vec<u8> {
     out.extend_from_slice(plaintext);
 
     // Encrypt in place - returns tag separately
-    let tag = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
-        .encrypt_in_place_detached(
-            Nonce::from_slice(&iv),
-            b"",
-            &mut out[IV_LEN..],
-        )
+    let tag = Aes256Gcm::new(key.into())
+        .encrypt_inout_detached((&iv).into(), b"", (&mut out[IV_LEN..]).into())
         .expect("AES-256-GCM encryption is infallible for valid keys");
 
     // Append the tag

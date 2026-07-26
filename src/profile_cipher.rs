@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
-use aes_gcm::{aead::Aead, AeadCore, AeadInPlace, Aes256Gcm, KeyInit};
-use rand::{rand_core, CryptoRng, RngCore};
+use aes_gcm::{aead::Aead, AeadInOut, Aes256Gcm, KeyInit};
+use rand::{CryptoRng, RngCore};
 use zkgroup::profiles::ProfileKey;
 
 use crate::{
@@ -92,13 +92,12 @@ impl ProfileCipher {
     ) -> Result<Vec<u8>, ProfileCipherError> {
         let _len = pad_plaintext(&mut bytes, padding_brackets)?;
 
-        let csprng = Rng06Shiv(csprng);
-
         let cipher = Aes256Gcm::new(&self.profile_key.get_bytes().into());
-        let nonce = Aes256Gcm::generate_nonce(csprng);
+        let mut nonce = [0u8; 12];
+        csprng.fill_bytes(&mut nonce);
 
         cipher
-            .encrypt_in_place(&nonce, b"", &mut bytes)
+            .encrypt_in_place(&nonce.into(), b"", &mut bytes)
             .map_err(|_| ProfileCipherError::EncryptionError)?;
 
         let mut concat = Vec::with_capacity(nonce.len() + bytes.len());
@@ -235,32 +234,6 @@ impl ProfileCipher {
         Ok(std::str::from_utf8(&plaintext)?.into())
     }
 }
-
-struct Rng06Shiv<'a, T>(&'a mut T);
-
-impl<T: rand_core::RngCore> rand_core_06::RngCore for Rng06Shiv<'_, T> {
-    fn next_u32(&mut self) -> u32 {
-        self.0.next_u32()
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        self.0.next_u64()
-    }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        self.0.fill_bytes(dest)
-    }
-
-    fn try_fill_bytes(
-        &mut self,
-        dest: &mut [u8],
-    ) -> Result<(), rand_core_06::Error> {
-        self.0.fill_bytes(dest);
-        Ok(())
-    }
-}
-
-impl<T: rand_core::CryptoRng> rand_core_06::CryptoRng for Rng06Shiv<'_, T> {}
 
 #[cfg(test)]
 mod tests {

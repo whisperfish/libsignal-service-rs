@@ -79,7 +79,7 @@ pub enum ProvisioningError {
     #[error("mismatched MAC")]
     MismatchedMac,
     #[error("AES CBC padding error: {0}")]
-    AesPaddingError(aes::cipher::block_padding::UnpadError),
+    AesPaddingError(aes::cipher::block_padding::Error),
 
     #[error("invalid provisioning step received")]
     InvalidStep,

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
 use aes::cipher::{KeyIvInit, StreamCipher as _};
-use hmac::digest::Output;
+use hmac::{digest::Output, KeyInit};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     kem, Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair,
@@ -985,8 +985,7 @@ pub fn decrypt_device_name(
 
     let mut plaintext = ciphertext.to_vec();
     const IV: [u8; 16] = [0; 16];
-    let mut cipher =
-        Aes256Ctr128BE::new(cipher_key.as_slice().into(), &IV.into());
+    let mut cipher = Aes256Ctr128BE::new(&cipher_key, &IV.into());
     cipher.apply_keystream(&mut plaintext);
 
     let key1 = calculate_hmac256(&master_secret, b"auth")?;

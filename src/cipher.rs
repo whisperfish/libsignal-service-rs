@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, fmt, time::SystemTime};
 
-use aes::cipher::block_padding::{Iso7816, RawPadding};
+use aes::cipher::block_padding::{Iso7816, Padding};
 use base64::prelude::*;
 use libsignal_core::ServiceIdKind;
 use libsignal_protocol::{
@@ -10,9 +10,10 @@ use libsignal_protocol::{
     CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
     PlaintextContent, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
     ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
-    SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionStore,
-    SessionUsabilityRequirements, SignalMessage, SignalProtocolError,
-    SignedPreKeyStore, Timestamp, UnidentifiedSenderMessageContent,
+    SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionNotFound,
+    SessionStore, SessionUsabilityRequirements, SignalMessage,
+    SignalProtocolError, SignedPreKeyStore, Timestamp,
+    UnidentifiedSenderMessageContent,
 };
 use prost::Message;
 use rand::{rng, CryptoRng, Rng};
@@ -301,7 +302,11 @@ where
                     .protocol_store
                     .load_session(&sender)
                     .await?
-                    .ok_or(SignalProtocolError::SessionNotFound(sender))?;
+                    .ok_or_else(|| {
+                        SignalProtocolError::SessionNotFound(
+                            SessionNotFound::new(sender, "decrypt"),
+                        )
+                    })?;
 
                 strip_padding_version(
                     session_record.session_version()?,
@@ -377,7 +382,11 @@ where
                     .protocol_store
                     .load_session(&sender)
                     .await?
-                    .ok_or(SignalProtocolError::SessionNotFound(sender))?;
+                    .ok_or_else(|| {
+                        SignalProtocolError::SessionNotFound(
+                            SessionNotFound::new(sender, "decrypt"),
+                        )
+                    })?;
 
                 strip_padding_version(
                     session_record.session_version()?,
@@ -487,7 +496,10 @@ where
             .load_session(address)
             .await?
             .ok_or_else(|| {
-            SignalProtocolError::SessionNotFound(address.clone())
+            SignalProtocolError::SessionNotFound(SessionNotFound::new(
+                address.clone(),
+                "encrypt",
+            ))
         })?;
 
         let record_usable = session_record
@@ -497,7 +509,10 @@ where
             )
             .unwrap_or(false);
         if !record_usable {
-            Err(SignalProtocolError::SessionNotFound(address.clone()))?;
+            Err(SignalProtocolError::SessionNotFound(SessionNotFound::new(
+                address.clone(),
+                "encrypt",
+            )))?;
         }
 
         let padded_content =
