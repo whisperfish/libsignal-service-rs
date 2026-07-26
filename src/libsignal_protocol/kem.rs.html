@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-2a193a9867decbc4/46d867c/rust/protocol/src/kem.rs`."><title>kem.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_protocol" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">libsignal_protocol/</div>kem.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">//
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `/home/runner/.cargo/git/checkouts/libsignal-2a193a9867decbc4/439f035/rust/protocol/src/kem.rs`."><title>kem.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-17e0aaed.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="libsignal_protocol" data-themes="" data-resource-suffix="" data-rustdoc-version="1.97.1 (8bab26f4f 2026-07-14)" data-channel="1.97.1" data-search-js="search-fd9372ac.js" data-stringdex-js="stringdex-2da4960a.js" data-settings-js="settings-170eb4bf.js" ><script src="../../static.files/storage-41dd4d93.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fcd733ba.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-f7c3ffd8.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><a class="skip-main-content" href="#main-content">Skip to main content</a><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content" tabindex="-1"><div class="main-heading"><h1><div class="sub-heading">libsignal_protocol/</div>kem.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="comment">//
 <a href=#2 id=2 data-nosnippet>2</a>// Copyright 2023 Signal Messenger, LLC.
 <a href=#3 id=3 data-nosnippet>3</a>// SPDX-License-Identifier: AGPL-3.0-only
 <a href=#4 id=4 data-nosnippet>4</a>//
@@ -514,7 +514,7 @@
 <a href=#514 id=514 data-nosnippet>514</a>
 <a href=#515 id=515 data-nosnippet>515</a><span class="attr">#[cfg(test)]
 <a href=#516 id=516 data-nosnippet>516</a></span><span class="kw">mod </span>tests {
-<a href=#517 id=517 data-nosnippet>517</a>    <span class="kw">use </span>rand::{Rng <span class="kw">as _</span>, TryRngCore <span class="kw">as _</span>};
+<a href=#517 id=517 data-nosnippet>517</a>    <span class="kw">use </span>rand::TryRngCore <span class="kw">as _</span>;
 <a href=#518 id=518 data-nosnippet>518</a>
 <a href=#519 id=519 data-nosnippet>519</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
 <a href=#520 id=520 data-nosnippet>520</a>
@@ -674,22 +674,33 @@
 <a href=#674 id=674 data-nosnippet>674</a>
 <a href=#675 id=675 data-nosnippet>675</a>    <span class="attr">#[test]
 <a href=#676 id=676 data-nosnippet>676</a>    </span><span class="kw">fn </span>test_dyn_parameters_consts() {
-<a href=#677 id=677 data-nosnippet>677</a>        <span class="macro">assert_eq!</span>(
-<a href=#678 id=678 data-nosnippet>678</a>            kyber1024::Parameters::SECRET_KEY_LENGTH,
-<a href=#679 id=679 data-nosnippet>679</a>            kyber1024::Parameters.secret_key_length()
-<a href=#680 id=680 data-nosnippet>680</a>        );
-<a href=#681 id=681 data-nosnippet>681</a>        <span class="macro">assert_eq!</span>(
-<a href=#682 id=682 data-nosnippet>682</a>            kyber1024::Parameters::PUBLIC_KEY_LENGTH,
-<a href=#683 id=683 data-nosnippet>683</a>            kyber1024::Parameters.public_key_length()
-<a href=#684 id=684 data-nosnippet>684</a>        );
-<a href=#685 id=685 data-nosnippet>685</a>        <span class="macro">assert_eq!</span>(
-<a href=#686 id=686 data-nosnippet>686</a>            kyber1024::Parameters::CIPHERTEXT_LENGTH,
-<a href=#687 id=687 data-nosnippet>687</a>            kyber1024::Parameters.ciphertext_length()
-<a href=#688 id=688 data-nosnippet>688</a>        );
-<a href=#689 id=689 data-nosnippet>689</a>        <span class="macro">assert_eq!</span>(
-<a href=#690 id=690 data-nosnippet>690</a>            kyber1024::Parameters::SHARED_SECRET_LENGTH,
-<a href=#691 id=691 data-nosnippet>691</a>            kyber1024::Parameters.shared_secret_length()
-<a href=#692 id=692 data-nosnippet>692</a>        );
-<a href=#693 id=693 data-nosnippet>693</a>    }
-<a href=#694 id=694 data-nosnippet>694</a>}
+<a href=#677 id=677 data-nosnippet>677</a>        <span class="kw">fn </span>assert_parameters&lt;T: Parameters&gt;(key_type: KeyType) {
+<a href=#678 id=678 data-nosnippet>678</a>            <span class="macro">assert_eq!</span>(T::KEY_TYPE, key_type);
+<a href=#679 id=679 data-nosnippet>679</a>            <span class="macro">assert_eq!</span>(
+<a href=#680 id=680 data-nosnippet>680</a>                T::SECRET_KEY_LENGTH,
+<a href=#681 id=681 data-nosnippet>681</a>                key_type.parameters().secret_key_length()
+<a href=#682 id=682 data-nosnippet>682</a>            );
+<a href=#683 id=683 data-nosnippet>683</a>            <span class="macro">assert_eq!</span>(
+<a href=#684 id=684 data-nosnippet>684</a>                T::PUBLIC_KEY_LENGTH,
+<a href=#685 id=685 data-nosnippet>685</a>                key_type.parameters().public_key_length()
+<a href=#686 id=686 data-nosnippet>686</a>            );
+<a href=#687 id=687 data-nosnippet>687</a>            <span class="macro">assert_eq!</span>(
+<a href=#688 id=688 data-nosnippet>688</a>                T::CIPHERTEXT_LENGTH,
+<a href=#689 id=689 data-nosnippet>689</a>                key_type.parameters().ciphertext_length()
+<a href=#690 id=690 data-nosnippet>690</a>            );
+<a href=#691 id=691 data-nosnippet>691</a>            <span class="macro">assert_eq!</span>(
+<a href=#692 id=692 data-nosnippet>692</a>                T::SHARED_SECRET_LENGTH,
+<a href=#693 id=693 data-nosnippet>693</a>                key_type.parameters().shared_secret_length()
+<a href=#694 id=694 data-nosnippet>694</a>            );
+<a href=#695 id=695 data-nosnippet>695</a>        }
+<a href=#696 id=696 data-nosnippet>696</a>
+<a href=#697 id=697 data-nosnippet>697</a>        assert_parameters::&lt;kyber1024::Parameters&gt;(KeyType::Kyber1024);
+<a href=#698 id=698 data-nosnippet>698</a>
+<a href=#699 id=699 data-nosnippet>699</a>        <span class="attr">#[cfg(feature = <span class="string">"kyber768"</span>)]
+<a href=#700 id=700 data-nosnippet>700</a>        </span>assert_parameters::&lt;kyber768::Parameters&gt;(KeyType::Kyber768);
+<a href=#701 id=701 data-nosnippet>701</a>
+<a href=#702 id=702 data-nosnippet>702</a>        <span class="attr">#[cfg(feature = <span class="string">"mlkem1024"</span>)]
+<a href=#703 id=703 data-nosnippet>703</a>        </span>assert_parameters::&lt;mlkem1024::Parameters&gt;(KeyType::MLKEM1024);
+<a href=#704 id=704 data-nosnippet>704</a>    }
+<a href=#705 id=705 data-nosnippet>705</a>}
 </code></pre></div></section></main></body></html>

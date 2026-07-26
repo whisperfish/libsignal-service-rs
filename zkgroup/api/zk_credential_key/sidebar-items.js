@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ZkCredentialKeyPair","ZkCredentialPublicKey"]};
+window.SIDEBAR_ITEMS = {"struct":["ZkCredentialKeyDomain","ZkCredentialKeyPair","ZkCredentialPublicKey"]};
