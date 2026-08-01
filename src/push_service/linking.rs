@@ -8,10 +8,8 @@ use crate::{
     websocket::registration::DeviceActivationRequest,
 };
 
-use super::response;
-use super::{
-    response::ReqwestExt, HttpAuth, HttpAuthOverride, PushService, ServiceError,
-};
+use super::response::{device_limit_reached, error_mapper, ReqwestExt};
+use super::{HttpAuth, HttpAuthOverride, PushService, ServiceError};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -66,6 +64,13 @@ pub struct LinkRequest {
     pub device_activation_request: DeviceActivationRequest,
 }
 
+error_mapper! {
+    LinkDevice:
+        FORBIDDEN => InvalidDeviceVerificationCode,
+        CONFLICT => DeviceCapabilityDowngrade,
+        LENGTH_REQUIRED => fn device_limit_reached,
+}
+
 impl PushService {
     pub async fn link_device(
         &mut self,
@@ -80,7 +85,7 @@ impl PushService {
         .json(&link_request)
         .send()
         .await?
-        .service_error_for_status_as::<response::LinkDevice>()
+        .service_error_for_status_as::<LinkDevice>()
         .await?
         .json()
         .await
