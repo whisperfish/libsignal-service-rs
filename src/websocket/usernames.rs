@@ -5,6 +5,7 @@ use reqwest::Method;
 use serde::Serialize;
 
 use crate::content::ServiceError;
+use crate::push_service::response;
 
 use super::{Identified, SignalWebSocket, Unidentified};
 
@@ -229,7 +230,7 @@ impl SignalWebSocket<Identified> {
                 keep_link_handle,
             })
             .await?
-            .service_error_for_status()
+            .service_error_for_status_as::<response::PutUsernameLink>()
             .await?;
 
         let result: UsernameLinkHandleResponse = response.json().await?;

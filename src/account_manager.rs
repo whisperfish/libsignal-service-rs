@@ -28,6 +28,7 @@ use crate::prelude::{MessageSender, MessageSenderError};
 use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::{generate_registration_id, ProvisioningSecrets};
+use crate::push_service::response;
 use crate::push_service::{
     AvatarWrite, HttpAuthOverride, ReqwestExt, DEFAULT_DEVICE_ID,
 };
@@ -302,7 +303,7 @@ impl AccountManager {
             )?
             .send()
             .await?
-            .service_error_for_status()
+            .service_error_for_status_as::<response::GetProvisioningCode>()
             .await?
             .json()
             .await?;
@@ -660,7 +661,7 @@ impl AccountManager {
             })
             .send()
             .await?
-            .service_error_for_status()
+            .service_error_for_status_as::<response::SubmitChallenge>()
             .await?;
 
         Ok(())

@@ -75,6 +75,21 @@ pub fn parse_pni_with_fallback(
     })
 }
 
+/// Deserialize a [`ServiceId`] from its `"ACI:uuid"` / `"PNI:uuid"` server
+/// string form.
+pub fn deserialize_service_id<'de, D>(
+    deserializer: D,
+) -> Result<ServiceId, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let s = <&'de str>::deserialize(deserializer)?;
+    ServiceId::parse_from_service_id_string(s).ok_or_else(|| {
+        serde::de::Error::custom(format!("invalid service id: {s}"))
+    })
+}
+
 pub fn parse_service_id_with_fallback(
     bytes: Option<&[u8]>,
     utf8: Option<&str>,
