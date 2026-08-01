@@ -92,7 +92,7 @@ impl PushService {
     ) -> Self {
         let cfg: ServiceConfiguration = env.into();
         let client =
-            Self::build_client(&cfg.certificate_authority, &user_agent);
+            Self::build_client(&cfg.certificate_authority, &user_agent, None);
         Self {
             servers: Some(env),
             cfg,
@@ -111,8 +111,24 @@ impl PushService {
         credentials: Option<ServiceCredentials>,
         user_agent: impl AsRef<str>,
     ) -> Self {
-        let client =
-            Self::build_client(&cfg.certificate_authority, &user_agent);
+        Self::from_config_with_resolver(cfg, credentials, user_agent, None)
+    }
+
+    /// Like [`from_config`](Self::from_config) but with optional DNS
+    /// overrides. Each entry pins a hostname to a fixed address, bypassing
+    /// system DNS. Used for Flatline broker instances whose
+    /// `*.i-<id>.flatline.internal` hostnames resolve to `127.0.0.1`.
+    pub fn from_config_with_resolver(
+        cfg: ServiceConfiguration,
+        credentials: Option<ServiceCredentials>,
+        user_agent: impl AsRef<str>,
+        dns_overrides: Option<&[(String, std::net::SocketAddr)]>,
+    ) -> Self {
+        let client = Self::build_client(
+            &cfg.certificate_authority,
+            &user_agent,
+            dns_overrides,
+        );
         Self {
             servers: None,
             cfg,
@@ -124,13 +140,14 @@ impl PushService {
     fn build_client(
         certificate_authority: &str,
         user_agent: &impl AsRef<str>,
+        dns_overrides: Option<&[(String, std::net::SocketAddr)]>,
     ) -> reqwest::Client {
         // Use the ring provider except if the application already installed one.
         if rustls::crypto::CryptoProvider::get_default().is_none() {
             let _ = rustls::crypto::ring::default_provider().install_default();
         }
 
-        reqwest::ClientBuilder::new()
+        let mut builder = reqwest::ClientBuilder::new()
             .tls_certs_only([reqwest::Certificate::from_pem(
                 certificate_authority.as_bytes(),
             )
@@ -138,9 +155,15 @@ impl PushService {
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(65))
             .user_agent(user_agent.as_ref())
-            .http1_only()
-            .build()
-            .unwrap()
+            .http1_only();
+
+        if let Some(overrides) = dns_overrides {
+            for (domain, addr) in overrides {
+                builder = builder.resolve(domain, *addr);
+            }
+        }
+
+        builder.build().unwrap()
     }
 
     #[tracing::instrument(skip(self), fields(endpoint = %endpoint))]

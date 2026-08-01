@@ -5,16 +5,22 @@
 //! terminated by Traefik using a pinned dev CA. This module builds the
 //! [`ServiceConfiguration`] a client needs to talk to it.
 //!
-//! This is the seam a test harness uses to register accounts against Flatline.
-//! Only what registration needs is wired up: the chat/storage/CDN URLs and the
-//! dev CA. The zkgroup server public params are the pinned Flatline dev values
-//! from `charts/flatline/files/whisper-service/dev.yml`; trust roots for
-//! unidentified delivery are left empty — registration does not need them.
+//! Two entry points:
+//! - [`FlatlineOptions::from_env`] / [`From<FlatlineOptions>`] for a static,
+//!   known Flatline deployment (embedded dev CA + pinned dev zkgroup params,
+//!   base hostname from env). Matches plan acceptance: "register against a
+//!   live instance given only CA path + hostname from the environment".
+//! - [`from_broker_client_config`] for a Flatline CI *broker*-allocated
+//!   ephemeral instance, whose CA, hostname, and zkgroup params are all
+//!   per-instance and returned in `client_config`. The harness crate is the
+//!   intended caller; this crate takes the broker's string fields verbatim
+//!   so it needs no dependency on the broker crate.
 //!
 //! Not a [`crate::configuration::SignalServers`] variant: Flatline isn't a
 //! `libsignal_net::env`, so CDSI contact discovery is unavailable on a
 //! configuration built here.
 
+use std::collections::HashMap;
 use std::path::Path;
 
 use base64::prelude::*;
@@ -76,13 +82,9 @@ impl From<FlatlineOptions> for ServiceConfiguration {
             .into_iter()
             .collect();
 
-        let zkgroup_server_public_params: ServerPublicParams =
-            bincode::deserialize(
-                &BASE64_RELAXED
-                    .decode(ZKGROUP_SERVER_PUBLIC_PARAMS)
-                    .expect("pinned Flatline zkgroup params decode"),
-            )
-            .expect("pinned Flatline zkgroup params deserialize");
+        let zkgroup_server_public_params =
+            decode_zkgroup_params(ZKGROUP_SERVER_PUBLIC_PARAMS)
+                .expect("pinned Flatline zkgroup params");
 
         ServiceConfiguration::new(
             https("whisper"),
@@ -95,5 +97,174 @@ impl From<FlatlineOptions> for ServiceConfiguration {
             Vec::<PublicKey>::new(),
             zkgroup_server_public_params,
         )
+    }
+}
+
+/// Errors building a [`ServiceConfiguration`] from a broker `client_config`.
+#[derive(Debug, thiserror::Error)]
+pub enum FlatlineConfigError {
+    #[error("invalid {field} URL: {source}")]
+    InvalidUrl {
+        field: &'static str,
+        #[source]
+        source: url::ParseError,
+    },
+    #[error("invalid CDN id {0:?}")]
+    InvalidCdnId(String),
+    #[error("invalid zkgroup server public params: {0}")]
+    InvalidZkgroupParams(String),
+}
+
+/// Decode the base64 (bincode) string the broker forwards from the chart's
+/// `dev.yml` (`zkConfig.serverPublic`) into [`ServerPublicParams`].
+fn decode_zkgroup_params(b64: &str) -> Result<ServerPublicParams, String> {
+    if b64.is_empty() {
+        // Broker deployments that haven't set FLATLINE_ZKGROUP_PUBLIC_PARAMS
+        // forward an empty string. Fall back to the pinned Flatline dev params
+        // (charts/flatline/files/whisper-service/dev.yml) — the broker's
+        // deployed chart uses exactly those.
+        return decode_zkgroup_params(ZKGROUP_SERVER_PUBLIC_PARAMS);
+    }
+    let bytes = BASE64_RELAXED
+        .decode(b64)
+        .map_err(|e| format!("base64: {e}"))?;
+    bincode::deserialize(&bytes).map_err(|e| format!("bincode: {e}"))
+}
+
+/// Build a [`ServiceConfiguration`] from a Flatline CI broker `client_config`
+/// object.
+///
+/// The broker (`flatline-harness`) allocates an ephemeral instance whose CA,
+/// per-instance hostname (`i-<id>.flatline.internal`), and zkgroup params are
+/// all minted/pinned per allocation and returned in `client_config`. This is
+/// the seam the harness crate calls to hand those to `PushService::from_config`;
+/// this crate takes the broker's string fields verbatim so it has no dependency
+/// on the broker crate.
+///
+/// `zkgroup_server_public_params` is the base64 (bincode) string the broker
+/// forwards from the chart's `dev.yml`. Trust roots are left empty —
+/// registration does not need them.
+pub fn from_broker_client_config(
+    service_url: &str,
+    storage_url: &str,
+    cdn_urls: &HashMap<String, String>,
+    ca_pem: impl Into<String>,
+    zkgroup_server_public_params: &str,
+) -> Result<ServiceConfiguration, FlatlineConfigError> {
+    let service_url = service_url.parse().map_err(|source| {
+        FlatlineConfigError::InvalidUrl {
+            field: "service_url",
+            source,
+        }
+    })?;
+    let storage_url = storage_url.parse().map_err(|source| {
+        FlatlineConfigError::InvalidUrl {
+            field: "storage_url",
+            source,
+        }
+    })?;
+
+    let mut cdn = HashMap::with_capacity(cdn_urls.len());
+    for (k, v) in cdn_urls {
+        let id: u32 = k
+            .parse()
+            .map_err(|_| FlatlineConfigError::InvalidCdnId(k.clone()))?;
+        let url: Url =
+            v.parse()
+                .map_err(|source| FlatlineConfigError::InvalidUrl {
+                    field: "cdn_urls",
+                    source,
+                })?;
+        cdn.insert(id, url);
+    }
+
+    let zkgroup_server_public_params =
+        decode_zkgroup_params(zkgroup_server_public_params)
+            .map_err(FlatlineConfigError::InvalidZkgroupParams)?;
+
+    Ok(ServiceConfiguration::new(
+        service_url,
+        storage_url,
+        cdn,
+        ca_pem,
+        Vec::<PublicKey>::new(),
+        zkgroup_server_public_params,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_broker_client_config_parses_dev_values() {
+        let mut cdn = HashMap::new();
+        cdn.insert(
+            "0".to_string(),
+            "https://cdn0.i-abc.flatline.internal".to_string(),
+        );
+        cdn.insert(
+            "3".to_string(),
+            "https://cdn3.i-abc.flatline.internal".to_string(),
+        );
+
+        let ca_pem =
+            "-----BEGIN CERTIFICATE-----\ndev\n-----END CERTIFICATE-----\n";
+        let cfg = from_broker_client_config(
+            "https://whisper.i-abc.flatline.internal",
+            "https://storage.i-abc.flatline.internal",
+            &cdn,
+            ca_pem,
+            ZKGROUP_SERVER_PUBLIC_PARAMS,
+        )
+        .expect("dev values parse");
+
+        assert_eq!(cfg.service_url().scheme(), "https");
+        assert_eq!(
+            cfg.service_url().host_str(),
+            Some("whisper.i-abc.flatline.internal"),
+        );
+        assert_eq!(cfg.storage_url().scheme(), "https");
+        assert_eq!(
+            cfg.storage_url().host_str(),
+            Some("storage.i-abc.flatline.internal"),
+        );
+        assert_eq!(cfg.cdn_urls().len(), 2);
+        assert_eq!(
+            cfg.cdn_urls().get(&0).unwrap().host_str(),
+            Some("cdn0.i-abc.flatline.internal"),
+        );
+        assert_eq!(cfg.certificate_authority, ca_pem);
+    }
+
+    #[test]
+    fn from_broker_client_config_rejects_bad_cdn_id() {
+        let mut cdn = HashMap::new();
+        cdn.insert("not-a-u32".to_string(), "https://cdn0.x/".to_string());
+        let err = from_broker_client_config(
+            "https://whisper.x/",
+            "https://storage.x/",
+            &cdn,
+            "ca",
+            ZKGROUP_SERVER_PUBLIC_PARAMS,
+        )
+        .err()
+        .unwrap();
+        assert!(matches!(err, FlatlineConfigError::InvalidCdnId(_)));
+    }
+
+    #[test]
+    fn from_broker_client_config_rejects_bad_zkgroup() {
+        let cdn = HashMap::new();
+        let err = from_broker_client_config(
+            "https://whisper.x/",
+            "https://storage.x/",
+            &cdn,
+            "ca",
+            "not-base64-at-all!!!",
+        )
+        .err()
+        .unwrap();
+        assert!(matches!(err, FlatlineConfigError::InvalidZkgroupParams(_)));
     }
 }

@@ -72,6 +72,8 @@ tokio = { version = "1.0", features = ["macros", "rt"] }
 clap = { version = "4.4", features = ["derive"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+flatline-broker-harness = { path = "../flatline-harness/harness-rs/" }
+
 [features]
 default = ["cdsi"]
 phonenumber = ["dep:phonenumber"]
