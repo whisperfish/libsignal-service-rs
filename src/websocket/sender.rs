@@ -1,4 +1,5 @@
 use crate::{
+    push_service::response::PutMessages,
     sender::{OutgoingPushMessages, SendMessageResponse},
     unidentified_access::UnidentifiedAccess,
     utils::BASE64_RELAXED,
@@ -18,7 +19,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 messages.destination.service_id_string()
             ))
             .json(&messages)?;
-        self.request_json(request).await
+        self.request_json::<_, PutMessages>(request).await
     }
 
     pub async fn send_messages_unidentified(
@@ -36,6 +37,6 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 BASE64_RELAXED.encode(&access.key),
             )
             .json(&messages)?;
-        self.request_json(request).await
+        self.request_json::<_, PutMessages>(request).await
     }
 }

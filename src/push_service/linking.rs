@@ -8,6 +8,7 @@ use crate::{
     websocket::registration::DeviceActivationRequest,
 };
 
+use super::response;
 use super::{
     response::ReqwestExt, HttpAuth, HttpAuthOverride, PushService, ServiceError,
 };
@@ -79,7 +80,7 @@ impl PushService {
         .json(&link_request)
         .send()
         .await?
-        .service_error_for_status()
+        .service_error_for_status_as::<response::LinkDevice>()
         .await?
         .json()
         .await

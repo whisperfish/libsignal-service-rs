@@ -1,17 +1,44 @@
 use aes::cipher::block_padding;
-use libsignal_core::curve::CurveError;
+use libsignal_core::{curve::CurveError, ServiceId};
 use libsignal_protocol::{
     FingerprintError, ServiceIdKind, SignalProtocolError,
 };
 use reqwest::StatusCode;
+use serde::Deserialize;
 use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
 use crate::{
-    cipher::SealedSenderDecryptionError, groups_v2::GroupDecodingError,
-    websocket::registration::RegistrationLockFailure,
+    cipher::SealedSenderDecryptionError,
+    groups_v2::GroupDecodingError,
+    utils::deserialize_service_id,
+    websocket::registration::{
+        RegistrationLockFailure, RegistrationSessionMetadataResponse,
+    },
 };
 
 use super::{MismatchedDevices, ProofRequired, StaleDevices};
+
+#[derive(Debug, Deserialize)]
+pub struct AccountMismatchedDevices {
+    #[serde(deserialize_with = "deserialize_service_id")]
+    pub uuid: ServiceId,
+    pub devices: MismatchedDevices,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AccountStaleDevices {
+    #[serde(deserialize_with = "deserialize_service_id")]
+    pub uuid: ServiceId,
+    pub devices: StaleDevices,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VerificationDeliveryFailure {
+    #[serde(default)]
+    pub reason: String,
+    pub permanent_failure: bool,
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
@@ -118,6 +145,48 @@ pub enum ServiceError {
 
     #[error("Device limit reached: {current} out of {max} devices.")]
     DeviceLimitReached { current: u32, max: u32 },
+
+    #[error("client version too old; upgrade required")]
+    DeprecatedVersion,
+    #[error("request rejected by the server")]
+    ServerRejected,
+    #[error("recipient is not registered")]
+    UnregisteredRecipient,
+    #[error("message too large")]
+    MessageTooLarge,
+    #[error("multi-recipient mismatched devices: {0:?}")]
+    MultiRecipientMismatchedDevices(Vec<AccountMismatchedDevices>),
+    #[error("multi-recipient stale devices: {0:?}")]
+    MultiRecipientStaleDevices(Vec<AccountStaleDevices>),
+    #[error("invalid device verification code")]
+    InvalidDeviceVerificationCode,
+    #[error("device capabilities are a downgrade")]
+    DeviceCapabilityDowngrade,
+    #[error("no such verification session")]
+    NoSuchSession,
+    #[error("invalid or malformed verification session id")]
+    InvalidVerificationSessionId,
+    #[error("verification token rejected: {0:?}")]
+    TokenNotAccepted(RegistrationSessionMetadataResponse),
+    #[error("verification session conflict: {0:?}")]
+    RegistrationSessionConflict(RegistrationSessionMetadataResponse),
+    #[error("verification session rate limited: {session:?}")]
+    VerificationSessionRateLimited {
+        session: RegistrationSessionMetadataResponse,
+        retry_after: Option<chrono::Duration>,
+    },
+    #[error("verification transport not allowed: {0:?}")]
+    InvalidTransportMode(RegistrationSessionMetadataResponse),
+    #[error("verification code delivery failed: {0:?}")]
+    VerificationDeliveryFailed(VerificationDeliveryFailure),
+    #[error("device transfer required")]
+    DeviceTransferAvailable,
+    #[error("no username hash is set for this account")]
+    UsernameHashNotSet,
+    #[error("attachment too large")]
+    AttachmentTooLarge,
+    #[error("challenge token not accepted")]
+    ChallengeNotAccepted,
 
     #[error("HTTP reqwest error: {0}")]
     Http(#[from] reqwest::Error),
