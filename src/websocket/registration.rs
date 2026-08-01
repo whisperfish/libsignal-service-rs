@@ -9,7 +9,7 @@ use super::ServiceError;
 use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
     provisioning::ProvisioningError,
-    push_service::response,
+    push_service::response::{error_mapper, session_rate_limited},
     utils::{serde_base64, TryIntoE164},
     websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
@@ -140,6 +140,42 @@ impl RegistrationSessionMetadataResponse {
     }
 }
 
+error_mapper! {
+    CreateVerificationSession:
+        TOO_MANY_REQUESTS => fn session_rate_limited,
+}
+
+error_mapper! {
+    PatchVerificationSession:
+        FORBIDDEN => TokenNotAccepted(RegistrationSessionMetadataResponse),
+        NOT_FOUND => NoSuchSession,
+        UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
+        TOO_MANY_REQUESTS => fn session_rate_limited,
+}
+
+error_mapper! {
+    RequestVerificationCode:
+        NOT_FOUND => NoSuchSession,
+        CONFLICT => RegistrationSessionConflict(RegistrationSessionMetadataResponse),
+        IM_A_TEAPOT => InvalidTransportMode(RegistrationSessionMetadataResponse),
+        UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
+        TOO_MANY_REQUESTS => fn session_rate_limited,
+        UNAVAILABLE_FOR_LEGAL_REASONS => VerificationDeliveryFailed(crate::push_service::VerificationDeliveryFailure),
+}
+
+error_mapper! {
+    SubmitVerificationCode:
+        NOT_FOUND => NoSuchSession,
+        CONFLICT => RegistrationSessionConflict(RegistrationSessionMetadataResponse),
+        UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
+        TOO_MANY_REQUESTS => fn session_rate_limited,
+}
+
+error_mapper! {
+    PostRegistration:
+        CONFLICT => DeviceTransferAvailable,
+}
+
 impl SignalWebSocket<websocket::Unidentified> {
     // Equivalent of Java's
     // RegistrationSessionMetadataResponse createVerificationSession(@Nullable String pushToken, @Nullable String mcc, @Nullable String mnc)
@@ -169,8 +205,7 @@ impl SignalWebSocket<websocket::Unidentified> {
                 mnc,
             })
             .await?
-            .service_error_for_status_as::<response::CreateVerificationSession>(
-            )
+            .service_error_for_status_as::<CreateVerificationSession>()
             .await?
             .json()
             .await
@@ -209,7 +244,7 @@ impl SignalWebSocket<websocket::Unidentified> {
             push_challenge,
         })
         .await?
-        .service_error_for_status_as::<response::PatchVerificationSession>()
+        .service_error_for_status_as::<PatchVerificationSession>()
         .await?
         .json()
         .await
@@ -247,7 +282,7 @@ impl SignalWebSocket<websocket::Unidentified> {
         )?
         .send_json(&VerificationCodeRequest { transport, client })
         .await?
-        .service_error_for_status_as::<response::RequestVerificationCode>()
+        .service_error_for_status_as::<RequestVerificationCode>()
         .await?
         .json()
         .await
@@ -305,7 +340,7 @@ impl SignalWebSocket<websocket::Unidentified> {
                 require_atomic: true, // XXX default = true but what does this signify?
             })
             .await?
-            .service_error_for_status_as::<response::PostRegistration>()
+            .service_error_for_status_as::<PostRegistration>()
             .await?
             .json()
             .await
@@ -329,7 +364,7 @@ impl SignalWebSocket<websocket::Unidentified> {
             code: verification_code,
         })
         .await?
-        .service_error_for_status_as::<response::SubmitVerificationCode>()
+        .service_error_for_status_as::<SubmitVerificationCode>()
         .await?
         .json()
         .await

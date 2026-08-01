@@ -5,9 +5,14 @@ use reqwest::Method;
 use serde::Serialize;
 
 use crate::content::ServiceError;
-use crate::push_service::response;
+use crate::push_service::response::error_mapper;
 
 use super::{Identified, SignalWebSocket, Unidentified};
+
+error_mapper! {
+    PutUsernameLink:
+        CONFLICT => UsernameHashNotSet,
+}
 
 impl SignalWebSocket<Unidentified> {
     pub async fn look_up_username(
@@ -230,7 +235,7 @@ impl SignalWebSocket<Identified> {
                 keep_link_handle,
             })
             .await?
-            .service_error_for_status_as::<response::PutUsernameLink>()
+            .service_error_for_status_as::<PutUsernameLink>()
             .await?;
 
         let result: UsernameLinkHandleResponse = response.json().await?;

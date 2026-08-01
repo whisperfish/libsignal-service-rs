@@ -28,7 +28,7 @@ use crate::prelude::{MessageSender, MessageSenderError};
 use crate::proto::sync_message::PniChangeNumber;
 use crate::proto::{DeviceName, SyncMessage};
 use crate::provisioning::{generate_registration_id, ProvisioningSecrets};
-use crate::push_service::response;
+use crate::push_service::response::{device_limit_reached, error_mapper};
 use crate::push_service::{
     AvatarWrite, HttpAuthOverride, ReqwestExt, DEFAULT_DEVICE_ID,
 };
@@ -52,6 +52,16 @@ use crate::{
     utils::serde_base64,
     websocket::account::AccountAttributes,
 };
+
+error_mapper! {
+    GetProvisioningCode:
+        LENGTH_REQUIRED => fn device_limit_reached,
+}
+
+error_mapper! {
+    SubmitChallenge:
+        PRECONDITION_REQUIRED => ChallengeNotAccepted,
+}
 
 type Aes256Ctr128BE = ctr::Ctr128BE<aes::Aes256>;
 
@@ -303,7 +313,7 @@ impl AccountManager {
             )?
             .send()
             .await?
-            .service_error_for_status_as::<response::GetProvisioningCode>()
+            .service_error_for_status_as::<GetProvisioningCode>()
             .await?
             .json()
             .await?;
@@ -661,7 +671,7 @@ impl AccountManager {
             })
             .send()
             .await?
-            .service_error_for_status_as::<response::SubmitChallenge>()
+            .service_error_for_status_as::<SubmitChallenge>()
             .await?;
 
         Ok(())

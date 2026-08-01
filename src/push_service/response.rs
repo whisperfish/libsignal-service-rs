@@ -7,12 +7,11 @@ use crate::{
     websocket::registration::RegistrationSessionMetadataResponse,
 };
 
-use super::{
-    AccountMismatchedDevices, AccountStaleDevices, MismatchedDevices,
-    ProofRequired, ServiceError, StaleDevices, VerificationDeliveryFailure,
-};
+use super::ServiceError;
 
-async fn json_or_unhandled<R, T>(response: R) -> Result<T, ServiceError>
+pub(crate) async fn json_or_unhandled<R, T>(
+    response: R,
+) -> Result<T, ServiceError>
 where
     T: for<'de> serde::Deserialize<'de>,
     R: SignalServiceResponse,
@@ -103,19 +102,19 @@ macro_rules! error_mapper {
     };
     (@emit $response:ident; [$($out:tt)*] ; $status:ident => fn $helper:path, $($rest:tt)*) => {
         error_mapper!(@emit $response;
-            [$($out)* StatusCode::$status => Err($helper($response).await),] ;
+            [$($out)* reqwest::StatusCode::$status => Err($helper($response).await),] ;
             $($rest)*)
     };
     (@emit $response:ident; [$($out:tt)*] ; $status:ident => $variant:ident ( $ty:ty ), $($rest:tt)*) => {
         error_mapper!(@emit $response;
-            [$($out)* StatusCode::$status => Err(ServiceError::$variant(
-                json_or_unhandled::<R, $ty>($response).await?,
+            [$($out)* reqwest::StatusCode::$status => Err($crate::push_service::ServiceError::$variant(
+                $crate::push_service::response::json_or_unhandled::<R, $ty>($response).await?,
             )),] ;
             $($rest)*)
     };
     (@emit $response:ident; [$($out:tt)*] ; $status:ident => $variant:ident, $($rest:tt)*) => {
         error_mapper!(@emit $response;
-            [$($out)* StatusCode::$status => Err(ServiceError::$variant),] ;
+            [$($out)* reqwest::StatusCode::$status => Err($crate::push_service::ServiceError::$variant),] ;
             $($rest)*)
     };
     (
@@ -126,13 +125,13 @@ macro_rules! error_mapper {
         #[derive(Debug, Clone, Copy)]
         pub(crate) struct $name;
 
-        impl ResponseErrors for $name {
+        impl $crate::push_service::response::ResponseErrors for $name {
             fn decode_error<R>(
                 response: R,
-            ) -> impl Future<Output = Result<R, ServiceError>> + Send
+            ) -> impl std::future::Future<Output = Result<R, $crate::push_service::ServiceError>> + Send
             where
-                R: SignalServiceResponse + Send,
-                ServiceError: From<<R as SignalServiceResponse>::Error>,
+                R: $crate::push_service::response::SignalServiceResponse + Send,
+                $crate::push_service::ServiceError: From<<R as $crate::push_service::response::SignalServiceResponse>::Error>,
             {
                 async move { error_mapper!(@build response; $($arms)*) }
             }
@@ -140,93 +139,14 @@ macro_rules! error_mapper {
     };
 }
 
+pub(crate) use error_mapper;
+
 error_mapper! {
     /// Baseline-only decoder.
     Baseline:
 }
 
-error_mapper! {
-    PutMessages:
-        CONFLICT => MismatchedDevicesException(MismatchedDevices),
-        GONE => StaleDevices(StaleDevices),
-        PAYLOAD_TOO_LARGE => MessageTooLarge,
-        NOT_FOUND => UnregisteredRecipient,
-        PRECONDITION_REQUIRED => ProofRequiredError(ProofRequired),
-}
-
-error_mapper! {
-    #[allow(dead_code)]
-    PutMultiRecipientMessages:
-        CONFLICT => MultiRecipientMismatchedDevices(Vec<AccountMismatchedDevices>),
-        GONE => MultiRecipientStaleDevices(Vec<AccountStaleDevices>),
-        PAYLOAD_TOO_LARGE => MessageTooLarge,
-        PRECONDITION_REQUIRED => ProofRequiredError(ProofRequired),
-}
-
-error_mapper! {
-    LinkDevice:
-        FORBIDDEN => InvalidDeviceVerificationCode,
-        CONFLICT => DeviceCapabilityDowngrade,
-        LENGTH_REQUIRED => fn device_limit_reached,
-}
-
-error_mapper! {
-    GetProvisioningCode:
-        LENGTH_REQUIRED => fn device_limit_reached,
-}
-
-error_mapper! {
-    CreateVerificationSession:
-        TOO_MANY_REQUESTS => fn session_rate_limited,
-}
-
-error_mapper! {
-    PatchVerificationSession:
-        FORBIDDEN => TokenNotAccepted(RegistrationSessionMetadataResponse),
-        NOT_FOUND => NoSuchSession,
-        UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
-        TOO_MANY_REQUESTS => fn session_rate_limited,
-}
-
-error_mapper! {
-    RequestVerificationCode:
-        NOT_FOUND => NoSuchSession,
-        CONFLICT => RegistrationSessionConflict(RegistrationSessionMetadataResponse),
-        IM_A_TEAPOT => InvalidTransportMode(RegistrationSessionMetadataResponse),
-        UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
-        TOO_MANY_REQUESTS => fn session_rate_limited,
-        UNAVAILABLE_FOR_LEGAL_REASONS => VerificationDeliveryFailed(VerificationDeliveryFailure),
-}
-
-error_mapper! {
-    SubmitVerificationCode:
-        NOT_FOUND => NoSuchSession,
-        CONFLICT => RegistrationSessionConflict(RegistrationSessionMetadataResponse),
-        UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
-        TOO_MANY_REQUESTS => fn session_rate_limited,
-}
-
-error_mapper! {
-    PostRegistration:
-        CONFLICT => DeviceTransferAvailable,
-}
-
-error_mapper! {
-    PutUsernameLink:
-        CONFLICT => UsernameHashNotSet,
-}
-
-error_mapper! {
-    GetAttachmentUploadForm:
-        PAYLOAD_TOO_LARGE => AttachmentTooLarge,
-}
-
-error_mapper! {
-    SubmitChallenge:
-        PRECONDITION_REQUIRED => ChallengeNotAccepted,
-}
-
-async fn device_limit_reached<R>(response: R) -> ServiceError
+pub(crate) async fn device_limit_reached<R>(response: R) -> ServiceError
 where
     R: SignalServiceResponse,
     ServiceError: From<<R as SignalServiceResponse>::Error>,
@@ -245,7 +165,7 @@ where
     }
 }
 
-async fn session_rate_limited<R>(response: R) -> ServiceError
+pub(crate) async fn session_rate_limited<R>(response: R) -> ServiceError
 where
     R: SignalServiceResponse,
     ServiceError: From<<R as SignalServiceResponse>::Error>,

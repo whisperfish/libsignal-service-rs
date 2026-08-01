@@ -13,7 +13,7 @@ use serde::Deserialize;
 use tracing::{debug, trace};
 use url::Url;
 
-use super::response;
+use super::response::error_mapper;
 use crate::{
     configuration::Endpoint, prelude::AttachmentIdentifier,
     proto::AttachmentPointer, push_service::HttpAuthOverride,
@@ -59,6 +59,11 @@ pub struct ResumeInfo {
 pub struct AttachmentDownload<R> {
     pub stream: R,
     pub content_length: Option<u64>,
+}
+
+error_mapper! {
+    GetAttachmentUploadForm:
+        PAYLOAD_TOO_LARGE => AttachmentTooLarge,
 }
 
 impl PushService {
@@ -136,7 +141,7 @@ impl PushService {
         )?
         .send()
         .await?
-        .service_error_for_status_as::<response::GetAttachmentUploadForm>()
+        .service_error_for_status_as::<GetAttachmentUploadForm>()
         .await?
         .json()
         .await
