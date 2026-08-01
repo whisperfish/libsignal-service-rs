@@ -13,6 +13,7 @@ use serde::Deserialize;
 use tracing::{debug, trace};
 use url::Url;
 
+use super::response;
 use crate::{
     configuration::Endpoint, prelude::AttachmentIdentifier,
     proto::AttachmentPointer, push_service::HttpAuthOverride,
@@ -135,7 +136,7 @@ impl PushService {
         )?
         .send()
         .await?
-        .service_error_for_status()
+        .service_error_for_status_as::<response::GetAttachmentUploadForm>()
         .await?
         .json()
         .await

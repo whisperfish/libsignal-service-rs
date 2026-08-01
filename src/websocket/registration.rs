@@ -9,6 +9,7 @@ use super::ServiceError;
 use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
     provisioning::ProvisioningError,
+    push_service::response,
     utils::{serde_base64, TryIntoE164},
     websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
@@ -168,7 +169,8 @@ impl SignalWebSocket<websocket::Unidentified> {
                 mnc,
             })
             .await?
-            .service_error_for_status()
+            .service_error_for_status_as::<response::CreateVerificationSession>(
+            )
             .await?
             .json()
             .await
@@ -207,7 +209,7 @@ impl SignalWebSocket<websocket::Unidentified> {
             push_challenge,
         })
         .await?
-        .service_error_for_status()
+        .service_error_for_status_as::<response::PatchVerificationSession>()
         .await?
         .json()
         .await
@@ -245,7 +247,7 @@ impl SignalWebSocket<websocket::Unidentified> {
         )?
         .send_json(&VerificationCodeRequest { transport, client })
         .await?
-        .service_error_for_status()
+        .service_error_for_status_as::<response::RequestVerificationCode>()
         .await?
         .json()
         .await
@@ -303,7 +305,7 @@ impl SignalWebSocket<websocket::Unidentified> {
                 require_atomic: true, // XXX default = true but what does this signify?
             })
             .await?
-            .service_error_for_status()
+            .service_error_for_status_as::<response::PostRegistration>()
             .await?
             .json()
             .await
@@ -327,7 +329,7 @@ impl SignalWebSocket<websocket::Unidentified> {
             code: verification_code,
         })
         .await?
-        .service_error_for_status()
+        .service_error_for_status_as::<response::SubmitVerificationCode>()
         .await?
         .json()
         .await

@@ -731,8 +731,8 @@ where
                         options: p.options.clone(),
                     });
                 },
-                Err(ServiceError::NotFoundError) => {
-                    tracing::debug!("Not found when sending a message");
+                Err(ServiceError::UnregisteredRecipient) => {
+                    tracing::debug!(?recipient, "recipient is not registered");
                     return Err(MessageSenderError::NotFound {
                         service_id: recipient,
                     });
