@@ -102,13 +102,11 @@ where
         if envelope.content.is_some() {
             let plaintext = self.decrypt(&envelope, csprng).await?;
             let was_plaintext = plaintext.metadata.was_plaintext;
-            let message =
-                crate::proto::Content::decode(plaintext.data.as_slice())?;
 
             tracing::Span::current()
                 .record("envelope_metadata", plaintext.metadata.to_string());
 
-            let Some(content) = &message.content else {
+            let Some(content) = &plaintext.message.content else {
                 tracing::warn!("empty decrypted content");
                 return Ok(None);
             };
@@ -141,7 +139,9 @@ where
                 return Ok(None);
             }
 
-            if let Some(bytes) = &message.sender_key_distribution_message {
+            if let Some(bytes) =
+                &plaintext.message.sender_key_distribution_message
+            {
                 let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
                 process_sender_key_distribution_message(
                     &plaintext.metadata.protocol_address()?,
@@ -150,7 +150,8 @@ where
                 )
                 .await?;
 
-                match Content::from_proto(message, plaintext.metadata) {
+                match Content::from_proto(plaintext.message, plaintext.metadata)
+                {
                     Err(ServiceError::UnsupportedContent) => {
                         tracing::trace!("Sender key distribution message without additional content");
                         return Ok(None);
@@ -158,7 +159,8 @@ where
                     content => return Ok(Some(content?)),
                 }
             }
-            let content = Content::from_proto(message, plaintext.metadata);
+            let content =
+                Content::from_proto(plaintext.message, plaintext.metadata);
             Ok(Some(content?))
         } else {
             Ok(None)
@@ -250,31 +252,28 @@ where
             reason: "unparseable server timestamp",
         });
 
+        /// Decrypted bytes plus the [`Metadata`] fields that vary by envelope type.
+        struct DecryptedPayload {
+            data: Vec<u8>,
+            sender: ServiceId,
+            sender_device: DeviceId,
+            was_plaintext: bool,
+            unidentified_sender: bool,
+            needs_receipt: bool,
+        }
+
         use crate::proto::envelope::Type;
-        let plaintext = match envelope.r#type() {
+        let parts = match envelope.r#type() {
             Type::PrekeyMessage => {
                 let source_service_id = source_service_id
                     .expect("prekey bundle format contains source_service_id");
+                let sender_device = envelope.source_device_id().try_into()?;
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &source_service_id,
-                    envelope.source_device_id().try_into()?,
+                    sender_device,
                 )
                 .await?;
-                let metadata = Metadata {
-                    destination: envelope
-                        .parse_destination_service_id()
-                        .expect("prekey bundle format"),
-                    sender: source_service_id,
-                    sender_device: envelope.source_device_id().try_into()?,
-                    client_timestamp: client_timestamp?,
-                    server_timestamp: server_timestamp?,
-                    needs_receipt: false,
-                    unidentified_sender: false,
-                    was_plaintext: false,
-
-                    server_guid,
-                };
 
                 let mut data = message_decrypt_prekey(
                     &PreKeySignalMessage::try_from(&ciphertext[..])?,
@@ -305,59 +304,44 @@ where
                     session_record.session_version()?,
                     &mut data,
                 )?;
-                Plaintext { metadata, data }
+                DecryptedPayload {
+                    data,
+                    sender: source_service_id,
+                    sender_device,
+                    was_plaintext: false,
+                    unidentified_sender: false,
+                    needs_receipt: false,
+                }
             },
             Type::PlaintextContent => {
                 tracing::warn!(?envelope, "Envelope with plaintext content.  This usually indicates a decryption retry.");
                 let source_service_id = source_service_id
                     .expect("prekey bundle format contains source_service_id");
-                let metadata = Metadata {
-                    destination: envelope
-                        .parse_destination_service_id()
-                        .expect("plaintext content format"),
-                    sender: source_service_id,
-                    sender_device: envelope.source_device_id().try_into()?,
-                    client_timestamp: client_timestamp?,
-                    server_timestamp: server_timestamp?,
-                    needs_receipt: false,
-                    unidentified_sender: false,
-                    was_plaintext: true,
-
-                    server_guid,
-                };
                 // Unsealed envelope wrapping a PlaintextContent.
                 // Should contain a DecryptionErrorMessage.
                 let plaintext_content =
                     PlaintextContent::try_from(&ciphertext[..])?;
                 let mut data = plaintext_content.body().to_vec();
                 strip_padding(&mut data)?;
-                Plaintext { metadata, data }
+                DecryptedPayload {
+                    data,
+                    sender: source_service_id,
+                    sender_device: envelope.source_device_id().try_into()?,
+                    was_plaintext: true,
+                    unidentified_sender: false,
+                    needs_receipt: false,
+                }
             },
             Type::DoubleRatchet => {
                 let source_service_id = source_service_id
                     .expect("prekey bundle format contains source_service_id");
+                let sender_device = envelope.source_device_id().try_into()?;
                 let sender = get_preferred_protocol_address(
                     &self.protocol_store,
                     &source_service_id,
-                    envelope.source_device_id().try_into()?,
+                    sender_device,
                 )
                 .await?;
-                let metadata = Metadata {
-                    destination: envelope
-                        .parse_destination_service_id()
-                        .expect("ciphertext envelope format"),
-                    sender: envelope
-                        .parse_source_service_id()
-                        .expect("ciphertext envelope format"),
-                    sender_device: envelope.source_device_id().try_into()?,
-                    client_timestamp: client_timestamp?,
-                    server_timestamp: server_timestamp?,
-                    needs_receipt: false,
-                    unidentified_sender: false,
-                    was_plaintext: false,
-
-                    server_guid,
-                };
 
                 let mut data = message_decrypt_signal(
                     &SignalMessage::try_from(&ciphertext[..])?,
@@ -385,7 +369,14 @@ where
                     session_record.session_version()?,
                     &mut data,
                 )?;
-                Plaintext { metadata, data }
+                DecryptedPayload {
+                    data,
+                    sender: source_service_id,
+                    sender_device,
+                    was_plaintext: false,
+                    unidentified_sender: false,
+                    needs_receipt: false,
+                }
             },
             Type::UnidentifiedSender => {
                 let SealedSenderDecryptionResult {
@@ -435,26 +426,15 @@ where
                     });
                 }
 
-                let metadata = Metadata {
-                    destination: envelope
-                        .parse_destination_service_id()
-                        .expect("unidentified sender envelope format"),
-                    sender,
-                    sender_device: device_id,
-                    client_timestamp: client_timestamp?,
-                    server_timestamp: server_timestamp?,
-                    unidentified_sender: true,
-                    needs_receipt,
-                    was_plaintext: false,
-
-                    server_guid,
-                };
-
                 strip_padding(&mut message)?;
 
-                Plaintext {
-                    metadata,
+                DecryptedPayload {
                     data: message,
+                    sender,
+                    sender_device: device_id,
+                    was_plaintext: false,
+                    unidentified_sender: true,
+                    needs_receipt,
                 }
             },
             _ => {
@@ -464,7 +444,20 @@ where
                 });
             },
         };
-        Ok(plaintext)
+
+        let message = crate::proto::Content::decode(parts.data.as_slice())?;
+        let metadata = Metadata {
+            destination: destination_service_id,
+            sender: parts.sender,
+            sender_device: parts.sender_device,
+            client_timestamp: client_timestamp?,
+            server_timestamp: server_timestamp?,
+            needs_receipt: parts.needs_receipt,
+            unidentified_sender: parts.unidentified_sender,
+            was_plaintext: parts.was_plaintext,
+            server_guid,
+        };
+        Ok(Plaintext { metadata, message })
     }
 
     #[tracing::instrument(
@@ -568,7 +561,7 @@ where
 
 struct Plaintext {
     metadata: Metadata,
-    data: Vec<u8>,
+    message: crate::proto::Content,
 }
 
 #[expect(clippy::comparison_chain)]
