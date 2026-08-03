@@ -8,7 +8,7 @@ use libsignal_protocol::{
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
     CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
-    PlaintextContent, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
+    PlaintextContent, Pni, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
     ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionNotFound,
     SessionStore, SessionUsabilityRequirements, SignalMessage,
@@ -22,7 +22,8 @@ use uuid::Uuid;
 use crate::{
     content::{Content, Metadata},
     envelope::Envelope,
-    push_service::ServiceError,
+    proto::PniSignatureMessage,
+    push_service::{ServiceError, DEFAULT_DEVICE_ID},
     sender::OutgoingPushMessage,
     session_store::SessionStoreExt,
     utils::BASE64_RELAXED,
@@ -107,6 +108,15 @@ where
                 .record("envelope_metadata", plaintext.metadata.to_string());
 
             let Some(content) = &plaintext.message.content else {
+                // Cheap-out: post-decrypt side-ops are not propagated alongside the
+                // Option<Content>, so a content-less message drops its sidecar here.
+                // TODO: return a Vec<DecryptPostOp> next to the Option<Content>.
+                if let Some(pni) = plaintext.metadata.pni_verified {
+                    tracing::warn!(
+                        ?pni,
+                        "dropped verified PNI signature: content-less message"
+                    );
+                }
                 tracing::warn!("empty decrypted content");
                 return Ok(None);
             };
@@ -164,6 +174,84 @@ where
             Ok(Some(content?))
         } else {
             Ok(None)
+        }
+    }
+
+    /// Verify a `PniSignatureMessage` sidecar against the sender's stored identity keys.
+    async fn verify_pni_signature(
+        &self,
+        sender: ServiceId,
+        sender_device: DeviceId,
+        pni_signature: &PniSignatureMessage,
+    ) -> Option<Pni> {
+        let Some(sender_aci) = sender.aci() else {
+            tracing::warn!("ignoring PNI signature: source is not an ACI");
+            return None;
+        };
+
+        let Some(pni) =
+            Pni::parse_from_service_id_binary(pni_signature.pni.as_deref()?)
+        else {
+            tracing::warn!("ignoring PNI signature: unparseable PNI");
+            return None;
+        };
+        let signature = pni_signature.signature.as_deref()?;
+
+        let aci_address = sender_aci.to_protocol_address(sender_device).ok()?;
+        let aci_identity = self
+            .protocol_store
+            .get_identity(&aci_address)
+            .await
+            .ok()
+            .flatten()?;
+
+        let pni_address = pni.to_protocol_address(sender_device).ok()?;
+        let pni_identity =
+            match self.protocol_store.get_identity(&pni_address).await {
+                Ok(Some(id)) => id,
+                _ => {
+                    if sender_device == *DEFAULT_DEVICE_ID {
+                        tracing::warn!(
+                            "ignoring PNI signature: no PNI identity known"
+                        );
+                        return None;
+                    }
+                    // The PNI identity is recorded under the primary device.
+                    let primary =
+                        pni.to_protocol_address(*DEFAULT_DEVICE_ID).ok()?;
+                    match self.protocol_store.get_identity(&primary).await {
+                        Ok(Some(id)) => id,
+                        _ => {
+                            tracing::warn!(
+                                "ignoring PNI signature: no PNI identity known"
+                            );
+                            return None;
+                        },
+                    }
+                },
+            };
+
+        let verified = pni_identity
+            .verify_alternate_identity(&aci_identity, signature)
+            .inspect_err(|e| {
+                tracing::warn!(?e, "PNI signature verification error");
+            })
+            .ok()?;
+
+        if verified {
+            tracing::info!(
+                aci = %sender_aci.service_id_string(),
+                pni = %pni.service_id_string(),
+                "verified PNI signature"
+            );
+            Some(pni)
+        } else {
+            tracing::warn!(
+                aci = %sender_aci.service_id_string(),
+                pni = %pni.service_id_string(),
+                "invalid PNI signature"
+            );
+            None
         }
     }
 
@@ -446,6 +534,12 @@ where
         };
 
         let message = crate::proto::Content::decode(parts.data.as_slice())?;
+        let pni_verified = if let Some(msg) = &message.pni_signature_message {
+            self.verify_pni_signature(parts.sender, parts.sender_device, msg)
+                .await
+        } else {
+            None
+        };
         let metadata = Metadata {
             destination: destination_service_id,
             sender: parts.sender,
@@ -456,6 +550,7 @@ where
             unidentified_sender: parts.unidentified_sender,
             was_plaintext: parts.was_plaintext,
             server_guid,
+            pni_verified,
         };
         Ok(Plaintext { metadata, message })
     }

@@ -1,6 +1,6 @@
 use chrono::Utc;
 use libsignal_core::DeviceId;
-use libsignal_protocol::{ProtocolAddress, ServiceId};
+use libsignal_protocol::{Pni, ProtocolAddress, ServiceId};
 use prost::Message;
 use std::fmt;
 use uuid::Uuid;
@@ -26,6 +26,9 @@ pub struct Metadata {
     pub sender: ServiceId,
     pub destination: ServiceId,
     pub sender_device: DeviceId,
+    /// Contains the PNI of the sender if verification was succesfull
+    pub pni_verified: Option<Pni>,
+
     pub client_timestamp: chrono::DateTime<Utc>,
     pub server_timestamp: chrono::DateTime<Utc>,
     pub needs_receipt: bool,
