@@ -11,8 +11,7 @@ pub use crate::{
         data_message::Flags as DataMessageFlags, data_message::Reaction,
         sync_message, AttachmentPointer, CallMessage, DataMessage,
         DecryptionErrorMessage, EditMessage, GroupContextV2, NullMessage,
-        PniSignatureMessage, ReceiptMessage, StoryMessage, SyncMessage,
-        TypingMessage,
+        ReceiptMessage, StoryMessage, SyncMessage, TypingMessage,
     },
     push_service::ServiceError,
     ServiceIdExt,
@@ -144,8 +143,6 @@ impl fmt::Display for ContentBody {
                 write!(f, "DecryptionErrorMessage")
             },
             Self::StoryMessage(_) => write!(f, "StoryMessage"),
-            #[allow(deprecated)]
-            Self::PniSignatureMessage(_) => write!(f, "PniSignatureMessage"),
             Self::EditMessage(_) => write!(f, "EditMessage"),
         }
     }
@@ -163,8 +160,6 @@ pub enum ContentBody {
     // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
     DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
-    #[deprecated = "PNI signature messages are constructed as side-car during message delivery"]
-    PniSignatureMessage(PniSignatureMessage),
     EditMessage(EditMessage),
 }
 
@@ -195,16 +190,6 @@ impl ContentBody {
                 Content::DecryptionErrorMessage(msg.encode_to_vec())
             },
             Self::StoryMessage(msg) => Content::StoryMessage(msg),
-            #[allow(deprecated)]
-            Self::PniSignatureMessage(msg) => {
-                tracing::warn!("manually constructed PniSignatureMessage");
-                return crate::proto::Content {
-                    content: None,
-                    sender_key_distribution_message: None,
-                    // PNI signature gets added down the message sender stream
-                    pni_signature_message: Some(msg),
-                };
-            },
             Self::EditMessage(msg) => Content::EditMessage(msg),
         };
         crate::proto::Content {
@@ -222,8 +207,6 @@ macro_rules! impl_from_for_content_body {
     ($enum:ident ($t:ty)) => {
         impl From<$t> for ContentBody {
             fn from(inner: $t) -> ContentBody {
-                // Remove #[allow(deprecated)] when PniSignatureMessage is removed.
-                #[allow(deprecated)]
                 ContentBody::$enum(inner)
             }
         }
@@ -241,7 +224,6 @@ impl_from_for_content_body!(TypingMessage(TypingMessage));
 // ));
 // impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
 impl_from_for_content_body!(StoryMessage(StoryMessage));
-impl_from_for_content_body!(PniSignatureMessage(PniSignatureMessage));
 impl_from_for_content_body!(EditMessage(EditMessage));
 
 macro_rules! impl_from_for_sync_message {
