@@ -100,6 +100,8 @@ pub enum ProvisioningError {
     InvalidProfileKey(TryFromSliceError),
     #[error("invalid account entropy pool: {0}")]
     InvalidAccountEntropyPool(#[from] InvalidAccountEntropyPool),
+    #[error("invalid ephemeral backup key length: expected 32 bytes, got {0}")]
+    InvalidEphemeralBackupKey(usize),
 }
 
 impl ProvisioningError {
@@ -163,6 +165,9 @@ pub struct NewDeviceRegistration {
     /// it should be preferred over the deprecated `master_key` field.
     #[debug(ignore)]
     pub account_entropy_pool: Option<AccountEntropyPool>,
+    /// One-time key for an initial linked-device message-history transfer.
+    #[debug(ignore)]
+    pub ephemeral_backup_key: Option<[u8; 32]>,
 }
 
 pub async fn link_device<
@@ -253,6 +258,14 @@ pub async fn link_device<
         let account_entropy_pool = message
             .account_entropy_pool
             .map(|s| s.parse())
+            .transpose()?;
+        let ephemeral_backup_key = message
+            .ephemeral_backup_key
+            .map(|key| {
+                key.try_into().map_err(|key: Vec<u8>| {
+                    ProvisioningError::InvalidEphemeralBackupKey(key.len())
+                })
+            })
             .transpose()?;
 
         let phone_number = message
@@ -370,6 +383,7 @@ pub async fn link_device<
                 pni_public_key,
                 profile_key,
                 account_entropy_pool,
+                ephemeral_backup_key,
             },
         ))
         .await
