@@ -9,8 +9,11 @@ use crate::push_service::response::error_mapper;
 
 use super::{Identified, SignalWebSocket, Unidentified};
 
+// Signal-Server: controllers/AccountController.java:415
+// (PUT /v1/accounts/username_link)
 error_mapper! {
     PutUsernameLink:
+        // 409: username hash not set, AccountController.java:427
         CONFLICT => UsernameHashNotSet,
 }
 

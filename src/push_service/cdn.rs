@@ -61,8 +61,11 @@ pub struct AttachmentDownload<R> {
     pub content_length: Option<u64>,
 }
 
+// Signal-Server: controllers/AttachmentControllerV4.java:102
+// (GET /v4/attachments/form/upload)
 error_mapper! {
     GetAttachmentUploadForm:
+        // 413: attachment too large, AttachmentControllerV4.java:111
         PAYLOAD_TOO_LARGE => AttachmentTooLarge,
 }
 

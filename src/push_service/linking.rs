@@ -64,10 +64,15 @@ pub struct LinkRequest {
     pub device_activation_request: DeviceActivationRequest,
 }
 
+// Signal-Server: controllers/DeviceController.java:231
+// (PUT /v1/devices/link)
 error_mapper! {
     LinkDevice:
+        // 403: invalid device verification code, DeviceController.java:238
         FORBIDDEN => InvalidDeviceVerificationCode,
+        // 409: device capability downgrade, DeviceController.java:267
         CONFLICT => DeviceCapabilityDowngrade,
+        // 411: device limit reached, DeviceController.java:260
         LENGTH_REQUIRED => fn device_limit_reached,
 }
 
