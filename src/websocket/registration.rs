@@ -140,39 +140,65 @@ impl RegistrationSessionMetadataResponse {
     }
 }
 
+// Signal-Server: controllers/VerificationController.java:196
+// (POST /v1/verification/session)
 error_mapper! {
     CreateVerificationSession:
+        // 429: session rate limited, VerificationController.java:795
         TOO_MANY_REQUESTS => fn session_rate_limited,
 }
 
+// Signal-Server: controllers/VerificationController.java:275
+// (PATCH /v1/verification/session/{sessionId})
 error_mapper! {
     PatchVerificationSession:
+        // 403: token not accepted, VerificationController.java:315
         FORBIDDEN => TokenNotAccepted(RegistrationSessionMetadataResponse),
+        // 404: no such session, VerificationController.java:820
         NOT_FOUND => NoSuchSession,
+        // 422: invalid session id, VerificationController.java:815
         UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
+        // 429: session rate limited, VerificationController.java:309
         TOO_MANY_REQUESTS => fn session_rate_limited,
 }
 
+// Signal-Server: controllers/VerificationController.java:576
+// (POST /v1/verification/session/{sessionId}/code)
 error_mapper! {
     RequestVerificationCode:
+        // 404: no such session, VerificationController.java:654
         NOT_FOUND => NoSuchSession,
+        // 409: session conflict, VerificationController.java:598
         CONFLICT => RegistrationSessionConflict(RegistrationSessionMetadataResponse),
+        // 418: transport not allowed, VerificationController.java:649
         IM_A_TEAPOT => InvalidTransportMode(RegistrationSessionMetadataResponse),
+        // 422: invalid session id, VerificationController.java:815
         UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
+        // 429: session rate limited, VerificationController.java:641
         TOO_MANY_REQUESTS => fn session_rate_limited,
+        // 451: verification delivery failed (no 451 returned by Signal-Server, see report)
         UNAVAILABLE_FOR_LEGAL_REASONS => VerificationDeliveryFailed(crate::push_service::VerificationDeliveryFailure),
 }
 
+// Signal-Server: controllers/VerificationController.java:714
+// (PUT /v1/verification/session/{sessionId}/code)
 error_mapper! {
     SubmitVerificationCode:
+        // 404: no such session, VerificationController.java:743
         NOT_FOUND => NoSuchSession,
+        // 409: session conflict, VerificationController.java:726
         CONFLICT => RegistrationSessionConflict(RegistrationSessionMetadataResponse),
+        // 422: invalid session id, VerificationController.java:815
         UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
+        // 429: session rate limited, VerificationController.java:735
         TOO_MANY_REQUESTS => fn session_rate_limited,
 }
 
+// Signal-Server: controllers/RegistrationController.java:114
+// (PUT /v1/registration)
 error_mapper! {
     PostRegistration:
+        // 409: device transfer available, RegistrationController.java:161
         CONFLICT => DeviceTransferAvailable,
 }
 

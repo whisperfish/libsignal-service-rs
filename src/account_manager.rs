@@ -53,13 +53,19 @@ use crate::{
     websocket::account::AccountAttributes,
 };
 
+// Signal-Server: controllers/DeviceController.java:193
+// (GET /v1/devices/provisioning/code)
 error_mapper! {
     GetProvisioningCode:
+        // 411: length required, DeviceController.java:202
         LENGTH_REQUIRED => fn device_limit_reached,
 }
 
+// Signal-Server: controllers/ChallengeController.java:91
+// (PUT /v1/challenge)
 error_mapper! {
     SubmitChallenge:
+        // 428: precondition required, ChallengeController.java:124
         PRECONDITION_REQUIRED => ChallengeNotAccepted,
 }
 

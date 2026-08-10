@@ -141,6 +141,7 @@ macro_rules! error_mapper {
 
 pub(crate) use error_mapper;
 
+// Signal-Server: generic/baseline decoder, no endpoint-specific errors
 error_mapper! {
     /// Baseline-only decoder.
     Baseline:
