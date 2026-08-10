@@ -176,8 +176,9 @@ error_mapper! {
         UNPROCESSABLE_ENTITY => InvalidVerificationSessionId,
         // 429: session rate limited, VerificationController.java:641
         TOO_MANY_REQUESTS => fn session_rate_limited,
-        // 451: verification delivery failed (no 451 returned by Signal-Server, see report)
-        UNAVAILABLE_FOR_LEGAL_REASONS => VerificationDeliveryFailed(crate::push_service::VerificationDeliveryFailure),
+        // 440: remote service rejected code delivery, VerificationController.java:568
+        // (RegistrationServiceSenderExceptionMapper.java:15)
+        440 => VerificationDeliveryFailed(crate::push_service::VerificationDeliveryFailure),
 }
 
 // Signal-Server: controllers/VerificationController.java:714
