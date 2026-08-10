@@ -87,34 +87,45 @@ pub(crate) trait ResponseErrors {
 /// - `CODE => Variant` — unit variant, body discarded.
 /// - `CODE => fn helper` — call helper.
 ///
+/// `CODE` is a `reqwest::StatusCode` constant name, or a raw status code
+/// like `440` when no dedicated constant exists.
+///
 /// Unlisted statuses return `Ok(response)` and fall through to
 /// [`baseline_decode`].
 macro_rules! error_mapper {
-    // tt-muncher accumulating decoded arms, then emitting a whole match.
-    (@build $response:ident; $($arms:tt)*) => {
-        error_mapper!(@emit $response; [] ; $($arms)*)
-    };
-    (@emit $response:ident; [$($out:tt)*] ;) => {
+    // tt-muncher: accumulate `pattern => body` arms, then emit one match.
+    (@munch $response:ident; [$($out:tt)*] ;) => {
         match $response.status_code() {
             $($out)*
             _ => Ok($response),
         }
     };
-    (@emit $response:ident; [$($out:tt)*] ; $status:ident => fn $helper:path, $($rest:tt)*) => {
-        error_mapper!(@emit $response;
-            [$($out)* reqwest::StatusCode::$status => Err($helper($response).await),] ;
+    // Named `StatusCode` constants become path patterns…
+    (@munch $response:ident; [$($out:tt)*] ; $status:ident => $($rest:tt)*) => {
+        error_mapper!(@action $response; [$($out)*] ;
+            [reqwest::StatusCode::$status] $($rest)*)
+    };
+    // …raw codes that have no dedicated `StatusCode` constant (`440 => …`)
+    // become guards.
+    (@munch $response:ident; [$($out:tt)*] ; $status:literal => $($rest:tt)*) => {
+        error_mapper!(@action $response; [$($out)*] ;
+            [code if code.as_u16() == $status] $($rest)*)
+    };
+    (@action $response:ident; [$($out:tt)*] ; [$($pat:tt)*] fn $helper:path, $($rest:tt)*) => {
+        error_mapper!(@munch $response;
+            [$($out)* $($pat)* => Err($helper($response).await),] ;
             $($rest)*)
     };
-    (@emit $response:ident; [$($out:tt)*] ; $status:ident => $variant:ident ( $ty:ty ), $($rest:tt)*) => {
-        error_mapper!(@emit $response;
-            [$($out)* reqwest::StatusCode::$status => Err($crate::push_service::ServiceError::$variant(
+    (@action $response:ident; [$($out:tt)*] ; [$($pat:tt)*] $variant:ident ( $ty:ty ), $($rest:tt)*) => {
+        error_mapper!(@munch $response;
+            [$($out)* $($pat)* => Err($crate::push_service::ServiceError::$variant(
                 $crate::push_service::response::json_or_unhandled::<R, $ty>($response).await?,
             )),] ;
             $($rest)*)
     };
-    (@emit $response:ident; [$($out:tt)*] ; $status:ident => $variant:ident, $($rest:tt)*) => {
-        error_mapper!(@emit $response;
-            [$($out)* reqwest::StatusCode::$status => Err($crate::push_service::ServiceError::$variant),] ;
+    (@action $response:ident; [$($out:tt)*] ; [$($pat:tt)*] $variant:ident, $($rest:tt)*) => {
+        error_mapper!(@munch $response;
+            [$($out)* $($pat)* => Err($crate::push_service::ServiceError::$variant),] ;
             $($rest)*)
     };
     (
@@ -133,7 +144,7 @@ macro_rules! error_mapper {
                 R: $crate::push_service::response::SignalServiceResponse + Send,
                 $crate::push_service::ServiceError: From<<R as $crate::push_service::response::SignalServiceResponse>::Error>,
             {
-                async move { error_mapper!(@build response; $($arms)*) }
+                async move { error_mapper!(@munch response; [] ; $($arms)*) }
             }
         }
     };
