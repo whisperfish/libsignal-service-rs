@@ -58,7 +58,7 @@ impl MessageReceiver {
             let mut stream = loop {
                 let r = self.service.get_attachment(blob).await;
                 match r {
-                    Ok(stream) => break stream,
+                    Ok(download) => break download.stream,
                     Err(ServiceError::Timeout { .. }) => {
                         tracing::warn!("get_attachment timed out, retrying");
                         retries += 1;

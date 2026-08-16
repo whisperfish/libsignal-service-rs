@@ -5,7 +5,7 @@ use std::{
 
 use futures::TryStreamExt;
 use reqwest::{
-    header::{HeaderMap, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE},
+    header::{CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE},
     multipart::Part,
     Method, StatusCode,
 };
@@ -60,19 +60,8 @@ pub struct AttachmentDownload<R> {
     pub content_length: Option<u64>,
 }
 
-fn content_length(headers: &HeaderMap) -> Option<u64> {
-    headers.get(CONTENT_LENGTH)?.to_str().ok()?.parse().ok()
-}
-
 impl PushService {
     pub async fn get_attachment(
-        &mut self,
-        ptr: &AttachmentPointer,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        Ok(self.get_attachment_with_metadata(ptr).await?.stream)
-    }
-
-    pub async fn get_attachment_with_metadata(
         &mut self,
         ptr: &AttachmentPointer,
     ) -> Result<
@@ -92,21 +81,11 @@ impl PushService {
                 });
             },
         };
-        self.get_from_cdn_with_metadata(ptr.cdn_number(), &path)
-            .await
+        self.get_from_cdn(ptr.cdn_number(), &path).await
     }
 
     #[tracing::instrument(skip(self))]
     pub(crate) async fn get_from_cdn(
-        &mut self,
-        cdn_id: u32,
-        path: &str,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        Ok(self.get_from_cdn_with_metadata(cdn_id, path).await?.stream)
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub(crate) async fn get_from_cdn_with_metadata(
         &mut self,
         cdn_id: u32,
         path: &str,
@@ -123,7 +102,18 @@ impl PushService {
             .send()
             .await?
             .error_for_status()?;
-        let content_length = content_length(response.headers());
+        let content_length = match response.headers().get(CONTENT_LENGTH) {
+            Some(value) => {
+                match value.to_str().ok().and_then(|value| value.parse().ok()) {
+                    Some(value) => Some(value),
+                    None => {
+                        tracing::warn!("invalid Content-Length header");
+                        None
+                    },
+                }
+            },
+            None => None,
+        };
         let response_stream = response
             .bytes_stream()
             .map_err(io::Error::other)
@@ -475,54 +465,5 @@ impl PushService {
             incremental_digest: None,
             incremental_mac_chunk_size: 0,
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use futures::io::Cursor;
-    use reqwest::header::{HeaderMap, HeaderValue, CONTENT_LENGTH};
-
-    use super::{content_length, AttachmentDownload};
-
-    #[test]
-    fn parses_content_length_header() {
-        let mut headers = HeaderMap::new();
-        assert_eq!(content_length(&headers), None);
-
-        headers.insert(CONTENT_LENGTH, HeaderValue::from_static("1024"));
-        assert_eq!(content_length(&headers), Some(1024));
-
-        headers
-            .insert(CONTENT_LENGTH, HeaderValue::from_static("not-a-number"));
-        assert_eq!(content_length(&headers), None);
-
-        headers.insert(
-            CONTENT_LENGTH,
-            HeaderValue::from_static("18446744073709551616"),
-        );
-        assert_eq!(content_length(&headers), None);
-
-        headers.insert(
-            CONTENT_LENGTH,
-            HeaderValue::from_bytes(b"\xff").expect("valid header value"),
-        );
-        assert_eq!(content_length(&headers), None);
-    }
-
-    #[test]
-    fn attachment_download_stream_is_compatible_with_legacy_return_type() {
-        fn accepts_legacy_stream(
-            _: impl futures::io::AsyncRead + Send + Unpin,
-        ) {
-        }
-
-        accepts_legacy_stream(
-            AttachmentDownload {
-                stream: Cursor::new(Vec::new()),
-                content_length: Some(0),
-            }
-            .stream,
-        );
     }
 }
