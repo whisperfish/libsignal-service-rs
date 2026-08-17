@@ -8,7 +8,11 @@ impl<C: websocket::WebSocketType> SignalWebSocket<C> {
         id: &str,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
         let path = format!("/stickers/{}/manifest.proto", id);
-        self.unidentified_push_service.get_from_cdn(0, &path).await
+        Ok(self
+            .unidentified_push_service
+            .get_from_cdn(0, &path)
+            .await?
+            .stream)
     }
 
     pub async fn get_sticker(
@@ -17,6 +21,10 @@ impl<C: websocket::WebSocketType> SignalWebSocket<C> {
         sticker_id: u32,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
         let path = format!("/stickers/{}/full/{}", pack_id, sticker_id);
-        self.unidentified_push_service.get_from_cdn(0, &path).await
+        Ok(self
+            .unidentified_push_service
+            .get_from_cdn(0, &path)
+            .await?
+            .stream)
     }
 }

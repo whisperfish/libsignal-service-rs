@@ -187,13 +187,21 @@ impl SignalWebSocket<websocket::Unidentified> {
         &mut self,
         path: &str,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        self.unidentified_push_service.get_from_cdn(0, path).await
+        Ok(self
+            .unidentified_push_service
+            .get_from_cdn(0, path)
+            .await?
+            .stream)
     }
 
     pub async fn retrieve_groups_v2_profile_avatar(
         &mut self,
         path: &str,
     ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        self.unidentified_push_service.get_from_cdn(0, path).await
+        Ok(self
+            .unidentified_push_service
+            .get_from_cdn(0, path)
+            .await?
+            .stream)
     }
 }

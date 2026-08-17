@@ -55,11 +55,19 @@ pub struct ResumeInfo {
     pub content_start: u64,
 }
 
+pub struct AttachmentDownload<R> {
+    pub stream: R,
+    pub content_length: Option<u64>,
+}
+
 impl PushService {
     pub async fn get_attachment(
         &mut self,
         ptr: &AttachmentPointer,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
+    ) -> Result<
+        AttachmentDownload<impl futures::io::AsyncRead + Send + Unpin>,
+        ServiceError,
+    > {
         let path = match ptr.attachment_identifier.as_ref() {
             Some(AttachmentIdentifier::CdnId(id)) => {
                 format!("attachments/{}", id)
@@ -81,8 +89,11 @@ impl PushService {
         &mut self,
         cdn_id: u32,
         path: &str,
-    ) -> Result<impl futures::io::AsyncRead + Send + Unpin, ServiceError> {
-        let response_stream = self
+    ) -> Result<
+        AttachmentDownload<impl futures::io::AsyncRead + Send + Unpin>,
+        ServiceError,
+    > {
+        let response = self
             .request(
                 Method::GET,
                 Endpoint::cdn(cdn_id, path),
@@ -90,12 +101,28 @@ impl PushService {
             )?
             .send()
             .await?
-            .error_for_status()?
+            .error_for_status()?;
+        let content_length = match response.headers().get(CONTENT_LENGTH) {
+            Some(value) => {
+                match value.to_str().ok().and_then(|value| value.parse().ok()) {
+                    Some(value) => Some(value),
+                    None => {
+                        tracing::warn!("invalid Content-Length header");
+                        None
+                    },
+                }
+            },
+            None => None,
+        };
+        let response_stream = response
             .bytes_stream()
             .map_err(io::Error::other)
             .into_async_read();
 
-        Ok(response_stream)
+        Ok(AttachmentDownload {
+            stream: response_stream,
+            content_length,
+        })
     }
 
     pub(crate) async fn get_attachment_v4_upload_attributes(
