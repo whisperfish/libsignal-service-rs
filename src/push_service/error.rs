@@ -135,6 +135,9 @@ pub enum ServiceError {
     #[error("Fingerprint error: {0}")]
     Fingerprint(FingerprintError),
 
+    #[error("CDSI contact discovery is unavailable for custom (non-preset) configurations")]
+    CdsiUnavailable,
+
     #[error("CDSI lookup error: {0}")]
     #[cfg(feature = "cdsi")]
     CdsiLookupError(#[from] libsignal_net::cdsi::LookupError),
