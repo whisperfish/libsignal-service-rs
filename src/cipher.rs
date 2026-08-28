@@ -90,6 +90,18 @@ where
     /// Opens ("decrypts") an envelope.
     ///
     /// Envelopes may be empty, in which case this method returns `Ok(None)`
+    ///
+    /// # PNI signature side-cars
+    ///
+    /// A side-car is verified during decryption and, when valid, its
+    /// PNI is exposed as `Metadata::pni_verified`. A side-car on a message with
+    /// no `content` is discarded, with a `tracing::warn!`; upstream Signal
+    /// clients only ever attach a side-car alongside `content`, so this path is
+    /// unreachable in practice, and wiring it through would change this method's
+    /// return type.
+    ///
+    /// **NOTE**: must process `Metadata::pni_verified` to confirm the sender's
+    /// PNI, not the raw side-car message.
     #[tracing::instrument(skip(envelope, csprng), fields(envelope = debug_envelope(&envelope)))]
     pub async fn open_envelope<R: Rng + CryptoRng>(
         &mut self,
