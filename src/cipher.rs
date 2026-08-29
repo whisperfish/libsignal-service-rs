@@ -119,6 +119,26 @@ where
             tracing::Span::current()
                 .record("envelope_metadata", plaintext.metadata.to_string());
 
+            // Ingest side-car messages *before* processing content (which possibly triggers an early `return Ok(None)`)
+
+            if let Some(bytes) =
+                &plaintext.message.sender_key_distribution_message
+            {
+                let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
+                let sender = plaintext.metadata.protocol_address()?;
+                process_sender_key_distribution_message(
+                    &sender,
+                    &skdm,
+                    &mut self.protocol_store,
+                )
+                .await?;
+                tracing::info!(
+                    distribution_id = %skdm.distribution_id()?,
+                    sender = %sender,
+                    "applied sender key distribution message"
+                );
+            }
+
             let Some(content) = &plaintext.message.content else {
                 // Cheap-out: post-decrypt side-ops are not propagated alongside the
                 // Option<Content>, so a content-less message drops its sidecar here.
@@ -132,6 +152,9 @@ where
                 tracing::warn!("empty decrypted content");
                 return Ok(None);
             };
+
+            // Now, process actual content, *after* side-car messages such as SKDM or PNI
+            // signatures.
 
             // Sanity test: if the envelope was plaintext, the message should *only* be a
             // decryption failure error
@@ -161,26 +184,6 @@ where
                 return Ok(None);
             }
 
-            if let Some(bytes) =
-                &plaintext.message.sender_key_distribution_message
-            {
-                let skdm = SenderKeyDistributionMessage::try_from(&bytes[..])?;
-                process_sender_key_distribution_message(
-                    &plaintext.metadata.protocol_address()?,
-                    &skdm,
-                    &mut self.protocol_store,
-                )
-                .await?;
-
-                match Content::from_proto(plaintext.message, plaintext.metadata)
-                {
-                    Err(ServiceError::UnsupportedContent) => {
-                        tracing::trace!("Sender key distribution message without additional content");
-                        return Ok(None);
-                    },
-                    content => return Ok(Some(content?)),
-                }
-            }
             let content =
                 Content::from_proto(plaintext.message, plaintext.metadata);
             Ok(Some(content?))
