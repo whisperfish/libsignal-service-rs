@@ -526,6 +526,62 @@ where
         results
     }
 
+    /// Send a sender-key retry receipt
+    ///
+    /// The receipt goes out as a regular encrypted (or sealed-sender encrypted,
+    /// when `unidentified_access` is supplied) `Content`, so it rides the same
+    /// fan-out, session repair, and retry machinery as any other message.
+    ///
+    /// Divergences from the official clients:
+    /// - Official clients deliver retry receipts as unencrypted `PlaintextContent`;
+    ///   receiving clients accept the DEM inside an encrypted `Content` too.
+    /// - Under sealed sender they use `ContentHint::Implicit` and attach the
+    ///   group id; our sealed path hardcodes `ContentHint::Default` without a
+    ///   group id (see `sealed_sender_encrypt`).  Harmless in practice: the
+    ///   receipt's original sender finds its send-log entry by timestamp.
+    #[tracing::instrument(
+        skip(self, unidentified_access),
+        fields(recipient = recipient.service_id_string(), unidentified_send = unidentified_access.is_some(), failed_timestamp),
+    )]
+    pub async fn send_sender_key_decryption_error_message(
+        &mut self,
+        recipient: &ServiceId,
+        unidentified_access: Option<UnidentifiedAccess>,
+        failed_timestamp: u64,
+        failed_device: DeviceId,
+    ) -> Result<(), MessageSenderError> {
+        info!("sending retry receipt/decryption error");
+
+        // The absent `ratchet_key` marks this as a sender-key failure.
+        // This function assumes the 1:1 session is intact, and hence tries to
+        // transmit the DME through the 1:1 encrypted (sealed, if available) channel.
+        //
+        // A DME for a 1:1 decrypt failure carries `ratchet_key`
+        // and must be deliverable *without* depending on the session under
+        // repair; upstream sends those as unencrypted `PlaintextContent`
+        // (or sealed USMC) envelopes.  Implement that case as a sibling
+        // function producing plaintext envelopes over this same fan-out.
+        let content_body = ContentBody::DecryptionErrorMessage(
+            crate::proto::DecryptionErrorMessage {
+                ratchet_key: None,
+                timestamp: Some(failed_timestamp),
+                device_id: Some(failed_device.into()),
+            },
+        );
+
+        self.try_send_message(
+            *recipient,
+            unidentified_access.as_ref(),
+            &content_body,
+            Utc::now().timestamp_millis() as u64,
+            false,
+            false,
+        )
+        .await?;
+
+        Ok(())
+    }
+
     /// Send a message (`content`) to an address (`recipient`).
     #[tracing::instrument(
         level = "trace",
