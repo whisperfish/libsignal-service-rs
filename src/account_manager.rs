@@ -1,5 +1,5 @@
 use base64::prelude::*;
-use libsignal_core::{DeviceId, E164};
+use libsignal_core::DeviceId;
 use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use std::collections::HashMap;
@@ -9,49 +9,39 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::{digest::Output, KeyInit};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    kem, Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair,
-    IdentityKeyStore, KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore,
-    PublicKey, SenderKeyStore, ServiceIdKind, SignedPreKeyRecord, Timestamp,
+    Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair, IdentityKeyStore,
+    KeyPair, PrivateKey, PublicKey, ServiceIdKind,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
-use crate::content::ContentBody;
+use crate::configuration::Endpoint;
 use crate::pre_keys::{
     clean_stale_pre_keys, generate_pre_keys, mark_pre_key_bundle_active,
-    store_pre_key_bundle, KyberPreKeyEntity, PreKeyEntity, PreKeysStore,
-    SignedPreKeyEntity, PRE_KEY_BATCH_SIZE,
+    store_pre_key_bundle, KyberPreKeyEntity, PreKeyEntity, PreKeyState,
+    PreKeysStore, SignedPreKeyEntity, PRE_KEY_BATCH_SIZE,
 };
-use crate::prelude::{MessageSender, MessageSenderError};
-use crate::proto::sync_message::PniChangeNumber;
-use crate::proto::{DeviceName, SyncMessage};
-use crate::provisioning::{generate_registration_id, ProvisioningSecrets};
-use crate::push_service::response::{device_limit_reached, error_mapper};
+use crate::profile_cipher::{ProfileCipher, ProfileCipherError};
+use crate::profile_name::ProfileName;
+use crate::proto::{
+    DeviceName, ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
+};
+use crate::provisioning::{
+    ProvisioningCipher, ProvisioningError, ProvisioningSecrets,
+};
+use crate::push_service::response::{
+    device_limit_reached, error_mapper, SignalServiceResponse,
+};
 use crate::push_service::{
-    AvatarWrite, HttpAuthOverride, SignalServiceResponse, DEFAULT_DEVICE_ID,
+    AvatarWrite, HttpAuthOverride, PushService, ServiceError,
 };
-use crate::sender::OutgoingPushMessage;
 use crate::service_address::ServiceIdExt;
-use crate::session_store::SessionStoreExt;
-use crate::timestamp::TimestampExt as _;
-use crate::utils::{random_length_padding, BASE64_RELAXED};
-use crate::websocket::account::DeviceInfo;
+use crate::utils::{serde_base64, BASE64_RELAXED};
+use crate::websocket::account::{AccountAttributes, DeviceInfo};
 use crate::websocket::registration::CaptchaAttributes;
 use crate::websocket::{self, SignalWebSocket};
-use crate::{
-    configuration::Endpoint,
-    pre_keys::PreKeyState,
-    profile_cipher::{ProfileCipher, ProfileCipherError},
-    profile_name::ProfileName,
-    proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
-    provisioning::{ProvisioningCipher, ProvisioningError},
-    push_service::{PushService, ServiceError},
-    utils::serde_base64,
-    websocket::account::AccountAttributes,
-};
 
 // Signal-Server: controllers/DeviceController.java:193
 // (GET /v1/devices/provisioning/code)
@@ -610,234 +600,6 @@ impl AccountManager {
             .send()
             .await?
             .service_error_for_status_with(submit_challenge_errors)
-            .await?;
-
-        Ok(())
-    }
-
-    /// Initialize PNI on linked devices.
-    ///
-    /// Should be called as the primary device to migrate from pre-PNI to PNI.
-    ///
-    /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
-    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = local_aci.service_id_string()))]
-    pub async fn pnp_initialize_devices<
-        R: Rng + CryptoRng,
-        AciStore: PreKeysStore + SessionStoreExt,
-        PniStore: PreKeysStore,
-        AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
-    >(
-        &mut self,
-        aci_protocol_store: &mut AciStore,
-        pni_protocol_store: &mut PniStore,
-        mut sender: MessageSender<AciOrPni>,
-        local_aci: Aci,
-        e164: E164,
-        csprng: &mut R,
-    ) -> Result<(), MessageSenderError> {
-        let pni_identity_key_pair =
-            pni_protocol_store.get_identity_key_pair().await?;
-
-        let pni_identity_key = pni_identity_key_pair.identity_key();
-
-        // For every linked device, we generate a new set of pre-keys, and send them to the device.
-        let local_device_ids = aci_protocol_store
-            .get_sub_device_sessions(&local_aci.into())
-            .await?;
-
-        let mut device_messages =
-            Vec::<OutgoingPushMessage>::with_capacity(local_device_ids.len());
-        let mut device_pni_signed_prekeys =
-            HashMap::<String, SignedPreKeyEntity>::with_capacity(
-                local_device_ids.len(),
-            );
-        let mut device_pni_last_resort_kyber_prekeys =
-            HashMap::<String, KyberPreKeyEntity>::with_capacity(
-                local_device_ids.len(),
-            );
-        let mut pni_registration_ids =
-            HashMap::<String, u32>::with_capacity(local_device_ids.len());
-
-        let signature_valid_on_each_signed_pre_key = true;
-        for local_device_id in
-            std::iter::once(*DEFAULT_DEVICE_ID).chain(local_device_ids)
-        {
-            let local_protocol_address =
-                local_aci.to_protocol_address(local_device_id)?;
-            let span = tracing::trace_span!(
-                "filtering devices",
-                address = %local_protocol_address
-            );
-            // Skip if we don't have a session with the device
-            if (local_device_id != *DEFAULT_DEVICE_ID)
-                && aci_protocol_store
-                    .load_session(&local_protocol_address)
-                    .instrument(span)
-                    .await?
-                    .is_none()
-            {
-                tracing::warn!(
-                    "No session with device {}, skipping PNI provisioning",
-                    local_device_id
-                );
-                continue;
-            }
-            let (
-                _pre_keys,
-                signed_pre_key,
-                _kyber_pre_keys,
-                last_resort_kyber_prekey,
-            ) = if local_device_id == *DEFAULT_DEVICE_ID {
-                let (
-                    pre_keys,
-                    signed_pre_key,
-                    kyber_pre_keys,
-                    last_resort_kyber_prekey,
-                ) = generate_pre_keys(
-                    pni_protocol_store,
-                    csprng,
-                    &pni_identity_key_pair,
-                    true,
-                    0,
-                    0,
-                )
-                .await?;
-
-                // Persist the generated keys
-                for key in &pre_keys {
-                    pni_protocol_store.save_pre_key(key.id()?, key).await?;
-                }
-                for key in &kyber_pre_keys {
-                    pni_protocol_store
-                        .save_kyber_pre_key(key.id()?, key)
-                        .await?;
-                }
-                pni_protocol_store
-                    .save_signed_pre_key(signed_pre_key.id()?, &signed_pre_key)
-                    .await?;
-                if let Some(ref k) = last_resort_kyber_prekey {
-                    pni_protocol_store
-                        .store_last_resort_kyber_pre_key(k.id()?, k)
-                        .await?;
-                }
-
-                (
-                    pre_keys,
-                    signed_pre_key,
-                    kyber_pre_keys,
-                    last_resort_kyber_prekey,
-                )
-            } else {
-                // Generate a signed prekey
-                let signed_pre_key_pair = KeyPair::generate(csprng);
-                let signed_pre_key_public = signed_pre_key_pair.public_key;
-                let signed_pre_key_signature = pni_identity_key_pair
-                    .private_key()
-                    .calculate_signature(
-                        &signed_pre_key_public.serialize(),
-                        csprng,
-                    )
-                    .map_err(MessageSenderError::InvalidPrivateKey)?;
-
-                let signed_prekey_record = SignedPreKeyRecord::new(
-                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
-                    Timestamp::now(),
-                    &signed_pre_key_pair,
-                    &signed_pre_key_signature,
-                );
-
-                // Generate a last-resort Kyber prekey
-                let kyber_pre_key_record = KyberPreKeyRecord::generate(
-                    kem::KeyType::Kyber1024,
-                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
-                    pni_identity_key_pair.private_key(),
-                )?;
-                (
-                    vec![],
-                    signed_prekey_record,
-                    vec![],
-                    Some(kyber_pre_key_record),
-                )
-            };
-
-            let registration_id = if local_device_id == *DEFAULT_DEVICE_ID {
-                pni_protocol_store.get_local_registration_id().await?
-            } else {
-                loop {
-                    let regid = generate_registration_id(csprng);
-                    if !pni_registration_ids.iter().any(|(_k, v)| *v == regid) {
-                        break regid;
-                    }
-                }
-            };
-
-            let local_device_id_s = local_device_id.to_string();
-            device_pni_signed_prekeys.insert(
-                local_device_id_s.clone(),
-                SignedPreKeyEntity::try_from(&signed_pre_key)?,
-            );
-            device_pni_last_resort_kyber_prekeys.insert(
-                local_device_id_s.clone(),
-                KyberPreKeyEntity::try_from(
-                    last_resort_kyber_prekey
-                        .as_ref()
-                        .expect("requested last resort key"),
-                )?,
-            );
-            pni_registration_ids
-                .insert(local_device_id_s.clone(), registration_id);
-
-            assert!(_pre_keys.is_empty());
-            assert!(_kyber_pre_keys.is_empty());
-
-            if local_device_id == *DEFAULT_DEVICE_ID {
-                // This is the primary device
-                // We don't need to send a message to the primary device
-                continue;
-            }
-            // cfr. SignalServiceMessageSender::getEncryptedSyncPniInitializeDeviceMessage
-            let msg = SyncMessage {
-                content: Some(
-                    crate::proto::sync_message::Content::PniChangeNumber(
-                        PniChangeNumber {
-                            identity_key_pair: Some(
-                                pni_identity_key_pair.serialize().to_vec(),
-                            ),
-                            signed_pre_key: Some(signed_pre_key.serialize()?),
-                            last_resort_kyber_pre_key: Some(
-                                last_resort_kyber_prekey
-                                    .expect("requested last resort key")
-                                    .serialize()?,
-                            ),
-                            registration_id: Some(registration_id),
-                            new_e164: Some(e164.to_string()),
-                        },
-                    ),
-                ),
-                padding: Some(random_length_padding(csprng, 512)),
-                ..SyncMessage::default()
-            };
-            let content: ContentBody = msg.into();
-            let msg = sender
-                .create_encrypted_message(
-                    &local_aci.into(),
-                    None,
-                    local_device_id,
-                    &content.into_proto().encode_to_vec(),
-                )
-                .await?;
-            device_messages.push(msg);
-        }
-
-        self.websocket
-            .distribute_pni_keys(
-                pni_identity_key,
-                device_messages,
-                device_pni_signed_prekeys,
-                device_pni_last_resort_kyber_prekeys,
-                pni_registration_ids,
-                signature_valid_on_each_signed_pre_key,
-            )
             .await?;
 
         Ok(())
