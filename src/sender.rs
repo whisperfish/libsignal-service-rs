@@ -354,7 +354,7 @@ where
     pub async fn send_message(
         &mut self,
         recipient: &ServiceId,
-        mut unidentified_access: Option<UnidentifiedAccess>,
+        mut unidentified_access: Option<&UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         include_pni_signature: bool,
@@ -404,7 +404,7 @@ where
         let result = self
             .try_send_message(
                 *recipient,
-                unidentified_access.as_ref(),
+                unidentified_access,
                 &content_body,
                 timestamp,
                 include_pni_signature,
@@ -546,7 +546,7 @@ where
     pub async fn send_sender_key_decryption_error_message(
         &mut self,
         recipient: &ServiceId,
-        unidentified_access: Option<UnidentifiedAccess>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         failed_timestamp: u64,
         failed_device: DeviceId,
     ) -> Result<(), MessageSenderError> {
@@ -571,7 +571,7 @@ where
 
         self.try_send_message(
             *recipient,
-            unidentified_access.as_ref(),
+            unidentified_access,
             &content_body,
             Utc::now().timestamp_millis() as u64,
             false,
