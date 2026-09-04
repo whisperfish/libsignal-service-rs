@@ -56,7 +56,7 @@ use crate::{
 // Signal-Server: controllers/DeviceController.java:193
 // (GET /v1/devices/provisioning/code)
 error_mapper! {
-    GetProvisioningCode:
+    get_provisioning_code_errors:
         // 411: length required, DeviceController.java:202
         LENGTH_REQUIRED => fn device_limit_reached,
 }
@@ -64,7 +64,7 @@ error_mapper! {
 // Signal-Server: controllers/ChallengeController.java:91
 // (PUT /v1/challenge)
 error_mapper! {
-    SubmitChallenge:
+    submit_challenge_errors:
         // 428: precondition required, ChallengeController.java:124
         PRECONDITION_REQUIRED => ChallengeNotAccepted,
 }
@@ -319,7 +319,7 @@ impl AccountManager {
             )?
             .send()
             .await?
-            .service_error_for_status_as::<GetProvisioningCode>()
+            .service_error_for_status_with(get_provisioning_code_errors)
             .await?
             .json()
             .await?;
@@ -677,7 +677,7 @@ impl AccountManager {
             })
             .send()
             .await?
-            .service_error_for_status_as::<SubmitChallenge>()
+            .service_error_for_status_with(submit_challenge_errors)
             .await?;
 
         Ok(())

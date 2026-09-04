@@ -477,17 +477,20 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         }
     }
 
-    pub(crate) async fn request_json<T, E>(
+    pub(crate) async fn request_json_with<T, F, Fut>(
         &mut self,
         r: WebSocketRequestMessage,
+        decode: F,
     ) -> Result<T, ServiceError>
     where
         for<'de> T: serde::Deserialize<'de>,
-        E: super::push_service::response::ResponseErrors,
+        F: FnOnce(WebSocketResponseMessage) -> Fut + Send,
+        Fut: Future<Output = Result<WebSocketResponseMessage, ServiceError>>
+            + Send,
     {
         self.request(r)
             .await?
-            .service_error_for_status_as::<E>()
+            .service_error_for_status_with(decode)
             .await?
             .json()
             .await

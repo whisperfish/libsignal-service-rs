@@ -69,7 +69,7 @@ pub struct LinkRequest {
 // Signal-Server: controllers/DeviceController.java:231
 // (PUT /v1/devices/link)
 error_mapper! {
-    LinkDevice:
+    link_device_errors:
         // 403: invalid device verification code, DeviceController.java:238
         FORBIDDEN => InvalidDeviceVerificationCode,
         // 409: device capability downgrade, DeviceController.java:267
@@ -92,7 +92,7 @@ impl PushService {
         .json(&link_request)
         .send()
         .await?
-        .service_error_for_status_as::<LinkDevice>()
+        .service_error_for_status_with(link_device_errors)
         .await?
         .json()
         .await

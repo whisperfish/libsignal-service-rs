@@ -70,25 +70,19 @@ where
 }
 
 /// Endpoint-specific HTTP error decoder.
-pub(crate) trait ResponseErrors {
-    fn decode_error<R>(
-        response: R,
-    ) -> impl Future<Output = Result<R, ServiceError>> + Send
-    where
-        R: SignalServiceResponse + Send,
-        ServiceError: From<<R as SignalServiceResponse>::Error>;
-}
-
-/// Generate a [`ResponseErrors`] impl from status → variant arms:
+///
+/// Generate an async decode function from status → variant arms:
 /// - `CODE => Variant(Type)` — decode JSON body via [`json_or_unhandled`].
 /// - `CODE => Variant` — unit variant, body discarded.
-/// - `CODE => fn helper` — call helper.
+/// - `CODE => fn helper` — call a helper returning the
+///   [`ServiceError`].
 ///
 /// `CODE` is a `reqwest::StatusCode` constant name, or a raw status code
 /// like `440` when no dedicated constant exists.
 ///
 /// Unlisted statuses return `Ok(response)` and fall through to
-/// [`baseline_decode`].
+/// [`baseline_decode`]; the result is passed on by
+/// [`SignalServiceResponse::service_error_for_status_with`].
 macro_rules! error_mapper {
     // tt-muncher: accumulate `pattern => body` arms, then emit one match.
     (@munch $response:ident; [$($out:tt)*] ;) => {
@@ -130,30 +124,20 @@ macro_rules! error_mapper {
         $name:ident: $($arms:tt)*
     ) => {
         $( #[$m] )*
-        #[derive(Debug, Clone, Copy)]
-        pub(crate) struct $name;
-
-        impl $crate::push_service::response::ResponseErrors for $name {
-            fn decode_error<R>(
-                response: R,
-            ) -> impl std::future::Future<Output = Result<R, $crate::push_service::ServiceError>> + Send
-            where
-                R: $crate::push_service::response::SignalServiceResponse + Send,
-                $crate::push_service::ServiceError: From<<R as $crate::push_service::response::SignalServiceResponse>::Error>,
-            {
-                async move { error_mapper!(@munch response; [] ; $($arms)*) }
-            }
+        pub(crate) async fn $name<R>(
+            response: R,
+        ) -> Result<R, $crate::push_service::ServiceError>
+        where
+            R: $crate::push_service::response::SignalServiceResponse,
+            $crate::push_service::ServiceError:
+                From<<R as $crate::push_service::response::SignalServiceResponse>::Error>,
+        {
+            error_mapper!(@munch response; [] ; $($arms)*)
         }
     };
 }
 
 pub(crate) use error_mapper;
-
-// Signal-Server: generic/baseline decoder, no endpoint-specific errors
-error_mapper! {
-    /// Baseline-only decoder.
-    Baseline:
-}
 
 pub(crate) async fn device_limit_reached<R>(response: R) -> ServiceError
 where
@@ -174,18 +158,6 @@ where
     }
 }
 
-pub(crate) async fn service_error_for_status<R, E>(
-    response: R,
-) -> Result<R, ServiceError>
-where
-    R: SignalServiceResponse + Send,
-    E: ResponseErrors,
-    ServiceError: From<<R as SignalServiceResponse>::Error>,
-{
-    let response = E::decode_error(response).await?;
-    baseline_decode(response).await
-}
-
 #[async_trait::async_trait]
 pub(crate) trait SignalServiceResponse {
     type Error: std::error::Error;
@@ -201,27 +173,28 @@ pub(crate) trait SignalServiceResponse {
 
     /// Baseline error handling only (specialised codes fall through to
     /// [`UnhandledResponseCode`][ServiceError::UnhandledResponseCode]).
-    fn service_error_for_status(
-        self,
-    ) -> impl Future<Output = Result<Self, ServiceError>> + Send
+    async fn service_error_for_status(self) -> Result<Self, ServiceError>
     where
         Self: Sized + Send,
         ServiceError: From<<Self as SignalServiceResponse>::Error>,
     {
-        service_error_for_status::<Self, Baseline>(self)
+        baseline_decode(self).await
     }
 
-    /// Error handling specialised for the endpoint named by `E`; every code
-    /// `E` does not own falls through to the baseline.
-    fn service_error_for_status_as<E>(
+    /// Error handling specialised by a decode function over the response;
+    /// every code `decode` does not own falls through to the baseline.
+    /// Decoders are typically generated with [`error_mapper!`].
+    async fn service_error_for_status_with<F, Fut>(
         self,
-    ) -> impl Future<Output = Result<Self, ServiceError>> + Send
+        decode: F,
+    ) -> Result<Self, ServiceError>
     where
         Self: Sized + Send,
-        E: ResponseErrors,
         ServiceError: From<<Self as SignalServiceResponse>::Error>,
+        F: FnOnce(Self) -> Fut + Send,
+        Fut: Future<Output = Result<Self, ServiceError>> + Send,
     {
-        service_error_for_status::<Self, E>(self)
+        baseline_decode(decode(self).await?).await
     }
 }
 

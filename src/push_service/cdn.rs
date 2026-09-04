@@ -64,7 +64,7 @@ pub struct AttachmentDownload<R> {
 // Signal-Server: controllers/AttachmentControllerV4.java:102
 // (GET /v4/attachments/form/upload)
 error_mapper! {
-    GetAttachmentUploadForm:
+    get_attachment_upload_form_errors:
         // 413: attachment too large, AttachmentControllerV4.java:111
         PAYLOAD_TOO_LARGE => AttachmentTooLarge,
 }
@@ -144,7 +144,7 @@ impl PushService {
         )?
         .send()
         .await?
-        .service_error_for_status_as::<GetAttachmentUploadForm>()
+        .service_error_for_status_with(get_attachment_upload_form_errors)
         .await?
         .json()
         .await
