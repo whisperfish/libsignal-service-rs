@@ -52,6 +52,17 @@ impl WebSocketRequestMessageBuilder {
         Ok(self.header("content-type", "application/json").request)
     }
 
+    /// Attach a raw body (e.g. the Sealed Sender v2 multi-recipient MRM
+    /// payload) with an explicit `Content-Type` header.
+    pub fn body(
+        mut self,
+        content_type: &str,
+        body: Vec<u8>,
+    ) -> WebSocketRequestMessage {
+        self.request.body = Some(body);
+        self.header("content-type", content_type).request
+    }
+
     pub fn build(self) -> WebSocketRequestMessage {
         self.request
     }

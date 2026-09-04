@@ -3,15 +3,18 @@ use std::{collections::HashSet, time::SystemTime};
 use chrono::prelude::*;
 use libsignal_core::{curve::CurveError, InvalidDeviceId};
 use libsignal_protocol::{
-    process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
-    ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
-    SessionNotFound, SignalProtocolError,
+    create_sender_key_distribution_message, process_prekey_bundle,
+    sealed_sender_encrypt_from_usmc, sealed_sender_multi_recipient_encrypt,
+    Aci, CiphertextMessageType, ContentHint, DeviceId, IdentityKey,
+    IdentityKeyPair, Pni, ProtocolAddress, ProtocolStore, SenderCertificate,
+    SenderKeyStore, ServiceId, SessionNotFound, SessionRecord,
+    SignalProtocolError, UnidentifiedSenderMessageContent,
 };
 use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
 use tracing_futures::Instrument;
 use uuid::Uuid;
-use zkgroup::GROUP_IDENTIFIER_LEN;
+use zkgroup::{groups::GroupSendFullToken, GROUP_IDENTIFIER_LEN};
 
 use crate::{
     cipher::{get_preferred_protocol_address, ServiceCipher},
@@ -26,10 +29,13 @@ use crate::{
         AttachmentPointer, SyncMessage,
     },
     push_service::*,
+    sender_key_store_ext::SenderKeyStoreExt,
     service_address::ServiceIdExt,
     session_store::SessionStoreExt,
-    unidentified_access::UnidentifiedAccess,
-    utils::{serde_device_id, serde_service_id},
+    unidentified_access::{
+        CombinedUnidentifiedSenderAccessKeys, UnidentifiedAccess,
+    },
+    utils::{serde_device_id, serde_service_id, BASE64_RELAXED},
     websocket::{self, SignalWebSocket},
 };
 
@@ -68,6 +74,65 @@ pub struct SentMessage {
     pub used_identity_key: IdentityKey,
     pub unidentified: bool,
     pub needs_sync: bool,
+}
+
+/// Authorization for `PUT /v1/messages/multi_recipient`.
+///
+/// For non-story multi-recipient sends Signal requires **exactly one** of:
+/// - a combined unidentified-access key (the bitwise XOR of every
+///   recipient's 16-byte UAK), sent base64-encoded in the
+///   `Unidentified-Access-Key` header, or
+/// - a group-send endorsement full token, sent base64-encoded in the
+///   `Group-Send-Token` header.
+///
+/// Stories carry neither header; pass `None` for `access` in
+/// [`MultiRecipientMessagesRequest`] when `story` is `true`.
+#[derive(Clone)]
+pub enum MultiRecipientAccess {
+    /// Combined unidentified-access keys.
+    UnidentifiedAccessKey(CombinedUnidentifiedSenderAccessKeys),
+    /// A group-send endorsement token covering the recipients.
+    GroupSendToken(GroupSendFullToken),
+}
+
+impl MultiRecipientAccess {
+    /// `(header name, base64-encoded value)` for the access strategy.
+    pub(crate) fn header(&self) -> (&'static str, String) {
+        use base64::Engine;
+        match self {
+            MultiRecipientAccess::UnidentifiedAccessKey(keys) => {
+                ("Unidentified-Access-Key", BASE64_RELAXED.encode(keys.0))
+            },
+            MultiRecipientAccess::GroupSendToken(token) => (
+                "Group-Send-Token",
+                BASE64_RELAXED.encode(zkgroup::serialize(token)),
+            ),
+        }
+    }
+}
+
+/// Request to `PUT /v1/messages/multi_recipient`.
+///
+/// `payload` is the raw Sealed Sender v2 multi-recipient message produced by
+/// `libsignal_protocol::sealed_sender_multi_recipient_encrypt`.
+///
+/// `timestamp`/`online`/`urgent`/`story` mirror the server's query parameters.
+pub struct MultiRecipientMessagesRequest<'a> {
+    /// Sender's timestamp for the envelope.
+    pub timestamp: u64,
+    /// Deliver only to recipients that are online when the message is sent.
+    pub online: bool,
+    /// Whether the message should trigger push notifications.
+    pub urgent: bool,
+    /// Story message: access tokens are not checked and sending to
+    /// nonexistent recipients is permitted.
+    pub story: bool,
+    /// Raw Sealed Sender v2 multi-recipient payload
+    /// (`application/vnd.signal-messenger.mrm`).
+    pub payload: &'a [u8],
+    /// `None` for stories; otherwise [`MultiRecipientAccess::UnidentifiedAccessKey`]
+    /// xor [`MultiRecipientAccess::GroupSendToken`].
+    pub access: Option<MultiRecipientAccess>,
 }
 
 /// Attachment specification to be used for uploading.
@@ -157,12 +222,23 @@ pub enum ThreadIdentifier {
 #[derive(Debug)]
 pub struct EncryptedMessages {
     messages: Vec<OutgoingPushMessage>,
-    used_identity_key: IdentityKey,
+}
+
+/// Outcome of attempting to recover from a send error: retry the loop, or
+/// give up and propagate.
+enum SendRecovery {
+    Retry,
+    Terminal(MessageSenderError),
 }
 
 impl<S> MessageSender<S>
 where
-    S: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
+    S: ProtocolStore
+        + SenderKeyStore
+        + SenderKeyStoreExt
+        + SessionStoreExt
+        + Sync
+        + Clone,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -381,7 +457,7 @@ where
                     .try_send_message(
                         *recipient,
                         None,
-                        &sync_message,
+                        sync_message.into_proto(),
                         timestamp,
                         include_pni_signature,
                         online,
@@ -405,7 +481,7 @@ where
             .try_send_message(
                 *recipient,
                 unidentified_access,
-                &content_body,
+                content_body.clone().into_proto(),
                 timestamp,
                 include_pni_signature,
                 online,
@@ -435,7 +511,7 @@ where
                 self.try_send_message(
                     self.local_aci.into(),
                     None,
-                    &body,
+                    body.into_proto(),
                     timestamp,
                     false,
                     false,
@@ -447,81 +523,127 @@ where
         result
     }
 
-    /// Send a message to the recipients in a group.
+    /// Send a message to the recipients in a group using sender keys.
     ///
     /// Recipients are a list of tuples, each containing:
     /// - The recipient's address
     /// - The recipient's unidentified access
     /// - Whether the recipient requires a PNI signature
+    ///
+    /// `distribution_id` identifies the sender-key chain for this group. The
+    /// caller is responsible for rotation (generate a new UUID on member leave
+    /// or safety-number change).
     #[tracing::instrument(
         skip(self, recipients, message),
-        fields(recipients = recipients.as_ref().len()),
+        fields(recipients = recipients.as_ref().len(), dist_id = %distribution_id),
     )]
     pub async fn send_message_to_group(
         &mut self,
+        distribution_id: Uuid,
         recipients: impl AsRef<[(ServiceId, Option<UnidentifiedAccess>, bool)]>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         online: bool,
     ) -> Vec<SendMessageResult> {
         let content_body: ContentBody = message.into();
-        let mut results = vec![];
 
-        let mut needs_sync_in_results = false;
-
-        for (recipient, unidentified_access, include_pni_signature) in
-            recipients.as_ref()
+        // Share SKDMs with any devices that haven't received them yet.
+        // XXX Ideally, we *attach* the SKDM to the message-to-be-sent.
+        //     This is an ugly hack
+        if let Err(e) = self
+            .share_sender_key_if_needed(
+                distribution_id,
+                timestamp,
+                recipients.as_ref(),
+            )
+            .await
         {
-            let result = self
-                .try_send_message(
+            return vec![Err(e)];
+        }
+
+        // Encode the content once.
+        use prost::Message;
+        let content_bytes = content_body.clone().into_proto().encode_to_vec();
+
+        let sender_address = match self
+            .local_aci
+            .to_protocol_address(self.device_id)
+        {
+            Ok(addr) => addr,
+            Err(e) => return vec![Err(MessageSenderError::InvalidDeviceId(e))],
+        };
+        // Pad + group-encrypt once for the whole group, inside `cipher.rs` so
+        // the send-side padding invariant stays co-located with the receive
+        // path's `strip_padding` (`Type::UnidentifiedSender` arm). See D.4.
+        let mut rng = rng();
+        let skm_serialized = match crate::cipher::encrypt_sender_key_message(
+            &mut self.protocol_store,
+            &sender_address,
+            distribution_id,
+            &content_bytes,
+            &mut rng,
+        )
+        .await
+        {
+            Ok(bytes) => bytes,
+            Err(e) => return vec![Err(MessageSenderError::ServiceError(e))],
+        };
+
+        let recipients_ref = recipients.as_ref();
+        // Recipients with unidentified access go through the sealed-sender
+        // sender-key paths; the rest fall back to identified 1:1 sends.
+        let sealed: Vec<(ServiceId, &UnidentifiedAccess)> = recipients_ref
+            .iter()
+            .filter_map(|(r, ua, _)| ua.as_ref().map(|a| (*r, a)))
+            .collect();
+
+        let mut results: Vec<SendMessageResult> = match self
+            .send_sender_key_payload(
+                &sealed,
+                &skm_serialized,
+                timestamp,
+                online,
+            )
+            .await
+        {
+            Ok(results) => results,
+            Err(e) => return vec![Err(e)],
+        };
+
+        for (recipient, _, include_pni_signature) in
+            recipients_ref.iter().filter(|(_, ua, _)| ua.is_none())
+        {
+            // Identified 1:1 fallback, which also establishes missing sessions.
+            results.push(
+                self.try_send_message(
                     *recipient,
-                    unidentified_access.as_ref(),
-                    &content_body,
+                    None,
+                    content_body.clone().into_proto(),
                     timestamp,
                     *include_pni_signature,
                     online,
                 )
-                .await;
-
-            match result {
-                Ok(SentMessage { needs_sync, .. }) if needs_sync => {
-                    needs_sync_in_results = true;
-                },
-                _ => (),
-            };
-
-            results.push(result);
+                .await,
+            );
         }
 
         // we only need to send a synchronization message once
-        if needs_sync_in_results || self.is_multi_device().await {
-            if let Some(sync_message) = self
-                .create_multi_device_sent_transcript_content(
-                    None,
-                    content_body.clone(),
-                    timestamp,
-                    &results,
-                )
-            {
-                // Note: the result of sending a sync message is not included in results
-                // See Signal Android `SignalServiceMessageSender.java:2817`
-                if let Err(error) = self
-                    .try_send_message(
-                        self.local_aci.into(),
-                        None,
-                        &sync_message,
-                        timestamp,
-                        false, // XXX: maybe the sync device does want a PNI signature?
-                        false,
-                    )
-                    .await
-                {
-                    error!(%error, "failed to send a synchronization message");
-                }
-            } else {
-                error!("could not create sync message from a group message")
-            }
-        }
+        let needs_sync = results.iter().any(|r| {
+            matches!(
+                r,
+                Ok(SentMessage {
+                    needs_sync: true,
+                    ..
+                })
+            )
+        });
+        self.send_group_sent_transcript(
+            &content_body,
+            timestamp,
+            &results,
+            needs_sync,
+        )
+        .await;
 
         results
     }
@@ -572,7 +694,7 @@ where
         self.try_send_message(
             *recipient,
             unidentified_access,
-            &content_body,
+            content_body.into_proto(),
             Utc::now().timestamp_millis() as u64,
             false,
             false,
@@ -582,17 +704,649 @@ where
         Ok(())
     }
 
+    /// Sealed-sender half of [`send_message_to_group`]: send the group's
+    /// `SenderKeyMessage` (wrapped in one shared `usmc`) to the recipients
+    /// that have unidentified access, through a single multi-recipient
+    /// request when every recipient has sessions for all devices, and
+    /// per-recipient sealed sends otherwise.
+    async fn send_sender_key_payload(
+        &mut self,
+        recipients: &[(ServiceId, &UnidentifiedAccess)],
+        skm_serialized: &[u8],
+        timestamp: u64,
+        online: bool,
+    ) -> Result<Vec<SendMessageResult>, MessageSenderError> {
+        if recipients.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // The USMC depends only on the SKM and our certificate, not on the
+        // recipient; build it once and share it across both send paths below.
+        let usmc = Self::build_group_usmc(
+            &recipients[0].1.certificate,
+            skm_serialized,
+        )?;
+
+        let mut results = vec![];
+
+        // Recipients with a session for every enumerated device go through
+        // the single multi-recipient request; the rest fall back to
+        // per-recipient sends (which also establish missing sessions). A
+        // store error during the check degrades to the fallback, where it
+        // surfaces as a proper per-recipient error.
+        let mut mrm_recipients: Vec<(ServiceId, &UnidentifiedAccess)> = vec![];
+        let mut skr_recipients: Vec<(ServiceId, &UnidentifiedAccess)> = vec![];
+        for (recipient, unidentified_access) in recipients {
+            let all_sessions = self
+                .collect_recipient_sessions(*recipient)
+                .await
+                .is_ok_and(|s| s.is_some());
+            if all_sessions {
+                mrm_recipients.push((*recipient, unidentified_access));
+            } else {
+                skr_recipients.push((*recipient, unidentified_access));
+            }
+        }
+
+        if !mrm_recipients.is_empty() {
+            match self
+                .send_message_to_group_multi_recipient(
+                    &mrm_recipients,
+                    &usmc,
+                    timestamp,
+                    online,
+                )
+                .await
+            {
+                Ok(mrm_results) => results.extend(mrm_results),
+                Err(e) => {
+                    tracing::warn!(
+                        %e,
+                        "multi-recipient send failed; falling back to 1:1"
+                    );
+                    skr_recipients.append(&mut mrm_recipients);
+                },
+            }
+        }
+
+        for (recipient, unidentified_access) in skr_recipients {
+            results.push(
+                self.send_sender_key_to_recipient(
+                    recipient,
+                    unidentified_access,
+                    &usmc,
+                    timestamp,
+                    online,
+                )
+                .await,
+            );
+        }
+
+        Ok(results)
+    }
+
+    /// Send the multi-device `Sent` transcript for a group send: when the
+    /// server requested a sync or we are multi-device, mirror the results as
+    /// a `Sent` `SyncMessage` to our own devices. Transcript-send failures
+    /// are logged, not propagated: the group message itself was delivered.
+    async fn send_group_sent_transcript(
+        &mut self,
+        content_body: &ContentBody,
+        timestamp: u64,
+        results: &[SendMessageResult],
+        needs_sync: bool,
+    ) {
+        if !(needs_sync || self.is_multi_device().await) {
+            return;
+        }
+
+        let Some(sync_message) = self
+            .create_multi_device_sent_transcript_content(
+                None,
+                content_body.clone(),
+                timestamp,
+                results,
+            )
+        else {
+            error!("could not create sync message from a group message");
+            return;
+        };
+        // Note: the result of sending a sync message is not included in results
+        // See Signal Android `SignalServiceMessageSender.java:2817`
+        if let Err(error) = self
+            .try_send_message(
+                self.local_aci.into(),
+                None,
+                sync_message.into_proto(),
+                timestamp,
+                false, // XXX: maybe the sync device does want a PNI signature?
+                false,
+            )
+            .await
+        {
+            error!(%error, "failed to send a synchronization message");
+        }
+    }
+
+    /// Repair sessions with a recipient's devices after a server-reported
+    /// device mismatch (`MismatchedDevicesException`/`StaleDevices`): drop
+    /// sessions for devices the server does not expect (`extra_devices`)
+    /// and establish sessions with devices we did not know about
+    /// (`missing_devices`), so the caller can rebuild and retry the send.
+    async fn repair_recipient_sessions(
+        &mut self,
+        recipient: ServiceId,
+        extra_devices: &[DeviceId],
+        missing_devices: &[DeviceId],
+    ) -> Result<(), MessageSenderError> {
+        for device_id in extra_devices {
+            tracing::debug!("dropping session with device {}", device_id);
+            self.protocol_store
+                .delete_service_addr_device_session(
+                    &recipient.to_protocol_address(*device_id)?,
+                )
+                .await?;
+        }
+
+        let mut rng = rng();
+
+        for device_id in missing_devices {
+            tracing::debug!(
+                "creating session with missing device {}",
+                device_id
+            );
+            let remote_address = recipient.to_protocol_address(*device_id)?;
+            let pre_key = self
+                .identified_ws
+                .get_pre_key(&recipient, *device_id)
+                .await?;
+
+            process_prekey_bundle(
+                &remote_address,
+                &self
+                    .local_aci
+                    .to_protocol_address(self.device_id)
+                    .expect("valid device id"),
+                &mut self.protocol_store.clone(),
+                &mut self.protocol_store,
+                &pre_key,
+                SystemTime::now(),
+                &mut rng,
+            )
+            .await
+            .map_err(|e| {
+                error!(%e, ?recipient, "failed to create session");
+                MessageSenderError::UntrustedIdentity { address: recipient }
+            })?;
+        }
+
+        Ok(())
+    }
+
+    /// Handle the `Err` arm of a websocket send, shared by the sender-key and
+    /// 1:1 send retry loops. Performs session bookkeeping for
+    /// `MismatchedDevicesException`/`StaleDevices` so the caller can rebuild and
+    /// retry; all other errors are terminal.
+    async fn recover_from_send_error(
+        &mut self,
+        recipient: ServiceId,
+        err: ServiceError,
+    ) -> Result<SendRecovery, MessageSenderError> {
+        match err {
+            ServiceError::MismatchedDevicesException(ref m) => {
+                tracing::debug!("{:?}", m);
+                self.repair_recipient_sessions(
+                    recipient,
+                    &m.extra_devices,
+                    &m.missing_devices,
+                )
+                .await?;
+                Ok(SendRecovery::Retry)
+            },
+            ServiceError::StaleDevices(ref m) => {
+                tracing::debug!("{:?}", m);
+                self.repair_recipient_sessions(
+                    recipient,
+                    &m.stale_devices,
+                    &[],
+                )
+                .await?;
+                Ok(SendRecovery::Retry)
+            },
+            ServiceError::ProofRequiredError(ref p) => {
+                tracing::debug!("{:?}", p);
+                Ok(SendRecovery::Terminal(MessageSenderError::ProofRequired {
+                    token: p.token.clone(),
+                    options: p.options.clone(),
+                }))
+            },
+            ServiceError::NotFoundError => {
+                tracing::debug!("Not found when sending a message");
+                Ok(SendRecovery::Terminal(MessageSenderError::NotFound {
+                    service_id: recipient,
+                }))
+            },
+            e => {
+                tracing::debug!(
+                    "Default error handler for ws.send_messages: {}",
+                    e
+                );
+                Ok(SendRecovery::Terminal(MessageSenderError::ServiceError(e)))
+            },
+        }
+    }
+
+    /// Multi-recipient counterpart of [`recover_from_send_error`] for
+    /// `PUT /v1/messages/multi_recipient`, whose `409`/`410` carry per-account
+    /// device lists ([`MultiRecipientMismatchedDevices`] /
+    /// [`MultiRecipientStaleDevices`]).
+    ///
+    /// Deletes extra/stale sessions and establishes sessions for missing
+    /// devices across all reported accounts, so the caller can re-gather
+    /// sessions and retry the whole encrypt+send. Other errors are terminal;
+    /// per-recipient 404s arrive in the 200 body (`uuids404`), not here.
+    async fn recover_from_multi_recipient_send_error(
+        &mut self,
+        err: ServiceError,
+    ) -> Result<SendRecovery, MessageSenderError> {
+        match err {
+            ServiceError::MultiRecipientMismatchedDevices(accounts) => {
+                for account in &accounts {
+                    tracing::debug!(
+                        ?account.uuid,
+                        extra = ?account.devices.extra_devices,
+                        missing = ?account.devices.missing_devices,
+                        "multi-recipient mismatched devices",
+                    );
+                    self.repair_recipient_sessions(
+                        account.uuid,
+                        &account.devices.extra_devices,
+                        &account.devices.missing_devices,
+                    )
+                    .await?;
+                }
+                Ok(SendRecovery::Retry)
+            },
+            ServiceError::MultiRecipientStaleDevices(accounts) => {
+                for account in &accounts {
+                    tracing::debug!(
+                        ?account.uuid,
+                        stale = ?account.devices.stale_devices,
+                        "multi-recipient stale devices",
+                    );
+                    self.repair_recipient_sessions(
+                        account.uuid,
+                        &account.devices.stale_devices,
+                        &[],
+                    )
+                    .await?;
+                }
+                Ok(SendRecovery::Retry)
+            },
+            ServiceError::ProofRequiredError(ref p) => {
+                tracing::debug!("multi-recipient proof required: {:?}", p);
+                Ok(SendRecovery::Terminal(MessageSenderError::ProofRequired {
+                    token: p.token.clone(),
+                    options: p.options.clone(),
+                }))
+            },
+            e => {
+                tracing::debug!(
+                    "Default error handler for multi-recipient send: {}",
+                    e
+                );
+                Ok(SendRecovery::Terminal(MessageSenderError::ServiceError(e)))
+            },
+        }
+    }
+
+    /// Dispatch a built `OutgoingPushMessages` to the websocket, via the
+    /// unidentified channel when `unidentified_access` is supplied, else the
+    /// identified channel.
+    async fn dispatch_outgoing(
+        &mut self,
+        messages: OutgoingPushMessages,
+        unidentified_access: Option<&UnidentifiedAccess>,
+    ) -> Result<SendMessageResponse, ServiceError> {
+        if let Some(unidentified) = unidentified_access {
+            tracing::debug!("sending via unidentified");
+            self.unidentified_ws
+                .send_messages_unidentified(messages, unidentified)
+                .await
+        } else {
+            tracing::debug!("sending identified");
+            self.identified_ws.send_messages(messages).await
+        }
+    }
+
+    /// Build the `SentMessage` result after a successful dispatch, looking up
+    /// the recipient's identity key on the default device.
+    async fn build_sent_message(
+        &mut self,
+        recipient: ServiceId,
+        unidentified: bool,
+        needs_sync: bool,
+    ) -> Result<SentMessage, MessageSenderError> {
+        let used_identity_key = self
+            .protocol_store
+            .get_identity(&recipient.to_protocol_address(*DEFAULT_DEVICE_ID)?)
+            .await?
+            .ok_or(MessageSenderError::UntrustedIdentity {
+                address: recipient,
+            })?;
+        Ok(SentMessage {
+            recipient,
+            used_identity_key,
+            unidentified,
+            needs_sync,
+        })
+    }
+
+    /// Send the sender-key payload (pre-wrapped in `usmc`) to a single
+    /// recipient, sealed-sender encrypted per device, with the full retry
+    /// loop.
+    async fn send_sender_key_to_recipient(
+        &mut self,
+        recipient: ServiceId,
+        unidentified_access: &UnidentifiedAccess,
+        usmc: &UnidentifiedSenderMessageContent,
+        timestamp: u64,
+        online: bool,
+    ) -> SendMessageResult {
+        use base64::Engine;
+
+        self.send_with_retries(
+            recipient,
+            Some(unidentified_access),
+            timestamp,
+            online,
+            // Sender-key payloads ride the unidentified (sealed-sender)
+            // channel only; there is no identified fallback for them.
+            false,
+            async |sender, _certificate| {
+                let devices = sender
+                    .enumerate_recipient_devices(&recipient)
+                    .await?;
+
+                let mut recipient_messages = vec![];
+                for &device_id in &devices {
+                    let dest_address =
+                        match recipient.to_protocol_address(device_id) {
+                            Ok(addr) => addr,
+                            Err(_) => continue,
+                        };
+
+                    let session_record = sender
+                        .protocol_store
+                        .load_session(&dest_address)
+                        .await?;
+                    let session_record = match session_record {
+                        Some(s) => s,
+                        None => {
+                            tracing::debug!(
+                                "no session for {dest_address}; skipping sender-key send"
+                            );
+                            continue;
+                        },
+                    };
+
+                    let registration_id =
+                        match session_record.remote_registration_id() {
+                            Ok(id) => id,
+                            Err(e) => {
+                                tracing::debug!(%e, "failed to get registration id for {dest_address}");
+                                continue;
+                            },
+                        };
+
+                    let mut rng = rng();
+                    let sealed_bytes =
+                        match sealed_sender_encrypt_from_usmc(
+                            &dest_address,
+                            usmc,
+                            &sender.protocol_store,
+                            &mut rng,
+                        )
+                        .await
+                        {
+                            Ok(b) => b,
+                            Err(e) => {
+                                tracing::debug!(%e, "failed to sealed-sender-encrypt for {dest_address}");
+                                continue;
+                            },
+                        };
+
+                    use crate::proto::envelope::Type;
+                    recipient_messages.push(OutgoingPushMessage {
+                        r#type: Type::UnidentifiedSender as u32,
+                        destination_device_id: device_id,
+                        destination_registration_id: registration_id,
+                        content: BASE64_RELAXED.encode(sealed_bytes),
+                    });
+                }
+
+                if recipient_messages.is_empty() {
+                    return Err(MessageSenderError::NoMessagesToSend);
+                }
+                Ok(recipient_messages)
+            },
+        )
+        .await
+    }
+
+    /// Send the messages built by `make_messages` to a single recipient,
+    /// retrying up to 4 times on recoverable errors (`recover_from_send_error`
+    /// repairs server-reported device discrepancies and retries).
+    /// `make_messages` runs on every attempt because recovery may change the
+    /// session set.
+    ///
+    /// When `allow_unidentified_downgrade` is set and the send fails with
+    /// `Unauthorized`, the send is retried over the identified channel; the
+    /// builder's certificate argument then reads `None`.
+    async fn send_with_retries(
+        &mut self,
+        recipient: ServiceId,
+        mut unidentified_access: Option<&UnidentifiedAccess>,
+        timestamp: u64,
+        online: bool,
+        allow_unidentified_downgrade: bool,
+        mut make_messages: impl AsyncFnMut(
+            &mut Self,
+            Option<&SenderCertificate>,
+        ) -> Result<
+            Vec<OutgoingPushMessage>,
+            MessageSenderError,
+        >,
+    ) -> SendMessageResult {
+        for _ in 0..4u8 {
+            let messages = make_messages(
+                self,
+                unidentified_access.map(|x| &x.certificate),
+            )
+            .await?;
+            let messages = OutgoingPushMessages {
+                destination: recipient,
+                timestamp,
+                messages,
+                online,
+            };
+
+            match self.dispatch_outgoing(messages, unidentified_access).await {
+                Ok(SendMessageResponse { needs_sync }) => {
+                    tracing::debug!("message sent!");
+                    return self
+                        .build_sent_message(
+                            recipient,
+                            unidentified_access.is_some(),
+                            needs_sync,
+                        )
+                        .await;
+                },
+                Err(ServiceError::Unauthorized)
+                    if allow_unidentified_downgrade
+                        && unidentified_access.is_some() =>
+                {
+                    tracing::trace!("unauthorized error using unidentified; retry over identified");
+                    unidentified_access = None;
+                },
+                Err(e) => {
+                    match self.recover_from_send_error(recipient, e).await? {
+                        SendRecovery::Retry => {},
+                        SendRecovery::Terminal(err) => return Err(err),
+                    }
+                },
+            }
+        }
+
+        Err(MessageSenderError::MaximumRetriesLimitExceeded)
+    }
+
+    /// Wrap a serialized `SenderKeyMessage` in a `Resendable`-hinted
+    /// `UnidentifiedSenderMessageContent` signed by `certificate`.
+    ///
+    /// The USMC depends only on the SKM and the sender certificate, so one is
+    /// shared across all recipients of a send.
+    fn build_group_usmc(
+        certificate: &SenderCertificate,
+        skm_serialized: &[u8],
+    ) -> Result<UnidentifiedSenderMessageContent, MessageSenderError> {
+        UnidentifiedSenderMessageContent::new(
+            CiphertextMessageType::SenderKey,
+            certificate.clone(),
+            skm_serialized.to_vec(),
+            ContentHint::Resendable,
+            None,
+        )
+        .map_err(MessageSenderError::ProtocolError)
+    }
+
+    /// Deliver the sender-key payload to `recipients` via a single
+    /// `PUT /v1/messages/multi_recipient` request.
+    ///
+    /// All recipients must have supplied [`UnidentifiedAccess`] and have
+    /// sessions for every enumerated device; recipients without a UAK or with
+    /// missing sessions are routed to the 1:1 fallback by the caller.
+    ///
+    /// Returns `Err` for failures that abort the whole batch (session load,
+    /// encryption, terminal send error); the caller falls those
+    /// recipients back to the 1:1 path. On success each recipient maps to an
+    /// [`SentMessage`], with unregistered recipients (the 200 body's
+    /// `uuids404`) surfaced as [`MessageSenderError::NotFound`].
+    ///
+    /// On `409`/`410` the server reports per-account device deltas, handled by
+    /// [`recover_from_multi_recipient_send_error`]; the whole encrypt+send is
+    /// retried (matching the per-recipient loops' 4 attempts).
+    async fn send_message_to_group_multi_recipient(
+        &mut self,
+        recipients: &[(ServiceId, &UnidentifiedAccess)],
+        usmc: &UnidentifiedSenderMessageContent,
+        timestamp: u64,
+        online: bool,
+    ) -> Result<Vec<SendMessageResult>, MessageSenderError> {
+        for _ in 0..4u8 {
+            // Gather (address, session) for every enumerated device of every
+            // recipient. `enumerate_recipient_devices` excludes the local
+            // device; `sealed_sender_multi_recipient_encrypt` requires a
+            // session for each destination, so a missing session aborts the
+            // multi-recipient path for the whole call (caller falls back to
+            // 1:1 for the affected recipients).
+            let mut dests: Vec<(ProtocolAddress, SessionRecord)> = vec![];
+            for (recipient, _) in recipients {
+                match self.collect_recipient_sessions(*recipient).await? {
+                    Some(sessions) => dests.extend(sessions),
+                    None => {
+                        tracing::debug!(
+                            ?recipient,
+                            "no sessions for all devices; deferring to 1:1 fallback"
+                        );
+                        return Err(MessageSenderError::NoMessagesToSend);
+                    },
+                }
+            }
+
+            let (dest_addresses, dest_sessions): (Vec<_>, Vec<_>) =
+                dests.into_iter().unzip();
+
+            let dest_refs: Vec<&ProtocolAddress> =
+                dest_addresses.iter().collect();
+            let session_refs: Vec<&SessionRecord> =
+                dest_sessions.iter().collect();
+
+            let mut rng = rng();
+            let payload = sealed_sender_multi_recipient_encrypt(
+                &dest_refs,
+                &session_refs,
+                std::iter::empty::<ServiceId>(),
+                usmc,
+                &self.protocol_store,
+                &mut rng,
+            )
+            .await?;
+
+            let keys: Vec<&Vec<u8>> =
+                recipients.iter().map(|(_, a)| &a.key).collect();
+            let combined =
+                CombinedUnidentifiedSenderAccessKeys::from_access_keys(keys);
+            let request = MultiRecipientMessagesRequest {
+                timestamp,
+                online,
+                urgent: true,
+                story: false,
+                payload: &payload,
+                access: Some(MultiRecipientAccess::UnidentifiedAccessKey(
+                    combined,
+                )),
+            };
+
+            match self
+                .unidentified_ws
+                .send_multi_recipient_messages(request)
+                .await
+            {
+                Ok(response) => {
+                    let not_found: HashSet<ServiceId> =
+                        response.uuids404.into_iter().collect();
+                    let mut results = Vec::with_capacity(recipients.len());
+                    for (recipient, _) in recipients {
+                        if not_found.contains(recipient) {
+                            results.push(Err(MessageSenderError::NotFound {
+                                service_id: *recipient,
+                            }));
+                            continue;
+                        }
+                        let used_identity_key = self
+                            .build_sent_message(*recipient, true, false)
+                            .await?;
+                        results.push(Ok(used_identity_key));
+                    }
+                    return Ok(results);
+                },
+                Err(e) => {
+                    match self
+                        .recover_from_multi_recipient_send_error(e)
+                        .await?
+                    {
+                        SendRecovery::Retry => {},
+                        SendRecovery::Terminal(err) => return Err(err),
+                    }
+                },
+            }
+        }
+
+        Err(MessageSenderError::MaximumRetriesLimitExceeded)
+    }
+
     /// Send a message (`content`) to an address (`recipient`).
     #[tracing::instrument(
         level = "trace",
-        skip(self, unidentified_access, content_body, recipient),
+        skip(self, unidentified_access, content, recipient),
         fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
     )]
     async fn try_send_message(
         &mut self,
         recipient: ServiceId,
-        mut unidentified_access: Option<&UnidentifiedAccess>,
-        content_body: &ContentBody,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        mut content: crate::proto::Content,
         timestamp: u64,
         include_pni_signature: bool,
         online: bool,
@@ -601,153 +1355,36 @@ where
 
         use prost::Message;
 
-        let mut content = content_body.clone().into_proto();
         if include_pni_signature {
             content.pni_signature_message = Some(self.create_pni_signature()?);
         }
 
         let content_bytes = content.encode_to_vec();
 
-        let mut rng = rng();
-
-        for _ in 0..4u8 {
-            let Some(EncryptedMessages {
-                messages,
-                used_identity_key,
-            }) = self
-                .create_encrypted_messages(
-                    &recipient,
-                    unidentified_access.map(|x| &x.certificate),
-                    &content_bytes,
-                )
-                .await?
-            else {
-                // this can happen for example when a device is primary, without any secondaries
-                // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
-                // addressed to self
-                return Err(MessageSenderError::NoMessagesToSend);
-            };
-
-            let messages = OutgoingPushMessages {
-                destination: recipient,
-                timestamp,
-                messages,
-                online,
-            };
-
-            let send = if let Some(unidentified) = &unidentified_access {
-                tracing::debug!("sending via unidentified");
-                self.unidentified_ws
-                    .send_messages_unidentified(messages, unidentified)
-                    .await
-            } else {
-                tracing::debug!("sending identified");
-                self.identified_ws.send_messages(messages).await
-            };
-
-            match send {
-                Ok(SendMessageResponse { needs_sync }) => {
-                    tracing::debug!("message sent!");
-                    return Ok(SentMessage {
-                        recipient,
-                        used_identity_key,
-                        unidentified: unidentified_access.is_some(),
-                        needs_sync,
-                    });
-                },
-                Err(ServiceError::Unauthorized)
-                    if unidentified_access.is_some() =>
-                {
-                    tracing::trace!("unauthorized error using unidentified; retry over identified");
-                    unidentified_access = None;
-                },
-                Err(ServiceError::MismatchedDevicesException(ref m)) => {
-                    tracing::debug!("{:?}", m);
-                    for extra_device_id in &m.extra_devices {
-                        tracing::debug!(
-                            "dropping session with device {}",
-                            extra_device_id
-                        );
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id)?,
-                            )
-                            .await?;
-                    }
-
-                    for missing_device_id in &m.missing_devices {
-                        tracing::debug!(
-                            "creating session with missing device {}",
-                            missing_device_id
-                        );
-                        let remote_address = recipient
-                            .to_protocol_address(*missing_device_id)?;
-                        let pre_key = self
-                            .identified_ws
-                            .get_pre_key(&recipient, *missing_device_id)
-                            .await?;
-
-                        process_prekey_bundle(
-                            &remote_address,
-                            &self
-                                .local_aci
-                                .to_protocol_address(self.device_id)
-                                .expect("valid device id"),
-                            &mut self.protocol_store.clone(),
-                            &mut self.protocol_store,
-                            &pre_key,
-                            SystemTime::now(),
-                            &mut rng,
-                        )
-                        .await
-                        .map_err(|e| {
-                            error!("failed to create session: {}", e);
-                            MessageSenderError::UntrustedIdentity {
-                                address: recipient,
-                            }
-                        })?;
-                    }
-                },
-                Err(ServiceError::StaleDevices(ref m)) => {
-                    tracing::debug!("{:?}", m);
-                    for extra_device_id in &m.stale_devices {
-                        tracing::debug!(
-                            "dropping session with device {}",
-                            extra_device_id
-                        );
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id)?,
-                            )
-                            .await?;
-                    }
-                },
-                Err(ServiceError::ProofRequiredError(ref p)) => {
-                    tracing::debug!("{:?}", p);
-                    return Err(MessageSenderError::ProofRequired {
-                        token: p.token.clone(),
-                        options: p.options.clone(),
-                    });
-                },
-                Err(ServiceError::UnregisteredRecipient) => {
-                    tracing::debug!(?recipient, "recipient is not registered");
-                    return Err(MessageSenderError::NotFound {
-                        service_id: recipient,
-                    });
-                },
-                Err(e) => {
-                    tracing::debug!(
-                        "Default error handler for ws.send_messages: {}",
-                        e
-                    );
-                    return Err(MessageSenderError::ServiceError(e));
-                },
-            }
-        }
-
-        Err(MessageSenderError::MaximumRetriesLimitExceeded)
+        self.send_with_retries(
+            recipient,
+            unidentified_access,
+            timestamp,
+            online,
+            true,
+            async |sender, certificate| {
+                let Some(EncryptedMessages { messages, .. }) = sender
+                    .create_encrypted_messages(
+                        &recipient,
+                        certificate,
+                        &content_bytes,
+                    )
+                    .await?
+                else {
+                    // this can happen for example when a device is primary, without any secondaries
+                    // and we send a message to ourselves (which is only a SyncMessage { sent: ... })
+                    // addressed to self
+                    return Err(MessageSenderError::NoMessagesToSend);
+                };
+                Ok(messages)
+            },
+        )
+        .await
     }
 
     /// Upload contact details to the CDN and send a sync message
@@ -845,7 +1482,7 @@ where
         sync: impl Into<SyncMessage>,
     ) -> Result<(), MessageSenderError> {
         if self.is_multi_device().await {
-            let content = sync.into().into();
+            let content: ContentBody = sync.into().into();
             let timestamp = Utc::now().timestamp_millis() as u64;
             debug!(
                 "sending multi-device sync message with content {content:?}"
@@ -853,7 +1490,7 @@ where
             self.try_send_message(
                 self.local_aci.into(),
                 None,
-                &content,
+                content.into_proto(),
                 timestamp,
                 false,
                 false,
@@ -905,20 +1542,15 @@ where
         })
     }
 
-    // Equivalent with `getEncryptedMessages`
-    #[tracing::instrument(
-        level = "trace",
-        skip(self, unidentified_access, content),
-        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
-    )]
-    async fn create_encrypted_messages(
-        &mut self,
+    /// Enumerate all known devices for a recipient, always including the primary
+    /// device, never including the local sender device.
+    ///
+    /// Mirrors Java's group-send device enumeration: the local device is excluded
+    /// because we never need to send to ourselves.
+    async fn enumerate_recipient_devices(
+        &self,
         recipient: &ServiceId,
-        unidentified_access: Option<&SenderCertificate>,
-        content: &[u8],
-    ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
-        let mut messages = vec![];
-
+    ) -> Result<HashSet<DeviceId>, MessageSenderError> {
         let mut devices: HashSet<DeviceId> = self
             .protocol_store
             .get_sub_device_sessions(recipient)
@@ -942,6 +1574,139 @@ where
                 }
             },
         };
+
+        Ok(devices)
+    }
+
+    /// Load the sessions of every enumerated device of `recipient`, or
+    /// `None` if any device lacks one.
+    ///
+    /// Used to decide multi-recipient eligibility: a recipient without a
+    /// complete session set is routed to the 1:1 path, which establishes
+    /// the missing sessions.
+    async fn collect_recipient_sessions(
+        &self,
+        recipient: ServiceId,
+    ) -> Result<Option<Vec<(ProtocolAddress, SessionRecord)>>, MessageSenderError>
+    {
+        let devices = self.enumerate_recipient_devices(&recipient).await?;
+        let mut sessions = Vec::with_capacity(devices.len());
+        for device_id in devices {
+            let addr = recipient.to_protocol_address(device_id)?;
+            let Some(session) = self.protocol_store.load_session(&addr).await?
+            else {
+                return Ok(None);
+            };
+            sessions.push((addr, session));
+        }
+        Ok(Some(sessions))
+    }
+
+    /// For every recipient device that does not yet have our SKDM for
+    /// `distribution_id`, build it (idempotent: libsignal creates the chain on
+    /// first call) and send it as a wire-only `proto::Content` with the SKDM
+    /// attached. Mark each device shared on success.
+    #[tracing::instrument(skip(self, recipients), fields(recipients = recipients.as_ref().len(), dist_id = %distribution_id))]
+    async fn share_sender_key_if_needed(
+        &mut self,
+        distribution_id: Uuid,
+        timestamp: u64,
+        recipients: &[(ServiceId, Option<UnidentifiedAccess>, bool)],
+    ) -> Result<(), MessageSenderError> {
+        let sender_address =
+            self.local_aci.to_protocol_address(self.device_id)?;
+
+        // PNI signatures are an individual-send concern (matches Signal-Android's
+        // IndividualSendJob); the SKDM is sender-key infrastructure, so we don't
+        // attach one here even when the recipient needs one.
+        for (recipient, unidentified_access, _include_pni_signature) in
+            recipients
+        {
+            // `try_send_message` fans out to *every* device of the recipient
+            // (and creates sessions for any the server knows about but we
+            // don't). So we send at most ONE SKDM per recipient, not one per
+            // device — otherwise a D-device recipient gets the SKDM D times.
+            let devices = self.enumerate_recipient_devices(recipient).await?;
+            let mut needs_share = false;
+            for &device_id in &devices {
+                let recipient_address =
+                    match (*recipient).to_protocol_address(device_id) {
+                        Ok(a) => a,
+                        Err(_) => {
+                            needs_share = true;
+                            break;
+                        },
+                    };
+                if !self
+                    .protocol_store
+                    .is_sender_key_shared(distribution_id, &recipient_address)
+                    .await?
+                {
+                    needs_share = true;
+                }
+            }
+            if !needs_share {
+                continue;
+            }
+
+            let mut rng = rng();
+            let skdm = create_sender_key_distribution_message(
+                &sender_address,
+                distribution_id,
+                &mut self.protocol_store,
+                &mut rng,
+            )
+            .await?;
+
+            let content = crate::proto::Content {
+                content: None,
+                sender_key_distribution_message: Some(skdm.as_ref().to_vec()),
+                pni_signature_message: None,
+            };
+            let _result = self
+                .try_send_message(
+                    *recipient,
+                    unidentified_access.as_ref(),
+                    content,
+                    timestamp,
+                    false,
+                    false,
+                )
+                .await?;
+            // `try_send_message` may have established sessions with
+            // devices we didn't know about; re-enumerate so we mark
+            // the *complete* device set shared.
+            let devices_after =
+                self.enumerate_recipient_devices(recipient).await?;
+            for &device_id in &devices_after {
+                let recipient_address =
+                    (*recipient).to_protocol_address(device_id)?;
+                self.protocol_store
+                    .mark_sender_key_shared(distribution_id, &recipient_address)
+                    .await?;
+            }
+        }
+
+        // No SKDM sync transcript.
+
+        Ok(())
+    }
+
+    // Equivalent with `getEncryptedMessages`
+    #[tracing::instrument(
+        level = "trace",
+        skip(self, unidentified_access, content),
+        fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
+    )]
+    async fn create_encrypted_messages(
+        &mut self,
+        recipient: &ServiceId,
+        unidentified_access: Option<&SenderCertificate>,
+        content: &[u8],
+    ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
+        let mut messages = vec![];
+
+        let devices = self.enumerate_recipient_devices(recipient).await?;
 
         for device_id in devices {
             trace!("sending message to device {}", device_id);
@@ -998,18 +1763,7 @@ where
         if messages.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(EncryptedMessages {
-                messages,
-                used_identity_key: self
-                    .protocol_store
-                    .get_identity(
-                        &recipient.to_protocol_address(*DEFAULT_DEVICE_ID),
-                    )
-                    .await?
-                    .ok_or(MessageSenderError::UntrustedIdentity {
-                        address: *recipient,
-                    })?,
-            }))
+            Ok(Some(EncryptedMessages { messages }))
         }
     }
 
@@ -1172,5 +1926,50 @@ where
             })),
             ..SyncMessage::with_padding(&mut rng())
         }))
+    }
+
+    /// Handle an inbound `DecryptionErrorMessage` for sender-key recovery.
+    ///
+    /// When `ratchet_key` is `None`, the failure was a `SenderKeyMessage`
+    /// decryption (a `DecryptionErrorMessage` built from a `SenderKeyMessage`
+    /// carries no ratchet key). In that case we clear all shared sender-key
+    /// state for `sender`, so the next group send re-distributes the SKDM
+    /// and re-sends the payload to them.
+    ///
+    /// When `ratchet_key` is `Some`, the failure was a 1:1 `Whisper`/`PreKey`
+    /// message; that's session-recovery territory, not sender keys, and this
+    /// method is a no-op for it.
+    ///
+    /// This does NOT reset the 1:1 session.
+    ///
+    /// `error` is the *proto* `DecryptionErrorMessage` (as received on the wire
+    /// and surfaced via `ContentBody::DecryptionErrorMessage`); we re-derive
+    /// the `libsignal_protocol` type to inspect `ratchet_key`.
+    #[tracing::instrument(skip(self))]
+    pub async fn handle_decryption_error_message(
+        &mut self,
+        error: &crate::proto::DecryptionErrorMessage,
+        sender: &ProtocolAddress,
+    ) -> Result<(), MessageSenderError> {
+        use prost::Message as _;
+        let bytes = error.encode_to_vec();
+        let crypto_error =
+            libsignal_protocol::DecryptionErrorMessage::try_from(&bytes[..])
+                .map_err(MessageSenderError::ProtocolError)?;
+        if crypto_error.ratchet_key().is_some() {
+            tracing::trace!(
+                ?sender,
+                "DecryptionErrorMessage has a ratchet key; 1:1 session recovery, not sender keys"
+            );
+            return Ok(());
+        }
+        tracing::info!(
+            ?sender,
+            "SenderKey DecryptionErrorMessage from; clearing shared state so next send re-shares"
+        );
+        self.protocol_store
+            .clear_sender_key_shared_for_address(sender)
+            .await?;
+        Ok(())
     }
 }

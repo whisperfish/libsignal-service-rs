@@ -33,6 +33,7 @@ use crate::push_service::{
     AvatarWrite, HttpAuthOverride, SignalServiceResponse, DEFAULT_DEVICE_ID,
 };
 use crate::sender::OutgoingPushMessage;
+use crate::sender_key_store_ext::SenderKeyStoreExt;
 use crate::service_address::ServiceIdExt;
 use crate::session_store::SessionStoreExt;
 use crate::timestamp::TimestampExt as _;
@@ -693,7 +694,12 @@ impl AccountManager {
         R: Rng + CryptoRng,
         AciStore: PreKeysStore + SessionStoreExt,
         PniStore: PreKeysStore,
-        AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
+        AciOrPni: ProtocolStore
+            + SenderKeyStore
+            + SenderKeyStoreExt
+            + SessionStoreExt
+            + Sync
+            + Clone,
     >(
         &mut self,
         aci_protocol_store: &mut AciStore,

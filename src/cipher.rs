@@ -4,14 +4,14 @@ use aes::cipher::block_padding::{Iso7816, Padding};
 use base64::prelude::*;
 use libsignal_core::ServiceIdKind;
 use libsignal_protocol::{
-    group_decrypt, message_decrypt_prekey, message_decrypt_signal,
-    message_encrypt, process_sender_key_distribution_message,
-    sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
-    CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
-    PlaintextContent, Pni, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
-    ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
-    SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionNotFound,
-    SessionStore, SessionUsabilityRequirements, SignalMessage,
+    group_decrypt, group_encrypt, message_decrypt_prekey,
+    message_decrypt_signal, message_encrypt,
+    process_sender_key_distribution_message, sealed_sender_decrypt_to_usmc,
+    sealed_sender_encrypt, CiphertextMessageType, DeviceId, IdentityKeyStore,
+    KyberPreKeyStore, PlaintextContent, Pni, PreKeySignalMessage, PreKeyStore,
+    ProtocolAddress, ProtocolStore, PublicKey, SealedSenderDecryptionResult,
+    SenderCertificate, SenderKeyDistributionMessage, SenderKeyStore, ServiceId,
+    SessionNotFound, SessionStore, SessionUsabilityRequirements, SignalMessage,
     SignalProtocolError, SignedPreKeyStore, Timestamp,
     UnidentifiedSenderMessageContent,
 };
@@ -718,6 +718,37 @@ fn strip_padding(contents: &mut Vec<u8>) -> Result<(), ServiceError> {
     let new_length = Iso7816::raw_unpad(contents)?.len();
     contents.resize(new_length, 0);
     Ok(())
+}
+
+/// Pad and group-encrypt `content` for the sender-key chain identified by
+/// (`sender`, `distribution_id`), returning the serialized
+/// `SenderKeyMessage` bytes.
+///
+/// The send-side counterpart of the receive path's `group_decrypt` →
+/// `strip_padding` (`Type::UnidentifiedSender` arm): padding the plaintext
+/// here is what makes that unconditional strip reversible. Both ends live in
+/// this module so the v3 ISO 7816 padding invariant is structural, not a
+/// convention enforced across modules (the bug class that produced universal
+/// `DecryptionErrorMessage`s on first send when the pad was missed).
+pub(crate) async fn encrypt_sender_key_message<R: Rng + CryptoRng>(
+    sender_key_store: &mut dyn SenderKeyStore,
+    sender: &ProtocolAddress,
+    distribution_id: Uuid,
+    content: &[u8],
+    csprng: &mut R,
+) -> Result<Vec<u8>, ServiceError> {
+    // SenderKey messages always use the v3 pad; sealed-sender receive strips
+    // unconditionally (see `Type::UnidentifiedSender`).
+    let padded = add_padding(3, content)?;
+    let skm = group_encrypt(
+        sender_key_store,
+        sender,
+        distribution_id,
+        &padded,
+        csprng,
+    )
+    .await?;
+    Ok(skm.as_ref().to_vec())
 }
 
 /// Equivalent of `SignalServiceCipher::getPreferredProtocolAddress`
