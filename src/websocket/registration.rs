@@ -166,7 +166,7 @@ where
 // Signal-Server: controllers/VerificationController.java:196
 // (POST /v1/verification/session)
 error_mapper! {
-    CreateVerificationSession:
+    create_verification_session_errors:
         // 429: session rate limited, VerificationController.java:795
         TOO_MANY_REQUESTS => fn session_rate_limited,
 }
@@ -174,7 +174,7 @@ error_mapper! {
 // Signal-Server: controllers/VerificationController.java:275
 // (PATCH /v1/verification/session/{sessionId})
 error_mapper! {
-    PatchVerificationSession:
+    patch_verification_session_errors:
         // 403: token not accepted, VerificationController.java:315
         FORBIDDEN => TokenNotAccepted(RegistrationSessionMetadataResponse),
         // 404: no such session, VerificationController.java:820
@@ -188,7 +188,7 @@ error_mapper! {
 // Signal-Server: controllers/VerificationController.java:576
 // (POST /v1/verification/session/{sessionId}/code)
 error_mapper! {
-    RequestVerificationCode:
+    request_verification_code_errors:
         // 404: no such session, VerificationController.java:654
         NOT_FOUND => NoSuchSession,
         // 409: session conflict, VerificationController.java:598
@@ -207,7 +207,7 @@ error_mapper! {
 // Signal-Server: controllers/VerificationController.java:714
 // (PUT /v1/verification/session/{sessionId}/code)
 error_mapper! {
-    SubmitVerificationCode:
+    submit_verification_code_errors:
         // 404: no such session, VerificationController.java:743
         NOT_FOUND => NoSuchSession,
         // 409: session conflict, VerificationController.java:726
@@ -221,7 +221,7 @@ error_mapper! {
 // Signal-Server: controllers/RegistrationController.java:114
 // (PUT /v1/registration)
 error_mapper! {
-    PostRegistration:
+    post_registration_errors:
         // 409: device transfer available, RegistrationController.java:161
         CONFLICT => DeviceTransferAvailable,
 }
@@ -255,7 +255,7 @@ impl SignalWebSocket<websocket::Unidentified> {
                 mnc,
             })
             .await?
-            .service_error_for_status_as::<CreateVerificationSession>()
+            .service_error_for_status_with(create_verification_session_errors)
             .await?
             .json()
             .await
@@ -294,7 +294,7 @@ impl SignalWebSocket<websocket::Unidentified> {
             push_challenge,
         })
         .await?
-        .service_error_for_status_as::<PatchVerificationSession>()
+        .service_error_for_status_with(patch_verification_session_errors)
         .await?
         .json()
         .await
@@ -332,7 +332,7 @@ impl SignalWebSocket<websocket::Unidentified> {
         )?
         .send_json(&VerificationCodeRequest { transport, client })
         .await?
-        .service_error_for_status_as::<RequestVerificationCode>()
+        .service_error_for_status_with(request_verification_code_errors)
         .await?
         .json()
         .await
@@ -390,7 +390,7 @@ impl SignalWebSocket<websocket::Unidentified> {
                 require_atomic: true, // XXX default = true but what does this signify?
             })
             .await?
-            .service_error_for_status_as::<PostRegistration>()
+            .service_error_for_status_with(post_registration_errors)
             .await?
             .json()
             .await
@@ -414,7 +414,7 @@ impl SignalWebSocket<websocket::Unidentified> {
             code: verification_code,
         })
         .await?
-        .service_error_for_status_as::<SubmitVerificationCode>()
+        .service_error_for_status_with(submit_verification_code_errors)
         .await?
         .json()
         .await

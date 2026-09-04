@@ -13,7 +13,7 @@ use super::{Identified, SignalWebSocket, Unidentified};
 // Signal-Server: controllers/AccountController.java:415
 // (PUT /v1/accounts/username_link)
 error_mapper! {
-    PutUsernameLink:
+    put_username_link_errors:
         // 409: username hash not set, AccountController.java:427
         CONFLICT => UsernameHashNotSet,
 }
@@ -239,7 +239,7 @@ impl SignalWebSocket<Identified> {
                 keep_link_handle,
             })
             .await?
-            .service_error_for_status_as::<PutUsernameLink>()
+            .service_error_for_status_with(put_username_link_errors)
             .await?;
 
         let result: UsernameLinkHandleResponse = response.json().await?;

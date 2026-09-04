@@ -11,7 +11,7 @@ use base64::Engine;
 // Signal-Server: controllers/MessageController.java:198
 // (PUT /v1/messages/{destination})
 error_mapper! {
-    PutMessages:
+    put_messages_errors:
         // 409: mismatched devices, MessageController.java:426
         CONFLICT => MismatchedDevicesException(crate::push_service::MismatchedDevices),
         // 410: stale devices, MessageController.java:421
@@ -28,7 +28,7 @@ error_mapper! {
 // (PUT /v1/messages/multi_recipient)
 error_mapper! {
     #[allow(dead_code)]
-    PutMultiRecipientMessages:
+    put_multi_recipient_messages_errors:
         // 409: mismatched devices, MessageController.java:670
         CONFLICT => MultiRecipientMismatchedDevices(Vec<crate::push_service::AccountMismatchedDevices>),
         // 410: stale devices, MessageController.java:685
@@ -50,7 +50,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 messages.destination.service_id_string()
             ))
             .json(&messages)?;
-        self.request_json::<_, PutMessages>(request).await
+        self.request_json_with(request, put_messages_errors).await
     }
 
     pub async fn send_messages_unidentified(
@@ -68,6 +68,6 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 BASE64_RELAXED.encode(&access.key),
             )
             .json(&messages)?;
-        self.request_json::<_, PutMessages>(request).await
+        self.request_json_with(request, put_messages_errors).await
     }
 }
