@@ -828,6 +828,61 @@ where
         }
     }
 
+    /// Repair sessions with a recipient's devices after a server-reported
+    /// device mismatch (`MismatchedDevicesException`/`StaleDevices`): drop
+    /// sessions for devices the server does not expect (`extra_devices`)
+    /// and establish sessions with devices we did not know about
+    /// (`missing_devices`), so the caller can rebuild and retry the send.
+    async fn repair_recipient_sessions(
+        &mut self,
+        recipient: ServiceId,
+        extra_devices: &[DeviceId],
+        missing_devices: &[DeviceId],
+    ) -> Result<(), MessageSenderError> {
+        for device_id in extra_devices {
+            tracing::debug!("dropping session with device {}", device_id);
+            self.protocol_store
+                .delete_service_addr_device_session(
+                    &recipient.to_protocol_address(*device_id)?,
+                )
+                .await?;
+        }
+
+        let mut rng = rng();
+
+        for device_id in missing_devices {
+            tracing::debug!(
+                "creating session with missing device {}",
+                device_id
+            );
+            let remote_address = recipient.to_protocol_address(*device_id)?;
+            let pre_key = self
+                .identified_ws
+                .get_pre_key(&recipient, *device_id)
+                .await?;
+
+            process_prekey_bundle(
+                &remote_address,
+                &self
+                    .local_aci
+                    .to_protocol_address(self.device_id)
+                    .expect("valid device id"),
+                &mut self.protocol_store.clone(),
+                &mut self.protocol_store,
+                &pre_key,
+                SystemTime::now(),
+                &mut rng,
+            )
+            .await
+            .map_err(|e| {
+                error!(%e, ?recipient, "failed to create session");
+                MessageSenderError::UntrustedIdentity { address: recipient }
+            })?;
+        }
+
+        Ok(())
+    }
+
     /// Handle the `Err` arm of a websocket send, shared by the sender-key and
     /// 1:1 send retry loops. Performs session bookkeeping for
     /// `MismatchedDevicesException`/`StaleDevices` so the caller can rebuild and
@@ -840,66 +895,22 @@ where
         match err {
             ServiceError::MismatchedDevicesException(ref m) => {
                 tracing::debug!("{:?}", m);
-                for extra_device_id in &m.extra_devices {
-                    tracing::debug!(
-                        "dropping session with device {}",
-                        extra_device_id
-                    );
-                    self.protocol_store
-                        .delete_service_addr_device_session(
-                            &recipient.to_protocol_address(*extra_device_id)?,
-                        )
-                        .await?;
-                }
-
-                for missing_device_id in &m.missing_devices {
-                    tracing::debug!(
-                        "creating session with missing device {}",
-                        missing_device_id
-                    );
-                    let remote_address =
-                        recipient.to_protocol_address(*missing_device_id)?;
-                    let mut rng = rng();
-                    let pre_key = self
-                        .identified_ws
-                        .get_pre_key(&recipient, *missing_device_id)
-                        .await?;
-
-                    process_prekey_bundle(
-                        &remote_address,
-                        &self
-                            .local_aci
-                            .to_protocol_address(self.device_id)
-                            .expect("valid device id"),
-                        &mut self.protocol_store.clone(),
-                        &mut self.protocol_store,
-                        &pre_key,
-                        SystemTime::now(),
-                        &mut rng,
-                    )
-                    .await
-                    .map_err(|e| {
-                        error!("failed to create session: {}", e);
-                        MessageSenderError::UntrustedIdentity {
-                            address: recipient,
-                        }
-                    })?;
-                }
+                self.repair_recipient_sessions(
+                    recipient,
+                    &m.extra_devices,
+                    &m.missing_devices,
+                )
+                .await?;
                 Ok(SendRecovery::Retry)
             },
             ServiceError::StaleDevices(ref m) => {
                 tracing::debug!("{:?}", m);
-                for extra_device_id in &m.stale_devices {
-                    tracing::debug!(
-                        "dropping session with device {}",
-                        extra_device_id
-                    );
-                    self.protocol_store
-                        .delete_service_addr_device_session(
-                            &recipient.to_protocol_address(*extra_device_id)?,
-                        )
-                        .await?;
-                }
+                self.repair_recipient_sessions(
+                    recipient,
+                    &m.stale_devices,
+                    &[],
+                )
+                .await?;
                 Ok(SendRecovery::Retry)
             },
             ServiceError::ProofRequiredError(ref p) => {
@@ -941,49 +952,18 @@ where
         match err {
             ServiceError::MultiRecipientMismatchedDevices(accounts) => {
                 for account in &accounts {
-                    let recipient = account.uuid;
                     tracing::debug!(
-                        ?recipient,
+                        ?account.uuid,
                         extra = ?account.devices.extra_devices,
                         missing = ?account.devices.missing_devices,
                         "multi-recipient mismatched devices",
                     );
-                    for extra_device_id in &account.devices.extra_devices {
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &recipient
-                                    .to_protocol_address(*extra_device_id)?,
-                            )
-                            .await?;
-                    }
-                    for missing_device_id in &account.devices.missing_devices {
-                        let remote_address = recipient
-                            .to_protocol_address(*missing_device_id)?;
-                        let mut rng = rng();
-                        let pre_key = self
-                            .identified_ws
-                            .get_pre_key(&recipient, *missing_device_id)
-                            .await?;
-                        process_prekey_bundle(
-                            &remote_address,
-                            &self
-                                .local_aci
-                                .to_protocol_address(self.device_id)
-                                .expect("valid device id"),
-                            &mut self.protocol_store.clone(),
-                            &mut self.protocol_store,
-                            &pre_key,
-                            SystemTime::now(),
-                            &mut rng,
-                        )
-                        .await
-                        .map_err(|e| {
-                            error!(%e, ?recipient, "failed to create session");
-                            MessageSenderError::UntrustedIdentity {
-                                address: recipient,
-                            }
-                        })?;
-                    }
+                    self.repair_recipient_sessions(
+                        account.uuid,
+                        &account.devices.extra_devices,
+                        &account.devices.missing_devices,
+                    )
+                    .await?;
                 }
                 Ok(SendRecovery::Retry)
             },
@@ -994,15 +974,12 @@ where
                         stale = ?account.devices.stale_devices,
                         "multi-recipient stale devices",
                     );
-                    for stale_device_id in &account.devices.stale_devices {
-                        self.protocol_store
-                            .delete_service_addr_device_session(
-                                &account
-                                    .uuid
-                                    .to_protocol_address(*stale_device_id)?,
-                            )
-                            .await?;
-                    }
+                    self.repair_recipient_sessions(
+                        account.uuid,
+                        &account.devices.stale_devices,
+                        &[],
+                    )
+                    .await?;
                 }
                 Ok(SendRecovery::Retry)
             },
