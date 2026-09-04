@@ -5,6 +5,7 @@ use zkgroup::profiles::{ProfileKeyCommitment, ProfileKeyVersion};
 
 use crate::{
     content::ServiceError,
+    push_service::response::SignalServiceResponse,
     push_service::AvatarWrite,
     utils::{serde_base64, serde_optional_base64},
     websocket::{self, account::DeviceCapabilities, SignalWebSocket},

@@ -6,6 +6,7 @@ use uuid::Uuid;
 use crate::{
     content::ServiceError,
     proto::DeviceName,
+    push_service::response::SignalServiceResponse,
     utils::{
         serde_device_id, serde_e164, serde_optional_base64,
         serde_optional_base64_url_safe_no_pad, serde_optional_prost_base64,

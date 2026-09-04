@@ -13,6 +13,7 @@ use crate::{
     pre_keys::{
         KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
     },
+    push_service::response::SignalServiceResponse,
     push_service::DEFAULT_DEVICE_ID,
     sender::OutgoingPushMessage,
     utils::{serde_base64, serde_device_id},

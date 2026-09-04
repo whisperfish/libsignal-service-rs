@@ -45,7 +45,7 @@ use crate::proto::{
     StorageRecord,
 };
 use crate::push_service::protobuf::ProtobufResponseExt;
-use crate::push_service::ReqwestExt;
+use crate::push_service::SignalServiceResponse;
 use crate::push_service::{
     HttpAuth, HttpAuthOverride, PushService, ServiceError,
 };

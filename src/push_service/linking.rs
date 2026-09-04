@@ -8,7 +8,9 @@ use crate::{
     websocket::registration::DeviceActivationRequest,
 };
 
-use super::response::{device_limit_reached, error_mapper, ReqwestExt};
+use super::response::{
+    device_limit_reached, error_mapper, SignalServiceResponse,
+};
 use super::{HttpAuth, HttpAuthOverride, PushService, ServiceError};
 
 #[derive(Debug, Serialize)]

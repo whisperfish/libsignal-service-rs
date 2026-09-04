@@ -495,26 +495,6 @@ impl<C: WebSocketType> SignalWebSocket<C> {
 }
 
 impl WebSocketResponseMessage {
-    pub(crate) async fn service_error_for_status(
-        self,
-    ) -> Result<Self, ServiceError> {
-        super::push_service::response::service_error_for_status::<
-            _,
-            super::push_service::response::Baseline,
-        >(self)
-        .await
-    }
-
-    pub(crate) async fn service_error_for_status_as<E>(
-        self,
-    ) -> Result<Self, ServiceError>
-    where
-        E: super::push_service::response::ResponseErrors,
-    {
-        super::push_service::response::service_error_for_status::<_, E>(self)
-            .await
-    }
-
     pub async fn json<T: for<'a> serde::Deserialize<'a>>(
         &self,
     ) -> Result<T, ServiceError> {

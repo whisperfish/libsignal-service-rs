@@ -15,6 +15,7 @@ use serde::Deserialize;
 use tracing::warn;
 
 use crate::content::ServiceError;
+use crate::push_service::response::SignalServiceResponse;
 use crate::utils::TryIntoE164;
 use crate::websocket::{Identified, SignalWebSocket};
 

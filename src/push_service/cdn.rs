@@ -19,7 +19,7 @@ use crate::{
     proto::AttachmentPointer, push_service::HttpAuthOverride,
 };
 
-use super::{response::ReqwestExt, PushService, ServiceError};
+use super::{response::SignalServiceResponse, PushService, ServiceError};
 
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

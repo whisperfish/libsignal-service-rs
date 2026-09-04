@@ -219,6 +219,31 @@ pub(crate) trait SignalServiceResponse {
 
     async fn text(self) -> Result<String, Self::Error>;
     fn header(&self, name: &str) -> Option<&str>;
+
+    /// Baseline error handling only (specialised codes fall through to
+    /// [`UnhandledResponseCode`][ServiceError::UnhandledResponseCode]).
+    fn service_error_for_status(
+        self,
+    ) -> impl Future<Output = Result<Self, ServiceError>> + Send
+    where
+        Self: Sized + Send,
+        ServiceError: From<<Self as SignalServiceResponse>::Error>,
+    {
+        service_error_for_status::<Self, Baseline>(self)
+    }
+
+    /// Error handling specialised for the endpoint named by `E`; every code
+    /// `E` does not own falls through to the baseline.
+    fn service_error_for_status_as<E>(
+        self,
+    ) -> impl Future<Output = Result<Self, ServiceError>> + Send
+    where
+        Self: Sized + Send,
+        E: ResponseErrors,
+        ServiceError: From<<Self as SignalServiceResponse>::Error>,
+    {
+        service_error_for_status::<Self, E>(self)
+    }
 }
 
 #[async_trait::async_trait]
@@ -280,42 +305,5 @@ impl SignalServiceResponse for WebSocketResponseMessage {
             .filter_map(|hdr| hdr.split_once(":"))
             .find(|(header, _body)| header.trim().eq_ignore_ascii_case(name))?;
         Some(value.trim())
-    }
-}
-
-pub(crate) trait ReqwestExt
-where
-    Self: Sized,
-{
-    /// Baseline error handling only (specialised codes fall through to
-    /// [`UnhandledResponseCode`][ServiceError::UnhandledResponseCode]).
-    fn service_error_for_status(
-        self,
-    ) -> impl Future<Output = Result<reqwest::Response, ServiceError>> + Send;
-
-    /// Error handling specialised for the endpoint named by `E`; every code
-    /// `E` does not own falls through to the baseline.
-    fn service_error_for_status_as<E>(
-        self,
-    ) -> impl Future<Output = Result<reqwest::Response, ServiceError>> + Send
-    where
-        E: ResponseErrors;
-}
-
-impl ReqwestExt for reqwest::Response {
-    fn service_error_for_status(
-        self,
-    ) -> impl Future<Output = Result<reqwest::Response, ServiceError>> + Send
-    {
-        service_error_for_status::<reqwest::Response, Baseline>(self)
-    }
-
-    fn service_error_for_status_as<E>(
-        self,
-    ) -> impl Future<Output = Result<reqwest::Response, ServiceError>> + Send
-    where
-        E: ResponseErrors,
-    {
-        service_error_for_status::<reqwest::Response, E>(self)
     }
 }

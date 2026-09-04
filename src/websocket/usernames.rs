@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use crate::content::ServiceError;
 use crate::push_service::response::error_mapper;
+use crate::push_service::response::SignalServiceResponse;
 
 use super::{Identified, SignalWebSocket, Unidentified};
 
