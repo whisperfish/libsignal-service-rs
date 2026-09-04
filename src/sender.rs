@@ -738,9 +738,9 @@ where
         let mut skr_recipients: Vec<(ServiceId, &UnidentifiedAccess)> = vec![];
         for (recipient, unidentified_access) in recipients {
             let all_sessions = self
-                .recipient_has_all_device_sessions(recipient)
+                .collect_recipient_sessions(*recipient)
                 .await
-                .unwrap_or(false);
+                .is_ok_and(|s| s.is_some());
             if all_sessions {
                 mrm_recipients.push((*recipient, unidentified_access));
             } else {
@@ -1250,36 +1250,22 @@ where
             // session for each destination, so a missing session aborts the
             // multi-recipient path for the whole call (caller falls back to
             // 1:1 for the affected recipients).
-            let mut dest_addresses: Vec<ProtocolAddress> = vec![];
-            let mut dest_sessions: Vec<SessionRecord> = vec![];
-            let mut missing_session = false;
+            let mut dests: Vec<(ProtocolAddress, SessionRecord)> = vec![];
             for (recipient, _) in recipients {
-                let devices =
-                    self.enumerate_recipient_devices(recipient).await?;
-                for &device_id in &devices {
-                    let addr = recipient.to_protocol_address(device_id);
-                    match self.protocol_store.load_session(&addr).await? {
-                        Some(s) => {
-                            dest_addresses.push(addr);
-                            dest_sessions.push(s);
-                        },
-                        None => {
-                            tracing::debug!(
-                                %addr,
-                                "no session; deferring to 1:1 fallback"
-                            );
-                            missing_session = true;
-                            break;
-                        },
-                    }
-                }
-                if missing_session {
-                    break;
+                match self.collect_recipient_sessions(*recipient).await? {
+                    Some(sessions) => dests.extend(sessions),
+                    None => {
+                        tracing::debug!(
+                            ?recipient,
+                            "no sessions for all devices; deferring to 1:1 fallback"
+                        );
+                        return Err(MessageSenderError::NoMessagesToSend);
+                    },
                 }
             }
-            if missing_session {
-                return Err(MessageSenderError::NoMessagesToSend);
-            }
+
+            let (dest_addresses, dest_sessions): (Vec<_>, Vec<_>) =
+                dests.into_iter().unzip();
 
             let dest_refs: Vec<&ProtocolAddress> =
                 dest_addresses.iter().collect();
@@ -1592,22 +1578,28 @@ where
         Ok(devices)
     }
 
-    /// Whether every enumerated device of `recipient` has a loaded session.
+    /// Load the sessions of every enumerated device of `recipient`, or
+    /// `None` if any device lacks one.
+    ///
     /// Used to decide multi-recipient eligibility: a recipient without a
-    /// complete session set is routed to the 1:1 path, which establishes the
-    /// missing sessions.
-    async fn recipient_has_all_device_sessions(
+    /// complete session set is routed to the 1:1 path, which establishes
+    /// the missing sessions.
+    async fn collect_recipient_sessions(
         &self,
-        recipient: &ServiceId,
-    ) -> Result<bool, MessageSenderError> {
-        let devices = self.enumerate_recipient_devices(recipient).await?;
-        for &device_id in &devices {
-            let addr = recipient.to_protocol_address(device_id);
-            if self.protocol_store.load_session(&addr).await?.is_none() {
-                return Ok(false);
-            }
+        recipient: ServiceId,
+    ) -> Result<Option<Vec<(ProtocolAddress, SessionRecord)>>, MessageSenderError>
+    {
+        let devices = self.enumerate_recipient_devices(&recipient).await?;
+        let mut sessions = Vec::with_capacity(devices.len());
+        for device_id in devices {
+            let addr = recipient.to_protocol_address(device_id)?;
+            let Some(session) = self.protocol_store.load_session(&addr).await?
+            else {
+                return Ok(None);
+            };
+            sessions.push((addr, session));
         }
-        Ok(true)
+        Ok(Some(sessions))
     }
 
     /// For every recipient device that does not yet have our SKDM for
