@@ -2,10 +2,7 @@ use std::future::Future;
 
 use reqwest::StatusCode;
 
-use crate::{
-    proto::WebSocketResponseMessage,
-    websocket::registration::RegistrationSessionMetadataResponse,
-};
+use crate::proto::WebSocketResponseMessage;
 
 use super::ServiceError;
 
@@ -25,7 +22,7 @@ where
     })
 }
 
-fn parse_retry_after(header: &str) -> Option<chrono::Duration> {
+pub(crate) fn parse_retry_after(header: &str) -> Option<chrono::Duration> {
     let val = header.parse::<i64>().inspect_err(
         |error| tracing::warn!(%error, "could not parse rate limit duration"),
     ).ok()?;
@@ -172,24 +169,6 @@ where
         Ok(error) => ServiceError::DeviceLimitReached {
             current: error.current,
             max: error.max,
-        },
-        Err(error) => error,
-    }
-}
-
-pub(crate) async fn session_rate_limited<R>(response: R) -> ServiceError
-where
-    R: SignalServiceResponse,
-    ServiceError: From<<R as SignalServiceResponse>::Error>,
-{
-    let retry_after =
-        response.header("retry-after").and_then(parse_retry_after);
-    match json_or_unhandled::<R, RegistrationSessionMetadataResponse>(response)
-        .await
-    {
-        Ok(session) => ServiceError::VerificationSessionRateLimited {
-            session,
-            retry_after,
         },
         Err(error) => error,
     }

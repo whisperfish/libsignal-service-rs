@@ -10,7 +10,8 @@ use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
     provisioning::ProvisioningError,
     push_service::response::{
-        error_mapper, session_rate_limited, SignalServiceResponse,
+        error_mapper, json_or_unhandled, parse_retry_after,
+        SignalServiceResponse,
     },
     utils::{serde_base64, TryIntoE164},
     websocket::{self, account::AccountAttributes, SignalWebSocket},
@@ -139,6 +140,26 @@ impl RegistrationSessionMetadataResponse {
         self.requested_information
             .iter()
             .any(|x| x.as_str() == "captcha")
+    }
+}
+
+// 429: specialised through the response's `retry-after` header plus the
+// session metadata body; see VerificationSessionRateLimited.
+async fn session_rate_limited<R>(response: R) -> ServiceError
+where
+    R: SignalServiceResponse,
+    ServiceError: From<<R as SignalServiceResponse>::Error>,
+{
+    let retry_after =
+        response.header("retry-after").and_then(parse_retry_after);
+    match json_or_unhandled::<R, RegistrationSessionMetadataResponse>(response)
+        .await
+    {
+        Ok(session) => ServiceError::VerificationSessionRateLimited {
+            session,
+            retry_after,
+        },
+        Err(error) => error,
     }
 }
 
