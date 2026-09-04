@@ -1,6 +1,7 @@
 use libsignal_core::DeviceId;
 use reqwest::Method;
 
+use crate::push_service::response::SignalServiceResponse;
 use crate::websocket::{self, SignalWebSocket};
 
 use super::ServiceError;

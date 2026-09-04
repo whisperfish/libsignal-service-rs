@@ -9,7 +9,9 @@ use super::ServiceError;
 use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
     provisioning::ProvisioningError,
-    push_service::response::{error_mapper, session_rate_limited},
+    push_service::response::{
+        error_mapper, session_rate_limited, SignalServiceResponse,
+    },
     utils::{serde_base64, TryIntoE164},
     websocket::{self, account::AccountAttributes, SignalWebSocket},
 };
