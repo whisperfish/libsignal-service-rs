@@ -477,27 +477,27 @@
 <a href=#477 id=477 data-nosnippet>477</a>        }
 <a href=#478 id=478 data-nosnippet>478</a>    }
 <a href=#479 id=479 data-nosnippet>479</a>
-<a href=#480 id=480 data-nosnippet>480</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>request_json&lt;T&gt;(
+<a href=#480 id=480 data-nosnippet>480</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">async fn </span>request_json_with&lt;T, F, Fut&gt;(
 <a href=#481 id=481 data-nosnippet>481</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#482 id=482 data-nosnippet>482</a>        r: WebSocketRequestMessage,
-<a href=#483 id=483 data-nosnippet>483</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;T, ServiceError&gt;
-<a href=#484 id=484 data-nosnippet>484</a>    <span class="kw">where
-<a href=#485 id=485 data-nosnippet>485</a>        for</span>&lt;<span class="lifetime">'de</span>&gt; T: serde::Deserialize&lt;<span class="lifetime">'de</span>&gt;,
-<a href=#486 id=486 data-nosnippet>486</a>    {
-<a href=#487 id=487 data-nosnippet>487</a>        <span class="self">self</span>.request(r)
-<a href=#488 id=488 data-nosnippet>488</a>            .<span class="kw">await</span><span class="question-mark">?
-<a href=#489 id=489 data-nosnippet>489</a>            </span>.service_error_for_status()
-<a href=#490 id=490 data-nosnippet>490</a>            .<span class="kw">await</span><span class="question-mark">?
-<a href=#491 id=491 data-nosnippet>491</a>            </span>.json()
-<a href=#492 id=492 data-nosnippet>492</a>            .<span class="kw">await
-<a href=#493 id=493 data-nosnippet>493</a>    </span>}
-<a href=#494 id=494 data-nosnippet>494</a>}
-<a href=#495 id=495 data-nosnippet>495</a>
-<a href=#496 id=496 data-nosnippet>496</a><span class="kw">impl </span>WebSocketResponseMessage {
-<a href=#497 id=497 data-nosnippet>497</a>    <span class="kw">pub async fn </span>service_error_for_status(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ServiceError&gt; {
-<a href=#498 id=498 data-nosnippet>498</a>        <span class="kw">super</span>::push_service::response::service_error_for_status(<span class="self">self</span>).<span class="kw">await
-<a href=#499 id=499 data-nosnippet>499</a>    </span>}
-<a href=#500 id=500 data-nosnippet>500</a>
+<a href=#483 id=483 data-nosnippet>483</a>        decode: F,
+<a href=#484 id=484 data-nosnippet>484</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;T, ServiceError&gt;
+<a href=#485 id=485 data-nosnippet>485</a>    <span class="kw">where
+<a href=#486 id=486 data-nosnippet>486</a>        for</span>&lt;<span class="lifetime">'de</span>&gt; T: serde::Deserialize&lt;<span class="lifetime">'de</span>&gt;,
+<a href=#487 id=487 data-nosnippet>487</a>        F: FnOnce(WebSocketResponseMessage) -&gt; Fut + Send,
+<a href=#488 id=488 data-nosnippet>488</a>        Fut: Future&lt;Output = <span class="prelude-ty">Result</span>&lt;WebSocketResponseMessage, ServiceError&gt;&gt;
+<a href=#489 id=489 data-nosnippet>489</a>            + Send,
+<a href=#490 id=490 data-nosnippet>490</a>    {
+<a href=#491 id=491 data-nosnippet>491</a>        <span class="self">self</span>.request(r)
+<a href=#492 id=492 data-nosnippet>492</a>            .<span class="kw">await</span><span class="question-mark">?
+<a href=#493 id=493 data-nosnippet>493</a>            </span>.service_error_for_status_with(decode)
+<a href=#494 id=494 data-nosnippet>494</a>            .<span class="kw">await</span><span class="question-mark">?
+<a href=#495 id=495 data-nosnippet>495</a>            </span>.json()
+<a href=#496 id=496 data-nosnippet>496</a>            .<span class="kw">await
+<a href=#497 id=497 data-nosnippet>497</a>    </span>}
+<a href=#498 id=498 data-nosnippet>498</a>}
+<a href=#499 id=499 data-nosnippet>499</a>
+<a href=#500 id=500 data-nosnippet>500</a><span class="kw">impl </span>WebSocketResponseMessage {
 <a href=#501 id=501 data-nosnippet>501</a>    <span class="kw">pub async fn </span>json&lt;T: <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; serde::Deserialize&lt;<span class="lifetime">'a</span>&gt;&gt;(
 <a href=#502 id=502 data-nosnippet>502</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#503 id=503 data-nosnippet>503</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;T, ServiceError&gt; {
