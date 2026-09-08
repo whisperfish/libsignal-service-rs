@@ -550,16 +550,22 @@ where
         // Share SKDMs with any devices that haven't received them yet.
         // XXX Ideally, we *attach* the SKDM to the message-to-be-sent.
         //     This is an ugly hack
-        if let Err(e) = self
+        //
+        // Recipients whose SKDM cannot be delivered are excluded from the
+        // send below instead of failing the whole group: the sender-key
+        // payload is undecryptable without the SKDM, but all other
+        // recipients should still receive the message.
+        let skdm_failures = self
             .share_sender_key_if_needed(
                 distribution_id,
                 timestamp,
                 recipients.as_ref(),
             )
-            .await
-        {
-            return vec![Err(e)];
-        }
+            .await;
+        let skdm_failed: HashSet<ServiceId> =
+            skdm_failures.iter().map(|(r, _)| *r).collect();
+        let mut results: Vec<SendMessageResult> =
+            skdm_failures.into_iter().map(|(_, e)| Err(e)).collect();
 
         // Encode the content once.
         use prost::Message;
@@ -594,10 +600,14 @@ where
         // sender-key paths; the rest fall back to identified 1:1 sends.
         let sealed: Vec<(ServiceId, &UnidentifiedAccess)> = recipients_ref
             .iter()
+            .filter(|(r, ua, _)| ua.is_some() && !skdm_failed.contains(r))
             .filter_map(|(r, ua, _)| ua.as_ref().map(|a| (*r, a)))
             .collect();
 
-        let mut results: Vec<SendMessageResult> = match self
+        // Sealed-sender stage: build the shared USMC + SenderKeyMessage once
+        // and fan out. A wholesale failure is pushed as one more error result;
+        // the identified fallback loop below still runs.
+        match self
             .send_sender_key_payload(
                 &sealed,
                 &skm_serialized,
@@ -606,12 +616,16 @@ where
             )
             .await
         {
-            Ok(results) => results,
-            Err(e) => return vec![Err(e)],
-        };
+            Ok(payload_results) => results.extend(payload_results),
+            Err(e) => {
+                tracing::warn!(error = %e, "sender-key payload send failed wholesale; identified recipients still attempted");
+                results.push(Err(e));
+            },
+        }
 
-        for (recipient, _, include_pni_signature) in
-            recipients_ref.iter().filter(|(_, ua, _)| ua.is_none())
+        for (recipient, _, include_pni_signature) in recipients_ref
+            .iter()
+            .filter(|(r, ua, _)| ua.is_none() && !skdm_failed.contains(r))
         {
             // Identified 1:1 fallback, which also establishes missing sessions.
             results.push(
@@ -1606,15 +1620,38 @@ where
     /// `distribution_id`, build it (idempotent: libsignal creates the chain on
     /// first call) and send it as a wire-only `proto::Content` with the SKDM
     /// attached. Mark each device shared on success.
+    ///
+    /// Never aborts the fan-out: a recipient whose SKDM cannot be delivered
+    /// (e.g. an untrusted identity, or an unknown device set) is returned as a
+    /// failure entry so the caller can exclude it from the sender-key payload —
+    /// that payload is undecryptable without the SKDM — while the remaining
+    /// recipients still receive the group message.
     #[tracing::instrument(skip(self, recipients), fields(recipients = recipients.as_ref().len(), dist_id = %distribution_id))]
     async fn share_sender_key_if_needed(
         &mut self,
         distribution_id: Uuid,
         timestamp: u64,
         recipients: &[(ServiceId, Option<UnidentifiedAccess>, bool)],
-    ) -> Result<(), MessageSenderError> {
-        let sender_address =
-            self.local_aci.to_protocol_address(self.device_id)?;
+    ) -> Vec<(ServiceId, MessageSenderError)> {
+        let sender_address = match self
+            .local_aci
+            .to_protocol_address(self.device_id)
+        {
+            Ok(addr) => addr,
+            Err(e) => {
+                // Our own address resolution failed: no recipient can be
+                // shared with, so fail them all.
+                tracing::error!(error = %e, "cannot resolve own sender address; failing SKDM for all recipients");
+                return recipients
+                    .iter()
+                    .map(|(r, _, _)| {
+                        (*r, MessageSenderError::InvalidDeviceId(e.clone()))
+                    })
+                    .collect();
+            },
+        };
+
+        let mut failures = Vec::<(ServiceId, MessageSenderError)>::new();
 
         // PNI signatures are an individual-send concern (matches Signal-Android's
         // IndividualSendJob); the SKDM is sender-key infrastructure, so we don't
@@ -1626,7 +1663,17 @@ where
             // (and creates sessions for any the server knows about but we
             // don't). So we send at most ONE SKDM per recipient, not one per
             // device — otherwise a D-device recipient gets the SKDM D times.
-            let devices = self.enumerate_recipient_devices(recipient).await?;
+            let devices = match self
+                .enumerate_recipient_devices(recipient)
+                .await
+            {
+                Ok(d) => d,
+                Err(e) => {
+                    tracing::warn!(recipient = %recipient.service_id_string(), error = %e, "could not enumerate recipient devices; excluding recipient from this group send");
+                    failures.push((*recipient, e));
+                    continue;
+                },
+            };
             let mut needs_share = false;
             for &device_id in &devices {
                 let recipient_address =
@@ -1637,11 +1684,12 @@ where
                             break;
                         },
                     };
-                if !self
+                let shared = self
                     .protocol_store
                     .is_sender_key_shared(distribution_id, &recipient_address)
-                    .await?
-                {
+                    .await
+                    .unwrap_or(false);
+                if !shared {
                     needs_share = true;
                 }
             }
@@ -1650,20 +1698,28 @@ where
             }
 
             let mut rng = rng();
-            let skdm = create_sender_key_distribution_message(
+            let skdm = match create_sender_key_distribution_message(
                 &sender_address,
                 distribution_id,
                 &mut self.protocol_store,
                 &mut rng,
             )
-            .await?;
+            .await
+            {
+                Ok(skdm) => skdm,
+                Err(e) => {
+                    tracing::warn!(recipient = %recipient.service_id_string(), error = %e, "could not build SKDM; excluding recipient from this group send");
+                    failures.push((*recipient, e.into()));
+                    continue;
+                },
+            };
 
             let content = crate::proto::Content {
                 content: None,
                 sender_key_distribution_message: Some(skdm.as_ref().to_vec()),
                 pni_signature_message: None,
             };
-            let _result = self
+            if let Err(e) = self
                 .try_send_message(
                     *recipient,
                     unidentified_access.as_ref(),
@@ -1672,24 +1728,44 @@ where
                     false,
                     false,
                 )
-                .await?;
+                .await
+            {
+                tracing::warn!(recipient = %recipient.service_id_string(), error = %e, "could not deliver SKDM; excluding recipient from this group send");
+                failures.push((*recipient, e));
+                continue;
+            }
             // `try_send_message` may have established sessions with
             // devices we didn't know about; re-enumerate so we mark
             // the *complete* device set shared.
-            let devices_after =
-                self.enumerate_recipient_devices(recipient).await?;
+            let devices_after = match self
+                .enumerate_recipient_devices(recipient)
+                .await
+            {
+                Ok(d) => d,
+                Err(e) => {
+                    tracing::warn!(recipient = %recipient.service_id_string(), error = %e, "SKDM delivered, but device re-enumeration failed; not marking shared (next send re-shares)");
+                    continue;
+                },
+            };
             for &device_id in &devices_after {
-                let recipient_address =
-                    (*recipient).to_protocol_address(device_id)?;
-                self.protocol_store
+                let Ok(recipient_address) =
+                    (*recipient).to_protocol_address(device_id)
+                else {
+                    continue;
+                };
+                if let Err(e) = self
+                    .protocol_store
                     .mark_sender_key_shared(distribution_id, &recipient_address)
-                    .await?;
+                    .await
+                {
+                    tracing::warn!(error = %e, "failed to mark sender key shared; next send re-shares");
+                }
             }
         }
 
         // No SKDM sync transcript.
 
-        Ok(())
+        failures
     }
 
     // Equivalent with `getEncryptedMessages`
