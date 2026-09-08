@@ -526,6 +526,44 @@ pub mod serde_service_id {
     }
 }
 
+/// Serde adapter for a `Vec<ServiceId>` represented as a JSON array of
+/// service-id strings (the wire form used by Signal's multi-recipient endpoints;
+/// see `SendMultiRecipientMessageResponse.uuids404`).
+pub mod serde_service_id_vec {
+    use libsignal_protocol::ServiceId;
+    use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
+
+    pub fn serialize<S>(
+        ids: &Vec<ServiceId>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(ids.len()))?;
+        for id in ids {
+            seq.serialize_element(&id.service_id_string())?;
+        }
+        seq.end()
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Vec<ServiceId>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Vec::<String>::deserialize(deserializer)?
+            .into_iter()
+            .map(|s| {
+                ServiceId::parse_from_service_id_string(&s).ok_or_else(|| {
+                    serde::de::Error::custom("invalid service ID string")
+                })
+            })
+            .collect()
+    }
+}
+
 pub mod serde_aci {
     use libsignal_core::Aci;
     use serde::{Deserialize, Deserializer, Serializer};
