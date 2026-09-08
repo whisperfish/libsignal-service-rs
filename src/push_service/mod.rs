@@ -3,11 +3,12 @@ use std::{sync::LazyLock, time::Duration};
 use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalServers},
     prelude::ServiceConfiguration,
-    utils::serde_device_id_vec,
+    utils::{serde_device_id_vec, serde_service_id_vec},
     websocket::{SignalWebSocket, WebSocketType},
 };
 
 use libsignal_core::DeviceId;
+use libsignal_protocol::ServiceId;
 use protobuf::ProtobufResponseExt;
 use reqwest::{Method, RequestBuilder};
 use reqwest_websocket::Upgrade;
@@ -70,6 +71,18 @@ pub struct MismatchedDevices {
 pub struct StaleDevices {
     #[serde(with = "serde_device_id_vec")]
     pub stale_devices: Vec<DeviceId>,
+}
+
+/// `PUT /v1/messages/multi_recipient` success response.
+///
+/// Mirrors `SendMultiRecipientMessageResponse` on the server: the service
+/// identifiers in the request that do not correspond to registered users. Only
+/// populated when a group send endorsement token was supplied.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SendMultiRecipientMessageResponse {
+    #[serde(default, with = "serde_service_id_vec")]
+    pub uuids404: Vec<ServiceId>,
 }
 
 #[derive(Clone)]
@@ -291,5 +304,56 @@ mod tests {
     fn serde_json_form_empty_vec() {
         // If we're trying to send and empty payload, serde_json must be able to make a Vec out of it
         assert!(serde_json::to_vec(b"").is_ok());
+    }
+
+    #[test]
+    fn multi_recipient_response_decodes_uuids404() {
+        use super::{
+            AccountMismatchedDevices, AccountStaleDevices,
+            SendMultiRecipientMessageResponse,
+        };
+        use libsignal_protocol::{Aci, ServiceId};
+
+        // Stories: no uuids404 array is sent.
+        let story: SendMultiRecipientMessageResponse =
+            serde_json::from_str("{}").unwrap();
+        assert!(story.uuids404.is_empty());
+
+        let aci = Aci::from(uuid::Uuid::nil());
+        let pni = libsignal_protocol::Pni::from(uuid::Uuid::from_u128(
+            0x1234_5678_1234_5678_1234_5678_1234_5678,
+        ));
+        let json = format!(
+            r#"{{"uuids404":["{}","{}"]}}"#,
+            aci.service_id_string(),
+            pni.service_id_string()
+        );
+        let resp: SendMultiRecipientMessageResponse =
+            serde_json::from_str(&json).unwrap();
+        assert_eq!(resp.uuids404.len(), 2);
+        assert_eq!(resp.uuids404[0], ServiceId::Aci(aci));
+        assert_eq!(resp.uuids404[1], ServiceId::Pni(pni));
+
+        // 409 / 410 bodies carry the same per-recipient sub-shape as the 1:1
+        // endpoints, wrapped per-account.
+        let mismatched: Vec<AccountMismatchedDevices> = serde_json::from_str(
+            &format!(
+                r#"[{{"uuid":"{}","devices":{{"missingDevices":[1,2],"extraDevices":[3]}}}}]"#,
+                aci.service_id_string()
+            ),
+        )
+        .unwrap();
+        assert_eq!(mismatched.len(), 1);
+        assert_eq!(mismatched[0].uuid, ServiceId::Aci(aci));
+        assert_eq!(mismatched[0].devices.missing_devices.len(), 2);
+        assert_eq!(mismatched[0].devices.extra_devices.len(), 1);
+
+        let stale: Vec<AccountStaleDevices> = serde_json::from_str(&format!(
+            r#"[{{"uuid":"{}","devices":{{"staleDevices":[5]}}}}]"#,
+            aci.service_id_string()
+        ))
+        .unwrap();
+        assert_eq!(stale.len(), 1);
+        assert_eq!(stale[0].devices.stale_devices.len(), 1);
     }
 }
