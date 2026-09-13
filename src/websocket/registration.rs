@@ -447,37 +447,58 @@ impl SignalWebSocket<websocket::Unidentified> {
             .await?;
 
         let (
-            _aci_pre_keys,
+            aci_pre_keys,
             aci_signed_pre_key,
-            _aci_kyber_pre_keys,
+            aci_kyber_pre_keys,
             aci_last_resort_kyber_prekey,
-        ) = crate::pre_keys::replenish_pre_keys(
-            aci_protocol_store,
-            csprng,
-            &aci_identity_key_pair,
-            true,
-            0,
-            0,
-        )
-        .await?;
+        ) = aci_protocol_store
+            .generate_pre_keys(csprng, &aci_identity_key_pair, true, 0, 0)
+            .await?;
 
         let (
-            _pni_pre_keys,
+            pni_pre_keys,
             pni_signed_pre_key,
-            _pni_kyber_pre_keys,
+            pni_kyber_pre_keys,
             pni_last_resort_kyber_prekey,
-        ) = crate::pre_keys::replenish_pre_keys(
-            pni_protocol_store,
-            csprng,
-            &pni_identity_key_pair,
-            true,
-            0,
-            0,
-        )
-        .await?;
+        ) = pni_protocol_store
+            .generate_pre_keys(csprng, &pni_identity_key_pair, true, 0, 0)
+            .await?;
+
+        aci_protocol_store
+            .store_pre_key_bundle(
+                aci_pre_keys.as_slice(),
+                &aci_signed_pre_key,
+                aci_kyber_pre_keys.as_slice(),
+                aci_last_resort_kyber_prekey.as_ref(),
+            )
+            .await?;
+
+        aci_protocol_store
+            .mark_pre_key_bundle_active(
+                &aci_signed_pre_key,
+                aci_last_resort_kyber_prekey.as_ref(),
+            )
+            .await?;
+
+        pni_protocol_store
+            .store_pre_key_bundle(
+                pni_pre_keys.as_slice(),
+                &pni_signed_pre_key,
+                pni_kyber_pre_keys.as_slice(),
+                pni_last_resort_kyber_prekey.as_ref(),
+            )
+            .await?;
+
+        pni_protocol_store
+            .mark_pre_key_bundle_active(
+                &pni_signed_pre_key,
+                pni_last_resort_kyber_prekey.as_ref(),
+            )
+            .await?;
 
         let aci_identity_key = aci_identity_key_pair.identity_key();
         let pni_identity_key = pni_identity_key_pair.identity_key();
+
         let keys = RegistrationKeyPackage {
             aci_identity_key: aci_identity_key.serialize().into(),
             pni_identity_key: pni_identity_key.serialize().into(),
@@ -487,10 +508,10 @@ impl SignalWebSocket<websocket::Unidentified> {
             .unwrap(),
             pni_signed_pre_key: pni_signed_pre_key.try_into()?,
             aci_pq_last_resort_pre_key: aci_last_resort_kyber_prekey
-                .expect("requested last resort prekey")
+                .expect("ACI last resort key when registering")
                 .try_into()?,
             pni_pq_last_resort_pre_key: pni_last_resort_kyber_prekey
-                .expect("requested last resort prekey")
+                .expect("PNI last resort key when registering")
                 .try_into()?,
         };
 
