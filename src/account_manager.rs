@@ -19,9 +19,8 @@ use zkgroup::profiles::ProfileKey;
 
 use crate::configuration::Endpoint;
 use crate::pre_keys::{
-    clean_stale_pre_keys, generate_pre_keys, mark_pre_key_bundle_active,
-    store_pre_key_bundle, KyberPreKeyEntity, PreKeyEntity, PreKeyState,
-    PreKeysStore, SignedPreKeyEntity, PRE_KEY_BATCH_SIZE,
+    KyberPreKeyEntity, PreKeyEntity, PreKeyState, PreKeysStore,
+    SignedPreKeyEntity, PRE_KEY_BATCH_SIZE,
 };
 use crate::profile_cipher::{ProfileCipher, ProfileCipherError};
 use crate::profile_name::ProfileName;
@@ -164,25 +163,25 @@ impl AccountManager {
 
         // Generate - doesn't change state.
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
-            generate_pre_keys(
-                protocol_store,
-                &mut rand::rng(),
-                &identity_key_pair,
-                use_last_resort_key,
-                PRE_KEY_BATCH_SIZE,
-                PRE_KEY_BATCH_SIZE,
-            )
-            .await?;
+            protocol_store
+                .generate_pre_keys(
+                    &mut rand::rng(),
+                    &identity_key_pair,
+                    use_last_resort_key,
+                    PRE_KEY_BATCH_SIZE,
+                    PRE_KEY_BATCH_SIZE,
+                )
+                .await?;
 
         // Persist + advance next-ids pre-upload
-        store_pre_key_bundle(
-            protocol_store,
-            &pre_keys,
-            &signed_pre_key,
-            &pq_pre_keys,
-            pq_last_resort_key.as_ref(),
-        )
-        .await?;
+        protocol_store
+            .store_pre_key_bundle(
+                &pre_keys,
+                &signed_pre_key,
+                &pq_pre_keys,
+                pq_last_resort_key.as_ref(),
+            )
+            .await?;
 
         // Upload
         self.websocket
@@ -210,15 +209,15 @@ impl AccountManager {
             .await?;
 
         // Set active ids post-upload
-        mark_pre_key_bundle_active(
-            protocol_store,
-            &signed_pre_key,
-            pq_last_resort_key.as_ref(),
-        )
-        .await?;
+        protocol_store
+            .mark_pre_key_bundle_active(
+                &signed_pre_key,
+                pq_last_resort_key.as_ref(),
+            )
+            .await?;
 
         // Cleanup storage from stale material
-        clean_stale_pre_keys(protocol_store).await?;
+        protocol_store.clean_stale_pre_keys().await?;
 
         Ok(())
     }
