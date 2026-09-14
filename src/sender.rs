@@ -498,7 +498,7 @@ where
             if let Some(sync_message) = self
                 .create_multi_device_sent_transcript_content(
                     None,
-                    content_body.clone(),
+                    content_body,
                     timestamp,
                     &results,
                 )
