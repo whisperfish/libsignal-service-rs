@@ -25,6 +25,7 @@ use zkgroup::profiles::ProfileKey;
 use pipe::{ProvisioningPipe, ProvisioningStep};
 
 use crate::messagepipe::ServiceCredentials;
+use crate::pre_keys::{KyberPreKeyEntity, SignedPreKeyEntity};
 use crate::prelude::ServiceError;
 use crate::push_service::linking::{
     LinkAccountAttributes, LinkCapabilities, LinkRequest, LinkResponse,
@@ -285,53 +286,25 @@ pub async fn link_device<
         let pni_key_pair =
             IdentityKeyPair::new(pni_public_key, pni_private_key);
 
-        let (
-            aci_pre_keys,
-            aci_signed_pre_key,
-            aci_pq_pre_keys,
-            aci_pq_last_resort_pre_key,
-        ) = aci_store
-            .generate_pre_keys(csprng, &aci_key_pair, true, 0, 0)
+        // Signed + last-resort keys only; the one-time pools are filled by the
+        // first pre-key refresh once the device is linked and authenticated.
+        let (aci_signed_pre_key, aci_pq_last_resort_pre_key) = aci_store
+            .generate_signed_pre_keys(csprng, &aci_key_pair)
             .await?;
-
-        let (
-            pni_pre_keys,
-            pni_signed_pre_key,
-            pni_pq_pre_keys,
-            pni_pq_last_resort_pre_key,
-        ) = pni_store
-            .generate_pre_keys(csprng, &pni_key_pair, true, 0, 0)
-            .await?;
-
         aci_store
-            .store_pre_key_bundle(
-                &aci_pre_keys,
+            .store_signed_pre_key_bundle(
                 &aci_signed_pre_key,
-                &aci_pq_pre_keys,
-                aci_pq_last_resort_pre_key.as_ref(),
+                &aci_pq_last_resort_pre_key,
             )
             .await?;
 
-        aci_store
-            .mark_pre_key_bundle_active(
-                &aci_signed_pre_key,
-                aci_pq_last_resort_pre_key.as_ref(),
-            )
+        let (pni_signed_pre_key, pni_pq_last_resort_pre_key) = pni_store
+            .generate_signed_pre_keys(csprng, &pni_key_pair)
             .await?;
-
         pni_store
-            .store_pre_key_bundle(
-                &pni_pre_keys,
+            .store_signed_pre_key_bundle(
                 &pni_signed_pre_key,
-                &pni_pq_pre_keys,
-                pni_pq_last_resort_pre_key.as_ref(),
-            )
-            .await?;
-
-        pni_store
-            .mark_pre_key_bundle_active(
-                &pni_signed_pre_key,
-                pni_pq_last_resort_pre_key.as_ref(),
+                &pni_pq_last_resort_pre_key,
             )
             .await?;
 
@@ -357,14 +330,18 @@ pub async fn link_device<
                 name: encrypted_device_name,
             },
             device_activation_request: DeviceActivationRequest {
-                aci_signed_pre_key: aci_signed_pre_key.try_into()?,
-                pni_signed_pre_key: pni_signed_pre_key.try_into()?,
-                aci_pq_last_resort_pre_key: aci_pq_last_resort_pre_key
-                    .expect("ACI last resort key when linking")
-                    .try_into()?,
-                pni_pq_last_resort_pre_key: pni_pq_last_resort_pre_key
-                    .expect("PNI last resort key when linking")
-                    .try_into()?,
+                aci_signed_pre_key: SignedPreKeyEntity::try_from(
+                    &aci_signed_pre_key,
+                )?,
+                pni_signed_pre_key: SignedPreKeyEntity::try_from(
+                    &pni_signed_pre_key,
+                )?,
+                aci_pq_last_resort_pre_key: KyberPreKeyEntity::try_from(
+                    &aci_pq_last_resort_pre_key,
+                )?,
+                pni_pq_last_resort_pre_key: KyberPreKeyEntity::try_from(
+                    &pni_pq_last_resort_pre_key,
+                )?,
             },
         };
 
@@ -379,6 +356,20 @@ pub async fn link_device<
                     username: phone_number.to_string(),
                     password: password.to_owned(),
                 },
+            )
+            .await?;
+
+        // The server accepted these keys; record them as the live ones.
+        aci_store
+            .mark_signed_pre_keys_active(
+                &aci_signed_pre_key,
+                &aci_pq_last_resort_pre_key,
+            )
+            .await?;
+        pni_store
+            .mark_signed_pre_keys_active(
+                &pni_signed_pre_key,
+                &pni_pq_last_resort_pre_key,
             )
             .await?;
 

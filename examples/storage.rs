@@ -292,6 +292,20 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 
+    async fn last_prekey_rotation(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, SignalProtocolError>
+    {
+        todo!()
+    }
+
+    async fn set_last_prekey_rotation(
+        &mut self,
+        _at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
     async fn set_next_pre_key_id(
         &mut self,
         _id: u32,
