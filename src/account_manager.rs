@@ -20,7 +20,7 @@ use zkgroup::profiles::ProfileKey;
 use crate::configuration::Endpoint;
 use crate::pre_keys::{
     KyberPreKeyEntity, PreKeyEntity, PreKeyState, PreKeysStore,
-    SignedPreKeyEntity, PRE_KEY_BATCH_SIZE,
+    SignedPreKeyEntity, PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
 };
 use crate::profile_cipher::{ProfileCipher, ProfileCipherError};
 use crate::profile_name::ProfileName;
@@ -142,84 +142,172 @@ impl AccountManager {
             .await
     }
 
-    /// Generates and updates a fresh set of prekeys, rotating previous ones out.
-    /// Caller must check beforehand that the prekey counts are sufficiently low
-    /// that the refresh needs to be made.
+    /// Bring one identity's pre-keys up to date.
     ///
-    /// Loosely resembles RefreshPreKeysJob, but does not check, and always rotates everything.
+    /// Two independent decisions:
     ///
-    /// **Note**: Callers should exhaust the message queue (no pending messages requiring pre-keys)
-    /// before calling this method. The replace operations can cause a race condition where
-    /// messages use a pre-key was removed during this operation. However, in practice
-    /// the clean_* functions used retain the old keys for 90 days and keep
-    /// a minimum of 200 keys in store, which should mitigate this fully.
+    /// - The signed pre-key and last-resort Kyber pre-key are rotated on a
+    ///   local schedule (see
+    ///   [`signed_pre_keys_due_for_rotation`](PreKeysStore::signed_pre_keys_due_for_rotation)).
+    ///   Two keys, cheap enough to rotate regularly.
+    /// - One-time pre-keys are replenished only when the *server* reports it is
+    ///   running low, so a routine refresh usually uploads nothing here.
+    ///
+    /// Because the gates are separate, a fresh signed key never suppresses a
+    /// needed one-time replenish, and an empty server pool never forces an
+    /// early signed rotation.
+    ///
+    /// **Note**: callers should exhaust the message queue before calling this.
+    /// Replacing one-time keys races with messages that reference them —
+    /// though in practice the stale grace period and minimum-count floor in
+    /// [`clean_stale_pre_keys`](PreKeysStore::clean_stale_pre_keys) mitigate it.
     pub async fn update_pre_key_bundle<P: PreKeysStore>(
         &mut self,
         protocol_store: &mut P,
         service_id_kind: ServiceIdKind,
-        use_last_resort_key: bool,
+    ) -> Result<(), ServiceError> {
+        if protocol_store.signed_pre_keys_due_for_rotation().await? {
+            self.rotate_signed_pre_keys(protocol_store, service_id_kind)
+                .await?;
+
+            // Uploaded successfully; both keys rotated in that one call.
+            protocol_store
+                .set_last_prekey_rotation(chrono::Utc::now())
+                .await?;
+        } else {
+            tracing::trace!(?service_id_kind, "signed pre keys still current");
+        }
+
+        self.replenish_one_time_pre_keys(protocol_store, service_id_kind)
+            .await?;
+
+        Ok(())
+    }
+
+    /// Rotate the signed pre-key and last-resort kyber pre-key.
+    ///
+    /// Uploads two keys and leaves the server's one-time pool alone. Cheap
+    /// enough to run on a fixed schedule (upstream rotates roughly every two
+    /// days); the caller owns that schedule.
+    pub async fn rotate_signed_pre_keys<P: PreKeysStore>(
+        &mut self,
+        protocol_store: &mut P,
+        service_id_kind: ServiceIdKind,
     ) -> Result<(), ServiceError> {
         let identity_key_pair = protocol_store.get_identity_key_pair().await?;
 
-        // Generate - doesn't change state.
-        let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
-            protocol_store
-                .generate_pre_keys(
-                    &mut rand::rng(),
-                    &identity_key_pair,
-                    use_last_resort_key,
-                    PRE_KEY_BATCH_SIZE,
-                    PRE_KEY_BATCH_SIZE,
-                )
-                .await?;
-
-        // Persist + advance next-ids pre-upload
-        protocol_store
-            .store_pre_key_bundle(
-                &pre_keys,
-                &signed_pre_key,
-                &pq_pre_keys,
-                pq_last_resort_key.as_ref(),
-            )
+        let (signed_pre_key, pq_last_resort_key) = protocol_store
+            .generate_signed_pre_keys(&mut rand::rng(), &identity_key_pair)
             .await?;
 
-        // Upload
+        protocol_store
+            .store_signed_pre_key_bundle(&signed_pre_key, &pq_last_resort_key)
+            .await?;
+
+        tracing::info!(?service_id_kind, "rotating signed pre-key");
+
         self.websocket
             .register_pre_keys(
                 service_id_kind,
                 &PreKeyState {
-                    pre_keys: pre_keys
-                        .iter()
-                        .map(PreKeyEntity::try_from)
-                        .collect::<Result<_, _>>()?,
-                    signed_pre_key: SignedPreKeyEntity::try_from(
+                    pre_keys: None,
+                    signed_pre_key: Some(SignedPreKeyEntity::try_from(
                         &signed_pre_key,
-                    )?,
+                    )?),
                     identity_key: *identity_key_pair.identity_key(),
-                    pq_pre_keys: pq_pre_keys
-                        .iter()
-                        .map(KyberPreKeyEntity::try_from)
-                        .collect::<Result<_, _>>()?,
-                    pq_last_resort_key: pq_last_resort_key
-                        .as_ref()
-                        .map(KyberPreKeyEntity::try_from)
-                        .transpose()?,
+                    pq_pre_keys: None,
+                    pq_last_resort_key: Some(KyberPreKeyEntity::try_from(
+                        &pq_last_resort_key,
+                    ))
+                    .transpose()?,
                 },
             )
             .await?;
 
-        // Set active ids post-upload
         protocol_store
-            .mark_pre_key_bundle_active(
-                &signed_pre_key,
-                pq_last_resort_key.as_ref(),
-            )
+            .mark_signed_pre_keys_active(&signed_pre_key, &pq_last_resort_key)
             .await?;
 
-        // Cleanup storage from stale material
         protocol_store.clean_stale_pre_keys().await?;
 
         Ok(())
+    }
+
+    /// Replenish one-time pre-keys if the server is running low.
+    ///
+    /// Queries the server's remaining count and uploads a fresh batch only
+    /// when it has fallen below [`PRE_KEY_MINIMUM`]. Uploading replaces the
+    /// server's set, so the full batch is sent rather than a deficit.
+    ///
+    /// Returns whether an upload happened.
+    pub async fn replenish_one_time_pre_keys<P: PreKeysStore>(
+        &mut self,
+        protocol_store: &mut P,
+        service_id_kind: ServiceIdKind,
+    ) -> Result<bool, ServiceError> {
+        let status = self.websocket.get_pre_key_status(service_id_kind).await?;
+
+        let ec_needed = status.count < PRE_KEY_MINIMUM;
+        let kyber_needed = status.pq_count < PRE_KEY_MINIMUM;
+
+        if !ec_needed && !kyber_needed {
+            tracing::debug!(
+                ?service_id_kind,
+                count = status.count,
+                pq_count = status.pq_count,
+                "one-time pre-keys sufficient on server"
+            );
+            return Ok(false);
+        }
+
+        let identity_key_pair = protocol_store.get_identity_key_pair().await?;
+
+        let (pre_keys, pq_pre_keys) = protocol_store
+            .generate_one_time_pre_keys(
+                &mut rand::rng(),
+                &identity_key_pair,
+                if ec_needed { PRE_KEY_BATCH_SIZE } else { 0 },
+                if kyber_needed { PRE_KEY_BATCH_SIZE } else { 0 },
+            )
+            .await?;
+
+        protocol_store
+            .store_one_time_pre_key_bundle(&pre_keys, &pq_pre_keys)
+            .await?;
+
+        tracing::info!(
+            ?service_id_kind,
+            count = status.count,
+            pq_count = status.pq_count,
+            "replenishing one-time pre-keys"
+        );
+
+        self.websocket
+            .register_pre_keys(
+                service_id_kind,
+                &PreKeyState {
+                    pre_keys: Some(
+                        pre_keys
+                            .iter()
+                            .map(PreKeyEntity::try_from)
+                            .collect::<Result<_, _>>()?,
+                    ),
+                    signed_pre_key: None,
+                    identity_key: *identity_key_pair.identity_key(),
+                    pq_pre_keys: Some(
+                        pq_pre_keys
+                            .iter()
+                            .map(KyberPreKeyEntity::try_from)
+                            .collect::<Result<_, _>>()?,
+                    ),
+                    pq_last_resort_key: None,
+                },
+            )
+            .await?;
+
+        protocol_store.clean_stale_pre_keys().await?;
+
+        Ok(true)
     }
 
     async fn new_device_provisioning_code(

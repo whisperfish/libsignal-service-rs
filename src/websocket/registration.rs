@@ -420,6 +420,21 @@ impl SignalWebSocket<websocket::Unidentified> {
         .await
     }
 
+    /// Register a new account with the service.
+    ///
+    /// Generates the ACI and PNI signed pre-keys and last-resort Kyber
+    /// pre-keys, persists them, and submits them with the registration
+    /// request. The active ids are recorded only after the server accepts the
+    /// request, so a failed registration leaves the store's notion of the live
+    /// keys untouched.
+    ///
+    /// No one-time pre-keys are generated here: the registration request
+    /// carries none, and the account starts with an empty one-time pool on the
+    /// server. Callers should run
+    /// [`replenish_one_time_pre_keys`](AccountManager::replenish_one_time_pre_keys)
+    /// for both identities once they hold authenticated credentials; it will
+    /// find the server empty and upload the first batch. Until then the
+    /// account is reachable via the last-resort Kyber key alone.
     #[allow(clippy::too_many_arguments)]
     pub async fn register_account<
         R: Rng + CryptoRng,
@@ -431,68 +446,40 @@ impl SignalWebSocket<websocket::Unidentified> {
         registration_method: RegistrationMethod<'_>,
         gcm_token: Option<GcmRegistrationId<'_>>,
         account_attributes: AccountAttributes,
-        aci_protocol_store: &mut Aci,
-        pni_protocol_store: &mut Pni,
+        aci_store: &mut Aci,
+        pni_store: &mut Pni,
         skip_device_transfer: bool,
         phonenumber: impl TryIntoE164,
         password: &str,
     ) -> Result<VerifyAccountResponse, ProvisioningError> {
-        let aci_identity_key_pair = aci_protocol_store
+        let aci_identity_key_pair = aci_store
             .get_identity_key_pair()
             .instrument(tracing::trace_span!("get ACI identity key pair"))
             .await?;
-        let pni_identity_key_pair = pni_protocol_store
+        let pni_identity_key_pair = pni_store
             .get_identity_key_pair()
             .instrument(tracing::trace_span!("get PNI identity key pair"))
             .await?;
 
-        let (
-            aci_pre_keys,
-            aci_signed_pre_key,
-            aci_kyber_pre_keys,
-            aci_last_resort_kyber_prekey,
-        ) = aci_protocol_store
-            .generate_pre_keys(csprng, &aci_identity_key_pair, true, 0, 0)
+        let (aci_signed_pre_key, aci_last_resort_kyber_prekey) = aci_store
+            .generate_signed_pre_keys(csprng, &aci_identity_key_pair)
             .await?;
 
-        let (
-            pni_pre_keys,
-            pni_signed_pre_key,
-            pni_kyber_pre_keys,
-            pni_last_resort_kyber_prekey,
-        ) = pni_protocol_store
-            .generate_pre_keys(csprng, &pni_identity_key_pair, true, 0, 0)
-            .await?;
-
-        aci_protocol_store
-            .store_pre_key_bundle(
-                aci_pre_keys.as_slice(),
+        aci_store
+            .store_signed_pre_key_bundle(
                 &aci_signed_pre_key,
-                aci_kyber_pre_keys.as_slice(),
-                aci_last_resort_kyber_prekey.as_ref(),
+                &aci_last_resort_kyber_prekey,
             )
             .await?;
 
-        aci_protocol_store
-            .mark_pre_key_bundle_active(
-                &aci_signed_pre_key,
-                aci_last_resort_kyber_prekey.as_ref(),
-            )
+        let (pni_signed_pre_key, pni_last_resort_kyber_prekey) = pni_store
+            .generate_signed_pre_keys(csprng, &pni_identity_key_pair)
             .await?;
 
-        pni_protocol_store
-            .store_pre_key_bundle(
-                pni_pre_keys.as_slice(),
+        pni_store
+            .store_signed_pre_key_bundle(
                 &pni_signed_pre_key,
-                pni_kyber_pre_keys.as_slice(),
-                pni_last_resort_kyber_prekey.as_ref(),
-            )
-            .await?;
-
-        pni_protocol_store
-            .mark_pre_key_bundle_active(
-                &pni_signed_pre_key,
-                pni_last_resort_kyber_prekey.as_ref(),
+                &pni_last_resort_kyber_prekey,
             )
             .await?;
 
@@ -504,15 +491,16 @@ impl SignalWebSocket<websocket::Unidentified> {
             pni_identity_key: pni_identity_key.serialize().into(),
             aci_signed_pre_key: SignedPreKeyEntity::try_from(
                 &aci_signed_pre_key,
-            )
-            .unwrap(),
-            pni_signed_pre_key: pni_signed_pre_key.try_into()?,
-            aci_pq_last_resort_pre_key: aci_last_resort_kyber_prekey
-                .expect("ACI last resort key when registering")
-                .try_into()?,
-            pni_pq_last_resort_pre_key: pni_last_resort_kyber_prekey
-                .expect("PNI last resort key when registering")
-                .try_into()?,
+            )?,
+            pni_signed_pre_key: SignedPreKeyEntity::try_from(
+                &pni_signed_pre_key,
+            )?,
+            aci_pq_last_resort_pre_key: KyberPreKeyEntity::try_from(
+                &aci_last_resort_kyber_prekey,
+            )?,
+            pni_pq_last_resort_pre_key: KyberPreKeyEntity::try_from(
+                &pni_last_resort_kyber_prekey,
+            )?,
         };
 
         let result = self
@@ -524,6 +512,20 @@ impl SignalWebSocket<websocket::Unidentified> {
                 account_attributes,
                 skip_device_transfer,
                 keys,
+            )
+            .await?;
+
+        // The server accepted these keys; record them as the live ones.
+        aci_store
+            .mark_signed_pre_keys_active(
+                &aci_signed_pre_key,
+                &aci_last_resort_kyber_prekey,
+            )
+            .await?;
+        pni_store
+            .mark_signed_pre_keys_active(
+                &pni_signed_pre_key,
+                &pni_last_resort_kyber_prekey,
             )
             .await?;
 
