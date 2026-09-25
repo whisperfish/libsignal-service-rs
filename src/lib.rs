@@ -13,6 +13,7 @@ pub mod configuration;
 pub mod content;
 mod digeststream;
 pub mod envelope;
+pub mod flatline;
 pub mod groups_v2;
 pub mod master_key;
 pub mod messagepipe;
