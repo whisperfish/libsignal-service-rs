@@ -181,6 +181,8 @@ impl AccountManager {
         self.replenish_one_time_pre_keys(protocol_store, service_id_kind)
             .await?;
 
+        protocol_store.clean_stale_pre_keys().await?;
+
         Ok(())
     }
 
@@ -227,8 +229,6 @@ impl AccountManager {
         protocol_store
             .mark_signed_pre_keys_active(&signed_pre_key, &pq_last_resort_key)
             .await?;
-
-        protocol_store.clean_stale_pre_keys().await?;
 
         Ok(())
     }
@@ -304,8 +304,6 @@ impl AccountManager {
                 },
             )
             .await?;
-
-        protocol_store.clean_stale_pre_keys().await?;
 
         Ok(true)
     }
