@@ -580,6 +580,8 @@ fn wrap_next(id: u32) -> u32 {
 
 const ARCHIVE_AGE: chrono::Duration = chrono::Duration::days(30);
 const STALE_AGE: chrono::Duration = chrono::Duration::days(90);
+/// Minimum amount of active and stale keys combined to ensure
+/// stale keys are never removed prematurely.
 const ONE_TIME_MIN_COUNT: usize = 200;
 const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
