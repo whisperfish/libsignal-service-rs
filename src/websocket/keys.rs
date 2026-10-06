@@ -1,14 +1,6 @@
 use std::collections::HashMap;
 
-use libsignal_core::DeviceId;
-use libsignal_protocol::{
-    kem::{Key, Public},
-    IdentityKey, PreKeyBundle, PublicKey, SenderCertificate, ServiceId,
-    ServiceIdKind, SignalProtocolError,
-};
-use reqwest::Method;
-use serde::Deserialize;
-
+use crate::protocol::PreKeyRecord;
 use crate::{
     pre_keys::{
         KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
@@ -19,6 +11,14 @@ use crate::{
     utils::{serde_base64, serde_device_id},
     websocket::{self, registration::VerifyAccountResponse, SignalWebSocket},
 };
+use libsignal_core::DeviceId;
+use libsignal_protocol::{
+    kem::{Key, Public},
+    IdentityKey, PreKeyBundle, PublicKey, SenderCertificate, ServiceId,
+    ServiceIdKind, SignalProtocolError,
+};
+use reqwest::Method;
+use serde::Deserialize;
 
 use super::ServiceError;
 
@@ -46,6 +46,16 @@ pub struct PreKeyResponseItem {
     pub signed_pre_key: SignedPreKeyEntity,
     pub pre_key: Option<PreKeyEntity>,
     pub pq_pre_key: KyberPreKeyEntity,
+}
+
+impl TryFrom<&'_ PreKeyRecord> for PreKeyEntity {
+    type Error = SignalProtocolError;
+    fn try_from(key: &'_ PreKeyRecord) -> Result<Self, Self::Error> {
+        Ok(PreKeyEntity {
+            key_id: key.id()?.into(),
+            public_key: key.key_pair()?.public_key.serialize().to_vec(),
+        })
+    }
 }
 
 impl PreKeyResponseItem {
@@ -146,13 +156,13 @@ impl SignalWebSocket<websocket::Identified> {
     pub async fn register_pre_keys(
         &mut self,
         service_id_kind: ServiceIdKind,
-        pre_key_state: PreKeyState,
+        pre_key_state: &PreKeyState,
     ) -> Result<(), ServiceError> {
         self.http_request(
             Method::PUT,
             format!("/v2/keys?identity={}", service_id_kind),
         )?
-        .send_json(&pre_key_state)
+        .send_json(pre_key_state)
         .await?
         .service_error_for_status()
         .await?;

@@ -1,5 +1,5 @@
 use base64::prelude::*;
-use libsignal_core::{DeviceId, E164};
+use libsignal_core::DeviceId;
 use rand::{CryptoRng, Rng};
 use reqwest::Method;
 use std::collections::HashMap;
@@ -9,49 +9,38 @@ use aes::cipher::{KeyIvInit, StreamCipher as _};
 use hmac::{digest::Output, KeyInit};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
-    kem, Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair,
-    IdentityKeyStore, KeyPair, KyberPreKeyRecord, PrivateKey, ProtocolStore,
-    PublicKey, SenderKeyStore, ServiceIdKind, SignedPreKeyRecord, Timestamp,
+    Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair, IdentityKeyStore,
+    KeyPair, PrivateKey, PublicKey, ServiceIdKind,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use tracing_futures::Instrument;
 use zkgroup::profiles::ProfileKey;
 
-use crate::content::ContentBody;
+use crate::configuration::Endpoint;
 use crate::pre_keys::{
-    KyberPreKeyEntity, PreKeyEntity, PreKeysStore, SignedPreKeyEntity,
-    PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
+    KyberPreKeyEntity, PreKeyEntity, PreKeyState, PreKeysStore,
+    SignedPreKeyEntity, PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
 };
-use crate::prelude::{MessageSender, MessageSenderError};
-use crate::proto::sync_message::PniChangeNumber;
-use crate::proto::{DeviceName, SyncMessage};
-use crate::provisioning::{generate_registration_id, ProvisioningSecrets};
-use crate::push_service::response::{device_limit_reached, error_mapper};
+use crate::profile_cipher::{ProfileCipher, ProfileCipherError};
+use crate::profile_name::ProfileName;
+use crate::proto::{
+    DeviceName, ProvisionEnvelope, ProvisionMessage, ProvisioningVersion,
+};
+use crate::provisioning::{
+    ProvisioningCipher, ProvisioningError, ProvisioningSecrets,
+};
+use crate::push_service::response::{
+    device_limit_reached, error_mapper, SignalServiceResponse,
+};
 use crate::push_service::{
-    AvatarWrite, HttpAuthOverride, SignalServiceResponse, DEFAULT_DEVICE_ID,
+    AvatarWrite, HttpAuthOverride, PushService, ServiceError,
 };
-use crate::sender::OutgoingPushMessage;
 use crate::service_address::ServiceIdExt;
-use crate::session_store::SessionStoreExt;
-use crate::timestamp::TimestampExt as _;
-use crate::utils::{random_length_padding, BASE64_RELAXED};
-use crate::websocket::account::DeviceInfo;
-use crate::websocket::keys::PreKeyStatus;
+use crate::utils::{serde_base64, BASE64_RELAXED};
+use crate::websocket::account::{AccountAttributes, DeviceInfo};
 use crate::websocket::registration::CaptchaAttributes;
 use crate::websocket::{self, SignalWebSocket};
-use crate::{
-    configuration::Endpoint,
-    pre_keys::PreKeyState,
-    profile_cipher::{ProfileCipher, ProfileCipherError},
-    profile_name::ProfileName,
-    proto::{ProvisionEnvelope, ProvisionMessage, ProvisioningVersion},
-    provisioning::{ProvisioningCipher, ProvisioningError},
-    push_service::{PushService, ServiceError},
-    utils::serde_base64,
-    websocket::account::AccountAttributes,
-};
 
 // Signal-Server: controllers/DeviceController.java:193
 // (GET /v1/devices/provisioning/code)
@@ -114,7 +103,8 @@ impl AccountManager {
         protocol_store: &mut P,
         service_id_kind: ServiceIdKind,
     ) -> Result<bool, ServiceError> {
-        let Some(signed_prekey_id) = protocol_store.signed_prekey_id().await?
+        let Some(signed_prekey_id) =
+            protocol_store.active_signed_prekey_id().await?
         else {
             tracing::warn!("No signed prekey found");
             return Ok(false);
@@ -152,153 +142,170 @@ impl AccountManager {
             .await
     }
 
-    /// Checks the availability of pre-keys, and updates them as necessary.
+    /// Bring one identity's pre-keys up to date.
     ///
-    /// Parameters are the protocol's `StoreContext`, and the offsets for the next pre-key and
-    /// signed pre-keys.
+    /// Two independent decisions:
     ///
-    /// Equivalent to Java's RefreshPreKeysJob
-    #[allow(clippy::too_many_arguments)]
-    #[tracing::instrument(skip(self, protocol_store))]
+    /// - The signed pre-key and last-resort Kyber pre-key are rotated on a
+    ///   local schedule (see
+    ///   [`signed_pre_keys_due_for_rotation`](PreKeysStore::signed_pre_keys_due_for_rotation)).
+    ///   Two keys, cheap enough to rotate regularly.
+    /// - One-time pre-keys are replenished only when the *server* reports it is
+    ///   running low, so a routine refresh usually uploads nothing here.
+    ///
+    /// Because the gates are separate, a fresh signed key never suppresses a
+    /// needed one-time replenish, and an empty server pool never forces an
+    /// early signed rotation.
+    ///
+    /// **Note**: callers should exhaust the message queue before calling this.
+    /// Replacing one-time keys races with messages that reference them —
+    /// though in practice the stale grace period and minimum-count floor in
+    /// [`clean_stale_pre_keys`](PreKeysStore::clean_stale_pre_keys) mitigate it.
     pub async fn update_pre_key_bundle<P: PreKeysStore>(
         &mut self,
         protocol_store: &mut P,
         service_id_kind: ServiceIdKind,
-        use_last_resort_key: bool,
     ) -> Result<(), ServiceError> {
-        let prekey_status = match self
-            .websocket
-            .get_pre_key_status(service_id_kind)
-            .instrument(tracing::span!(
-                tracing::Level::DEBUG,
-                "Fetching pre key status"
-            ))
-            .await
-        {
-            Ok(status) => status,
-            Err(ServiceError::Unauthorized) => {
-                tracing::info!("Got Unauthorized when fetching pre-key status. Assuming first installment.");
-                // Additionally, the second PUT request will fail if this really comes down to an
-                // authorization failure.
-                PreKeyStatus {
-                    count: 0,
-                    pq_count: 0,
-                }
-            },
-            Err(e) => return Err(e),
-        };
-        tracing::trace!("Remaining pre-keys on server: {:?}", prekey_status);
+        if protocol_store.signed_pre_keys_due_for_rotation().await? {
+            self.rotate_signed_pre_keys(protocol_store, service_id_kind)
+                .await?;
 
-        let check_pre_keys = self
-            .check_pre_keys(protocol_store, service_id_kind)
-            .instrument(tracing::span!(
-                tracing::Level::DEBUG,
-                "Checking pre keys"
-            ))
-            .await?;
-        if !check_pre_keys {
-            tracing::info!(
-                "Last resort pre-keys are not up to date; refreshing."
-            );
+            // Uploaded successfully; both keys rotated in that one call.
+            protocol_store
+                .set_last_prekey_rotation(chrono::Utc::now())
+                .await?;
         } else {
-            tracing::debug!("Last resort pre-keys are up to date.");
+            tracing::trace!(?service_id_kind, "signed pre keys still current");
         }
 
-        // XXX We should honestly compare the pre-key count with the number of pre-keys we have
-        // locally. If we have more than the server, we should upload them.
-        // Currently the trait doesn't allow us to do that, so we just upload the batch size and
-        // pray.
-        if check_pre_keys
-            && (prekey_status.count >= PRE_KEY_MINIMUM
-                && prekey_status.pq_count >= PRE_KEY_MINIMUM)
-        {
-            if protocol_store.signed_pre_keys_count().await? > 0
-                && protocol_store.kyber_pre_keys_count(true).await? > 0
-                && protocol_store.signed_prekey_id().await?.is_some()
-                && protocol_store
-                    .last_resort_kyber_prekey_id()
-                    .await?
-                    .is_some()
-            {
-                tracing::debug!("Available keys sufficient");
-                return Ok(());
-            }
-            tracing::info!("Available keys sufficient; forcing refresh.");
-        }
-
-        let identity_key_pair = protocol_store
-            .get_identity_key_pair()
-            .instrument(tracing::trace_span!("get identity key pair"))
+        self.replenish_one_time_pre_keys(protocol_store, service_id_kind)
             .await?;
 
-        let last_resort_keys = protocol_store
-            .load_last_resort_kyber_pre_keys()
-            .instrument(tracing::trace_span!("fetch last resort key"))
+        protocol_store.clean_stale_pre_keys().await?;
+
+        Ok(())
+    }
+
+    /// Rotate the signed pre-key and last-resort kyber pre-key.
+    ///
+    /// Uploads two keys and leaves the server's one-time pool alone. Cheap
+    /// enough to run on a fixed schedule (upstream rotates roughly every two
+    /// days); the caller owns that schedule.
+    pub async fn rotate_signed_pre_keys<P: PreKeysStore>(
+        &mut self,
+        protocol_store: &mut P,
+        service_id_kind: ServiceIdKind,
+    ) -> Result<(), ServiceError> {
+        let identity_key_pair = protocol_store.get_identity_key_pair().await?;
+
+        let (signed_pre_key, pq_last_resort_key) = protocol_store
+            .generate_signed_pre_keys(&mut rand::rng(), &identity_key_pair)
             .await?;
 
-        // XXX: Maybe this check should be done in the generate_pre_keys function?
-        let has_last_resort_key = !last_resort_keys.is_empty();
+        protocol_store
+            .store_signed_pre_key_bundle(&signed_pre_key, &pq_last_resort_key)
+            .await?;
 
-        let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
-            crate::pre_keys::replenish_pre_keys(
-                protocol_store,
-                &mut rand::rng(),
-                &identity_key_pair,
-                use_last_resort_key && !has_last_resort_key,
-                PRE_KEY_BATCH_SIZE,
-                PRE_KEY_BATCH_SIZE,
+        tracing::info!(?service_id_kind, "rotating signed pre-key");
+
+        self.websocket
+            .register_pre_keys(
+                service_id_kind,
+                &PreKeyState {
+                    pre_keys: None,
+                    signed_pre_key: Some(SignedPreKeyEntity::try_from(
+                        &signed_pre_key,
+                    )?),
+                    identity_key: *identity_key_pair.identity_key(),
+                    pq_pre_keys: None,
+                    pq_last_resort_key: Some(KyberPreKeyEntity::try_from(
+                        &pq_last_resort_key,
+                    ))
+                    .transpose()?,
+                },
             )
             .await?;
 
-        let pq_last_resort_key = if has_last_resort_key {
-            if last_resort_keys.len() > 1 {
-                tracing::warn!(
-                    "More than one last resort key found; only uploading first"
-                );
-            }
-            Some(KyberPreKeyEntity::try_from(last_resort_keys[0].clone())?)
-        } else {
-            pq_last_resort_key
-                .map(KyberPreKeyEntity::try_from)
-                .transpose()?
-        };
-
-        let identity_key = *identity_key_pair.identity_key();
-
-        let pre_keys: Vec<_> = pre_keys
-            .into_iter()
-            .map(PreKeyEntity::try_from)
-            .collect::<Result<_, _>>()?;
-        let signed_pre_key = signed_pre_key.try_into()?;
-        let pq_pre_keys: Vec<_> = pq_pre_keys
-            .into_iter()
-            .map(KyberPreKeyEntity::try_from)
-            .collect::<Result<_, _>>()?;
-
-        tracing::info!(
-            "Uploading pre-keys: {} one-time, {} PQ, {} PQ last resort",
-            pre_keys.len(),
-            pq_pre_keys.len(),
-            if pq_last_resort_key.is_some() { 1 } else { 0 }
-        );
-
-        let pre_key_state = PreKeyState {
-            pre_keys,
-            signed_pre_key,
-            identity_key,
-            pq_pre_keys,
-            pq_last_resort_key,
-        };
-
-        self.websocket
-            .register_pre_keys(service_id_kind, pre_key_state)
-            .instrument(tracing::span!(
-                tracing::Level::DEBUG,
-                "Uploading pre keys"
-            ))
+        protocol_store
+            .mark_signed_pre_keys_active(&signed_pre_key, &pq_last_resort_key)
             .await?;
 
         Ok(())
+    }
+
+    /// Replenish one-time pre-keys if the server is running low.
+    ///
+    /// Queries the server's remaining count and uploads a fresh batch only
+    /// when it has fallen below [`PRE_KEY_MINIMUM`]. Uploading replaces the
+    /// server's set, so the full batch is sent rather than a deficit.
+    ///
+    /// Returns whether an upload happened.
+    pub async fn replenish_one_time_pre_keys<P: PreKeysStore>(
+        &mut self,
+        protocol_store: &mut P,
+        service_id_kind: ServiceIdKind,
+    ) -> Result<bool, ServiceError> {
+        let status = self.websocket.get_pre_key_status(service_id_kind).await?;
+
+        let ec_needed = status.count < PRE_KEY_MINIMUM;
+        let kyber_needed = status.pq_count < PRE_KEY_MINIMUM;
+
+        if !ec_needed && !kyber_needed {
+            tracing::debug!(
+                ?service_id_kind,
+                count = status.count,
+                pq_count = status.pq_count,
+                "one-time pre-keys sufficient on server"
+            );
+            return Ok(false);
+        }
+
+        let identity_key_pair = protocol_store.get_identity_key_pair().await?;
+
+        let (pre_keys, pq_pre_keys) = protocol_store
+            .generate_one_time_pre_keys(
+                &mut rand::rng(),
+                &identity_key_pair,
+                if ec_needed { PRE_KEY_BATCH_SIZE } else { 0 },
+                if kyber_needed { PRE_KEY_BATCH_SIZE } else { 0 },
+            )
+            .await?;
+
+        protocol_store
+            .store_one_time_pre_key_bundle(&pre_keys, &pq_pre_keys)
+            .await?;
+
+        tracing::info!(
+            ?service_id_kind,
+            count = status.count,
+            pq_count = status.pq_count,
+            "replenishing one-time pre-keys"
+        );
+
+        self.websocket
+            .register_pre_keys(
+                service_id_kind,
+                &PreKeyState {
+                    pre_keys: Some(
+                        pre_keys
+                            .iter()
+                            .map(PreKeyEntity::try_from)
+                            .collect::<Result<_, _>>()?,
+                    ),
+                    signed_pre_key: None,
+                    identity_key: *identity_key_pair.identity_key(),
+                    pq_pre_keys: Some(
+                        pq_pre_keys
+                            .iter()
+                            .map(KyberPreKeyEntity::try_from)
+                            .collect::<Result<_, _>>()?,
+                    ),
+                    pq_last_resort_key: None,
+                },
+            )
+            .await?;
+
+        Ok(true)
     }
 
     async fn new_device_provisioning_code(
@@ -678,204 +685,6 @@ impl AccountManager {
             .send()
             .await?
             .service_error_for_status_with(submit_challenge_errors)
-            .await?;
-
-        Ok(())
-    }
-
-    /// Initialize PNI on linked devices.
-    ///
-    /// Should be called as the primary device to migrate from pre-PNI to PNI.
-    ///
-    /// This is the equivalent of Android's PnpInitializeDevicesJob or iOS' PniHelloWorldManager.
-    #[tracing::instrument(skip(self, aci_protocol_store, pni_protocol_store, sender, local_aci, csprng), fields(local_aci = local_aci.service_id_string()))]
-    pub async fn pnp_initialize_devices<
-        R: Rng + CryptoRng,
-        AciStore: PreKeysStore + SessionStoreExt,
-        PniStore: PreKeysStore,
-        AciOrPni: ProtocolStore + SenderKeyStore + SessionStoreExt + Sync + Clone,
-    >(
-        &mut self,
-        aci_protocol_store: &mut AciStore,
-        pni_protocol_store: &mut PniStore,
-        mut sender: MessageSender<AciOrPni>,
-        local_aci: Aci,
-        e164: E164,
-        csprng: &mut R,
-    ) -> Result<(), MessageSenderError> {
-        let pni_identity_key_pair =
-            pni_protocol_store.get_identity_key_pair().await?;
-
-        let pni_identity_key = pni_identity_key_pair.identity_key();
-
-        // For every linked device, we generate a new set of pre-keys, and send them to the device.
-        let local_device_ids = aci_protocol_store
-            .get_sub_device_sessions(&local_aci.into())
-            .await?;
-
-        let mut device_messages =
-            Vec::<OutgoingPushMessage>::with_capacity(local_device_ids.len());
-        let mut device_pni_signed_prekeys =
-            HashMap::<String, SignedPreKeyEntity>::with_capacity(
-                local_device_ids.len(),
-            );
-        let mut device_pni_last_resort_kyber_prekeys =
-            HashMap::<String, KyberPreKeyEntity>::with_capacity(
-                local_device_ids.len(),
-            );
-        let mut pni_registration_ids =
-            HashMap::<String, u32>::with_capacity(local_device_ids.len());
-
-        let signature_valid_on_each_signed_pre_key = true;
-        for local_device_id in
-            std::iter::once(*DEFAULT_DEVICE_ID).chain(local_device_ids)
-        {
-            let local_protocol_address =
-                local_aci.to_protocol_address(local_device_id)?;
-            let span = tracing::trace_span!(
-                "filtering devices",
-                address = %local_protocol_address
-            );
-            // Skip if we don't have a session with the device
-            if (local_device_id != *DEFAULT_DEVICE_ID)
-                && aci_protocol_store
-                    .load_session(&local_protocol_address)
-                    .instrument(span)
-                    .await?
-                    .is_none()
-            {
-                tracing::warn!(
-                    "No session with device {}, skipping PNI provisioning",
-                    local_device_id
-                );
-                continue;
-            }
-            let (
-                _pre_keys,
-                signed_pre_key,
-                _kyber_pre_keys,
-                last_resort_kyber_prekey,
-            ) = if local_device_id == *DEFAULT_DEVICE_ID {
-                crate::pre_keys::replenish_pre_keys(
-                    pni_protocol_store,
-                    csprng,
-                    &pni_identity_key_pair,
-                    true,
-                    0,
-                    0,
-                )
-                .await?
-            } else {
-                // Generate a signed prekey
-                let signed_pre_key_pair = KeyPair::generate(csprng);
-                let signed_pre_key_public = signed_pre_key_pair.public_key;
-                let signed_pre_key_signature = pni_identity_key_pair
-                    .private_key()
-                    .calculate_signature(
-                        &signed_pre_key_public.serialize(),
-                        csprng,
-                    )
-                    .map_err(MessageSenderError::InvalidPrivateKey)?;
-
-                let signed_prekey_record = SignedPreKeyRecord::new(
-                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
-                    Timestamp::now(),
-                    &signed_pre_key_pair,
-                    &signed_pre_key_signature,
-                );
-
-                // Generate a last-resort Kyber prekey
-                let kyber_pre_key_record = KyberPreKeyRecord::generate(
-                    kem::KeyType::Kyber1024,
-                    csprng.random_range::<u32, _>(0..0xFFFFFF).into(),
-                    pni_identity_key_pair.private_key(),
-                )?;
-                (
-                    vec![],
-                    signed_prekey_record,
-                    vec![],
-                    Some(kyber_pre_key_record),
-                )
-            };
-
-            let registration_id = if local_device_id == *DEFAULT_DEVICE_ID {
-                pni_protocol_store.get_local_registration_id().await?
-            } else {
-                loop {
-                    let regid = generate_registration_id(csprng);
-                    if !pni_registration_ids.iter().any(|(_k, v)| *v == regid) {
-                        break regid;
-                    }
-                }
-            };
-
-            let local_device_id_s = local_device_id.to_string();
-            device_pni_signed_prekeys.insert(
-                local_device_id_s.clone(),
-                SignedPreKeyEntity::try_from(&signed_pre_key)?,
-            );
-            device_pni_last_resort_kyber_prekeys.insert(
-                local_device_id_s.clone(),
-                KyberPreKeyEntity::try_from(
-                    last_resort_kyber_prekey
-                        .as_ref()
-                        .expect("requested last resort key"),
-                )?,
-            );
-            pni_registration_ids
-                .insert(local_device_id_s.clone(), registration_id);
-
-            assert!(_pre_keys.is_empty());
-            assert!(_kyber_pre_keys.is_empty());
-
-            if local_device_id == *DEFAULT_DEVICE_ID {
-                // This is the primary device
-                // We don't need to send a message to the primary device
-                continue;
-            }
-            // cfr. SignalServiceMessageSender::getEncryptedSyncPniInitializeDeviceMessage
-            let msg = SyncMessage {
-                content: Some(
-                    crate::proto::sync_message::Content::PniChangeNumber(
-                        PniChangeNumber {
-                            identity_key_pair: Some(
-                                pni_identity_key_pair.serialize().to_vec(),
-                            ),
-                            signed_pre_key: Some(signed_pre_key.serialize()?),
-                            last_resort_kyber_pre_key: Some(
-                                last_resort_kyber_prekey
-                                    .expect("requested last resort key")
-                                    .serialize()?,
-                            ),
-                            registration_id: Some(registration_id),
-                            new_e164: Some(e164.to_string()),
-                        },
-                    ),
-                ),
-                padding: Some(random_length_padding(csprng, 512)),
-                ..SyncMessage::default()
-            };
-            let content: ContentBody = msg.into();
-            let msg = sender
-                .create_encrypted_message(
-                    &local_aci.into(),
-                    None,
-                    local_device_id,
-                    &content.into_proto().encode_to_vec(),
-                )
-                .await?;
-            device_messages.push(msg);
-        }
-
-        self.websocket
-            .distribute_pni_keys(
-                pni_identity_key,
-                device_messages,
-                device_pni_signed_prekeys,
-                device_pni_last_resort_kyber_prekeys,
-                pni_registration_ids,
-                signature_valid_on_each_signed_pre_key,
-            )
             .await?;
 
         Ok(())
