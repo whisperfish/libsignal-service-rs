@@ -264,6 +264,43 @@ impl<C: CredentialsCache> GroupsManager<C> {
         self.identified_push_service.get_group(authorization).await
     }
 
+    pub async fn create_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        group: crate::proto::Group,
+    ) -> Result<crate::proto::GroupResponse, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        self.identified_push_service
+            .put_group(authorization, group)
+            .await
+    }
+
+    /// Returns the server-signed change, to send on to the members.
+    pub async fn modify_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<crate::proto::GroupChange, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        self.identified_push_service
+            .patch_group(authorization, actions)
+            .await?
+            .group_change
+            .ok_or(ServiceError::GroupsV2Error)
+    }
+
+    pub fn server_public_params(&self) -> &ServerPublicParams {
+        &self.server_public_params
+    }
+
     #[tracing::instrument(
         skip(self, group_secret_params),
         fields(path = %path[..4.min(path.len())]),
@@ -303,6 +340,17 @@ impl<C: CredentialsCache> GroupsManager<C> {
             _ => Ok(None),
         }
     }
+}
+
+fn secret_params(
+    master_key_bytes: &[u8],
+) -> Result<GroupSecretParams, ServiceError> {
+    let master_key = GroupMasterKey::new(
+        master_key_bytes
+            .try_into()
+            .map_err(|_| ServiceError::GroupsV2Error)?,
+    );
+    Ok(GroupSecretParams::derive_from_master_key(master_key))
 }
 
 pub fn decrypt_group(
