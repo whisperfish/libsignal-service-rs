@@ -417,7 +417,7 @@ where
             _ => false,
         };
 
-        if needs_sync || is_multi_device {
+        if (needs_sync || is_multi_device) && !(message_to_self && sync_message) {
             let sync_body = if sync_message {
                 Some(content_body)
             } else {
