@@ -816,6 +816,58 @@ impl GroupOperations {
         })
     }
 
+    pub fn build_modify_title_action<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        title: &str,
+        rng: &mut R,
+    ) -> proto::group_change::actions::ModifyTitleAction {
+        proto::group_change::actions::ModifyTitleAction {
+            title: self.encrypt_title(title, rng),
+        }
+    }
+
+    /// An empty description clears it.
+    pub fn build_modify_description_action<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        description: &str,
+        rng: &mut R,
+    ) -> proto::group_change::actions::ModifyDescriptionAction {
+        proto::group_change::actions::ModifyDescriptionAction {
+            description: self.encrypt_description(Some(description), rng),
+        }
+    }
+
+    /// 0 turns it off.
+    pub fn build_modify_disappearing_messages_timer_action<
+        R: rand::Rng + rand::CryptoRng,
+    >(
+        &self,
+        seconds: u32,
+        rng: &mut R,
+    ) -> proto::group_change::actions::ModifyDisappearingMessageTimerAction
+    {
+        proto::group_change::actions::ModifyDisappearingMessageTimerAction {
+            timer: self.encrypt_disappearing_messages_timer(
+                Some(&Timer { duration: seconds }),
+                rng,
+            ),
+        }
+    }
+
+    pub fn build_modify_member_role_action(
+        &self,
+        aci: Aci,
+        role: super::model::Role,
+    ) -> Result<
+        proto::group_change::actions::ModifyMemberRoleAction,
+        GroupDecodingError,
+    > {
+        Ok(proto::group_change::actions::ModifyMemberRoleAction {
+            user_id: self.encrypt_aci(aci)?,
+            role: role.into(),
+        })
+    }
+
     /// Build a DeleteMemberAction for a GroupChange
     pub fn build_remove_member_action(
         &self,
