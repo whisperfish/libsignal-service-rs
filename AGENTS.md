@@ -43,6 +43,14 @@ Bad:
 > in the keepalive timer can destabilize long-lived WebSockets. Verified locally.
 > Happy to discuss. Smallest possible blast radius.
 
+## Commit messages
+
+The same goes for commit messages as goes for PR descriptions: keep them short.
+Explain what is not clear from the patch itself.
+
+Agents are not authors. If you are inclined to add a `Co-authored-by` annotation,
+refrain from doing so, and use `Assisted-by` instead.
+
 ## Code Style
 
 Generally, follow the patterns, or lack thereof, already present in the library.
