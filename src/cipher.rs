@@ -17,7 +17,6 @@ use libsignal_protocol::{
 };
 use prost::Message;
 use rand::{rng, CryptoRng, Rng};
-use uuid::Uuid;
 
 use crate::{
     content::{Content, Metadata},
@@ -816,13 +815,11 @@ async fn sealed_sender_decrypt(
     let local_service_id =
         ServiceId::parse_from_service_id_string(local_address.name())
             .expect("valid protocol address name");
-    let is_local_uuid = local_service_id.raw_uuid()
-        == usmc
-            .sender()?
-            .sender_uuid()?
-            .parse::<Uuid>()
-            // Validity checked inside certificate checker
-            .expect("valid uuid");
+    let sender_service_id =
+        ServiceId::parse_from_service_id_string(usmc.sender()?.sender_uuid()?)
+            .expect("valid service id in certificate");
+    let is_local_uuid =
+        local_service_id.raw_uuid() == sender_service_id.raw_uuid();
 
     let is_local_e164 = match (local_e164, usmc.sender()?.sender_e164()?) {
         (Some(l), Some(s)) => l == s,
