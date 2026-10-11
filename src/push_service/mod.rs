@@ -99,7 +99,8 @@ impl PushService {
             )
             .unwrap()])
             .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(65))
+            // Not a total timeout: attachments take as long as they take to transfer.
+            .read_timeout(Duration::from_secs(65))
             .user_agent(user_agent.as_ref())
             .http1_only()
             .build()
