@@ -74,7 +74,11 @@ pub struct StaleDevices {
 
 #[derive(Clone)]
 pub struct PushService {
-    pub(crate) servers: SignalServers,
+    /// Preset the host was built from, if any.
+    ///
+    /// Only used for CDSI env mapping; custom configurations have no
+    /// `libsignal_net` env equivalent and degrade gracefully.
+    pub(crate) servers: Option<SignalServers>,
     cfg: ServiceConfiguration,
     credentials: Option<HttpAuth>,
     client: reqwest::Client,
@@ -87,30 +91,79 @@ impl PushService {
         user_agent: impl AsRef<str>,
     ) -> Self {
         let cfg: ServiceConfiguration = env.into();
+        let client =
+            Self::build_client(&cfg.certificate_authority, &user_agent, None);
+        Self {
+            servers: Some(env),
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+        }
+    }
 
+    /// Build a `PushService` from a custom [`ServiceConfiguration`] (e.g. a
+    /// self-hosted Flatline deployment).
+    ///
+    /// CDSI contact discovery is unavailable for such configurations; there
+    /// is no `libsignal_net::env` equivalent for an arbitrary deployment.
+    pub fn from_config(
+        cfg: ServiceConfiguration,
+        credentials: Option<ServiceCredentials>,
+        user_agent: impl AsRef<str>,
+    ) -> Self {
+        Self::from_config_with_resolver(cfg, credentials, user_agent, None)
+    }
+
+    /// Like [`from_config`](Self::from_config) but with optional DNS
+    /// overrides. Each entry pins a hostname to a fixed address, bypassing
+    /// system DNS. Used for Flatline broker instances whose
+    /// `*.i-<id>.flatline.internal` hostnames resolve to `127.0.0.1`.
+    pub fn from_config_with_resolver(
+        cfg: ServiceConfiguration,
+        credentials: Option<ServiceCredentials>,
+        user_agent: impl AsRef<str>,
+        dns_overrides: Option<&[(String, std::net::SocketAddr)]>,
+    ) -> Self {
+        let client = Self::build_client(
+            &cfg.certificate_authority,
+            &user_agent,
+            dns_overrides,
+        );
+        Self {
+            servers: None,
+            cfg,
+            credentials: credentials.and_then(|c| c.authorization()),
+            client,
+        }
+    }
+
+    fn build_client(
+        certificate_authority: &str,
+        user_agent: &impl AsRef<str>,
+        dns_overrides: Option<&[(String, std::net::SocketAddr)]>,
+    ) -> reqwest::Client {
         // Use the ring provider except if the application already installed one.
         if rustls::crypto::CryptoProvider::get_default().is_none() {
             let _ = rustls::crypto::ring::default_provider().install_default();
         }
 
-        let client = reqwest::ClientBuilder::new()
+        let mut builder = reqwest::ClientBuilder::new()
             .tls_certs_only([reqwest::Certificate::from_pem(
-                cfg.certificate_authority.as_bytes(),
+                certificate_authority.as_bytes(),
             )
             .unwrap()])
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(65))
             .user_agent(user_agent.as_ref())
-            .http1_only()
-            .build()
-            .unwrap();
+            .http1_only();
 
-        Self {
-            servers: env,
-            cfg,
-            credentials: credentials.and_then(|c| c.authorization()),
-            client,
+        if let Some(overrides) = dns_overrides {
+            for (domain, addr) in overrides {
+                builder = builder.resolve(domain, *addr);
+            }
         }
+
+        builder.build().unwrap()
     }
 
     #[tracing::instrument(skip(self), fields(endpoint = %endpoint))]
