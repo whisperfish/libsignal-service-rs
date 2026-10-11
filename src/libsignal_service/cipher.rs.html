@@ -175,10 +175,10 @@
 <a href=#175 id=175 data-nosnippet>175</a>                );
 <a href=#176 id=176 data-nosnippet>176</a>            }
 <a href=#177 id=177 data-nosnippet>177</a>
-<a href=#178 id=178 data-nosnippet>178</a>            <span class="kw">if </span><span class="macro">matches!</span>(content, <span class="kw">crate</span>::proto::content::Content::SyncMessage(<span class="kw">_</span>))
-<a href=#179 id=179 data-nosnippet>179</a>                &amp;&amp; plaintext.metadata.sender.aci().map(Uuid::from)
-<a href=#180 id=180 data-nosnippet>180</a>                    != <span class="prelude-val">Some</span>(local_service.raw_uuid())
-<a href=#181 id=181 data-nosnippet>181</a>                &amp;&amp; local_service.kind() == ServiceIdKind::Aci
+<a href=#178 id=178 data-nosnippet>178</a>            <span class="comment">// Filter out SyncMessages that don't come from our own ACI.
+<a href=#179 id=179 data-nosnippet>179</a>            </span><span class="kw">if </span><span class="macro">matches!</span>(content, <span class="kw">crate</span>::proto::content::Content::SyncMessage(<span class="kw">_</span>))
+<a href=#180 id=180 data-nosnippet>180</a>                &amp;&amp; (plaintext.metadata.sender.aci() != local_service.aci()
+<a href=#181 id=181 data-nosnippet>181</a>                    || local_service.kind() == ServiceIdKind::Pni)
 <a href=#182 id=182 data-nosnippet>182</a>            {
 <a href=#183 id=183 data-nosnippet>183</a>                <span class="macro">tracing::warn!</span>(<span class="string">"Source is not ourself."</span>);
 <a href=#184 id=184 data-nosnippet>184</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
