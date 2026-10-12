@@ -25,6 +25,7 @@ pub mod provisioning;
 pub mod push_service;
 pub mod receiver;
 pub mod sender;
+pub mod sender_key_store_ext;
 pub mod service_address;
 pub mod session_store;
 mod storage_service;
@@ -37,6 +38,7 @@ pub use crate::account_manager::{
     decrypt_device_name, encrypt_device_name, AccountManager, Profile,
     ProfileManagerError,
 };
+pub use crate::sender_key_store_ext::SenderKeyStoreExt;
 pub use crate::service_address::*;
 pub use crate::storage_service::{StorageService, StorageServiceError};
 
@@ -68,6 +70,7 @@ pub mod prelude {
         push_service::{PushService, ServiceError},
         receiver::MessageReceiver,
         sender::{MessageSender, MessageSenderError},
+        sender_key_store_ext::SenderKeyStoreExt,
         session_store::SessionStoreExt,
     };
     #[cfg(feature = "phonenumber")]
