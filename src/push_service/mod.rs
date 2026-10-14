@@ -247,6 +247,23 @@ impl PushService {
         .protobuf()
         .await
     }
+
+    pub(crate) async fn get_group_avatar_upload_form(
+        &mut self,
+        credentials: HttpAuth,
+    ) -> Result<crate::proto::AvatarUploadAttributes, ServiceError> {
+        self.request(
+            Method::GET,
+            Endpoint::storage("/v1/groups/avatar/form"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
 }
 
 pub(crate) mod protobuf {

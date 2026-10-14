@@ -301,6 +301,37 @@ impl<C: CredentialsCache> GroupsManager<C> {
         &self.server_public_params
     }
 
+    /// Encrypts and uploads a group avatar; returns the key for
+    /// `GroupOperations::build_modify_avatar_action`.
+    pub async fn upload_avatar<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        avatar: &[u8],
+    ) -> Result<String, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let ciphertext = GroupOperations::new(group_secret_params)
+            .encrypt_avatar(avatar, csprng);
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        let form = self
+            .identified_push_service
+            .get_group_avatar_upload_form(authorization)
+            .await?;
+        let key = form.key.clone();
+        // Group avatars live at the CDN's root; the key carries the path.
+        self.identified_push_service
+            .upload_to_cdn0(
+                "",
+                form.into(),
+                "file".into(),
+                std::io::Cursor::new(ciphertext),
+            )
+            .await?;
+        Ok(key)
+    }
+
     #[tracing::instrument(
         skip(self, group_secret_params),
         fields(path = %path[..4.min(path.len())]),
