@@ -403,6 +403,17 @@ impl GroupOperations {
         )
     }
 
+    pub fn encrypt_avatar<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        avatar: &[u8],
+        rng: &mut R,
+    ) -> Vec<u8> {
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::Avatar(avatar.to_vec()),
+            rng,
+        )
+    }
+
     fn decrypt_title(&self, ciphertext: &[u8]) -> String {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
@@ -835,6 +846,15 @@ impl GroupOperations {
         proto::group_change::actions::ModifyDescriptionAction {
             description: self.encrypt_description(Some(description), rng),
         }
+    }
+
+    /// `key` names the uploaded avatar (see `GroupsManager::upload_avatar`);
+    /// empty clears it.
+    pub fn build_modify_avatar_action(
+        &self,
+        key: String,
+    ) -> proto::group_change::actions::ModifyAvatarAction {
+        proto::group_change::actions::ModifyAvatarAction { avatar: key }
     }
 
     /// 0 turns it off.
