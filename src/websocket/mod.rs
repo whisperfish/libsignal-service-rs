@@ -13,7 +13,6 @@ use futures::stream::FuturesUnordered;
 use reqwest::Method;
 use reqwest_websocket::WebSocket;
 use tokio::time::Instant;
-use tracing::debug;
 
 use crate::configuration::SignalServers;
 use crate::prelude::PushService;
@@ -110,6 +109,7 @@ struct SignalWebSocketProcess {
     >,
 
     outgoing_keep_alive_set: HashSet<u64>,
+    keep_alive_sent: Option<Instant>,
 
     outgoing_responses: FuturesUnordered<
         BoxFuture<'static, Result<WebSocketResponseMessage, Canceled>>,
@@ -327,7 +327,7 @@ impl SignalWebSocketProcess {
                             self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await?
                         }
                         None => {
-                            debug!("end of application request stream; websocket closing");
+                            tracing::info!("end of application request stream; websocket closing");
                             return Ok(());
                         }
                     }
@@ -335,7 +335,10 @@ impl SignalWebSocketProcess {
                 _ = ka_interval.tick().fuse() => {
                     use prost::Message;
                     if !self.outgoing_keep_alive_set.is_empty() {
-                        tracing::warn!("Websocket will be closed due to failed keepalives.");
+                        tracing::warn!(
+                            unanswered_for = ?self.keep_alive_sent.map(|sent| sent.elapsed()),
+                            "Websocket will be closed due to failed keepalives."
+                        );
                         if let Err(e) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
                             tracing::debug!("Could not close WebSocket: {:?}", e);
                         }
@@ -348,6 +351,7 @@ impl SignalWebSocketProcess {
                         .path(&self.keep_alive_path)
                         .build();
                     self.outgoing_keep_alive_set.insert(request.id.unwrap());
+                    self.keep_alive_sent = Some(Instant::now());
                     let msg = WebSocketMessage {
                         r#type: Some(web_socket_message::Type::Request.into()),
                         request: Some(request),
@@ -386,6 +390,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
             request_sink: incoming_request_sink,
             outgoing_requests: HashMap::default(),
             outgoing_keep_alive_set: HashSet::new(),
+            keep_alive_sent: None,
             // Initializing the FuturesUnordered with a `pending` future means it will never fuse
             // itself, so an "empty" FuturesUnordered will still allow new futures to be added.
             outgoing_responses: vec![
