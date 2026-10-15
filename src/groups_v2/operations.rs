@@ -24,8 +24,9 @@ use crate::{
 
 use super::{
     model::{
-        AccessControl, BannedMember, GroupMemberCandidate, Member,
-        PendingMember, PromotedMember, RequestingMember,
+        AccessControl, AccessRequired, BannedMember, GroupJoinInfo,
+        GroupMemberCandidate, Member, PendingMember, PromotedMember,
+        RequestingMember,
     },
     Group, GroupChange, GroupChanges,
 };
@@ -520,6 +521,21 @@ impl GroupOperations {
         })
     }
 
+    pub fn decrypt_group_join_info(
+        &self,
+        info: proto::GroupJoinInfo,
+    ) -> Result<GroupJoinInfo, GroupDecodingError> {
+        Ok(GroupJoinInfo {
+            title: self.decrypt_title(&info.title),
+            description_text: self.decrypt_description_text(&info.description),
+            avatar: info.avatar,
+            member_count: info.member_count,
+            add_from_invite_link: info.add_from_invite_link.try_into()?,
+            version: info.version,
+            pending_admin_approval: info.pending_admin_approval,
+        })
+    }
+
     pub fn decrypt_group_change(
         &self,
         group_change: proto::GroupChange,
@@ -918,6 +934,94 @@ impl GroupOperations {
         Ok(
             proto::group_change::actions::DeleteMemberPendingProfileKeyAction {
                 deleted_user_id: self.encrypt_service_id(invitee)?,
+            },
+        )
+    }
+
+    /// `Unsatisfiable` turns the invite link off, `Any` lets it add members,
+    /// `Administrator` makes them ask first.
+    pub fn build_modify_invite_link_access_action(
+        &self,
+        access: AccessRequired,
+    ) -> proto::group_change::actions::ModifyAddFromInviteLinkAccessControlAction
+    {
+        proto::group_change::actions::ModifyAddFromInviteLinkAccessControlAction {
+            add_from_invite_link_access: access.into(),
+        }
+    }
+
+    /// A new password makes the links given out so far useless.
+    /// See `GroupInviteLink::new_password`.
+    pub fn build_modify_invite_link_password_action(
+        &self,
+        password: Vec<u8>,
+    ) -> proto::group_change::actions::ModifyInviteLinkPasswordAction {
+        proto::group_change::actions::ModifyInviteLinkPasswordAction {
+            invite_link_password: password,
+        }
+    }
+
+    /// Joins through the invite link, where its access is `Any`.
+    pub fn build_join_from_invite_link_action(
+        &self,
+        credential: &ExpiringProfileKeyCredential,
+        server_public_params: &ServerPublicParams,
+    ) -> proto::group_change::actions::AddMemberAction {
+        let mut action = self.build_add_member_action_with_credential(
+            credential,
+            super::model::Role::Default,
+            server_public_params,
+        );
+        action.join_from_invite_link = true;
+        action
+    }
+
+    /// Asks to join through the invite link, where its access is
+    /// `Administrator`.
+    pub fn build_request_to_join_action(
+        &self,
+        credential: &ExpiringProfileKeyCredential,
+        server_public_params: &ServerPublicParams,
+    ) -> proto::group_change::actions::AddMemberPendingAdminApprovalAction {
+        let presentation =
+            self.create_member_presentation(server_public_params, credential);
+        proto::group_change::actions::AddMemberPendingAdminApprovalAction {
+            added: Some(proto::MemberPendingAdminApproval {
+                user_id: vec![],
+                profile_key: vec![],
+                presentation,
+                timestamp: 0,
+            }),
+        }
+    }
+
+    pub fn build_promote_requesting_member_action(
+        &self,
+        aci: Aci,
+        role: super::model::Role,
+    ) -> Result<
+        proto::group_change::actions::PromoteMemberPendingAdminApprovalAction,
+        GroupDecodingError,
+    > {
+        Ok(
+            proto::group_change::actions::PromoteMemberPendingAdminApprovalAction {
+                user_id: self.encrypt_aci(aci)?,
+                role: role.into(),
+            },
+        )
+    }
+
+    /// Turns a request to join down, or withdraws one's own.
+    pub fn build_remove_requesting_member_action(
+        &self,
+        aci: Aci,
+    ) -> Result<
+        proto::group_change::actions::DeleteMemberPendingAdminApprovalAction,
+        GroupDecodingError,
+    > {
+        Ok(
+            proto::group_change::actions::DeleteMemberPendingAdminApprovalAction {
+                deleted_user_id: self.encrypt_aci(aci)?,
             },
         )
     }
