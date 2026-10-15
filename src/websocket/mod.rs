@@ -230,8 +230,9 @@ impl SignalWebSocketProcess {
     }
 
     async fn run(mut self) -> Result<(), ServiceError> {
+        // A keepalive sent before the server registers our presence makes it close the socket.
         let mut ka_interval = tokio::time::interval_at(
-            Instant::now(),
+            Instant::now() + push_service::KEEPALIVE_TIMEOUT_SECONDS,
             push_service::KEEPALIVE_TIMEOUT_SECONDS,
         );
 
