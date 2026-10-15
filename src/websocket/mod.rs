@@ -235,73 +235,15 @@ impl SignalWebSocketProcess {
             Instant::now() + push_service::KEEPALIVE_TIMEOUT_SECONDS,
             push_service::KEEPALIVE_TIMEOUT_SECONDS,
         );
+        // After a stall (sleep, a busy runtime) one late tick, not a burst: a second tick
+        // right after the first would find its keep-alive unanswered and close a live socket.
+        ka_interval
+            .set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         loop {
-            futures::select! {
-                _ = ka_interval.tick().fuse() => {
-                    use prost::Message;
-                    if !self.outgoing_keep_alive_set.is_empty() {
-                        tracing::warn!("Websocket will be closed due to failed keepalives.");
-                        if let Err(e) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
-                            tracing::debug!("Could not close WebSocket: {:?}", e);
-                        }
-                        self.outgoing_keep_alive_set.clear();
-                        break;
-                    }
-                    tracing::debug!("sending keep-alive");
-                    let request = WebSocketRequestMessage::new(Method::GET)
-                        .id(self.next_request_id())
-                        .path(&self.keep_alive_path)
-                        .build();
-                    self.outgoing_keep_alive_set.insert(request.id.unwrap());
-                    let msg = WebSocketMessage {
-                        r#type: Some(web_socket_message::Type::Request.into()),
-                        request: Some(request),
-                        ..Default::default()
-                    };
-                    let buffer = msg.encode_to_vec();
-                    if let Err(e) = self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await {
-                        tracing::info!("Websocket sink has closed: {:?}.", e);
-                        break;
-                    };
-                },
-                // Process requests from the application, forward them to Signal
-                x = self.requests.next() => {
-                    match x {
-                        Some((mut request, responder)) => {
-                            use prost::Message;
-
-                            // Regenerate ID if already in the table
-                            request.id = Some(
-                                request
-                                    .id
-                                    .filter(|x| !self.outgoing_requests.contains_key(x))
-                                    .unwrap_or_else(|| self.next_request_id()),
-                            );
-                            tracing::trace!(
-                                request.id,
-                                request.verb,
-                                request.path,
-                                request_body_size_bytes = request.body.as_ref().map(|x| x.len()),
-                                ?request.headers,
-                                "sending WebSocketRequestMessage",
-                            );
-
-                            self.outgoing_requests.insert(request.id.unwrap(), responder);
-                            let msg = WebSocketMessage {
-                                r#type: Some(web_socket_message::Type::Request.into()),
-                                request: Some(request),
-                                ..Default::default()
-                            };
-                            let buffer = msg.encode_to_vec();
-                            self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await?
-                        }
-                        None => {
-                            debug!("end of application request stream; websocket closing");
-                            return Ok(());
-                        }
-                    }
-                }
+            // Biased: a keep-alive reply that arrived during a stall is read before the tick
+            // judges it unanswered.
+            futures::select_biased! {
                 // Incoming websocket message
                 web_socket_item = self.ws.next().fuse() => {
                     use reqwest_websocket::Message;
@@ -352,6 +294,70 @@ impl SignalWebSocketProcess {
                         }
                     }
                 }
+                // Process requests from the application, forward them to Signal
+                x = self.requests.next() => {
+                    match x {
+                        Some((mut request, responder)) => {
+                            use prost::Message;
+
+                            // Regenerate ID if already in the table
+                            request.id = Some(
+                                request
+                                    .id
+                                    .filter(|x| !self.outgoing_requests.contains_key(x))
+                                    .unwrap_or_else(|| self.next_request_id()),
+                            );
+                            tracing::trace!(
+                                request.id,
+                                request.verb,
+                                request.path,
+                                request_body_size_bytes = request.body.as_ref().map(|x| x.len()),
+                                ?request.headers,
+                                "sending WebSocketRequestMessage",
+                            );
+
+                            self.outgoing_requests.insert(request.id.unwrap(), responder);
+                            let msg = WebSocketMessage {
+                                r#type: Some(web_socket_message::Type::Request.into()),
+                                request: Some(request),
+                                ..Default::default()
+                            };
+                            let buffer = msg.encode_to_vec();
+                            self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await?
+                        }
+                        None => {
+                            debug!("end of application request stream; websocket closing");
+                            return Ok(());
+                        }
+                    }
+                }
+                _ = ka_interval.tick().fuse() => {
+                    use prost::Message;
+                    if !self.outgoing_keep_alive_set.is_empty() {
+                        tracing::warn!("Websocket will be closed due to failed keepalives.");
+                        if let Err(e) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
+                            tracing::debug!("Could not close WebSocket: {:?}", e);
+                        }
+                        self.outgoing_keep_alive_set.clear();
+                        break;
+                    }
+                    tracing::debug!("sending keep-alive");
+                    let request = WebSocketRequestMessage::new(Method::GET)
+                        .id(self.next_request_id())
+                        .path(&self.keep_alive_path)
+                        .build();
+                    self.outgoing_keep_alive_set.insert(request.id.unwrap());
+                    let msg = WebSocketMessage {
+                        r#type: Some(web_socket_message::Type::Request.into()),
+                        request: Some(request),
+                        ..Default::default()
+                    };
+                    let buffer = msg.encode_to_vec();
+                    if let Err(e) = self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await {
+                        tracing::info!("Websocket sink has closed: {:?}.", e);
+                        break;
+                    };
+                },
             }
         }
         Ok(())
