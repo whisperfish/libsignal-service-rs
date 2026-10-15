@@ -3,8 +3,9 @@ use std::{collections::HashMap, convert::TryInto};
 use crate::{
     configuration::Endpoint,
     groups_v2::{
-        model::{Group, GroupChanges},
+        model::{Group, GroupChanges, GroupJoinInfo},
         operations::{GroupDecodingError, GroupOperations},
+        GroupInviteLink,
     },
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
@@ -286,15 +287,61 @@ impl<C: CredentialsCache> GroupsManager<C> {
         master_key_bytes: &[u8],
         actions: crate::proto::group_change::Actions,
     ) -> Result<crate::proto::GroupChange, ServiceError> {
+        self.patch_group(csprng, master_key_bytes, actions, None)
+            .await
+    }
+
+    /// For a non-member: joining or asking to join through the link, or
+    /// withdrawing that request. Returns the server-signed change.
+    pub async fn modify_group_from_invite_link<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        link: &GroupInviteLink,
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<crate::proto::GroupChange, ServiceError> {
+        self.patch_group(
+            csprng,
+            &link.master_key,
+            actions,
+            Some(&link.password),
+        )
+        .await
+    }
+
+    async fn patch_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        actions: crate::proto::group_change::Actions,
+        invite_link_password: Option<&[u8]>,
+    ) -> Result<crate::proto::GroupChange, ServiceError> {
         let group_secret_params = secret_params(master_key_bytes)?;
         let authorization = self
             .get_authorization_for_today(csprng, group_secret_params)
             .await?;
         self.identified_push_service
-            .patch_group(authorization, actions)
+            .patch_group(authorization, actions, invite_link_password)
             .await?
             .group_change
             .ok_or(ServiceError::GroupsV2Error)
+    }
+
+    /// What the link's holder may see of the group before joining.
+    pub async fn group_join_info<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        link: &GroupInviteLink,
+    ) -> Result<GroupJoinInfo, ServiceError> {
+        let group_secret_params = secret_params(&link.master_key)?;
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        let info = self
+            .identified_push_service
+            .get_group_join_info(authorization, &link.password)
+            .await?;
+        Ok(GroupOperations::new(group_secret_params)
+            .decrypt_group_join_info(info)?)
     }
 
     pub fn server_public_params(&self) -> &ServerPublicParams {
