@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use std::{sync::LazyLock, time::Duration};
 
 use crate::{
@@ -210,15 +211,24 @@ impl PushService {
         .await
     }
 
+    /// The invite link's password lets a non-member in, or ask in.
     pub(crate) async fn patch_group(
         &mut self,
         credentials: HttpAuth,
         actions: crate::proto::group_change::Actions,
+        invite_link_password: Option<&[u8]>,
     ) -> Result<crate::proto::GroupChangeResponse, ServiceError> {
         use protobuf::ProtobufRequestBuilderExt;
+        let path = match invite_link_password {
+            Some(password) => format!(
+                "/v1/groups/?inviteLinkPassword={}",
+                BASE64_URL_SAFE_NO_PAD.encode(password)
+            ),
+            None => "/v1/groups/".into(),
+        };
         self.request(
             Method::PATCH,
-            Endpoint::storage("/v1/groups/"),
+            Endpoint::storage(path),
             HttpAuthOverride::Identified(credentials),
         )?
         .protobuf(actions)
@@ -238,6 +248,27 @@ impl PushService {
         self.request(
             Method::GET,
             Endpoint::storage("/v1/groups/"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
+
+    pub(crate) async fn get_group_join_info(
+        &mut self,
+        credentials: HttpAuth,
+        invite_link_password: &[u8],
+    ) -> Result<crate::proto::GroupJoinInfo, ServiceError> {
+        self.request(
+            Method::GET,
+            Endpoint::storage(format!(
+                "/v1/groups/join/{}",
+                BASE64_URL_SAFE_NO_PAD.encode(invite_link_password)
+            )),
             HttpAuthOverride::Identified(credentials),
         )?
         .send()
