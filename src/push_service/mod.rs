@@ -4,7 +4,9 @@ use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalServers},
     prelude::ServiceConfiguration,
     utils::serde_device_id_vec,
-    websocket::{SignalWebSocket, WebSocketType},
+    websocket::{
+        SignalWebSocket, WebSocketError, WebSocketOperation, WebSocketType,
+    },
 };
 
 use libsignal_core::DeviceId;
@@ -20,6 +22,7 @@ pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
 
 mod account;
 mod cdn;
+pub use cdn::CdnError;
 mod error;
 pub mod linking;
 pub(crate) mod response;
@@ -165,13 +168,13 @@ impl PushService {
                 builder.basic_auth(credentials.login(), credentials.password);
         }
 
-        let ws = builder
-            .upgrade()
-            .send()
-            .await?
-            .into_websocket()
-            .instrument(span.clone())
-            .await?;
+        let ws =
+            async { builder.upgrade().send().await?.into_websocket().await }
+                .instrument(span.clone())
+                .await
+                .map_err(|error| {
+                    WebSocketError::new(WebSocketOperation::Connect, error)
+                })?;
 
         let unidentified_push_service = PushService {
             servers: self.servers,
@@ -185,7 +188,7 @@ impl PushService {
             unidentified_push_service,
         );
         let task = task.instrument(span);
-        tokio::task::spawn(task);
+        ws.set_task(tokio::task::spawn(task));
         Ok(ws)
     }
 

@@ -84,8 +84,12 @@ pub enum ProvisioningError {
 
     #[error("Protobuf decoding error: {0}")]
     DecodeError(#[from] prost::DecodeError),
-    #[error("Websocket error: {reason}")]
-    WsError { reason: String },
+    #[error("unexpected request {} {} over the provisioning socket", verb.as_deref().unwrap_or("<no verb>"), path.as_deref().unwrap_or("<no path>"))]
+    UnexpectedRequest {
+        verb: Option<String>,
+        path: Option<String>,
+    },
+    /// The socket's task had ended before a request from Signal could be acknowledged.
     #[error("Websocket closing")]
     WsClosing,
     #[error("Service error: {0}")]
