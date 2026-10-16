@@ -65,6 +65,11 @@ impl ProvisioningPipe {
         }
         ws.return_request_stream(stream);
 
+        // The requests stop coming when the socket's task ends; its error says why.
+        if let Some(Err(error)) = ws.outcome().await {
+            sink.send(Err(error.into())).await?;
+        }
+
         Ok(())
     }
 
@@ -98,9 +103,7 @@ impl ProvisioningPipe {
                     prost::Message::decode(Bytes::from(body.unwrap()))?;
 
                 let mut provisioning_url = Url::parse("sgnl://linkdevice")
-                    .map_err(|e| ProvisioningError::WsError {
-                        reason: e.to_string(),
-                    })?;
+                    .expect("a constant URL parses");
                 provisioning_url
                     .query_pairs_mut()
                     .append_pair("uuid", address.address())
@@ -143,9 +146,9 @@ impl ProvisioningPipe {
 
                 Ok(Some(ProvisioningStep::Message(provision_message)))
             },
-            _ => Err(ProvisioningError::WsError {
-                reason: "Incorrect request".into(),
-            }),
+            WebSocketRequestMessage { verb, path, .. } => {
+                Err(ProvisioningError::UnexpectedRequest { verb, path })
+            },
         }
     }
 

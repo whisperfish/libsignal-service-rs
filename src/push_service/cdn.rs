@@ -5,7 +5,10 @@ use std::{
 
 use futures::TryStreamExt;
 use reqwest::{
-    header::{CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE},
+    header::{
+        HeaderName, HeaderValue, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE,
+        LOCATION, RANGE,
+    },
     multipart::Part,
     Method, StatusCode,
 };
@@ -20,6 +23,25 @@ use crate::{
 };
 
 use super::{response::SignalServiceResponse, PushService, ServiceError};
+
+/// The CDN, or a pointer into it, didn't give what an upload or download needs.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+pub enum CdnError {
+    #[error("attachment pointer without an identifier")]
+    NoAttachmentIdentifier,
+    #[error("response without the {0} header")]
+    MissingHeader(HeaderName),
+    #[error("response with a malformed {name} header: {value:?}")]
+    MalformedHeader {
+        name: HeaderName,
+        value: HeaderValue,
+    },
+    #[error("unexpected HTTP status {0} for a resumable upload")]
+    UnexpectedStatus(StatusCode),
+}
+
+/// The header carrying how much of a resumable upload the CDN already holds.
+const UPLOAD_OFFSET: HeaderName = HeaderName::from_static("upload-offset");
 
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -84,11 +106,7 @@ impl PushService {
             Some(AttachmentIdentifier::CdnKey(key)) => {
                 format!("attachments/{}", key)
             },
-            None => {
-                return Err(ServiceError::InvalidFrame {
-                    reason: "no attachment identifier in pointer",
-                });
-            },
+            None => return Err(CdnError::NoAttachmentIdentifier.into()),
         };
         self.get_from_cdn(ptr.cdn_number(), &path).await
     }
@@ -181,18 +199,16 @@ impl PushService {
             ));
         };
 
-        Ok(request
-            .send()
-            .await?
-            .error_for_status()?
+        let response = request.send().await?.error_for_status()?;
+        let location = response
             .headers()
-            .get("location")
-            .ok_or(ServiceError::InvalidFrame {
-                reason: "missing location header in HTTP response",
-            })?
+            .get(LOCATION)
+            .ok_or(CdnError::MissingHeader(LOCATION))?;
+        Ok(location
             .to_str()
-            .map_err(|_| ServiceError::InvalidFrame {
-                reason: "invalid location header bytes in HTTP response",
+            .map_err(|_| CdnError::MalformedHeader {
+                name: LOCATION,
+                value: location.clone(),
             })?
             .parse()?)
     }
@@ -222,27 +238,21 @@ impl PushService {
                 content_start: content_length,
             })
         } else if status == StatusCode::PERMANENT_REDIRECT {
-            let offset =
-                match response.headers().get(RANGE) {
-                    Some(range) => range
+            let offset = match response.headers().get(RANGE) {
+                Some(range) => {
+                    range
                         .to_str()
-                        .map_err(|_| ServiceError::InvalidFrame {
-                            reason: "invalid format for Range HTTP header",
+                        .ok()
+                        .and_then(|range| range.split('-').nth(1))
+                        .and_then(|end| end.parse::<u64>().ok())
+                        .ok_or_else(|| CdnError::MalformedHeader {
+                            name: RANGE,
+                            value: range.clone(),
                         })?
-                        .split('-')
-                        .nth(1)
-                        .ok_or(ServiceError::InvalidFrame {
-                            reason:
-                                "invalid value format for Range HTTP header",
-                        })?
-                        .parse::<u64>()
-                        .map_err(|_| ServiceError::InvalidFrame {
-                            reason:
-                                "invalid number format for Range HTTP header",
-                        })?
-                        + 1,
-                    None => 0,
-                };
+                        + 1
+                },
+                None => 0,
+            };
 
             Ok(ResumeInfo {
                 content_range: Some(format!(
@@ -254,9 +264,7 @@ impl PushService {
                 content_start: offset,
             })
         } else {
-            Err(ServiceError::InvalidFrame {
-                reason: "failed to get resumable upload data from CDN2",
-            })
+            Err(CdnError::UnexpectedStatus(status).into())
         }
     }
 
@@ -280,19 +288,17 @@ impl PushService {
 
         let response = request.send().await?.error_for_status()?;
 
-        let upload_offset = response
+        let offset = response
             .headers()
-            .get("upload-offset")
-            .ok_or(ServiceError::InvalidFrame {
-                reason: "no Upload-Offset header in response",
-            })?
+            .get(UPLOAD_OFFSET)
+            .ok_or(CdnError::MissingHeader(UPLOAD_OFFSET))?;
+        let upload_offset = offset
             .to_str()
-            .map_err(|_| ServiceError::InvalidFrame {
-                reason: "invalid upload-offset header bytes in HTTP response",
-            })?
-            .parse()
-            .map_err(|_| ServiceError::InvalidFrame {
-                reason: "invalid integer value for Upload-Offset header",
+            .ok()
+            .and_then(|offset| offset.parse().ok())
+            .ok_or_else(|| CdnError::MalformedHeader {
+                name: UPLOAD_OFFSET,
+                value: offset.clone(),
             })?;
 
         Ok(ResumeInfo {
