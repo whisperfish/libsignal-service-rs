@@ -59,12 +59,16 @@ impl MessageReceiver {
                 let r = self.service.get_attachment(blob).await;
                 match r {
                     Ok(download) => break download.stream,
-                    Err(ServiceError::Timeout { .. }) => {
-                        tracing::warn!("get_attachment timed out, retrying");
+                    Err(ServiceError::Http(error)) if error.is_timeout() => {
                         retries += 1;
+                        tracing::warn!(
+                            error = &error as &dyn std::error::Error,
+                            attempt = retries,
+                            "fetching the contacts blob timed out"
+                        );
                         if retries >= MAX_DOWNLOAD_RETRIES {
                             return Err(ServiceError::Timeout {
-                                reason: "too many retries",
+                                attempts: retries,
                             });
                         }
                     },
