@@ -141,7 +141,7 @@ impl KyberPreKeyStoreExt for ExampleStore {
     }
 
     /// Analogous to markAllOneTimeKyberPreKeysStaleIfNecessary
-    async fn mark_all_one_time_kyber_pre_keys_stale_if_necessary(
+    async fn mark_stale_one_time_kyber_pre_keys(
         &mut self,
         _stale_time: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), SignalProtocolError> {
@@ -152,7 +152,7 @@ impl KyberPreKeyStoreExt for ExampleStore {
     async fn delete_all_stale_one_time_kyber_pre_keys(
         &mut self,
         _threshold: chrono::DateTime<chrono::Utc>,
-        _min_count: usize,
+        _min_count_to_keep: usize,
     ) -> Result<(), SignalProtocolError> {
         todo!()
     }
@@ -264,7 +264,7 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 
-    async fn mark_all_one_time_ec_pre_keys_stale_if_necessary(
+    async fn mark_stale_one_time_ec_pre_keys(
         &mut self,
         _stale_time: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), SignalProtocolError> {
@@ -274,7 +274,7 @@ impl PreKeysStore for ExampleStore {
     async fn delete_all_stale_one_time_ec_pre_keys(
         &mut self,
         _threshold: chrono::DateTime<chrono::Utc>,
-        _min_count: usize,
+        _min_count_to_keep: usize,
     ) -> Result<(), SignalProtocolError> {
         todo!()
     }

@@ -36,7 +36,7 @@ pub trait KyberPreKeyStoreExt: KyberPreKeyStore {
     ) -> Result<(), SignalProtocolError>;
 
     /// Analogous to markAllOneTimeKyberPreKeysStaleIfNecessary
-    async fn mark_all_one_time_kyber_pre_keys_stale_if_necessary(
+    async fn mark_stale_one_time_kyber_pre_keys(
         &mut self,
         stale_time: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), SignalProtocolError>;
@@ -45,7 +45,7 @@ pub trait KyberPreKeyStoreExt: KyberPreKeyStore {
     async fn delete_all_stale_one_time_kyber_pre_keys(
         &mut self,
         threshold: chrono::DateTime<chrono::Utc>,
-        min_count: usize,
+        min_count_to_keep: usize,
     ) -> Result<(), SignalProtocolError>;
 }
 
@@ -193,7 +193,7 @@ pub trait PreKeysStore:
     // ---- Staleness / cleanup hooks ----
 
     /// Analogous to markAllOneTimeEcPreKeysStaleIfNecessary
-    async fn mark_all_one_time_ec_pre_keys_stale_if_necessary(
+    async fn mark_stale_one_time_ec_pre_keys(
         &mut self,
         stale_time: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), SignalProtocolError>;
@@ -202,7 +202,7 @@ pub trait PreKeysStore:
     async fn delete_all_stale_one_time_ec_pre_keys(
         &mut self,
         threshold: chrono::DateTime<chrono::Utc>,
-        min_count: usize,
+        min_count_to_keep: usize,
     ) -> Result<(), SignalProtocolError>;
 
     // ---- Composed operations (default methods) ----
@@ -378,8 +378,7 @@ pub trait PreKeysStore:
         let now = chrono::Utc::now();
 
         if !pre_keys.is_empty() {
-            self.mark_all_one_time_ec_pre_keys_stale_if_necessary(now)
-                .await?;
+            self.mark_stale_one_time_ec_pre_keys(now).await?;
             self.store_one_time_ec_pre_keys(pre_keys).await?;
 
             // Advance the next-id past the batch (pre-upload).
@@ -389,8 +388,7 @@ pub trait PreKeysStore:
         }
 
         if !pq_pre_keys.is_empty() {
-            self.mark_all_one_time_kyber_pre_keys_stale_if_necessary(now)
-                .await?;
+            self.mark_stale_one_time_kyber_pre_keys(now).await?;
             self.store_one_time_kyber_pre_keys(pq_pre_keys).await?;
 
             let last = pq_pre_keys.last().expect("non-empty");
