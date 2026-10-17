@@ -288,8 +288,12 @@ pub async fn link_device<
 
         // Signed + last-resort keys only; the one-time pools are filled by the
         // first pre-key refresh once the device is linked and authenticated.
-        let (aci_signed_pre_key, aci_pq_last_resort_pre_key) = aci_store
-            .generate_signed_pre_keys(csprng, &aci_key_pair)
+        let (aci_signed_pre_key, aci_pq_last_resort_pre_key) =
+            crate::pre_keys::generate_signed_pre_keys(
+                aci_store,
+                csprng,
+                &aci_key_pair,
+            )
             .await?;
         aci_store
             .store_signed_pre_key_bundle(
@@ -298,8 +302,12 @@ pub async fn link_device<
             )
             .await?;
 
-        let (pni_signed_pre_key, pni_pq_last_resort_pre_key) = pni_store
-            .generate_signed_pre_keys(csprng, &pni_key_pair)
+        let (pni_signed_pre_key, pni_pq_last_resort_pre_key) =
+            crate::pre_keys::generate_signed_pre_keys(
+                pni_store,
+                csprng,
+                &pni_key_pair,
+            )
             .await?;
         pni_store
             .store_signed_pre_key_bundle(

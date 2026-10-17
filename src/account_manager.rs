@@ -198,8 +198,12 @@ impl AccountManager {
     ) -> Result<(), ServiceError> {
         let identity_key_pair = protocol_store.get_identity_key_pair().await?;
 
-        let (signed_pre_key, pq_last_resort_key) = protocol_store
-            .generate_signed_pre_keys(&mut rand::rng(), &identity_key_pair)
+        let (signed_pre_key, pq_last_resort_key) =
+            crate::pre_keys::generate_signed_pre_keys(
+                protocol_store,
+                &mut rand::rng(),
+                &identity_key_pair,
+            )
             .await?;
 
         protocol_store
@@ -262,8 +266,9 @@ impl AccountManager {
 
         let identity_key_pair = protocol_store.get_identity_key_pair().await?;
 
-        let (pre_keys, pq_pre_keys) = protocol_store
-            .generate_one_time_pre_keys(
+        let (pre_keys, pq_pre_keys) =
+            crate::pre_keys::generate_one_time_pre_keys(
+                protocol_store,
                 &mut rand::rng(),
                 &identity_key_pair,
                 if ec_needed { PRE_KEY_BATCH_SIZE } else { 0 },

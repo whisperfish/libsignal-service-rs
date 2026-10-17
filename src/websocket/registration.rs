@@ -461,8 +461,12 @@ impl SignalWebSocket<websocket::Unidentified> {
             .instrument(tracing::trace_span!("get PNI identity key pair"))
             .await?;
 
-        let (aci_signed_pre_key, aci_last_resort_kyber_prekey) = aci_store
-            .generate_signed_pre_keys(csprng, &aci_identity_key_pair)
+        let (aci_signed_pre_key, aci_last_resort_kyber_prekey) =
+            crate::pre_keys::generate_signed_pre_keys(
+                aci_store,
+                csprng,
+                &aci_identity_key_pair,
+            )
             .await?;
 
         aci_store
@@ -472,8 +476,12 @@ impl SignalWebSocket<websocket::Unidentified> {
             )
             .await?;
 
-        let (pni_signed_pre_key, pni_last_resort_kyber_prekey) = pni_store
-            .generate_signed_pre_keys(csprng, &pni_identity_key_pair)
+        let (pni_signed_pre_key, pni_last_resort_kyber_prekey) =
+            crate::pre_keys::generate_signed_pre_keys(
+                pni_store,
+                csprng,
+                &pni_identity_key_pair,
+            )
             .await?;
 
         pni_store
