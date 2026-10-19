@@ -725,11 +725,11 @@ where
             .load_session(address)
             .await?
             .ok_or_else(|| {
-                SignalProtocolError::SessionNotFound(SessionNotFound::new(
-                    address.clone(),
-                    "encrypt_plaintext",
-                ))
-            })?;
+            SignalProtocolError::SessionNotFound(SessionNotFound::new(
+                address.clone(),
+                "encrypt_plaintext",
+            ))
+        })?;
         let destination_registration_id =
             session_record.remote_registration_id()?;
 
@@ -1141,4 +1141,77 @@ async fn sealed_sender_decrypt_with_validated_usmc(
         device_id: usmc.sender()?.sender_device_id()?,
         message,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use libsignal_protocol::Aci;
+
+    use super::*;
+
+    fn failed(
+        ciphertext: &[u8],
+        message_type: CiphertextMessageType,
+    ) -> FailedMessage<'_> {
+        FailedMessage {
+            sender: Aci::from(Uuid::from_u128(1)).into(),
+            sender_device: DeviceId::new(2).unwrap(),
+            ciphertext,
+            message_type,
+            timestamp: 1234,
+            content_hint: ContentHint::Resendable,
+            group_id: Some(vec![7; 32]),
+        }
+    }
+
+    fn decrypt_error() -> SignalProtocolError {
+        SignalProtocolError::InvalidState("decrypt", "test".into())
+    }
+
+    #[test]
+    fn failures_carry_a_retry_request() {
+        let error = failed(&[], CiphertextMessageType::SenderKey)
+            .into_error(decrypt_error());
+
+        let ServiceError::DecryptionFailed(failure) = error else {
+            panic!("expected DecryptionFailed, got {error:?}");
+        };
+        assert_eq!(failure.sender, Aci::from(Uuid::from_u128(1)));
+        assert_eq!(failure.sender_device, DeviceId::new(2).unwrap());
+        assert_eq!(failure.timestamp, 1234);
+        assert_eq!(failure.content_hint, ContentHint::Resendable);
+        assert_eq!(failure.group_id, Some(vec![7; 32]));
+        let request = &failure.retry_request;
+        assert_eq!(request.timestamp(), Timestamp::from_epoch_millis(1234));
+        assert_eq!(request.device_id(), 2);
+        assert!(request.ratchet_key().is_none(), "sender key message");
+    }
+
+    #[test]
+    fn unparseable_messages_ask_without_a_ratchet_key() {
+        let error = failed(b"garbage", CiphertextMessageType::Whisper)
+            .into_error(decrypt_error());
+
+        let ServiceError::DecryptionFailed(failure) = error else {
+            panic!("expected DecryptionFailed, got {error:?}");
+        };
+        assert!(failure.retry_request.ratchet_key().is_none());
+        assert_eq!(failure.retry_request.device_id(), 2);
+    }
+
+    #[test]
+    fn duplicates_and_plaintext_ask_for_nothing() {
+        let duplicate = failed(&[], CiphertextMessageType::SenderKey)
+            .into_error(SignalProtocolError::DuplicatedMessage(1, 2));
+        let plaintext = failed(&[], CiphertextMessageType::Plaintext)
+            .into_error(decrypt_error());
+
+        assert!(matches!(
+            duplicate,
+            ServiceError::SignalProtocolError(
+                SignalProtocolError::DuplicatedMessage(1, 2)
+            )
+        ));
+        assert!(matches!(plaintext, ServiceError::SignalProtocolError(_)));
+    }
 }
