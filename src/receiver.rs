@@ -142,9 +142,20 @@ impl Iterator for DeviceContactsIterator {
         }
 
         let contact_details: ContactDetails =
-            prost::Message::decode_length_delimited(&mut self.decrypted_buffer)
-                .map_err(ParseContactError::Protobuf)
-                .ok()?;
+            match prost::Message::decode_length_delimited(
+                &mut self.decrypted_buffer,
+            ) {
+                Ok(contact_details) => contact_details,
+                Err(error) => {
+                    tracing::warn!(
+                        parsed = self.parsed,
+                        total = self.total,
+                        "undecodable contact; stopping"
+                    );
+                    self.decrypted_buffer.clear();
+                    return Some(Err(ParseContactError::Protobuf(error)));
+                },
+            };
 
         let avatar_data = match contact_details.avatar {
             Some(Avatar {
@@ -238,6 +249,22 @@ mod tests {
         assert!(matches!(
             contacts.next(),
             Some(Err(ParseContactError::Truncated { needed: 100, .. }))
+        ));
+        assert!(contacts.next().is_none());
+    }
+
+    #[test]
+    fn undecodable_contact_ends_iteration_with_an_error() {
+        let mut bytes = BytesMut::from(&buffer(&[(details(None), 0)])[..]);
+        // A length prefix running past the end.
+        bytes.put_u8(100);
+        bytes.put_bytes(0xaa, 10);
+        let mut contacts = DeviceContactsIterator::new(bytes.freeze());
+
+        assert!(contacts.next().unwrap().is_ok());
+        assert!(matches!(
+            contacts.next(),
+            Some(Err(ParseContactError::Protobuf(_)))
         ));
         assert!(contacts.next().is_none());
     }
