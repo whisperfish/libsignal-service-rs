@@ -24,6 +24,7 @@ use crate::proto::{
 use crate::push_service::{self, ServiceError, SignalServiceResponse};
 
 pub mod account;
+pub mod calling;
 #[cfg(feature = "cdsi")]
 pub mod directory;
 pub mod keys;
