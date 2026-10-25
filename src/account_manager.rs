@@ -77,6 +77,24 @@ pub struct AccountManager {
     profile_key: Option<ProfileKey>,
 }
 
+/// A field of a linked device's info that is stored encrypted, and didn't decrypt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeviceInfoField {
+    /// When the device was linked.
+    CreatedAt,
+    /// The device's name.
+    Name,
+}
+
+impl std::fmt::Display for DeviceInfoField {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::CreatedAt => "creation time",
+            Self::Name => "name",
+        })
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ProfileManagerError {
     #[error(transparent)]
@@ -619,9 +637,7 @@ impl AccountManager {
         let addr = aci.to_protocol_address(device_id).unwrap();
         let public_key = aci_identity_store.get_identity(&addr).await?;
         let Some(public_key) = public_key else {
-            return Err(ServiceError::SendError {
-                reason: format!("public key for device {addr:?} not found"),
-            });
+            return Err(ServiceError::MissingIdentity(addr));
         };
         let encrypted_device_name =
             encrypt_device_name(csprng, device_name, &public_key)?;
@@ -972,11 +988,16 @@ fn decrypt_device_created_at_from_device_info(
             .open(b"deviceCreatedAt", &associated_data, &data)?;
 
     let timestamp = i64::from_be_bytes(result.try_into().map_err(|_| {
-        ServiceError::DecryptDeviceInfoFieldError("created-at")
+        ServiceError::InvalidDeviceInfo {
+            field: DeviceInfoField::CreatedAt,
+        }
     })?);
 
-    chrono::DateTime::<chrono::Utc>::from_timestamp_millis(timestamp)
-        .ok_or(ServiceError::DecryptDeviceInfoFieldError("created-at"))
+    chrono::DateTime::<chrono::Utc>::from_timestamp_millis(timestamp).ok_or(
+        ServiceError::InvalidDeviceInfo {
+            field: DeviceInfoField::CreatedAt,
+        },
+    )
 }
 
 pub fn decrypt_device_name(
@@ -989,7 +1010,9 @@ pub fn decrypt_device_name(
         ciphertext: Some(ciphertext),
     } = device_name
     else {
-        return Err(ServiceError::DecryptDeviceInfoFieldError("name"));
+        return Err(ServiceError::InvalidDeviceInfo {
+            field: DeviceInfoField::Name,
+        });
     };
 
     let synthetic_iv: [u8; 16] = synthetic_iv[..synthetic_iv.len().min(16)]

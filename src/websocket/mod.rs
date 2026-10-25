@@ -27,6 +27,7 @@ pub mod account;
 pub mod calling;
 #[cfg(feature = "cdsi")]
 pub mod directory;
+pub mod error;
 pub mod keys;
 pub mod linking;
 pub mod profile;
@@ -36,7 +37,12 @@ mod sender;
 pub mod stickers;
 mod usernames;
 
+pub use error::{
+    HandshakeError, InvalidFrame, WebSocketError, WebSocketOperation,
+    WsClosingReason,
+};
 pub use request::WebSocketRequestMessageBuilder;
+pub use usernames::UsernameLinkError;
 
 type RequestStreamItem = (
     WebSocketRequestMessage,
@@ -90,6 +96,9 @@ pub struct SignalWebSocket<C: WebSocketType> {
 
 struct SignalWebSocketInner {
     stream: Option<SignalRequestStream>,
+    /// The task running the socket, when `PushService::ws` spawned it; taken by
+    /// [`SignalWebSocket::outcome`].
+    task: Option<tokio::task::JoinHandle<Result<(), ServiceError>>>,
 }
 
 struct SignalWebSocketProcess {
@@ -151,24 +160,22 @@ impl SignalWebSocketProcess {
 
         use web_socket_message::Type;
         match (msg.r#type(), msg.request, msg.response) {
-            (Type::Unknown, _, _) => Err(ServiceError::InvalidFrame {
-                reason: "unknown frame type",
-            }),
+            (Type::Unknown, _, _) => Err(InvalidFrame::UnknownType.into()),
             (Type::Request, Some(request), _) => {
                 let (sink, recv) = oneshot::channel();
                 tracing::trace!("sending request with body");
                 self.request_sink.send((request, sink)).await.map_err(
                     |_| ServiceError::WsClosing {
-                        reason: "request handler failed",
+                        reason: WsClosingReason::RequestStreamDropped,
                     },
                 )?;
                 self.outgoing_responses.push(Box::pin(recv));
 
                 Ok(())
             },
-            (Type::Request, None, _) => Err(ServiceError::InvalidFrame {
-                reason: "type was request, but does not contain request",
-            }),
+            (Type::Request, None, _) => {
+                Err(InvalidFrame::RequestWithoutRequest.into())
+            },
             (Type::Response, _, Some(response)) => {
                 if let Some(id) = response.id {
                     if let Some(responder) = self.outgoing_requests.remove(&id)
@@ -183,15 +190,14 @@ impl SignalWebSocketProcess {
                     } else if let Some(_x) =
                         self.outgoing_keep_alive_set.take(&id)
                     {
-                        let status = reqwest::StatusCode::from_u16(
-                            response.status() as _,
-                        )
-                        .map_err(|e| {
-                            ServiceError::IO(std::io::Error::other(format!(
-                                "invalid http status code {} - {e}",
-                                response.status()
-                            )))
-                        })?;
+                        let status = u16::try_from(response.status())
+                            .ok()
+                            .and_then(|status| {
+                                reqwest::StatusCode::from_u16(status).ok()
+                            })
+                            .ok_or(InvalidFrame::InvalidKeepAliveStatus(
+                                response.status(),
+                            ))?;
                         if !status.is_success() {
                             tracing::warn!(
                                 %status,
@@ -213,9 +219,9 @@ impl SignalWebSocketProcess {
 
                 Ok(())
             },
-            (Type::Response, _, None) => Err(ServiceError::InvalidFrame {
-                reason: "type was response, but does not contain response",
-            }),
+            (Type::Response, _, None) => {
+                Err(InvalidFrame::ResponseWithoutResponse.into())
+            },
         }
     }
 
@@ -243,8 +249,9 @@ impl SignalWebSocketProcess {
                     use prost::Message;
                     if !self.outgoing_keep_alive_set.is_empty() {
                         tracing::warn!("Websocket will be closed due to failed keepalives.");
-                        if let Err(e) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
-                            tracing::debug!("Could not close WebSocket: {:?}", e);
+                        if let Err(error) = self.ws.close(reqwest_websocket::CloseCode::Away, None).await {
+                            let error = WebSocketError::new(WebSocketOperation::Close, error);
+                            tracing::debug!(error = &error as &dyn std::error::Error, "couldn't close the websocket");
                         }
                         self.outgoing_keep_alive_set.clear();
                         break;
@@ -261,10 +268,9 @@ impl SignalWebSocketProcess {
                         ..Default::default()
                     };
                     let buffer = msg.encode_to_vec();
-                    if let Err(e) = self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await {
-                        tracing::info!("Websocket sink has closed: {:?}.", e);
-                        break;
-                    };
+                    self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await.map_err(|error| {
+                        WebSocketError::new(WebSocketOperation::SendKeepAlive, error)
+                    })?;
                 },
                 // Process requests from the application, forward them to Signal
                 x = self.requests.next() => {
@@ -295,7 +301,9 @@ impl SignalWebSocketProcess {
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await?
+                            self.ws.send(reqwest_websocket::Message::Binary(buffer.into())).await.map_err(|error| {
+                                WebSocketError::new(WebSocketOperation::SendRequest, error)
+                            })?;
                         }
                         None => {
                             debug!("end of application request stream; websocket closing");
@@ -323,10 +331,12 @@ impl SignalWebSocketProcess {
                         Some(Ok(Message::Text(_))) => {
                             tracing::trace!("received text (unsupported, skipping)");
                         }
-                        Some(Err(e)) => return Err(e.into()),
+                        Some(Err(error)) => {
+                            return Err(WebSocketError::new(WebSocketOperation::Receive, error).into());
+                        }
                         None => {
                             return Err(ServiceError::WsClosing {
-                                reason: "end of web request stream; socket closing"
+                                reason: WsClosingReason::StreamEnded,
                             });
                         }
                     }
@@ -343,7 +353,9 @@ impl SignalWebSocketProcess {
                                 ..Default::default()
                             };
                             let buffer = msg.encode_to_vec();
-                            self.ws.send(buffer.into()).await?;
+                            self.ws.send(buffer.into()).await.map_err(|error| {
+                                WebSocketError::new(WebSocketOperation::SendResponse, error)
+                            })?;
                         }
                         Some(Err(error)) => {
                             tracing::error!(%error, "could not generate response to a Signal request; responder was canceled. continuing.");
@@ -364,11 +376,13 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         self.inner.lock().unwrap()
     }
 
+    /// Returns the socket's facade and the task that runs it. The task ends with why the
+    /// socket closed, having logged it; `Ok` when the application let go of the socket.
     pub fn new(
         ws: WebSocket,
         keep_alive_path: String,
         unidentified_push_service: PushService,
-    ) -> (Self, impl Future<Output = ()>) {
+    ) -> (Self, impl Future<Output = Result<(), ServiceError>>) {
         // Create process
         let (incoming_request_sink, incoming_request_stream) =
             mpsc::unbounded();
@@ -389,11 +403,13 @@ impl<C: WebSocketType> SignalWebSocket<C> {
             .collect(),
             ws,
         };
-        let process = process.run().map(|x| match x {
-            Ok(()) => (),
-            Err(e) => {
-                tracing::error!("SignalWebSocket: {}", e);
-            },
+        // Logged as well as returned: the socket's users only see `WsClosing`, and whoever
+        // holds the task may never ask.
+        let process = process.run().inspect_err(|error| {
+            tracing::error!(
+                error = error as &dyn std::error::Error,
+                "websocket task ended"
+            );
         });
 
         (
@@ -405,6 +421,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                     stream: Some(SignalRequestStream {
                         inner: incoming_request_stream,
                     }),
+                    task: None,
                 })),
             },
             process,
@@ -417,6 +434,30 @@ impl<C: WebSocketType> SignalWebSocket<C> {
 
     pub fn is_closed(&self) -> bool {
         self.request_sink.is_closed()
+    }
+
+    /// Keeps the handle of the spawned task, for [`Self::outcome`].
+    pub(crate) fn set_task(
+        &self,
+        task: tokio::task::JoinHandle<Result<(), ServiceError>>,
+    ) {
+        self.inner_locked().task = Some(task);
+    }
+
+    /// Waits for the socket's task to end, and says why: `Ok` when the application let go
+    /// of the socket, the error otherwise. The task is awaited once: later calls, and calls
+    /// on a socket whose task wasn't spawned by `PushService::ws`, return `None`.
+    pub async fn outcome(&self) -> Option<Result<(), ServiceError>> {
+        let task = self.inner_locked().task.take()?;
+        Some(task.await.unwrap_or_else(|panicked| {
+            tracing::error!(
+                error = &panicked as &dyn std::error::Error,
+                "websocket task panicked"
+            );
+            Err(ServiceError::WsClosing {
+                reason: WsClosingReason::TaskPanicked,
+            })
+        }))
     }
 
     pub fn is_used(&self) -> bool {
@@ -466,14 +507,14 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         async move {
             if let Err(_e) = request_sink.send((r, sink)).await {
                 return Err(ServiceError::WsClosing {
-                    reason: "WebSocket closing while sending request",
+                    reason: WsClosingReason::TaskEnded,
                 });
             }
             // Handle the oneshot sender error for dropped senders.
             match recv.await {
                 Ok(x) => x,
                 Err(_) => Err(ServiceError::WsClosing {
-                    reason: "WebSocket closing while waiting for a response",
+                    reason: WsClosingReason::ResponsePending,
                 }),
             }
         }
