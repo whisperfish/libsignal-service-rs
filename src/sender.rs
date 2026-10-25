@@ -609,6 +609,7 @@ where
         let content_bytes = content.encode_to_vec();
 
         let mut rng = rng();
+        let session_lock = self.cipher.session_lock().clone();
 
         for _ in 0..4u8 {
             let Some(EncryptedMessages {
@@ -668,6 +669,7 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
+                        let _step = session_lock.step().await;
                         self.protocol_store
                             .delete_service_addr_device_session(
                                 &recipient
@@ -688,6 +690,7 @@ where
                             .get_pre_key(&recipient, *missing_device_id)
                             .await?;
 
+                        let _step = session_lock.step().await;
                         process_prekey_bundle(
                             &remote_address,
                             &self
@@ -716,6 +719,7 @@ where
                             "dropping session with device {}",
                             extra_device_id
                         );
+                        let _step = session_lock.step().await;
                         self.protocol_store
                             .delete_service_addr_device_session(
                                 &recipient
@@ -977,7 +981,12 @@ where
                         // the NotFound error is an indicator of session corruption.
                         // Try to delete this session, if it gets succesfully deleted, retry.  Otherwise, fail.
                         tracing::warn!("Potential session corruption for {}, deleting session", addr);
-                        match self.protocol_store.delete_session(&addr).await {
+                        let session_lock = self.cipher.session_lock().clone();
+                        let step = session_lock.step().await;
+                        let deleted =
+                            self.protocol_store.delete_session(&addr).await;
+                        drop(step);
+                        match deleted {
                             Ok(()) => continue,
                             Err(error) => {
                                 tracing::warn!(%error, %addr, "failed to delete session");
@@ -1066,6 +1075,9 @@ where
             };
 
             let mut rng = rng();
+            // The bundles are fetched first: no step waits on the network.
+            let session_lock = self.cipher.session_lock().clone();
+            let _step = session_lock.step().await;
 
             for pre_key_bundle in pre_keys {
                 if recipient == &self.local_aci
