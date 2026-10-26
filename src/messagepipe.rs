@@ -22,15 +22,14 @@ use crate::{
 
 /// Handle for acknowledging an envelope back to the Signal server.
 ///
-/// Take this handle out of [`Incoming::Envelope`] and either:
+/// Take this handle out of [`Incoming::Envelope`] and call [`AckHandle::ack`]
+/// once the envelope is handled (its message stored, say): the server then
+/// removes the envelope from its queue.
 ///
-/// * **Call [`AckHandle::ack`]** to acknowledge immediately - the server
-///   removes the envelope from its queue.  This is useful when you want to
-///   ack before the end of the scope (e.g. after a quick validation).
-/// * **Move the handle into a future or closure** and let it drop later;
-///   on drop it will auto-acknowledge.  If the thread is panicking when
-///   the handle drops, the envelope is *not* acknowledged and will be
-///   re-delivered by the server on the next connection.
+/// A handle dropped without that leaves the envelope unacknowledged, and the
+/// server delivers it again on the next connection.  So an envelope whose
+/// handling was cut short, by a panic or by its task being dropped (a
+/// process ending, an aborted task), isn't lost.
 #[derive(Debug)]
 pub struct AckHandle(
     Option<(
@@ -40,30 +39,19 @@ pub struct AckHandle(
 );
 
 impl AckHandle {
-    /// Acknowledge this envelope immediately.
-    ///
-    /// Acknowledge the envelope immediately, before the handle would
-    /// otherwise be dropped.  Useful when you want to signal the server
-    /// early (e.g. after a quick validation) and don't need to defer
-    /// the ack to end-of-scope.
-    ///
-    /// Equivalent with `drop(AckHandle)`.
-    pub fn ack(self) {}
+    /// Acknowledge this envelope: the server removes it from its queue.
+    pub fn ack(mut self) {
+        if let Some((responder, response)) = self.0.take() {
+            let _ = responder.send(response);
+        }
+    }
 }
 
 impl Drop for AckHandle {
     fn drop(&mut self) {
-        let Some((responder, response)) = self.0.take() else {
-            return; // ack() was already called
-        };
-        if std::thread::panicking() {
-            tracing::warn!(
-                "AckHandle dropped during a panic; envelope NOT acknowledged, \
-                 server will re-deliver"
-            );
-            // responder + response dropped without sending → no ack
-        } else {
-            let _ = responder.send(response);
+        if self.0.is_some() {
+            // The responder goes unanswered: no ack, so the server sends the envelope again.
+            tracing::debug!("envelope dropped unacknowledged; the server will deliver it again");
         }
     }
 }
@@ -159,10 +147,8 @@ impl MessagePipe {
 
     /// Returns a stream of incoming envelopes.
     ///
-    /// Envelopes are accompanied by an [`AckHandle`] that may be used
-    /// to acknowledge the envelope explicitly before the end of the
-    /// enclosing scope.  See [`AckHandle`] for details on auto-ack
-    /// versus panic behaviour.
+    /// Envelopes are accompanied by an [`AckHandle`], to acknowledge each
+    /// once it is handled; one dropped unacknowledged is delivered again.
     pub fn stream(self) -> impl Stream<Item = Result<Incoming, ServiceError>> {
         let (sink, stream) = mpsc::channel(1);
 
