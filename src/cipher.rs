@@ -7,7 +7,8 @@ use libsignal_protocol::{
     group_decrypt, message_decrypt_prekey, message_decrypt_signal,
     message_encrypt, process_sender_key_distribution_message,
     sealed_sender_decrypt_to_usmc, sealed_sender_encrypt,
-    CiphertextMessageType, DeviceId, IdentityKeyStore, KyberPreKeyStore,
+    sealed_sender_encrypt_from_usmc, CiphertextMessageType, ContentHint,
+    DecryptionErrorMessage, DeviceId, IdentityKeyStore, KyberPreKeyStore,
     PlaintextContent, Pni, PreKeySignalMessage, PreKeyStore, ProtocolAddress,
     ProtocolStore, PublicKey, SealedSenderDecryptionResult, SenderCertificate,
     SenderKeyDistributionMessage, SenderKeyStore, ServiceId, SessionNotFound,
@@ -378,20 +379,36 @@ where
                 )
                 .await?;
 
-                let mut data = message_decrypt_prekey(
-                    &PreKeySignalMessage::try_from(&ciphertext[..])?,
-                    &sender,
-                    &self.local_address,
-                    &mut self.protocol_store.clone(),
-                    &mut self.protocol_store.clone(),
-                    &mut self.protocol_store.clone(),
-                    &self.protocol_store.clone(),
-                    &mut self.protocol_store.clone(),
-                    csprng,
-                )
-                .await?
-                .as_slice()
-                .to_vec();
+                let decrypted =
+                    match PreKeySignalMessage::try_from(&ciphertext[..]) {
+                        Ok(message) => {
+                            message_decrypt_prekey(
+                                &message,
+                                &sender,
+                                &self.local_address,
+                                &mut self.protocol_store.clone(),
+                                &mut self.protocol_store.clone(),
+                                &mut self.protocol_store.clone(),
+                                &self.protocol_store.clone(),
+                                &mut self.protocol_store.clone(),
+                                csprng,
+                            )
+                            .await
+                        },
+                        Err(error) => Err(error),
+                    };
+                let mut data = decrypted.map_err(|error| {
+                    FailedMessage {
+                        sender: source_service_id,
+                        sender_device,
+                        ciphertext,
+                        message_type: CiphertextMessageType::PreKey,
+                        timestamp: envelope.client_timestamp(),
+                        content_hint: ContentHint::Default,
+                        group_id: None,
+                    }
+                    .into_error(error)
+                })?;
 
                 let session_record = self
                     .protocol_store
@@ -446,17 +463,32 @@ where
                 )
                 .await?;
 
-                let mut data = message_decrypt_signal(
-                    &SignalMessage::try_from(&ciphertext[..])?,
-                    &sender,
-                    &self.local_address,
-                    &mut self.protocol_store.clone(),
-                    &mut self.protocol_store.clone(),
-                    csprng,
-                )
-                .await?
-                .as_slice()
-                .to_vec();
+                let decrypted = match SignalMessage::try_from(&ciphertext[..]) {
+                    Ok(message) => {
+                        message_decrypt_signal(
+                            &message,
+                            &sender,
+                            &self.local_address,
+                            &mut self.protocol_store.clone(),
+                            &mut self.protocol_store.clone(),
+                            csprng,
+                        )
+                        .await
+                    },
+                    Err(error) => Err(error),
+                };
+                let mut data = decrypted.map_err(|error| {
+                    FailedMessage {
+                        sender: source_service_id,
+                        sender_device,
+                        ciphertext,
+                        message_type: CiphertextMessageType::Whisper,
+                        timestamp: envelope.client_timestamp(),
+                        content_hint: ContentHint::Default,
+                        group_id: None,
+                    }
+                    .into_error(error)
+                })?;
 
                 let session_record = self
                     .protocol_store
@@ -667,6 +699,68 @@ where
             })
         }
     }
+
+    /// Wraps unencrypted content for `address`: as is, or sealed with
+    /// `unidentified_access` and `group_id`.
+    ///
+    /// Needs a session with `address` only for its registration ID, so it
+    /// works while the session is broken.
+    #[tracing::instrument(
+        skip(address, unidentified_access, content, group_id, csprng),
+        fields(
+            address = %address,
+            with_unidentified_access = unidentified_access.is_some(),
+        )
+    )]
+    pub(crate) async fn encrypt_plaintext<R: Rng + CryptoRng>(
+        &mut self,
+        address: &ProtocolAddress,
+        unidentified_access: Option<&SenderCertificate>,
+        content: &PlaintextContent,
+        group_id: Option<&[u8]>,
+        csprng: &mut R,
+    ) -> Result<OutgoingPushMessage, ServiceError> {
+        let session_record = self
+            .protocol_store
+            .load_session(address)
+            .await?
+            .ok_or_else(|| {
+            SignalProtocolError::SessionNotFound(SessionNotFound::new(
+                address.clone(),
+                "encrypt_plaintext",
+            ))
+        })?;
+        let destination_registration_id =
+            session_record.remote_registration_id()?;
+
+        use crate::proto::envelope::Type;
+        let (r#type, message) = match unidentified_access {
+            Some(certificate) => {
+                let usmc = UnidentifiedSenderMessageContent::new(
+                    CiphertextMessageType::Plaintext,
+                    certificate.clone(),
+                    content.serialized().to_vec(),
+                    ContentHint::Implicit,
+                    group_id.map(<[u8]>::to_vec),
+                )?;
+                let message = sealed_sender_encrypt_from_usmc(
+                    address,
+                    &usmc,
+                    &self.protocol_store,
+                    csprng,
+                )
+                .await?;
+                (Type::UnidentifiedSender, message)
+            },
+            None => (Type::PlaintextContent, content.serialized().to_vec()),
+        };
+        Ok(OutgoingPushMessage {
+            r#type: r#type as u32,
+            destination_device_id: address.device_id(),
+            destination_registration_id,
+            content: BASE64_RELAXED.encode(message),
+        })
+    }
 }
 
 struct Plaintext {
@@ -734,32 +828,114 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
     Ok(address)
 }
 
-/// Error thrown when the sealed sending decryption fails.
+/// Error thrown when opening a sealed sender envelope fails before its sender is known: the
+/// envelope can't be read, its sender certificate isn't valid, or it is our own.
 ///
-/// The USMC sender field is only populated when the USMC could be validated against the trust roots;
-/// hence the sender information can be trusted, give or take an active attacker on the Signal
-/// side.
-#[derive(thiserror::Error)]
-#[error("error: {inner}, usmc: {}", sender.is_some())]
+/// Failures to decrypt the message inside are [`ServiceError::DecryptionFailed`].
+#[derive(thiserror::Error, Debug)]
+#[error("{inner}")]
 pub struct SealedSenderDecryptionError {
     pub inner: SignalProtocolError,
-    pub sender: Option<ProtocolAddress>,
-}
-
-impl fmt::Debug for SealedSenderDecryptionError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SealedSenderDecryptionError")
-            .field("inner", &self.inner)
-            .field("sender", &self.sender)
-            .finish()
-    }
 }
 
 impl From<SignalProtocolError> for SealedSenderDecryptionError {
     fn from(e: SignalProtocolError) -> Self {
-        SealedSenderDecryptionError {
-            inner: e,
-            sender: None,
+        SealedSenderDecryptionError { inner: e }
+    }
+}
+
+/// A message from a known sender that failed to decrypt, with what a retry request for it needs.
+///
+/// Signal clients answer a retry request by resending the message, and by resetting the session
+/// if it was the cause. Duplicates, self-sends and plaintext messages never yield one.
+#[derive(thiserror::Error)]
+#[error("{error} (sender device {sender_device})")]
+pub struct DecryptionFailure {
+    pub error: SignalProtocolError,
+    pub sender: ServiceId,
+    pub sender_device: DeviceId,
+    /// The message's sent timestamp.
+    pub timestamp: u64,
+    /// From the sealed sender envelope; [`ContentHint::Default`] for unsealed ones.
+    pub content_hint: ContentHint,
+    /// From the sealed sender envelope, if the sender set it.
+    pub group_id: Option<Vec<u8>>,
+    /// The retry request to send the sender, as unencrypted content (see
+    /// [`MessageSender::send_retry_request`](crate::sender::MessageSender::send_retry_request)).
+    pub retry_request: DecryptionErrorMessage,
+}
+
+impl fmt::Debug for DecryptionFailure {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DecryptionFailure")
+            .field("error", &self.error)
+            .field("sender", &self.sender.service_id_string())
+            .field("sender_device", &self.sender_device)
+            .field("timestamp", &self.timestamp)
+            .field("content_hint", &self.content_hint)
+            .field("group_id", &self.group_id.is_some())
+            .finish()
+    }
+}
+
+/// A message that failed to decrypt, as far as a retry request is concerned.
+struct FailedMessage<'a> {
+    sender: ServiceId,
+    sender_device: DeviceId,
+    ciphertext: &'a [u8],
+    message_type: CiphertextMessageType,
+    timestamp: u64,
+    content_hint: ContentHint,
+    group_id: Option<Vec<u8>>,
+}
+
+impl FailedMessage<'_> {
+    /// [`ServiceError::DecryptionFailed`], or the plain `error` if no retry should be requested.
+    fn into_error(self, error: SignalProtocolError) -> ServiceError {
+        let retry = !matches!(
+            error,
+            SignalProtocolError::DuplicatedMessage(..)
+                | SignalProtocolError::LegacyCiphertextVersion(_)
+                | SignalProtocolError::UnrecognizedCiphertextVersion(_)
+                | SignalProtocolError::UnrecognizedMessageVersion(_)
+                | SignalProtocolError::SealedSenderSelfSend
+        );
+        if !retry || self.message_type == CiphertextMessageType::Plaintext {
+            return error.into();
+        }
+        let timestamp = Timestamp::from_epoch_millis(self.timestamp);
+        let device = u32::from(self.sender_device);
+        // An unparseable message has no ratchet key: ask without one, as for sender key messages.
+        let retry_request = DecryptionErrorMessage::for_original(
+            self.ciphertext,
+            self.message_type,
+            timestamp,
+            device,
+        )
+        .or_else(|_| {
+            let message = crate::proto::DecryptionErrorMessage {
+                ratchet_key: None,
+                timestamp: Some(self.timestamp),
+                device_id: Some(device),
+            };
+            DecryptionErrorMessage::try_from(message.encode_to_vec().as_slice())
+        });
+        match retry_request {
+            Ok(retry_request) => {
+                ServiceError::DecryptionFailed(Box::new(DecryptionFailure {
+                    error,
+                    sender: self.sender,
+                    sender_device: self.sender_device,
+                    timestamp: self.timestamp,
+                    content_hint: self.content_hint,
+                    group_id: self.group_id,
+                    retry_request,
+                }))
+            },
+            Err(retry_error) => {
+                tracing::warn!(%retry_error, "cannot build a retry request");
+                error.into()
+            },
         }
     }
 }
@@ -799,7 +975,69 @@ async fn sealed_sender_decrypt(
     signed_pre_key_store: &mut dyn SignedPreKeyStore,
     sender_key_store: &mut dyn SenderKeyStore,
     kyber_pre_key_store: &mut dyn KyberPreKeyStore,
-) -> Result<SealedSenderDecryptionResult, SealedSenderDecryptionError> {
+) -> Result<SealedSenderDecryptionResult, ServiceError> {
+    let (usmc, remote_address) = sealed_sender_validate(
+        ciphertext,
+        trust_roots,
+        timestamp,
+        local_e164,
+        &local_address,
+        identity_store,
+    )
+    .await?;
+    let sender_device = remote_address.device_id();
+
+    sealed_sender_decrypt_with_validated_usmc(
+        &usmc,
+        &remote_address,
+        &local_address,
+        identity_store,
+        session_store,
+        pre_key_store,
+        signed_pre_key_store,
+        sender_key_store,
+        kyber_pre_key_store,
+    )
+    .await
+    .map_err(|error| {
+        let Some(sender) =
+            ServiceId::parse_from_service_id_string(remote_address.name())
+        else {
+            return error.into();
+        };
+        let (Ok(contents), Ok(message_type), Ok(content_hint), Ok(group_id)) = (
+            usmc.contents(),
+            usmc.msg_type(),
+            usmc.content_hint(),
+            usmc.group_id(),
+        ) else {
+            return error.into();
+        };
+        FailedMessage {
+            sender,
+            sender_device,
+            ciphertext: contents,
+            message_type,
+            timestamp: timestamp.epoch_millis(),
+            content_hint,
+            group_id: group_id.map(<[u8]>::to_vec),
+        }
+        .into_error(error)
+    })
+}
+
+/// Decrypts the sealed sender envelope and validates its sender; returns the content and sender.
+async fn sealed_sender_validate(
+    ciphertext: &[u8],
+    trust_roots: &[PublicKey],
+    timestamp: Timestamp,
+    local_e164: Option<String>,
+    local_address: &ProtocolAddress,
+    identity_store: &mut dyn IdentityKeyStore,
+) -> Result<
+    (UnidentifiedSenderMessageContent, ProtocolAddress),
+    SealedSenderDecryptionError,
+> {
     let usmc =
         sealed_sender_decrypt_to_usmc(ciphertext, identity_store).await?;
 
@@ -839,23 +1077,7 @@ async fn sealed_sender_decrypt(
         usmc.sender()?.sender_uuid()?.to_string(),
         usmc.sender()?.sender_device_id()?,
     );
-
-    sealed_sender_decrypt_with_validated_usmc(
-        &usmc,
-        &remote_address,
-        &local_address,
-        identity_store,
-        session_store,
-        pre_key_store,
-        signed_pre_key_store,
-        sender_key_store,
-        kyber_pre_key_store,
-    )
-    .await
-    .map_err(|inner| SealedSenderDecryptionError {
-        inner,
-        sender: Some(remote_address),
-    })
+    Ok((usmc, remote_address))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -919,4 +1141,77 @@ async fn sealed_sender_decrypt_with_validated_usmc(
         device_id: usmc.sender()?.sender_device_id()?,
         message,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use libsignal_protocol::Aci;
+
+    use super::*;
+
+    fn failed(
+        ciphertext: &[u8],
+        message_type: CiphertextMessageType,
+    ) -> FailedMessage<'_> {
+        FailedMessage {
+            sender: Aci::from(Uuid::from_u128(1)).into(),
+            sender_device: DeviceId::new(2).unwrap(),
+            ciphertext,
+            message_type,
+            timestamp: 1234,
+            content_hint: ContentHint::Resendable,
+            group_id: Some(vec![7; 32]),
+        }
+    }
+
+    fn decrypt_error() -> SignalProtocolError {
+        SignalProtocolError::InvalidState("decrypt", "test".into())
+    }
+
+    #[test]
+    fn failures_carry_a_retry_request() {
+        let error = failed(&[], CiphertextMessageType::SenderKey)
+            .into_error(decrypt_error());
+
+        let ServiceError::DecryptionFailed(failure) = error else {
+            panic!("expected DecryptionFailed, got {error:?}");
+        };
+        assert_eq!(failure.sender, Aci::from(Uuid::from_u128(1)));
+        assert_eq!(failure.sender_device, DeviceId::new(2).unwrap());
+        assert_eq!(failure.timestamp, 1234);
+        assert_eq!(failure.content_hint, ContentHint::Resendable);
+        assert_eq!(failure.group_id, Some(vec![7; 32]));
+        let request = &failure.retry_request;
+        assert_eq!(request.timestamp(), Timestamp::from_epoch_millis(1234));
+        assert_eq!(request.device_id(), 2);
+        assert!(request.ratchet_key().is_none(), "sender key message");
+    }
+
+    #[test]
+    fn unparseable_messages_ask_without_a_ratchet_key() {
+        let error = failed(b"garbage", CiphertextMessageType::Whisper)
+            .into_error(decrypt_error());
+
+        let ServiceError::DecryptionFailed(failure) = error else {
+            panic!("expected DecryptionFailed, got {error:?}");
+        };
+        assert!(failure.retry_request.ratchet_key().is_none());
+        assert_eq!(failure.retry_request.device_id(), 2);
+    }
+
+    #[test]
+    fn duplicates_and_plaintext_ask_for_nothing() {
+        let duplicate = failed(&[], CiphertextMessageType::SenderKey)
+            .into_error(SignalProtocolError::DuplicatedMessage(1, 2));
+        let plaintext = failed(&[], CiphertextMessageType::Plaintext)
+            .into_error(decrypt_error());
+
+        assert!(matches!(
+            duplicate,
+            ServiceError::SignalProtocolError(
+                SignalProtocolError::DuplicatedMessage(1, 2)
+            )
+        ));
+        assert!(matches!(plaintext, ServiceError::SignalProtocolError(_)));
+    }
 }
