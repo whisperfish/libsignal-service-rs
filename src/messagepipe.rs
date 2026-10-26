@@ -162,3 +162,44 @@ impl MessagePipe {
         combined.filter_map(|x| async { x })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A handle, and what the websocket would send the server for it.
+    fn handle() -> (AckHandle, oneshot::Receiver<WebSocketResponseMessage>) {
+        let (responder, acked) = oneshot::channel();
+        let ack =
+            AckHandle(Some((responder, WebSocketResponseMessage::default())));
+        (ack, acked)
+    }
+
+    /// A receiving task dropped while it handles an envelope, as when a process returns from
+    /// `main` or a client aborts its receive task, hasn't handled it: the server must deliver
+    /// it again.
+    #[tokio::test]
+    async fn a_task_dropped_while_handling_leaves_the_envelope_unacknowledged()
+    {
+        let (ack, acked) = handle();
+        let handling = tokio::spawn(async move {
+            let _ack = ack;
+            // Storing the message, say.
+            futures::future::pending::<()>().await;
+        });
+        tokio::task::yield_now().await;
+        handling.abort();
+        assert!(handling.await.unwrap_err().is_cancelled());
+        assert!(
+            acked.await.is_err(),
+            "acknowledged an envelope that was never handled"
+        );
+    }
+
+    #[tokio::test]
+    async fn ack_acknowledges() {
+        let (ack, acked) = handle();
+        ack.ack();
+        assert!(acked.await.is_ok());
+    }
+}
