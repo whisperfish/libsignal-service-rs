@@ -961,19 +961,19 @@ impl GroupOperations {
         }
     }
 
-    /// Joins through the invite link, where its access is `Any`.
+    /// Joins through the invite link, where its access is `Any`. The server
+    /// marks the action as a join from the link, and refuses it if it is
+    /// marked already ("Invalid field set on action").
     pub fn build_join_from_invite_link_action(
         &self,
         credential: &ExpiringProfileKeyCredential,
         server_public_params: &ServerPublicParams,
     ) -> proto::group_change::actions::AddMemberAction {
-        let mut action = self.build_add_member_action_with_credential(
+        self.build_add_member_action_with_credential(
             credential,
             super::model::Role::Default,
             server_public_params,
-        );
-        action.join_from_invite_link = true;
-        action
+        )
     }
 
     /// Asks to join through the invite link, where its access is
@@ -1264,6 +1264,53 @@ mod tests {
         let group_secret_params =
             GroupSecretParams::derive_from_master_key(group_master_key);
         GroupOperations::new(group_secret_params)
+    }
+
+    #[test]
+    fn joining_from_an_invite_link_leaves_the_mark_to_the_server() {
+        use rand::Rng;
+
+        let mut rng = rand::rng();
+        let server_secret_params =
+            zkgroup::ServerSecretParams::generate(rng.random());
+        let server_public_params = server_secret_params.get_public_params();
+        let aci = Aci::from_uuid_bytes([7; 16]);
+        let profile_key = zkgroup::profiles::ProfileKey::create([9; 32]);
+        let context = server_public_params
+            .create_profile_key_credential_request_context(
+                rng.random(),
+                aci,
+                profile_key,
+            );
+        let expiration =
+            zkgroup::Timestamp::from_epoch_seconds(17 * 24 * 60 * 60);
+        let response = server_secret_params
+            .issue_expiring_profile_key_credential(
+                rng.random(),
+                &context.get_request(),
+                aci,
+                profile_key.get_commitment(aci),
+                expiration,
+            )
+            .unwrap();
+        let credential = server_public_params
+            .receive_expiring_profile_key_credential(
+                &context,
+                &response,
+                expiration.sub_seconds(24 * 60 * 60),
+            )
+            .unwrap();
+
+        let action = create_group_operations()
+            .build_join_from_invite_link_action(
+                &credential,
+                &server_public_params,
+            );
+
+        assert!(!action.join_from_invite_link);
+        assert!(action
+            .added
+            .is_some_and(|member| !member.presentation.is_empty()));
     }
 
     #[test]
