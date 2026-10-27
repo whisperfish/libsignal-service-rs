@@ -24,8 +24,9 @@ use crate::{
 
 use super::{
     model::{
-        AccessControl, BannedMember, GroupMemberCandidate, Member,
-        PendingMember, PromotedMember, RequestingMember,
+        AccessControl, AccessRequired, BannedMember, GroupJoinInfo,
+        GroupMemberCandidate, Member, PendingMember, PromotedMember,
+        RequestingMember,
     },
     Group, GroupChange, GroupChanges,
 };
@@ -403,6 +404,17 @@ impl GroupOperations {
         )
     }
 
+    pub fn encrypt_avatar<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        avatar: &[u8],
+        rng: &mut R,
+    ) -> Vec<u8> {
+        self.encrypt_blob_content(
+            group_attribute_blob::Content::Avatar(avatar.to_vec()),
+            rng,
+        )
+    }
+
     fn decrypt_title(&self, ciphertext: &[u8]) -> String {
         use group_attribute_blob::Content;
         match self.decrypt_blob(ciphertext).content {
@@ -506,6 +518,21 @@ impl GroupOperations {
             announcements_only,
             members_banned,
             terminated,
+        })
+    }
+
+    pub fn decrypt_group_join_info(
+        &self,
+        info: proto::GroupJoinInfo,
+    ) -> Result<GroupJoinInfo, GroupDecodingError> {
+        Ok(GroupJoinInfo {
+            title: self.decrypt_title(&info.title),
+            description_text: self.decrypt_description_text(&info.description),
+            avatar: info.avatar,
+            member_count: info.member_count,
+            add_from_invite_link: info.add_from_invite_link.try_into()?,
+            version: info.version,
+            pending_admin_approval: info.pending_admin_approval,
         })
     }
 
@@ -816,6 +843,67 @@ impl GroupOperations {
         })
     }
 
+    pub fn build_modify_title_action<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        title: &str,
+        rng: &mut R,
+    ) -> proto::group_change::actions::ModifyTitleAction {
+        proto::group_change::actions::ModifyTitleAction {
+            title: self.encrypt_title(title, rng),
+        }
+    }
+
+    /// An empty description clears it.
+    pub fn build_modify_description_action<R: rand::Rng + rand::CryptoRng>(
+        &self,
+        description: &str,
+        rng: &mut R,
+    ) -> proto::group_change::actions::ModifyDescriptionAction {
+        proto::group_change::actions::ModifyDescriptionAction {
+            description: self.encrypt_description(Some(description), rng),
+        }
+    }
+
+    /// `key` names the uploaded avatar (see `GroupsManager::upload_avatar`);
+    /// empty clears it.
+    pub fn build_modify_avatar_action(
+        &self,
+        key: String,
+    ) -> proto::group_change::actions::ModifyAvatarAction {
+        proto::group_change::actions::ModifyAvatarAction { avatar: key }
+    }
+
+    /// 0 turns it off.
+    pub fn build_modify_disappearing_messages_timer_action<
+        R: rand::Rng + rand::CryptoRng,
+    >(
+        &self,
+        seconds: u32,
+        rng: &mut R,
+    ) -> proto::group_change::actions::ModifyDisappearingMessageTimerAction
+    {
+        proto::group_change::actions::ModifyDisappearingMessageTimerAction {
+            timer: self.encrypt_disappearing_messages_timer(
+                Some(&Timer { duration: seconds }),
+                rng,
+            ),
+        }
+    }
+
+    pub fn build_modify_member_role_action(
+        &self,
+        aci: Aci,
+        role: super::model::Role,
+    ) -> Result<
+        proto::group_change::actions::ModifyMemberRoleAction,
+        GroupDecodingError,
+    > {
+        Ok(proto::group_change::actions::ModifyMemberRoleAction {
+            user_id: self.encrypt_aci(aci)?,
+            role: role.into(),
+        })
+    }
+
     /// Build a DeleteMemberAction for a GroupChange
     pub fn build_remove_member_action(
         &self,
@@ -846,6 +934,94 @@ impl GroupOperations {
         Ok(
             proto::group_change::actions::DeleteMemberPendingProfileKeyAction {
                 deleted_user_id: self.encrypt_service_id(invitee)?,
+            },
+        )
+    }
+
+    /// `Unsatisfiable` turns the invite link off, `Any` lets it add members,
+    /// `Administrator` makes them ask first.
+    pub fn build_modify_invite_link_access_action(
+        &self,
+        access: AccessRequired,
+    ) -> proto::group_change::actions::ModifyAddFromInviteLinkAccessControlAction
+    {
+        proto::group_change::actions::ModifyAddFromInviteLinkAccessControlAction {
+            add_from_invite_link_access: access.into(),
+        }
+    }
+
+    /// A new password makes the links given out so far useless.
+    /// See `GroupInviteLink::new_password`.
+    pub fn build_modify_invite_link_password_action(
+        &self,
+        password: Vec<u8>,
+    ) -> proto::group_change::actions::ModifyInviteLinkPasswordAction {
+        proto::group_change::actions::ModifyInviteLinkPasswordAction {
+            invite_link_password: password,
+        }
+    }
+
+    /// Joins through the invite link, where its access is `Any`. The server
+    /// marks the action as a join from the link, and refuses it if it is
+    /// marked already ("Invalid field set on action").
+    pub fn build_join_from_invite_link_action(
+        &self,
+        credential: &ExpiringProfileKeyCredential,
+        server_public_params: &ServerPublicParams,
+    ) -> proto::group_change::actions::AddMemberAction {
+        self.build_add_member_action_with_credential(
+            credential,
+            super::model::Role::Default,
+            server_public_params,
+        )
+    }
+
+    /// Asks to join through the invite link, where its access is
+    /// `Administrator`.
+    pub fn build_request_to_join_action(
+        &self,
+        credential: &ExpiringProfileKeyCredential,
+        server_public_params: &ServerPublicParams,
+    ) -> proto::group_change::actions::AddMemberPendingAdminApprovalAction {
+        let presentation =
+            self.create_member_presentation(server_public_params, credential);
+        proto::group_change::actions::AddMemberPendingAdminApprovalAction {
+            added: Some(proto::MemberPendingAdminApproval {
+                user_id: vec![],
+                profile_key: vec![],
+                presentation,
+                timestamp: 0,
+            }),
+        }
+    }
+
+    pub fn build_promote_requesting_member_action(
+        &self,
+        aci: Aci,
+        role: super::model::Role,
+    ) -> Result<
+        proto::group_change::actions::PromoteMemberPendingAdminApprovalAction,
+        GroupDecodingError,
+    > {
+        Ok(
+            proto::group_change::actions::PromoteMemberPendingAdminApprovalAction {
+                user_id: self.encrypt_aci(aci)?,
+                role: role.into(),
+            },
+        )
+    }
+
+    /// Turns a request to join down, or withdraws one's own.
+    pub fn build_remove_requesting_member_action(
+        &self,
+        aci: Aci,
+    ) -> Result<
+        proto::group_change::actions::DeleteMemberPendingAdminApprovalAction,
+        GroupDecodingError,
+    > {
+        Ok(
+            proto::group_change::actions::DeleteMemberPendingAdminApprovalAction {
+                deleted_user_id: self.encrypt_aci(aci)?,
             },
         )
     }
@@ -1088,6 +1264,53 @@ mod tests {
         let group_secret_params =
             GroupSecretParams::derive_from_master_key(group_master_key);
         GroupOperations::new(group_secret_params)
+    }
+
+    #[test]
+    fn joining_from_an_invite_link_leaves_the_mark_to_the_server() {
+        use rand::Rng;
+
+        let mut rng = rand::rng();
+        let server_secret_params =
+            zkgroup::ServerSecretParams::generate(rng.random());
+        let server_public_params = server_secret_params.get_public_params();
+        let aci = Aci::from_uuid_bytes([7; 16]);
+        let profile_key = zkgroup::profiles::ProfileKey::create([9; 32]);
+        let context = server_public_params
+            .create_profile_key_credential_request_context(
+                rng.random(),
+                aci,
+                profile_key,
+            );
+        let expiration =
+            zkgroup::Timestamp::from_epoch_seconds(17 * 24 * 60 * 60);
+        let response = server_secret_params
+            .issue_expiring_profile_key_credential(
+                rng.random(),
+                &context.get_request(),
+                aci,
+                profile_key.get_commitment(aci),
+                expiration,
+            )
+            .unwrap();
+        let credential = server_public_params
+            .receive_expiring_profile_key_credential(
+                &context,
+                &response,
+                expiration.sub_seconds(24 * 60 * 60),
+            )
+            .unwrap();
+
+        let action = create_group_operations()
+            .build_join_from_invite_link_action(
+                &credential,
+                &server_public_params,
+            );
+
+        assert!(!action.join_from_invite_link);
+        assert!(action
+            .added
+            .is_some_and(|member| !member.presentation.is_empty()));
     }
 
     #[test]

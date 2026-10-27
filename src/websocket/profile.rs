@@ -114,6 +114,69 @@ impl SignalWebSocket<websocket::Identified> {
             .await
     }
 
+    /// Needed to add someone to a group.
+    pub async fn retrieve_expiring_profile_key_credential<
+        R: rand::Rng + rand::CryptoRng,
+    >(
+        &mut self,
+        csprng: &mut R,
+        address: Aci,
+        profile_key: zkgroup::profiles::ProfileKey,
+        server_public_params: &zkgroup::ServerPublicParams,
+    ) -> Result<zkgroup::profiles::ExpiringProfileKeyCredential, ServiceError>
+    {
+        #[derive(Deserialize)]
+        struct CredentialProfile {
+            #[serde(default, with = "serde_optional_base64")]
+            credential: Option<Vec<u8>>,
+        }
+        let mut randomness = [0u8; 32];
+        csprng.fill_bytes(&mut randomness);
+        let context = server_public_params
+            .create_profile_key_credential_request_context(
+                randomness,
+                address,
+                profile_key,
+            );
+        let request = hex::encode(bincode::serialize(&context.get_request())?);
+        let version =
+            bincode::serialize(&profile_key.get_profile_key_version(address))?;
+        let version = std::str::from_utf8(&version)
+            .expect("hex encoded profile key version");
+        let path = format!(
+            "/v1/profile/{}/{}/{}?credentialType=expiringProfileKey",
+            address.service_id_string(),
+            version,
+            request
+        );
+        let profile: CredentialProfile = self
+            .http_request(Method::GET, path)?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .json()
+            .await?;
+        let response =
+            profile.credential.ok_or(ServiceError::InvalidFrame {
+                reason: "no profile key credential in the profile",
+            })?;
+        let response: zkgroup::profiles::ExpiringProfileKeyCredentialResponse =
+            zkgroup::deserialize(&response)?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("after 1970")
+            .as_secs();
+        Ok(
+            server_public_params.receive_expiring_profile_key_credential(
+                &context,
+                &response,
+                // Not truncated to the day: zkgroup refuses expiry more than 7 days ahead.
+                zkgroup::Timestamp::from_epoch_seconds(now),
+            )?,
+        )
+    }
+
     /// Writes a profile and returns the avatar URL, if one was provided.
     ///
     /// The name, about and emoji fields are encrypted with an [`ProfileCipher`][struct@crate::profile_cipher::ProfileCipher].

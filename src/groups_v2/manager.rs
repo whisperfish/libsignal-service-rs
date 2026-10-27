@@ -3,8 +3,9 @@ use std::{collections::HashMap, convert::TryInto};
 use crate::{
     configuration::Endpoint,
     groups_v2::{
-        model::{Group, GroupChanges},
+        model::{Group, GroupChanges, GroupJoinInfo},
         operations::{GroupDecodingError, GroupOperations},
+        GroupInviteLink,
     },
     prelude::{PushService, ServiceError},
     proto::GroupContextV2,
@@ -264,6 +265,120 @@ impl<C: CredentialsCache> GroupsManager<C> {
         self.identified_push_service.get_group(authorization).await
     }
 
+    pub async fn create_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        group: crate::proto::Group,
+    ) -> Result<crate::proto::GroupResponse, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        self.identified_push_service
+            .put_group(authorization, group)
+            .await
+    }
+
+    /// Returns the server-signed change, to send on to the members.
+    pub async fn modify_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<crate::proto::GroupChange, ServiceError> {
+        self.patch_group(csprng, master_key_bytes, actions, None)
+            .await
+    }
+
+    /// For a non-member: joining or asking to join through the link, or
+    /// withdrawing that request. Returns the server-signed change.
+    pub async fn modify_group_from_invite_link<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        link: &GroupInviteLink,
+        actions: crate::proto::group_change::Actions,
+    ) -> Result<crate::proto::GroupChange, ServiceError> {
+        self.patch_group(
+            csprng,
+            &link.master_key,
+            actions,
+            Some(&link.password),
+        )
+        .await
+    }
+
+    async fn patch_group<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        actions: crate::proto::group_change::Actions,
+        invite_link_password: Option<&[u8]>,
+    ) -> Result<crate::proto::GroupChange, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        self.identified_push_service
+            .patch_group(authorization, actions, invite_link_password)
+            .await?
+            .group_change
+            .ok_or(ServiceError::GroupsV2Error)
+    }
+
+    /// What the link's holder may see of the group before joining.
+    pub async fn group_join_info<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        link: &GroupInviteLink,
+    ) -> Result<GroupJoinInfo, ServiceError> {
+        let group_secret_params = secret_params(&link.master_key)?;
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        let info = self
+            .identified_push_service
+            .get_group_join_info(authorization, &link.password)
+            .await?;
+        Ok(GroupOperations::new(group_secret_params)
+            .decrypt_group_join_info(info)?)
+    }
+
+    pub fn server_public_params(&self) -> &ServerPublicParams {
+        &self.server_public_params
+    }
+
+    /// Encrypts and uploads a group avatar; returns the key for
+    /// `GroupOperations::build_modify_avatar_action`.
+    pub async fn upload_avatar<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        avatar: &[u8],
+    ) -> Result<String, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let ciphertext = GroupOperations::new(group_secret_params)
+            .encrypt_avatar(avatar, csprng);
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        let form = self
+            .identified_push_service
+            .get_group_avatar_upload_form(authorization)
+            .await?;
+        let key = form.key.clone();
+        // Group avatars live at the CDN's root; the key carries the path.
+        self.identified_push_service
+            .upload_to_cdn0(
+                "",
+                form.into(),
+                "file".into(),
+                std::io::Cursor::new(ciphertext),
+            )
+            .await?;
+        Ok(key)
+    }
+
     #[tracing::instrument(
         skip(self, group_secret_params),
         fields(path = %path[..4.min(path.len())]),
@@ -303,6 +418,17 @@ impl<C: CredentialsCache> GroupsManager<C> {
             _ => Ok(None),
         }
     }
+}
+
+fn secret_params(
+    master_key_bytes: &[u8],
+) -> Result<GroupSecretParams, ServiceError> {
+    let master_key = GroupMasterKey::new(
+        master_key_bytes
+            .try_into()
+            .map_err(|_| ServiceError::GroupsV2Error)?,
+    );
+    Ok(GroupSecretParams::derive_from_master_key(master_key))
 }
 
 pub fn decrypt_group(
