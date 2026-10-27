@@ -25,6 +25,7 @@ use crate::{
     proto::PniSignatureMessage,
     push_service::{ServiceError, DEFAULT_DEVICE_ID},
     sender::OutgoingPushMessage,
+    session_lock::SessionLock,
     session_store::SessionStoreExt,
     utils::BASE64_RELAXED,
     ServiceIdExt,
@@ -38,6 +39,7 @@ pub struct ServiceCipher<S> {
     protocol_store: S,
     trust_roots: Vec<PublicKey>,
     local_address: ProtocolAddress,
+    session_lock: SessionLock,
 }
 
 impl<S> fmt::Debug for ServiceCipher<S> {
@@ -84,7 +86,19 @@ where
             protocol_store,
             trust_roots,
             local_address,
+            session_lock: SessionLock::default(),
         }
+    }
+
+    /// Takes session steps one after the other with everything else given
+    /// `lock`; see [`SessionLock`]. By default, only with its own clones.
+    pub fn with_session_lock(mut self, lock: SessionLock) -> Self {
+        self.session_lock = lock;
+        self
+    }
+
+    pub fn session_lock(&self) -> &SessionLock {
+        &self.session_lock
     }
 
     /// Opens ("decrypts") an envelope.
@@ -113,6 +127,9 @@ where
                 .expect("valid protocol address name");
 
         if envelope.content.is_some() {
+            // One step with the sender key distribution message it may carry.
+            let session_lock = self.session_lock.clone();
+            let step = session_lock.step().await;
             let plaintext = self.decrypt(&envelope, csprng).await?;
             let was_plaintext = plaintext.metadata.was_plaintext;
 
@@ -138,6 +155,7 @@ where
                     "applied sender key distribution message"
                 );
             }
+            drop(step);
 
             let Some(content) = &plaintext.message.content else {
                 // Cheap-out: post-decrypt side-ops are not propagated alongside the
@@ -587,6 +605,8 @@ where
     ) -> Result<OutgoingPushMessage, ServiceError> {
         let mut rng = rng();
 
+        let session_lock = self.session_lock.clone();
+        let _step = session_lock.step().await;
         let session_record = self
             .protocol_store
             .load_session(address)

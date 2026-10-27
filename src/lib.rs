@@ -26,6 +26,7 @@ pub mod push_service;
 pub mod receiver;
 pub mod sender;
 pub mod service_address;
+pub mod session_lock;
 pub mod session_store;
 mod storage_service;
 mod timestamp;
