@@ -87,6 +87,43 @@ pub trait PreKeysStore:
     async fn last_resort_kyber_prekey_id(
         &self,
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError>;
+
+    /// Saves the keys of one replenishment.
+    ///
+    /// The default saves them one by one. A store that can should save them
+    /// all or none, in one write: a store that syncs each write to disk
+    /// otherwise syncs once per key, about two hundred times when an account
+    /// is linked.
+    async fn save_pre_keys(
+        &mut self,
+        keys: PreKeysBatch<'_>,
+    ) -> Result<(), SignalProtocolError> {
+        for record in keys.pre_keys {
+            self.save_pre_key(record.id()?, record).await?;
+        }
+        for record in keys.kyber_pre_keys {
+            self.save_kyber_pre_key(record.id()?, record).await?;
+        }
+        self.save_signed_pre_key(
+            keys.signed_pre_key.id()?,
+            keys.signed_pre_key,
+        )
+        .await?;
+        if let Some(record) = keys.last_resort_kyber_pre_key {
+            self.store_last_resort_kyber_pre_key(record.id()?, record)
+                .await?;
+        }
+        Ok(())
+    }
+}
+
+/// The keys of one replenishment, generated together and saved together
+#[derive(Clone, Copy)]
+pub struct PreKeysBatch<'a> {
+    pub pre_keys: &'a [PreKeyRecord],
+    pub signed_pre_key: &'a SignedPreKeyRecord,
+    pub kyber_pre_keys: &'a [KyberPreKeyRecord],
+    pub last_resort_kyber_pre_key: Option<&'a KyberPreKeyRecord>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -205,8 +242,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
         protocol_store.next_signed_pre_key_id().await?;
     let pq_pre_keys_offset_id = protocol_store.next_pq_pre_key_id().await?;
 
-    let span = tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
-
     let mut pre_keys = vec![];
     let mut pq_pre_keys = vec![];
 
@@ -217,13 +252,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
             (((pre_keys_offset_id + i) % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1)
                 .into();
         let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-        protocol_store
-                    .save_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
-
         pre_keys.push(pre_key_record);
     }
 
@@ -238,13 +266,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
             pre_key_id,
             identity_key_pair.private_key(),
         )?;
-        protocol_store
-                    .save_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
-
         pq_pre_keys.push(pre_key_record);
     }
 
@@ -261,13 +282,6 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
         &signed_pre_key_pair,
         &signed_pre_key_signature,
     );
-
-    protocol_store
-                .save_signed_pre_key(
-                    next_signed_pre_key_id.into(),
-                    &signed_prekey_record,
-                )
-                    .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
 
     let pq_last_resort_key = if use_last_resort_key {
         let pre_key_id = (((pq_pre_keys_offset_id + kyber_pre_key_count)
@@ -287,17 +301,29 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
             pre_key_id,
             identity_key_pair.private_key(),
         )?;
-        protocol_store
-                    .store_last_resort_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save last resort kyber pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
-
         Some(pre_key_record)
     } else {
         None
     };
+
+    // All generated first, then saved in one go, so a store can write them
+    // all or none.
+    // TODO: Shouldn't this also remove the previous pre-keys from storage?
+    //       I think we might want to update the storage, and then sync the storage to the
+    //       server.
+    protocol_store
+        .save_pre_keys(PreKeysBatch {
+            pre_keys: &pre_keys,
+            signed_pre_key: &signed_prekey_record,
+            kyber_pre_keys: &pq_pre_keys,
+            last_resort_kyber_pre_key: pq_last_resort_key.as_ref(),
+        })
+        .instrument(tracing::debug_span!(
+            "save pre keys",
+            pre_keys = pre_keys.len(),
+            kyber_pre_keys = pq_pre_keys.len(),
+        ))
+        .await?;
 
     Ok((
         pre_keys,
