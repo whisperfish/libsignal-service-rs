@@ -2,7 +2,7 @@
 
 use std::{fmt, sync::Arc};
 
-use futures::lock::{Mutex, MutexGuard};
+use tokio::sync::{Mutex, MutexGuard};
 
 /// Runs session steps (load a session, ratchet it, store it) one at a time.
 ///
@@ -18,7 +18,8 @@ use futures::lock::{Mutex, MutexGuard};
 pub struct SessionLock(Arc<Mutex<()>>);
 
 impl SessionLock {
-    /// Waits for the steps before; this one lasts as long as the guard.
+    /// Waits for the steps before, in the order they asked; this one lasts as
+    /// long as the guard.
     pub async fn step(&self) -> MutexGuard<'_, ()> {
         self.0.lock().await
     }
