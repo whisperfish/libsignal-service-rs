@@ -46,6 +46,9 @@ pub struct ProvisioningSecrets {
     pub ephemeral_backup_key: Option<[u8; 32]>,
     pub account_entropy_pool: AccountEntropyPool,
     pub media_root_backup_key: Option<[u8; 32]>,
+    /// The account's read-receipt setting, which the new device starts with (`readReceipts`
+    /// in Provisioning.proto); `None` leaves it off until the setting reaches the device.
+    pub read_receipts: Option<bool>,
 }
 
 #[derive(thiserror::Error, Debug)]
