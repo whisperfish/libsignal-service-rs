@@ -397,6 +397,8 @@ impl<C: CredentialsCache> GroupsManager<C> {
         Ok(GroupOperations::new(group_secret_params).decrypt_avatar(&result))
     }
 
+    /// The change `group_context` carries, once it is shown to be the server's
+    /// ([`GroupOperations::decrypt_signed_group_change`]).
     pub fn decrypt_group_context(
         &self,
         group_context: GroupContextV2,
@@ -412,7 +414,10 @@ impl<C: CredentialsCache> GroupsManager<C> {
                 let encrypted_group_change =
                     prost::Message::decode(Bytes::from(group_change))?;
                 let group_change = GroupOperations::new(group_secret_params)
-                    .decrypt_group_change(encrypted_group_change)?;
+                    .decrypt_signed_group_change(
+                        encrypted_group_change,
+                        &self.server_public_params,
+                    )?;
                 Ok(Some(group_change))
             },
             _ => Ok(None),

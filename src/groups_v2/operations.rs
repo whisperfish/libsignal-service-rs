@@ -53,6 +53,10 @@ pub enum GroupDecodingError {
     NotAci,
     #[error("wrong service ID type: should be PNI")]
     NotPni,
+    #[error("group change without the server's signature")]
+    NotSigned,
+    #[error("group change for another group")]
+    WrongGroup,
 }
 
 impl From<zkgroup::ZkGroupDeserializationFailure> for GroupDecodingError {
@@ -534,6 +538,30 @@ impl GroupOperations {
             version: info.version,
             pending_admin_approval: info.pending_admin_approval,
         })
+    }
+
+    /// [`Self::decrypt_group_change`], once the change is shown to be one the server made: signed
+    /// with its key, for this group. The change a message carries comes from its sender, who
+    /// could make one up that was never applied; one the server signed was.
+    pub fn decrypt_signed_group_change(
+        &self,
+        group_change: proto::GroupChange,
+        server_public_params: &ServerPublicParams,
+    ) -> Result<GroupChanges, GroupDecodingError> {
+        let signature = group_change
+            .server_signature
+            .as_slice()
+            .try_into()
+            .map_err(|_| GroupDecodingError::NotSigned)?;
+        server_public_params
+            .verify_signature(&group_change.actions, signature)?;
+        let actions = proto::group_change::Actions::decode(
+            group_change.actions.as_slice(),
+        )?;
+        if actions.group_id != self.group_secret_params.get_group_identifier() {
+            return Err(GroupDecodingError::WrongGroup);
+        }
+        self.decrypt_group_change(group_change)
     }
 
     pub fn decrypt_group_change(
@@ -1264,6 +1292,65 @@ mod tests {
         let group_secret_params =
             GroupSecretParams::derive_from_master_key(group_master_key);
         GroupOperations::new(group_secret_params)
+    }
+
+    /// A change signed by the server's key, for the group of [`create_group_operations`] unless
+    /// `group_id` says another.
+    fn signed_change(
+        server: &zkgroup::ServerSecretParams,
+        ops: &GroupOperations,
+        group_id: Vec<u8>,
+    ) -> proto::GroupChange {
+        let editor = Aci::parse_from_service_id_string(
+            "550e8400-e29b-41d4-a716-446655440000",
+        )
+        .unwrap();
+        let actions = proto::group_change::Actions {
+            group_id,
+            source_user_id: ops.encrypt_aci(editor).unwrap(),
+            version: 2,
+            ..Default::default()
+        }
+        .encode_to_vec();
+        let server_signature = server.sign([7; 32], &actions).to_vec();
+        proto::GroupChange {
+            actions,
+            server_signature,
+            change_epoch: 0,
+        }
+    }
+
+    #[test]
+    fn a_change_the_server_signed_for_the_group_decrypts() {
+        let server = zkgroup::ServerSecretParams::generate([1; 32]);
+        let public = server.get_public_params();
+        let ops = create_group_operations();
+        let group_id = ops.group_secret_params.get_group_identifier().to_vec();
+
+        let change = signed_change(&server, &ops, group_id.clone());
+        let decrypted =
+            ops.decrypt_signed_group_change(change, &public).unwrap();
+        assert_eq!(decrypted.version, 2);
+
+        let mut unsigned = signed_change(&server, &ops, group_id.clone());
+        unsigned.server_signature.clear();
+        assert!(matches!(
+            ops.decrypt_signed_group_change(unsigned, &public),
+            Err(GroupDecodingError::NotSigned)
+        ));
+
+        let mut forged = signed_change(&server, &ops, group_id);
+        forged.server_signature[0] ^= 1;
+        assert!(matches!(
+            ops.decrypt_signed_group_change(forged, &public),
+            Err(GroupDecodingError::ZkGroupVerificationFailure)
+        ));
+
+        let elsewhere = signed_change(&server, &ops, vec![9; 32]);
+        assert!(matches!(
+            ops.decrypt_signed_group_change(elsewhere, &public),
+            Err(GroupDecodingError::WrongGroup)
+        ));
     }
 
     #[test]
