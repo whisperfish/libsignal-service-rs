@@ -428,8 +428,10 @@ impl<C: CredentialsCache> GroupsManager<C> {
                         .transpose()?,
                     change: state
                         .group_change
+                        .clone()
                         .map(|change| operations.decrypt_group_change(change))
                         .transpose()?,
+                    signed_change: state.group_change,
                 });
             }
             from = page.next_version;
@@ -485,6 +487,8 @@ impl<C: CredentialsCache> GroupsManager<C> {
 pub struct GroupLogEntry {
     pub group: Option<Group>,
     pub change: Option<GroupChanges>,
+    /// The change as the server signed it, encrypted: what a message telling of it carries.
+    pub signed_change: Option<crate::proto::GroupChange>,
 }
 
 fn secret_params(
