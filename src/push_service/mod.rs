@@ -9,7 +9,10 @@ use crate::{
 
 use libsignal_core::DeviceId;
 use protobuf::ProtobufResponseExt;
-use reqwest::{Method, RequestBuilder};
+use reqwest::{
+    header::{HeaderMap, HeaderValue, ACCEPT_LANGUAGE},
+    Method, RequestBuilder,
+};
 use reqwest_websocket::Upgrade;
 use serde::{Deserialize, Serialize};
 use tracing::{debug_span, Instrument};
@@ -86,6 +89,30 @@ impl PushService {
         credentials: Option<ServiceCredentials>,
         user_agent: impl AsRef<str>,
     ) -> Self {
+        Self::with_headers(env, credentials, user_agent, HeaderMap::new())
+    }
+
+    /// [`Self::new`], with `Accept-Language` on every request: the languages the user reads,
+    /// as Signal's apps send them (`de-DE;q=1, de;q=0.75, en;q=0.5`), for the server's
+    /// localized text. The websocket's upgrade request carries it too, and Signal-Server
+    /// applies the upgrade's headers to each request on the websocket.
+    pub fn with_accept_language(
+        env: SignalServers,
+        credentials: Option<ServiceCredentials>,
+        user_agent: impl AsRef<str>,
+        accept_language: HeaderValue,
+    ) -> Self {
+        let headers =
+            HeaderMap::from_iter([(ACCEPT_LANGUAGE, accept_language)]);
+        Self::with_headers(env, credentials, user_agent, headers)
+    }
+
+    fn with_headers(
+        env: SignalServers,
+        credentials: Option<ServiceCredentials>,
+        user_agent: impl AsRef<str>,
+        headers: HeaderMap,
+    ) -> Self {
         let cfg: ServiceConfiguration = env.into();
 
         // Use the ring provider except if the application already installed one.
@@ -102,6 +129,7 @@ impl PushService {
             // Not a total timeout: attachments take as long as they take to transfer.
             .read_timeout(Duration::from_secs(65))
             .user_agent(user_agent.as_ref())
+            .default_headers(headers)
             .http1_only()
             .build()
             .unwrap();
@@ -274,6 +302,46 @@ mod tests {
             let _ =
                 super::PushService::new(*env, None, "libsignal-service test");
         }
+    }
+
+    #[tokio::test]
+    async fn every_request_says_the_accept_language() {
+        use std::io::{BufRead, BufReader, Write};
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut head = String::new();
+            while reader.read_line(&mut head).unwrap() > 2 {}
+            (&stream)
+                .write_all(b"HTTP/1.1 204 No Content\r\n\r\n")
+                .unwrap();
+            head.to_lowercase()
+        });
+
+        let service = super::PushService::with_accept_language(
+            SignalServers::Staging,
+            None,
+            "libsignal-service test",
+            reqwest::header::HeaderValue::from_static("de-DE;q=1, en;q=0.5"),
+        );
+        service
+            .request(
+                reqwest::Method::GET,
+                crate::configuration::Endpoint::Absolute(url.parse().unwrap()),
+                super::HttpAuthOverride::NoOverride,
+            )
+            .unwrap()
+            .send()
+            .await
+            .unwrap();
+        let head = server.join().unwrap();
+        assert!(
+            head.contains("\r\naccept-language: de-de;q=1, en;q=0.5\r\n"),
+            "{head}"
+        );
     }
 
     #[test]
