@@ -45,10 +45,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
         let request = WebSocketRequestMessage::new(Method::PUT)
-            .path(format!(
-                "/v1/messages/{}",
-                messages.destination.service_id_string()
-            ))
+            .path(messages.path())
             .json(&messages)?;
         self.request_json_with(request, put_messages_errors).await
     }
@@ -59,10 +56,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         access: &UnidentifiedAccess,
     ) -> Result<SendMessageResponse, ServiceError> {
         let request = WebSocketRequestMessage::new(Method::PUT)
-            .path(format!(
-                "/v1/messages/{}",
-                messages.destination.service_id_string()
-            ))
+            .path(messages.path())
             .header(
                 "Unidentified-Access-Key",
                 BASE64_RELAXED.encode(&access.key),
