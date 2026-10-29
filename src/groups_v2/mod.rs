@@ -7,8 +7,8 @@ pub mod utils;
 
 pub use invite_link::GroupInviteLink;
 pub use manager::{
-    decrypt_group, CredentialsCache, CredentialsCacheError, GroupsManager,
-    InMemoryCredentialsCache,
+    decrypt_group, CredentialsCache, CredentialsCacheError, GroupLogEntry,
+    GroupsManager, InMemoryCredentialsCache,
 };
 pub use model::{
     AccessControl, AccessRequired, Group, GroupChange, GroupChanges,
