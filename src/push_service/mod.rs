@@ -14,7 +14,12 @@ use reqwest_websocket::Upgrade;
 use serde::{Deserialize, Serialize};
 use tracing::{debug_span, Instrument};
 
-pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
+/// How often the websocket sends a keepalive, and how long the answer may
+/// take. Signal-Android and Signal-Desktop send one every 30 seconds
+/// (`KEEPALIVE_FREQUENCY_SECONDS`, `KEEPALIVE_INTERVAL_MS`), and libsignal-net
+/// gives up on a socket idle for 31 (`WS_KEEP_ALIVE_INTERVAL`); Signal-Server
+/// closes one idle for 90.
+pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(30);
 pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
     LazyLock::new(|| libsignal_core::DeviceId::try_from(1).unwrap());
 
