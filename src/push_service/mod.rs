@@ -205,6 +205,92 @@ impl PushService {
         .protobuf()
         .await
     }
+
+    /// The group's changes from `from_version` on, up to as many as the server gives at once
+    /// (64), and the version to read on from if there are more.
+    pub(crate) async fn get_group_logs(
+        &mut self,
+        credentials: HttpAuth,
+        from_version: u32,
+        include_first_state: bool,
+    ) -> Result<GroupLogPage, ServiceError> {
+        // Every change with the group's state after it if the change's epoch is above this,
+        // the last change's always.
+        let path = format!(
+            "/v2/groups/logs/{from_version}?includeFirstState={include_first_state}\
+             &includeLastState=true\
+             &maxSupportedChangeEpoch={HIGHEST_KNOWN_CHANGE_EPOCH}"
+        );
+        let response = self
+            .request(
+                Method::GET,
+                Endpoint::storage(path),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            // Required on /v2: when the send endorsements we hold expire, here none.
+            .header("Cached-Send-Endorsements", "0")
+            .send()
+            .await?;
+        let (response, next_version) =
+            if response.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+                let range = response
+                    .headers()
+                    .get(reqwest::header::CONTENT_RANGE)
+                    .and_then(|range| range.to_str().ok())
+                    .and_then(next_log_version)
+                    .ok_or(ServiceError::GroupsV2Error)?;
+                (response, Some(range))
+            } else {
+                (response.service_error_for_status().await?, None)
+            };
+        Ok(GroupLogPage {
+            changes: response.protobuf().await?,
+            next_version,
+        })
+    }
+
+    /// The version of the group at which we joined it: its log is ours to read from there on.
+    pub(crate) async fn get_group_joined_at_version(
+        &mut self,
+        credentials: HttpAuth,
+    ) -> Result<u32, ServiceError> {
+        let member: crate::proto::Member = self
+            .request(
+                Method::GET,
+                Endpoint::storage("/v2/groups/joined_at_version"),
+                HttpAuthOverride::Identified(credentials),
+            )?
+            .send()
+            .await?
+            .service_error_for_status()
+            .await?
+            .protobuf()
+            .await?;
+        Ok(member.joined_at_version)
+    }
+}
+
+/// The newest group change epoch whose actions [`GroupOperations`] decrypts, as the server's
+/// `maxSupportedChangeEpoch`.
+///
+/// [`GroupOperations`]: crate::groups_v2::GroupOperations
+pub const HIGHEST_KNOWN_CHANGE_EPOCH: u32 = 7;
+
+/// One page of a group's change log.
+pub(crate) struct GroupLogPage {
+    pub(crate) changes: crate::proto::GroupChanges,
+    /// Where the next page starts, if the server has more.
+    pub(crate) next_version: Option<u32>,
+}
+
+/// The version after a page's last, from its `Content-Range: versions <first>-<last>/<latest>`.
+fn next_log_version(range: &str) -> Option<u32> {
+    let (_, last) = range
+        .strip_prefix("versions ")?
+        .split_once('/')?
+        .0
+        .split_once('-')?;
+    last.trim().parse::<u32>().ok()?.checked_add(1)
 }
 
 pub(crate) mod protobuf {
@@ -274,6 +360,13 @@ mod tests {
             let _ =
                 super::PushService::new(*env, None, "libsignal-service test");
         }
+    }
+
+    #[test]
+    fn a_log_page_says_where_the_next_starts() {
+        assert_eq!(super::next_log_version("versions 3-66/90"), Some(67));
+        assert_eq!(super::next_log_version("versions 3-66"), None);
+        assert_eq!(super::next_log_version("bytes 3-66/90"), None);
     }
 
     #[test]
