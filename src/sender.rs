@@ -538,6 +538,10 @@ where
                 {
                     error!(%error, "failed to send a synchronization message");
                 }
+            } else if matches!(content_body, ContentBody::StoryMessage(_)) {
+                // Stories have a transcript of their own (`Sent::story_message`), which
+                // isn't made here: the caller sends it.
+                debug!("no sync message made for a story");
             } else {
                 error!("could not create sync message from a group message")
             }
