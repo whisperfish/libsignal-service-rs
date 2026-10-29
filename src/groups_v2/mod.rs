@@ -5,8 +5,8 @@ mod operations;
 pub mod utils;
 
 pub use manager::{
-    decrypt_group, CredentialsCache, CredentialsCacheError, GroupsManager,
-    InMemoryCredentialsCache,
+    decrypt_group, CredentialsCache, CredentialsCacheError, GroupLogEntry,
+    GroupsManager, InMemoryCredentialsCache,
 };
 pub use model::{
     AccessControl, AccessRequired, Group, GroupChange, GroupChanges,
