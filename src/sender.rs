@@ -3,9 +3,9 @@ use std::{collections::HashSet, time::SystemTime};
 use chrono::prelude::*;
 use libsignal_core::{curve::CurveError, InvalidDeviceId};
 use libsignal_protocol::{
-    process_prekey_bundle, Aci, DeviceId, IdentityKey, IdentityKeyPair, Pni,
-    ProtocolStore, SenderCertificate, SenderKeyStore, ServiceId,
-    SessionNotFound, SignalProtocolError,
+    process_prekey_bundle, Aci, DecryptionErrorMessage, DeviceId, IdentityKey,
+    IdentityKeyPair, PlaintextContent, Pni, ProtocolStore, SenderCertificate,
+    SenderKeyStore, ServiceId, SessionNotFound, SignalProtocolError,
 };
 use rand::{rng, CryptoRng, Rng};
 use tracing::{debug, error, info, trace, warn};
@@ -158,6 +158,18 @@ pub enum ThreadIdentifier {
 pub struct EncryptedMessages {
     messages: Vec<OutgoingPushMessage>,
     used_identity_key: IdentityKey,
+}
+
+/// What goes in each device's envelope.
+#[derive(Clone, Copy)]
+enum EnvelopeContent<'a> {
+    /// A serialized `Content`, encrypted per device.
+    Encrypted(&'a [u8]),
+    /// Sent unencrypted, possibly sealed; only retry requests are.
+    Plaintext {
+        content: &'a PlaintextContent,
+        group_id: Option<&'a [u8]>,
+    },
 }
 
 impl<S> MessageSender<S>
@@ -582,6 +594,76 @@ where
         Ok(())
     }
 
+    /// Asks `recipient` to resend a message we couldn't decrypt, as the
+    /// official clients do: unencrypted, so it doesn't depend on the session
+    /// that may be broken, and sealed when `unidentified_access` is given.
+    ///
+    /// Goes to all of the recipient's devices, as the server requires; the
+    /// request names the one that sent the message. `group_id` is the
+    /// failed message's, from its sealed sender envelope.
+    #[tracing::instrument(
+        skip(self, unidentified_access, retry_request, group_id),
+        fields(
+            recipient = recipient.service_id_string(),
+            unidentified_send = unidentified_access.is_some(),
+            failed_timestamp = retry_request.timestamp().epoch_millis(),
+        ),
+    )]
+    pub async fn send_retry_request(
+        &mut self,
+        recipient: &ServiceId,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        retry_request: DecryptionErrorMessage,
+        group_id: Option<&[u8]>,
+    ) -> Result<(), MessageSenderError> {
+        info!("sending retry request");
+        let content = PlaintextContent::from(retry_request);
+        self.try_send_envelope(
+            *recipient,
+            unidentified_access,
+            EnvelopeContent::Plaintext {
+                content: &content,
+                group_id,
+            },
+            Utc::now().timestamp_millis() as u64,
+            false,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Sends `content` again to `recipient` alone, with its original
+    /// `timestamp`, as an answer to a retry request: no copy goes to our
+    /// other devices.
+    ///
+    /// Also sends null messages, which reset a session after a retry
+    /// request showed it broken.
+    #[tracing::instrument(
+        skip(self, unidentified_access, content),
+        fields(
+            recipient = recipient.service_id_string(),
+            unidentified_send = unidentified_access.is_some(),
+        ),
+    )]
+    pub async fn resend_content(
+        &mut self,
+        recipient: &ServiceId,
+        unidentified_access: Option<&UnidentifiedAccess>,
+        content: crate::proto::Content,
+        timestamp: u64,
+    ) -> SendMessageResult {
+        use prost::Message;
+
+        self.try_send_envelope(
+            *recipient,
+            unidentified_access,
+            EnvelopeContent::Encrypted(&content.encode_to_vec()),
+            timestamp,
+            false,
+        )
+        .await
+    }
+
     /// Send a message (`content`) to an address (`recipient`).
     #[tracing::instrument(
         level = "trace",
@@ -591,7 +673,7 @@ where
     async fn try_send_message(
         &mut self,
         recipient: ServiceId,
-        mut unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         content_body: &ContentBody,
         timestamp: u64,
         include_pni_signature: bool,
@@ -608,6 +690,26 @@ where
 
         let content_bytes = content.encode_to_vec();
 
+        self.try_send_envelope(
+            recipient,
+            unidentified_access,
+            EnvelopeContent::Encrypted(&content_bytes),
+            timestamp,
+            online,
+        )
+        .await
+    }
+
+    /// Sends `content` to all of `recipient`'s devices, retrying when the
+    /// server reports changed devices.
+    async fn try_send_envelope(
+        &mut self,
+        recipient: ServiceId,
+        mut unidentified_access: Option<&UnidentifiedAccess>,
+        content: EnvelopeContent<'_>,
+        timestamp: u64,
+        online: bool,
+    ) -> SendMessageResult {
         let mut rng = rng();
 
         for _ in 0..4u8 {
@@ -618,7 +720,7 @@ where
                 .create_encrypted_messages(
                     &recipient,
                     unidentified_access.map(|x| &x.certificate),
-                    &content_bytes,
+                    content,
                 )
                 .await?
             else {
@@ -915,7 +1017,7 @@ where
         &mut self,
         recipient: &ServiceId,
         unidentified_access: Option<&SenderCertificate>,
-        content: &[u8],
+        content: EnvelopeContent<'_>,
     ) -> Result<Option<EncryptedMessages>, MessageSenderError> {
         let mut messages = vec![];
 
@@ -950,7 +1052,7 @@ where
             // If this happens, delete the session and retry.
             for _attempt in 0..2 {
                 match self
-                    .create_encrypted_message(
+                    .create_device_message(
                         recipient,
                         unidentified_access,
                         device_id,
@@ -1028,6 +1130,23 @@ where
         device_id: DeviceId,
         content: &[u8],
     ) -> Result<OutgoingPushMessage, MessageSenderError> {
+        self.create_device_message(
+            recipient,
+            unidentified_access,
+            device_id,
+            EnvelopeContent::Encrypted(content),
+        )
+        .await
+    }
+
+    /// [`Self::create_encrypted_message`] for any [`EnvelopeContent`].
+    async fn create_device_message(
+        &mut self,
+        recipient: &ServiceId,
+        unidentified_access: Option<&SenderCertificate>,
+        device_id: DeviceId,
+        content: EnvelopeContent<'_>,
+    ) -> Result<OutgoingPushMessage, MessageSenderError> {
         let recipient_protocol_address =
             recipient.to_protocol_address(device_id);
 
@@ -1098,16 +1217,30 @@ where
             }
         }
 
-        let message = self
-            .cipher
-            .encrypt(
-                &recipient_protocol_address,
-                unidentified_access,
-                content,
-                &mut rng(),
-            )
-            .instrument(tracing::trace_span!("encrypting message"))
-            .await?;
+        let message = match content {
+            EnvelopeContent::Encrypted(content) => {
+                self.cipher
+                    .encrypt(
+                        &recipient_protocol_address,
+                        unidentified_access,
+                        content,
+                        &mut rng(),
+                    )
+                    .instrument(tracing::trace_span!("encrypting message"))
+                    .await?
+            },
+            EnvelopeContent::Plaintext { content, group_id } => {
+                self.cipher
+                    .encrypt_plaintext(
+                        &recipient_protocol_address,
+                        unidentified_access,
+                        content,
+                        group_id,
+                        &mut rng(),
+                    )
+                    .await?
+            },
+        };
 
         Ok(message)
     }

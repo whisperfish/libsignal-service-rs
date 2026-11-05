@@ -8,7 +8,7 @@ use serde::Deserialize;
 use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
 use crate::{
-    cipher::SealedSenderDecryptionError,
+    cipher::{DecryptionFailure, SealedSenderDecryptionError},
     groups_v2::GroupDecodingError,
     utils::deserialize_service_id,
     websocket::registration::{
@@ -103,6 +103,9 @@ pub enum ServiceError {
 
     #[error("Sealed sender decryption error: {0}")]
     SealedSenderDecryptionError(#[from] SealedSenderDecryptionError),
+
+    #[error("Decryption failed: {0}")]
+    DecryptionFailed(Box<DecryptionFailure>),
 
     #[error("invalid device id: {0}")]
     InvalidDeviceId(#[from] libsignal_core::InvalidDeviceId),
