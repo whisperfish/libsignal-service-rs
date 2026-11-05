@@ -54,6 +54,9 @@ reqwest = { version = "0.13", default-features = false, features = [
   "stream",
 ] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
+# Only to tell a connection that closed under a request (`is_incomplete_message`), as reqwest
+# leaves it in its error's sources.
+hyper = { version = "1", default-features = false }
 reqwest-websocket = { version = "0.6.0", features = ["json"] }
 
 tracing = { version = "0.1", features = ["log"] }
@@ -67,7 +70,7 @@ prost-build = "0.14"
 [dev-dependencies]
 regex = "1"
 anyhow = "1.0"
-tokio = { version = "1.0", features = ["macros", "rt"] }
+tokio = { version = "1.0", features = ["macros", "rt", "net", "io-util"] }
 clap = { version = "4.4", features = ["derive"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
