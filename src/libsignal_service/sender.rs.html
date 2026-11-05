@@ -240,7 +240,7 @@
 <a href=#240 id=240 data-nosnippet>240</a>        // if it fails or stalls (= we should at least split the API calls so clients can decide what to do)
 <a href=#241 id=241 data-nosnippet>241</a>        </span><span class="kw">let </span>attachment_upload_form = <span class="self">self
 <a href=#242 id=242 data-nosnippet>242</a>            </span>.service
-<a href=#243 id=243 data-nosnippet>243</a>            .get_attachment_v4_upload_attributes()
+<a href=#243 id=243 data-nosnippet>243</a>            .get_attachment_v4_upload_attributes(contents.len() <span class="kw">as </span>u64)
 <a href=#244 id=244 data-nosnippet>244</a>            .instrument(<span class="macro">tracing::trace_span!</span>(<span class="string">"requesting upload attributes"</span>))
 <a href=#245 id=245 data-nosnippet>245</a>            .<span class="kw">await</span><span class="question-mark">?</span>;
 <a href=#246 id=246 data-nosnippet>246</a>
