@@ -40,22 +40,26 @@ mod tests {
     use futures::FutureExt;
     use libsignal_core::DeviceId;
     use libsignal_protocol::{
-        kem, message_decrypt, process_prekey_bundle, CiphertextMessage,
-        Direction, GenericSignedPreKey, IdentityChange, IdentityKey,
-        IdentityKeyPair, IdentityKeyStore, InMemSignalProtocolStore, KeyPair,
-        KyberPreKeyId, KyberPreKeyRecord, KyberPreKeyStore, PreKeyBundle,
-        PreKeyId, PreKeyRecord, PreKeySignalMessage, PreKeyStore,
-        ProtocolAddress, ProtocolStore, PublicKey, SenderKeyRecord,
-        SenderKeyStore, ServiceId, SessionRecord, SessionStore,
-        SignalProtocolError, SignedPreKeyId, SignedPreKeyRecord,
-        SignedPreKeyStore, Timestamp,
+        kem, message_decrypt, message_encrypt, process_prekey_bundle,
+        CiphertextMessage, Direction, GenericSignedPreKey, IdentityChange,
+        IdentityKey, IdentityKeyPair, IdentityKeyStore,
+        InMemSignalProtocolStore, KeyPair, KyberPreKeyId, KyberPreKeyRecord,
+        KyberPreKeyStore, PreKeyBundle, PreKeyId, PreKeyRecord,
+        PreKeySignalMessage, PreKeyStore, ProtocolAddress, ProtocolStore,
+        PublicKey, SenderKeyRecord, SenderKeyStore, ServiceId, SessionRecord,
+        SessionStore, SignalMessage, SignalProtocolError, SignedPreKeyId,
+        SignedPreKeyRecord, SignedPreKeyStore, Timestamp,
     };
+    use prost::Message;
     use rand::rng;
     use uuid::Uuid;
 
     use super::SessionLock;
     use crate::{
-        cipher::ServiceCipher, session_store::SessionStoreExt,
+        cipher::ServiceCipher,
+        proto::{content, envelope::Type, Content, Envelope, NullMessage},
+        sender::OutgoingPushMessage,
+        session_store::SessionStoreExt,
         utils::BASE64_RELAXED,
     };
 
@@ -303,37 +307,111 @@ mod tests {
         (store, bundle)
     }
 
-    /// Alice sends Bob two messages at once, from two ciphers on her one store;
-    /// what Bob decrypts of each.
-    async fn two_at_once(
-        lock: impl Fn() -> SessionLock,
-    ) -> Vec<Result<Vec<u8>>> {
-        let (alice, bob_address) = (address(1), address(2));
+    /// Alice's store, with a session with Bob that she has not used yet, and
+    /// Bob.
+    async fn alice_and_bob() -> (Yielding, InMemSignalProtocolStore) {
         let mut csprng = rng();
-        let store = Yielding(Rc::new(RefCell::new(
+        let alice = Yielding(Rc::new(RefCell::new(
             InMemSignalProtocolStore::new(
                 IdentityKeyPair::generate(&mut csprng),
                 1,
             )
             .unwrap(),
         )));
-        let (mut bob, bundle) = bob();
+        let (bob, bundle) = bob();
         process_prekey_bundle(
-            &bob_address,
-            &alice,
-            &mut store.clone(),
-            &mut store.clone(),
+            &address(2),
+            &address(1),
+            &mut alice.clone(),
+            &mut alice.clone(),
             &bundle,
             std::time::SystemTime::now(),
             &mut csprng,
         )
         .await
         .unwrap();
-        let cipher = |lock| {
-            ServiceCipher::new(store.clone(), vec![], alice.clone())
-                .with_session_lock(lock)
+        (alice, bob)
+    }
+
+    fn alice_cipher(
+        alice: &Yielding,
+        lock: SessionLock,
+    ) -> ServiceCipher<Yielding> {
+        ServiceCipher::new(alice.clone(), vec![], address(1))
+            .with_session_lock(lock)
+    }
+
+    /// What Bob decrypts of a message from Alice.
+    async fn bob_reads(
+        bob: &mut InMemSignalProtocolStore,
+        message: OutgoingPushMessage,
+    ) -> Result<Vec<u8>> {
+        let bytes = BASE64_RELAXED.decode(message.content).unwrap();
+        let message = if message.r#type == Type::PrekeyMessage as u32 {
+            CiphertextMessage::PreKeySignalMessage(
+                PreKeySignalMessage::try_from(&bytes[..]).unwrap(),
+            )
+        } else {
+            CiphertextMessage::SignalMessage(
+                SignalMessage::try_from(&bytes[..]).unwrap(),
+            )
         };
-        let (mut one, mut two) = (cipher(lock()), cipher(lock()));
+        message_decrypt(
+            &message,
+            &address(1),
+            &address(2),
+            &mut bob.session_store,
+            &mut bob.identity_store,
+            &mut bob.pre_key_store,
+            &bob.signed_pre_key_store,
+            &mut bob.kyber_pre_key_store,
+            &mut rng(),
+        )
+        .await
+    }
+
+    /// An envelope from Bob to Alice.
+    async fn bob_writes(bob: &mut InMemSignalProtocolStore) -> Envelope {
+        let mut content = Content {
+            content: Some(
+                content::Content::NullMessage(NullMessage::default()),
+            ),
+            ..Default::default()
+        }
+        .encode_to_vec();
+        // Padded as clients do, so that Alice can strip it.
+        content.push(0x80);
+        content.resize(content.len().div_ceil(160) * 160, 0);
+        let message = message_encrypt(
+            &content,
+            &address(1),
+            &address(2),
+            &mut bob.session_store,
+            &mut bob.identity_store,
+            std::time::SystemTime::now(),
+            &mut rng(),
+        )
+        .await
+        .unwrap();
+        Envelope {
+            r#type: Some(Type::DoubleRatchet.into()),
+            source_service_id: Some(address(2).name().to_owned()),
+            source_device_id: Some(1),
+            destination_service_id: Some(address(1).name().to_owned()),
+            content: Some(message.serialize().to_vec()),
+            ..Default::default()
+        }
+    }
+
+    /// Alice sends Bob two messages at once, from two ciphers on her one store;
+    /// what Bob decrypts of each.
+    async fn two_at_once(
+        lock: impl Fn() -> SessionLock,
+    ) -> Vec<Result<Vec<u8>>> {
+        let (alice, mut bob) = alice_and_bob().await;
+        let bob_address = address(2);
+        let (mut one, mut two) =
+            (alice_cipher(&alice, lock()), alice_cipher(&alice, lock()));
         let (mut rng_one, mut rng_two) = (rng(), rng());
         let (one, two) = futures::join!(
             one.encrypt(&bob_address, None, b"one", &mut rng_one),
@@ -341,24 +419,7 @@ mod tests {
         );
         let mut decrypted = vec![];
         for message in [one, two] {
-            let bytes =
-                BASE64_RELAXED.decode(message.unwrap().content).unwrap();
-            let message = CiphertextMessage::PreKeySignalMessage(
-                PreKeySignalMessage::try_from(&bytes[..]).unwrap(),
-            );
-            let plaintext = message_decrypt(
-                &message,
-                &alice,
-                &bob_address,
-                &mut bob.session_store,
-                &mut bob.identity_store,
-                &mut bob.pre_key_store,
-                &bob.signed_pre_key_store,
-                &mut bob.kyber_pre_key_store,
-                &mut rng(),
-            )
-            .await;
-            decrypted.push(plaintext);
+            decrypted.push(bob_reads(&mut bob, message.unwrap()).await);
         }
         decrypted
     }
@@ -384,5 +445,77 @@ mod tests {
         let lock = SessionLock::default();
         let decrypted = two_at_once(|| lock.clone()).await;
         assert!(decrypted.iter().all(Result::is_ok), "{decrypted:?}");
+    }
+
+    /// Alice receives a message from Bob, which turns her ratchet, while she
+    /// sends him one; the receive starts after each of a few head starts for the
+    /// send. What Bob decrypts of the message Alice sends after both, for each.
+    async fn send_during_receive(
+        lock: impl Fn() -> SessionLock,
+    ) -> Vec<Result<Vec<u8>>> {
+        let bob_address = address(2);
+        let mut next = vec![];
+        for head_start in 0..4 {
+            let (alice, mut bob) = alice_and_bob().await;
+            // A message each way and one more from Alice, so that Bob's next
+            // message turns her ratchet.
+            let mut cipher = alice_cipher(&alice, lock());
+            let hello = cipher
+                .encrypt(&bob_address, None, b"hello", &mut rng())
+                .await
+                .unwrap();
+            bob_reads(&mut bob, hello).await.unwrap();
+            let reply = bob_writes(&mut bob).await;
+            cipher.open_envelope(reply, &mut rng()).await.unwrap();
+            let again = cipher
+                .encrypt(&bob_address, None, b"again", &mut rng())
+                .await
+                .unwrap();
+            bob_reads(&mut bob, again).await.unwrap();
+
+            let incoming = bob_writes(&mut bob).await;
+            let (mut send, mut receive) =
+                (alice_cipher(&alice, lock()), alice_cipher(&alice, lock()));
+            let (mut rng_send, mut rng_receive) = (rng(), rng());
+            let (during, received) = futures::join!(
+                send.encrypt(&bob_address, None, b"during", &mut rng_send),
+                async {
+                    for _ in 0..head_start {
+                        tokio::task::yield_now().await;
+                    }
+                    receive.open_envelope(incoming, &mut rng_receive).await
+                },
+            );
+            received.unwrap();
+            bob_reads(&mut bob, during.unwrap()).await.unwrap();
+
+            let after = cipher
+                .encrypt(&bob_address, None, b"after", &mut rng())
+                .await
+                .unwrap();
+            next.push(bob_reads(&mut bob, after).await);
+        }
+        next
+    }
+
+    /// Without one lock, the receive can store its step over the send's, and
+    /// Bob can't decrypt what Alice sends next.
+    #[tokio::test]
+    async fn a_receive_during_a_send_can_lose_the_send_step() {
+        let next = send_during_receive(SessionLock::default).await;
+        assert!(
+            next.iter().any(|next| matches!(
+                next,
+                Err(SignalProtocolError::InvalidMessage(..))
+            )),
+            "{next:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_receive_and_a_send_under_one_lock_keep_both_steps() {
+        let lock = SessionLock::default();
+        let next = send_during_receive(|| lock.clone()).await;
+        assert!(next.iter().all(Result::is_ok), "{next:?}");
     }
 }
