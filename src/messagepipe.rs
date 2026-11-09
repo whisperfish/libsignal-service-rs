@@ -170,7 +170,8 @@ mod tests {
     /// A handle, and what the websocket would send the server for it.
     fn handle() -> (AckHandle, oneshot::Receiver<WebSocketResponseMessage>) {
         let (responder, acked) = oneshot::channel();
-        let ack = AckHandle(Some((responder, WebSocketResponseMessage::default())));
+        let ack =
+            AckHandle(Some((responder, WebSocketResponseMessage::default())));
         (ack, acked)
     }
 
@@ -178,7 +179,8 @@ mod tests {
     /// `main` or a client aborts its receive task, hasn't handled it: the server must deliver
     /// it again.
     #[tokio::test]
-    async fn a_task_dropped_while_handling_leaves_the_envelope_unacknowledged() {
+    async fn a_task_dropped_while_handling_leaves_the_envelope_unacknowledged()
+    {
         let (ack, acked) = handle();
         let handling = tokio::spawn(async move {
             let _ack = ack;
