@@ -390,8 +390,7 @@ where
                     csprng,
                 )
                 .await?
-                .as_slice()
-                .to_vec();
+                .plaintext;
 
                 let session_record = self
                     .protocol_store
@@ -899,6 +898,7 @@ async fn sealed_sender_decrypt_with_validated_usmc(
                 &mut rng,
             )
             .await?
+            .plaintext
         },
         CiphertextMessageType::SenderKey => {
             group_decrypt(usmc.contents()?, sender_key_store, remote_address)
