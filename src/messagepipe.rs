@@ -20,10 +20,58 @@ use crate::{
     websocket::{self, SignalWebSocket},
 };
 
+/// Handle for acknowledging an envelope back to the Signal server.
+///
+/// Take this handle out of [`Incoming::Envelope`] and either:
+///
+/// * **Call [`AckHandle::ack`]** to acknowledge immediately - the server
+///   removes the envelope from its queue.  This is useful when you want to
+///   ack before the end of the scope (e.g. after a quick validation).
+/// * **Move the handle into a future or closure** and let it drop later;
+///   on drop it will auto-acknowledge.  If the thread is panicking when
+///   the handle drops, the envelope is *not* acknowledged and will be
+///   re-delivered by the server on the next connection.
+#[derive(Debug)]
+pub struct AckHandle(
+    Option<(
+        oneshot::Sender<WebSocketResponseMessage>,
+        WebSocketResponseMessage,
+    )>,
+);
+
+impl AckHandle {
+    /// Acknowledge this envelope immediately.
+    ///
+    /// Acknowledge the envelope immediately, before the handle would
+    /// otherwise be dropped.  Useful when you want to signal the server
+    /// early (e.g. after a quick validation) and don't need to defer
+    /// the ack to end-of-scope.
+    ///
+    /// Equivalent with `drop(AckHandle)`.
+    pub fn ack(self) {}
+}
+
+impl Drop for AckHandle {
+    fn drop(&mut self) {
+        let Some((responder, response)) = self.0.take() else {
+            return; // ack() was already called
+        };
+        if std::thread::panicking() {
+            tracing::warn!(
+                "AckHandle dropped during a panic; envelope NOT acknowledged, \
+                 server will re-deliver"
+            );
+            // responder + response dropped without sending → no ack
+        } else {
+            let _ = responder.send(response);
+        }
+    }
+}
+
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum Incoming {
-    Envelope(Envelope),
+    Envelope { envelope: Envelope, ack: AckHandle },
     QueueEmpty,
 }
 
@@ -67,6 +115,13 @@ impl MessagePipe {
         Ok(())
     }
 
+    /// Process a single request from the Signal web socket.
+    ///
+    /// * For **envelope** requests, the response (ack) is pre-built and
+    ///   stored in an [`AckHandle`] so the caller can decide when to
+    ///   send it.
+    /// * For **QueueEmpty** and other requests, the ack is sent
+    ///   immediately, matching the old behaviour.
     async fn process_request(
         &mut self,
         request: WebSocketRequestMessage,
@@ -75,8 +130,7 @@ impl MessagePipe {
         // Java: MessagePipe::read
         let response = WebSocketResponseMessage::from_request(&request);
 
-        // XXX Change the signature of this method to yield an enum of Envelope and EndOfQueue
-        let result = if request.is_signal_service_envelope() {
+        if request.is_signal_service_envelope() {
             let body = if let Some(body) = request.body.as_ref() {
                 body
             } else {
@@ -84,25 +138,31 @@ impl MessagePipe {
                     reason: "request without body.",
                 });
             };
-            Some(Incoming::Envelope(Envelope::decode(body.as_slice())?))
+            let envelope = Envelope::decode(body.as_slice())?;
+            let ack = AckHandle(Some((responder, response)));
+            Ok(Some(Incoming::Envelope { envelope, ack }))
         } else if request.is_queue_empty() {
-            Some(Incoming::QueueEmpty)
+            let _ = responder.send(response);
+            Ok(Some(Incoming::QueueEmpty))
         } else {
-            None
-        };
-
-        responder
-            .send(response)
-            .map_err(|_| ServiceError::WsClosing {
-                reason: "could not respond to message pipe request",
-            })?;
-
-        Ok(result)
+            // Unknown request type; ack anyway so the server knows
+            // we processed it, even though we can't handle it.
+            tracing::warn!(
+                "Unknown request on message pipe: {} {}",
+                request.verb.as_deref().unwrap_or("?"),
+                request.path.as_deref().unwrap_or("?"),
+            );
+            let _ = responder.send(response);
+            Ok(None)
+        }
     }
 
-    /// Returns the stream of `Envelope`s
+    /// Returns a stream of incoming envelopes.
     ///
-    /// Envelopes yielded are acknowledged.
+    /// Envelopes are accompanied by an [`AckHandle`] that may be used
+    /// to acknowledge the envelope explicitly before the end of the
+    /// enclosing scope.  See [`AckHandle`] for details on auto-ack
+    /// versus panic behaviour.
     pub fn stream(self) -> impl Stream<Item = Result<Incoming, ServiceError>> {
         let (sink, stream) = mpsc::channel(1);
 
