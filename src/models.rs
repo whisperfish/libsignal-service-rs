@@ -36,6 +36,10 @@ pub enum ParseContactError {
     Uuid(#[from] uuid::Error),
     #[error("missing UUID")]
     MissingUuid,
+    #[error(
+        "contact avatar needs {needed} bytes, but only {remaining} remain"
+    )]
+    Truncated { needed: usize, remaining: usize },
     #[error("missing profile key")]
     MissingProfileKey,
     #[error("missing avatar content-type")]
