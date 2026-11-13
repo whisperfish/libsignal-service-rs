@@ -72,23 +72,17 @@ impl MessageReceiver {
                 }
             };
 
+            // A bad blob is an error, not a panic: the sync message is kept
+            // and handled again, so a panic here stops receiving for good.
             let mut ciphertext = Vec::new();
-            stream
-                .read_to_end(&mut ciphertext)
-                .await
-                .expect("streamed attachment");
+            stream.read_to_end(&mut ciphertext).await?;
 
-            let key_material = blob.key();
-            assert_eq!(
-                key_material.len(),
-                64,
-                "key material for attachments is ought to be 64 bytes"
-            );
-            let mut key = [0u8; 64];
-            key.copy_from_slice(key_material);
+            // A key of another length can't decrypt it either.
+            let key: [u8; 64] =
+                blob.key().try_into().map_err(|_| ServiceError::MacError)?;
 
             decrypt_in_place(key, &mut ciphertext)
-                .expect("attachment decryption");
+                .map_err(|_| ServiceError::MacError)?;
 
             Ok(DeviceContactsIterator::new(Bytes::from(ciphertext)))
         } else {
@@ -128,11 +122,49 @@ impl Iterator for DeviceContactsIterator {
             ..
         }) = contact_details.avatar
         {
-            Some(self.decrypted_buffer.copy_to_bytes(length as usize))
+            let length = length as usize;
+            if length > self.decrypted_buffer.remaining() {
+                // The rest can't be read either.
+                self.decrypted_buffer.clear();
+                return Some(Err(ParseContactError::AvatarPastEnd));
+            }
+            Some(self.decrypted_buffer.copy_to_bytes(length))
         } else {
             None
         };
 
         Some(Contact::from_proto(contact_details, avatar_data))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::Bytes;
+    use prost::Message;
+
+    use super::DeviceContactsIterator;
+    use crate::{
+        models::ParseContactError,
+        proto::{contact_details::Avatar, ContactDetails},
+    };
+
+    #[test]
+    fn an_avatar_past_the_end_is_an_error() {
+        let details = ContactDetails {
+            aci: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
+            avatar: Some(Avatar {
+                content_type: Some("image/jpeg".into()),
+                length: Some(1000),
+            }),
+            ..Default::default()
+        };
+        let mut buffer = details.encode_length_delimited_to_vec();
+        buffer.extend([0u8; 10]);
+        let mut contacts = DeviceContactsIterator::new(Bytes::from(buffer));
+        assert!(matches!(
+            contacts.next(),
+            Some(Err(ParseContactError::AvatarPastEnd))
+        ));
+        assert!(contacts.next().is_none());
     }
 }

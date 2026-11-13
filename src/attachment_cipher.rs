@@ -63,9 +63,11 @@ pub fn decrypt_in_place(
     let key: &Array<u8, U64> = (&key).into();
     let (aes_half, mac_half) = key.split_ref::<U32>();
 
-    let ciphertext_len = ciphertext.len();
+    let Some(mac_start) = ciphertext.len().checked_sub(32) else {
+        return Err(AttachmentCipherError::MacError);
+    };
 
-    let (buffer, their_mac) = ciphertext.split_at_mut(ciphertext_len - 32);
+    let (buffer, their_mac) = ciphertext.split_at_mut(mac_start);
 
     // Compute and append MAC
     let mut mac = Hmac::<Sha256>::new_from_slice(mac_half)
@@ -98,6 +100,15 @@ mod tests {
     use super::*;
 
     use rand::prelude::*;
+
+    #[test]
+    fn too_short_for_a_mac_is_an_error() {
+        let mut ciphertext = vec![0u8; 31];
+        assert!(matches!(
+            decrypt_in_place([0u8; 64], &mut ciphertext),
+            Err(AttachmentCipherError::MacError)
+        ));
+    }
 
     #[test]
     fn attachment_encrypt_decrypt() -> Result<(), AttachmentCipherError> {
