@@ -168,13 +168,29 @@ impl PushService {
                 builder.basic_auth(credentials.login(), credentials.password);
         }
 
-        let ws =
-            async { builder.upgrade().send().await?.into_websocket().await }
-                .instrument(span.clone())
-                .await
-                .map_err(|error| {
-                    WebSocketError::new(WebSocketOperation::Connect, error)
-                })?;
+        let (ws, alerts) = async {
+            let response = builder.upgrade().send().await?;
+            // What the server warns of on connecting, e.g. `idle-primary-device`: the account's
+            // primary hasn't been seen for a while, and linked devices may be removed.
+            let alerts: Vec<String> = response
+                .headers()
+                .get_all("X-Signal-Alert")
+                .iter()
+                .filter_map(|value| value.to_str().ok())
+                .flat_map(|value| value.split(','))
+                .map(|alert| alert.trim().to_owned())
+                .filter(|alert| !alert.is_empty())
+                .collect();
+            Ok::<_, reqwest_websocket::Error>((
+                response.into_websocket().await?,
+                alerts,
+            ))
+        }
+        .instrument(span.clone())
+        .await
+        .map_err(|error| {
+            WebSocketError::new(WebSocketOperation::Connect, error)
+        })?;
 
         let unidentified_push_service = PushService {
             servers: self.servers,
@@ -189,6 +205,7 @@ impl PushService {
         );
         let task = task.instrument(span);
         ws.set_task(tokio::task::spawn(task));
+        ws.inner_locked().alerts = alerts;
         Ok(ws)
     }
 
