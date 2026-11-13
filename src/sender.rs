@@ -417,7 +417,12 @@ where
             _ => false,
         };
 
-        if needs_sync || is_multi_device {
+        // A transcript tells our devices what we sent: nothing, if it reached no one
+        // (Signal-Desktop sends one only then, `ts/messages/send.preload.ts`).
+        if (needs_sync || is_multi_device)
+            && !(message_to_self && sync_message)
+            && (sync_message || result.is_ok())
+        {
             let sync_body = if sync_message {
                 Some(content_body)
             } else {
@@ -432,15 +437,25 @@ where
             };
             if let Some(body) = sync_body {
                 debug!("sending multi-device sync message");
-                self.try_send_message(
-                    self.local_aci.into(),
-                    None,
-                    &body,
-                    timestamp,
-                    false,
-                    false,
-                )
-                .await?;
+                let sent = self
+                    .try_send_message(
+                        self.local_aci.into(),
+                        None,
+                        &body,
+                        timestamp,
+                        false,
+                        false,
+                    )
+                    .await;
+                // The message itself went: its own result says so, not the transcript's.
+                match sent {
+                    Err(error) if !sync_message => {
+                        error!(%error, "failed to send a transcript to our devices")
+                    },
+                    other => {
+                        other?;
+                    },
+                }
             }
         }
 
@@ -493,8 +508,10 @@ where
             results.push(result);
         }
 
-        // we only need to send a synchronization message once
-        if needs_sync_in_results || self.is_multi_device().await {
+        // we only need to send a synchronization message once, and none if it reached no one
+        if (needs_sync_in_results || self.is_multi_device().await)
+            && results.iter().any(Result::is_ok)
+        {
             if let Some(sync_message) = self
                 .create_multi_device_sent_transcript_content(
                     None,
