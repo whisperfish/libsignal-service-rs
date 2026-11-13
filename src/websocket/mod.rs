@@ -93,11 +93,13 @@ pub struct SignalWebSocket<C: WebSocketType> {
     )>,
 }
 
-struct SignalWebSocketInner {
+pub(crate) struct SignalWebSocketInner {
     stream: Option<SignalRequestStream>,
     /// The task running the socket, when `PushService::ws` spawned it; taken by
     /// [`SignalWebSocket::outcome`].
     task: Option<tokio::task::JoinHandle<Result<(), ServiceError>>>,
+    /// What the server warned of on connecting (`X-Signal-Alert`).
+    pub(crate) alerts: Vec<String>,
 }
 
 struct SignalWebSocketProcess {
@@ -371,7 +373,7 @@ impl SignalWebSocketProcess {
 }
 
 impl<C: WebSocketType> SignalWebSocket<C> {
-    fn inner_locked(&self) -> MutexGuard<'_, SignalWebSocketInner> {
+    pub(crate) fn inner_locked(&self) -> MutexGuard<'_, SignalWebSocketInner> {
         self.inner.lock().unwrap()
     }
 
@@ -421,6 +423,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                         inner: incoming_request_stream,
                     }),
                     task: None,
+                    alerts: Vec::new(),
                 })),
             },
             process,
@@ -457,6 +460,13 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 reason: WsClosingReason::TaskPanicked,
             })
         }))
+    }
+
+    /// What the server warned of when this socket connected (`X-Signal-Alert`), such as
+    /// `idle-primary-device`: the primary hasn't been seen for a while, and the server may
+    /// remove the account's linked devices.
+    pub fn alerts(&self) -> Vec<String> {
+        self.inner_locked().alerts.clone()
     }
 
     pub fn is_used(&self) -> bool {
