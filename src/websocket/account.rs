@@ -188,6 +188,23 @@ impl SignalWebSocket<websocket::Identified> {
         Ok(())
     }
 
+    /// Replace this device's capabilities, leaving the account's attributes alone.
+    ///
+    /// A linked device uses this instead of `set_account_attributes`, whose
+    /// registration lock, discoverability and access key apply to the whole account.
+    pub async fn set_device_capabilities(
+        &mut self,
+        capabilities: &DeviceCapabilities,
+    ) -> Result<(), ServiceError> {
+        self.http_request(Method::PUT, "/v1/devices/capabilities")?
+            .send_json(capabilities)
+            .await?
+            .service_error_for_status()
+            .await?;
+
+        Ok(())
+    }
+
     /// Unregister and delete the account from Signal servers.
     ///
     /// This permanently deletes the account and all associated data (groups, contacts, messages).
