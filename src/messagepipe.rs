@@ -26,10 +26,13 @@ use crate::{
 /// once the envelope is handled (its message stored, say): the server then
 /// removes the envelope from its queue.
 ///
-/// A handle dropped without that leaves the envelope unacknowledged, and the
-/// server delivers it again on the next connection.  So an envelope whose
-/// handling was cut short, by a panic or by its task being dropped (a
-/// process ending, an aborted task), isn't lost.
+/// A handle dropped without that answers the server with an error (500): the
+/// server keeps the envelope and delivers it again on the next connection, so
+/// an envelope whose handling failed or was cut short, by a panic or by its
+/// task being dropped (a process ending, an aborted task), isn't lost.  An
+/// answer it does need: the server says the queue is empty only once every
+/// envelope before is answered, and sends nothing more with 256 unanswered
+/// (Signal-Server `WebSocketConnection`), as Signal-Desktop answers 500 too.
 #[derive(Debug)]
 pub struct AckHandle(
     Option<(
@@ -47,11 +50,21 @@ impl AckHandle {
     }
 }
 
+/// The answer for an envelope that wasn't handled: the server keeps it.
+fn not_handled(id: Option<u64>) -> WebSocketResponseMessage {
+    WebSocketResponseMessage {
+        id,
+        status: Some(500),
+        message: Some("Internal Server Error".to_string()),
+        ..Default::default()
+    }
+}
+
 impl Drop for AckHandle {
     fn drop(&mut self) {
-        if self.0.is_some() {
-            // The responder goes unanswered: no ack, so the server sends the envelope again.
+        if let Some((responder, response)) = self.0.take() {
             tracing::debug!("envelope dropped unacknowledged; the server will deliver it again");
+            let _ = responder.send(not_handled(response.id));
         }
     }
 }
@@ -119,14 +132,22 @@ impl MessagePipe {
         let response = WebSocketResponseMessage::from_request(&request);
 
         if request.is_signal_service_envelope() {
+            // One that can't be read is answered too, or it holds the queue back.
             let body = if let Some(body) = request.body.as_ref() {
                 body
             } else {
+                let _ = responder.send(not_handled(request.id));
                 return Err(ServiceError::InvalidFrame {
                     reason: "request without body.",
                 });
             };
-            let envelope = Envelope::decode(body.as_slice())?;
+            let envelope = match Envelope::decode(body.as_slice()) {
+                Ok(envelope) => envelope,
+                Err(error) => {
+                    let _ = responder.send(not_handled(request.id));
+                    return Err(error.into());
+                },
+            };
             let ack = AckHandle(Some((responder, response)));
             Ok(Some(Incoming::Envelope { envelope, ack }))
         } else if request.is_queue_empty() {
@@ -177,7 +198,7 @@ mod tests {
 
     /// A receiving task dropped while it handles an envelope, as when a process returns from
     /// `main` or a client aborts its receive task, hasn't handled it: the server must deliver
-    /// it again.
+    /// it again, and hear that it wasn't, so that the queue moves on.
     #[tokio::test]
     async fn a_task_dropped_while_handling_leaves_the_envelope_unacknowledged()
     {
@@ -190,8 +211,10 @@ mod tests {
         tokio::task::yield_now().await;
         handling.abort();
         assert!(handling.await.unwrap_err().is_cancelled());
-        assert!(
-            acked.await.is_err(),
+        let answer = acked.await.expect("answered");
+        assert_eq!(
+            answer.status,
+            Some(500),
             "acknowledged an envelope that was never handled"
         );
     }
