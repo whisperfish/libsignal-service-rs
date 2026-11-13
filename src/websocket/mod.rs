@@ -334,7 +334,8 @@ impl SignalWebSocketProcess {
                             self.ws.send(buffer.into()).await?;
                         }
                         Some(Err(error)) => {
-                            tracing::error!(%error, "could not generate response to a Signal request; responder was canceled. continuing.");
+                            // An envelope left unacknowledged (see `AckHandle`), for the server to send again.
+                            tracing::debug!(%error, "a request went unanswered; continuing");
                         }
                         None => {
                             unreachable!("outgoing responses should never fuse")
