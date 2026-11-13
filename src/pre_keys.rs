@@ -219,6 +219,22 @@ pub struct PreKeyState {
 
 pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
+
+/// How old the signed and last-resort keys may get before they are made anew: Signal-Desktop's
+/// 1.5 days (`ts/textsecure/AccountManager.preload.ts`), Signal-Android's 2.
+pub(crate) const ROTATE_AFTER: std::time::Duration =
+    std::time::Duration::from_secs(36 * 60 * 60);
+
+/// Whether a key made at `made` is due to be made anew. One from the future (a wrong clock
+/// then, or now) counts as due.
+pub(crate) fn is_stale(made: libsignal_protocol::Timestamp) -> bool {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let made = made.epoch_millis();
+    made > now || now - made > ROTATE_AFTER.as_millis() as u64
+}
 pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 
 pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
@@ -331,4 +347,28 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
         pq_pre_keys,
         pq_last_resort_key,
     ))
+}
+
+#[cfg(test)]
+mod rotation_tests {
+    use super::{is_stale, ROTATE_AFTER};
+    use libsignal_protocol::Timestamp;
+
+    fn ago(millis: u64) -> Timestamp {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        Timestamp::from_epoch_millis(now - millis)
+    }
+
+    #[test]
+    fn keys_are_made_anew_after_a_day_and_a_half() {
+        let limit = ROTATE_AFTER.as_millis() as u64;
+        assert!(!is_stale(ago(60_000)));
+        assert!(!is_stale(ago(limit - 60_000)));
+        assert!(is_stale(ago(limit + 60_000)));
+        // From the future: the clock is wrong somewhere.
+        assert!(is_stale(Timestamp::from_epoch_millis(u64::MAX / 2)));
+    }
 }

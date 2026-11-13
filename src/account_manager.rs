@@ -21,8 +21,8 @@ use zkgroup::profiles::ProfileKey;
 
 use crate::content::ContentBody;
 use crate::pre_keys::{
-    KyberPreKeyEntity, PreKeyEntity, PreKeysStore, SignedPreKeyEntity,
-    PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
+    is_stale, KyberPreKeyEntity, PreKeyEntity, PreKeysStore,
+    SignedPreKeyEntity, PRE_KEY_BATCH_SIZE, PRE_KEY_MINIMUM,
 };
 use crate::prelude::{MessageSender, MessageSenderError};
 use crate::proto::sync_message::PniChangeNumber;
@@ -208,7 +208,35 @@ impl AccountManager {
         // locally. If we have more than the server, we should upload them.
         // Currently the trait doesn't allow us to do that, so we just upload the batch size and
         // pray.
+        // The signed and last-resort keys are made anew every so often, as Signal's apps do:
+        // one that lives as long as the device would let a later compromise read every first
+        // message sent without a one-time key.
+        let signed_key_stale = match protocol_store.signed_prekey_id().await? {
+            Some(id) => protocol_store
+                .get_signed_pre_key(id)
+                .await
+                .and_then(|record| record.timestamp())
+                .map_or(true, is_stale),
+            None => true,
+        };
+        let last_resort_keys = protocol_store
+            .load_last_resort_kyber_pre_keys()
+            .instrument(tracing::trace_span!("fetch last resort key"))
+            .await?;
+        // The newest: those it replaced stay until they are deleted.
+        let last_resort_key = last_resort_keys
+            .iter()
+            .max_by_key(|record| {
+                record.timestamp().map_or(0, |at| at.epoch_millis())
+            })
+            .cloned();
+        let last_resort_stale = last_resort_key
+            .as_ref()
+            .is_none_or(|record| record.timestamp().map_or(true, is_stale));
+
         if check_pre_keys
+            && !signed_key_stale
+            && !(use_last_resort_key && last_resort_stale)
             && (prekey_status.count >= PRE_KEY_MINIMUM
                 && prekey_status.pq_count >= PRE_KEY_MINIMUM)
         {
@@ -231,32 +259,23 @@ impl AccountManager {
             .instrument(tracing::trace_span!("get identity key pair"))
             .await?;
 
-        let last_resort_keys = protocol_store
-            .load_last_resort_kyber_pre_keys()
-            .instrument(tracing::trace_span!("fetch last resort key"))
-            .await?;
-
-        // XXX: Maybe this check should be done in the generate_pre_keys function?
-        let has_last_resort_key = !last_resort_keys.is_empty();
+        // Kept unless it is due to be made anew.
+        let kept_last_resort_key =
+            last_resort_key.filter(|_| !last_resort_stale);
 
         let (pre_keys, signed_pre_key, pq_pre_keys, pq_last_resort_key) =
             crate::pre_keys::replenish_pre_keys(
                 protocol_store,
                 &mut rand::rng(),
                 &identity_key_pair,
-                use_last_resort_key && !has_last_resort_key,
+                use_last_resort_key && kept_last_resort_key.is_none(),
                 PRE_KEY_BATCH_SIZE,
                 PRE_KEY_BATCH_SIZE,
             )
             .await?;
 
-        let pq_last_resort_key = if has_last_resort_key {
-            if last_resort_keys.len() > 1 {
-                tracing::warn!(
-                    "More than one last resort key found; only uploading first"
-                );
-            }
-            Some(KyberPreKeyEntity::try_from(last_resort_keys[0].clone())?)
+        let pq_last_resort_key = if let Some(kept) = kept_last_resort_key {
+            Some(KyberPreKeyEntity::try_from(kept)?)
         } else {
             pq_last_resort_key
                 .map(KyberPreKeyEntity::try_from)
