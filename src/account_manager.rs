@@ -382,6 +382,7 @@ impl AccountManager {
             ephemeral_backup_key,
             account_entropy_pool,
             media_root_backup_key,
+            read_receipts,
         } = secrets;
 
         let query: HashMap<_, _> = url.query_pairs().collect();
@@ -431,8 +432,8 @@ impl AccountManager {
             provisioning_code: Some(provisioning_code),
             user_agent: None,
             profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
+            read_receipts,
             // CURRENT is not exposed by prost :(
-            read_receipts: None,
             provisioning_version: Some(i32::from(
                 ProvisioningVersion::TabletSupport,
             ) as _),
