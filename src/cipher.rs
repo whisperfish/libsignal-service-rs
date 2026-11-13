@@ -288,10 +288,7 @@ where
         let ciphertext = if let Some(msg) = envelope.content.as_ref() {
             msg
         } else {
-            return Err(ServiceError::InvalidFrame {
-                reason:
-                    "envelope should have either a legacy message or content.",
-            });
+            return Err(InvalidEnvelope::NoContent.into());
         };
 
         let server_guid = envelope.parse_server_guid();
@@ -302,18 +299,14 @@ where
             tracing::warn!(
                 "missing destination service id; ignoring invalid message."
             );
-            return Err(ServiceError::InvalidFrame {
-                reason: "missing destination service id",
-            });
+            return Err(InvalidEnvelope::MissingDestination.into());
         };
 
         if destination_service_id != local_service {
             tracing::warn!(
                 "mismatching destination service id; ignoring invalid message."
             );
-            return Err(ServiceError::InvalidFrame {
-                reason: "mismatch destination service id",
-            });
+            return Err(InvalidEnvelope::MismatchedDestination.into());
         }
 
         let source_service_id = envelope.parse_source_service_id();
@@ -322,9 +315,7 @@ where
             && source_service_id.is_none()
         {
             tracing::warn!("received sealed sender message to our PNI; ignoring invalid message");
-            return Err(ServiceError::InvalidFrame {
-                reason: "sealed sender received on our PNI",
-            });
+            return Err(InvalidEnvelope::SealedSenderToPni.into());
         }
 
         // TODO: let chain in edition 2024
@@ -333,9 +324,7 @@ where
                 && envelope.r#type() != Type::ServerDeliveryReceipt
             {
                 tracing::warn!("got a message from a PNI that was not a ServerDeliveryReceipt; ignoring invalid message");
-                return Err(ServiceError::InvalidFrame {
-                    reason: "PNI received a non-ServerDeliveryReceipt",
-                });
+                return Err(InvalidEnvelope::NonReceiptFromPni.into());
             }
         }
 
@@ -345,15 +334,11 @@ where
         let client_timestamp = chrono::DateTime::from_timestamp_millis(
             envelope.client_timestamp() as i64,
         )
-        .ok_or(ServiceError::InvalidFrame {
-            reason: "unparseable timestamp",
-        });
+        .ok_or(ServiceError::from(InvalidEnvelope::InvalidClientTimestamp));
         let server_timestamp = chrono::DateTime::from_timestamp_millis(
             envelope.server_timestamp() as i64,
         )
-        .ok_or(ServiceError::InvalidFrame {
-            reason: "unparseable server timestamp",
-        });
+        .ok_or(ServiceError::from(InvalidEnvelope::InvalidServerTimestamp));
 
         /// Decrypted bytes plus the [`Metadata`] fields that vary by envelope type.
         struct DecryptedPayload {
@@ -524,9 +509,7 @@ where
                     tracing::warn!(
                         "sealed sender used for PNI; ignoring invalid message"
                     );
-                    return Err(ServiceError::InvalidFrame {
-                        reason: "sealed sender used for PNI",
-                    });
+                    return Err(InvalidEnvelope::SealedSenderFromPni.into());
                 }
 
                 strip_padding(&mut message)?;
@@ -542,9 +525,7 @@ where
             },
             _ => {
                 // else
-                return Err(ServiceError::InvalidFrame {
-                    reason: "envelope has unknown type",
-                });
+                return Err(InvalidEnvelope::UnknownType.into());
             },
         };
 
@@ -703,9 +684,7 @@ fn strip_padding_version(
     contents: &mut Vec<u8>,
 ) -> Result<(), ServiceError> {
     if version < 2 {
-        Err(ServiceError::InvalidFrame {
-            reason: "unknown version",
-        })
+        Err(ServiceError::PaddingVersion(version))
     } else if version == 2 {
         Ok(())
     } else {
@@ -739,6 +718,30 @@ pub async fn get_preferred_protocol_address<S: SessionStore>(
 /// The USMC sender field is only populated when the USMC could be validated against the trust roots;
 /// hence the sender information can be trusted, give or take an active attacker on the Signal
 /// side.
+/// An envelope that can't be decrypted because of what it says about itself, before any
+/// cryptography: who it is for, who it is from, or how it is typed.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+pub enum InvalidEnvelope {
+    #[error("no content")]
+    NoContent,
+    #[error("no destination service ID")]
+    MissingDestination,
+    #[error("destined for another service ID than ours")]
+    MismatchedDestination,
+    #[error("sealed sender message to our PNI")]
+    SealedSenderToPni,
+    #[error("message from a PNI that isn't a server delivery receipt")]
+    NonReceiptFromPni,
+    #[error("sealed sender message from a PNI")]
+    SealedSenderFromPni,
+    #[error("client timestamp out of range")]
+    InvalidClientTimestamp,
+    #[error("server timestamp out of range")]
+    InvalidServerTimestamp,
+    #[error("unknown envelope type")]
+    UnknownType,
+}
+
 #[derive(thiserror::Error)]
 #[error("error: {inner}, usmc: {}", sender.is_some())]
 pub struct SealedSenderDecryptionError {

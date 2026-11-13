@@ -1,18 +1,23 @@
 use aes::cipher::block_padding;
 use libsignal_core::{curve::CurveError, ServiceId};
 use libsignal_protocol::{
-    FingerprintError, ServiceIdKind, SignalProtocolError,
+    FingerprintError, ProtocolAddress, ServiceIdKind, SignalProtocolError,
 };
 use reqwest::StatusCode;
 use serde::Deserialize;
 use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 
 use crate::{
-    cipher::SealedSenderDecryptionError,
+    account_manager::DeviceInfoField,
+    cipher::{InvalidEnvelope, SealedSenderDecryptionError},
     groups_v2::GroupDecodingError,
+    push_service::cdn::CdnError,
     utils::deserialize_service_id,
-    websocket::registration::{
-        RegistrationLockFailure, RegistrationSessionMetadataResponse,
+    websocket::{
+        registration::{
+            RegistrationLockFailure, RegistrationSessionMetadataResponse,
+        },
+        InvalidFrame, UsernameLinkError, WebSocketError, WsClosingReason,
     },
 };
 
@@ -42,8 +47,8 @@ pub struct VerificationDeliveryFailure {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ServiceError {
-    #[error("Service request timed out: {reason}")]
-    Timeout { reason: &'static str },
+    #[error("request timed out, {attempts} times")]
+    Timeout { attempts: u8 },
 
     #[error("invalid URL: {0}")]
     InvalidUrl(#[from] url::ParseError),
@@ -54,8 +59,8 @@ pub enum ServiceError {
     #[error("invalid phone number")]
     InvalidPhoneNumber,
 
-    #[error("Error sending request: {reason}")]
-    SendError { reason: String },
+    #[error("no identity key stored for {0}")]
+    MissingIdentity(ProtocolAddress),
 
     #[error("i/o error")]
     IO(#[from] std::io::Error),
@@ -81,10 +86,10 @@ pub enum ServiceError {
     #[error("Unexpected response: HTTP {status}: {body}")]
     UnhandledResponseCode { status: StatusCode, body: String },
 
-    #[error("Websocket error: {0}")]
-    WsError(Box<reqwest_websocket::Error>),
-    #[error("Websocket closing: {reason}")]
-    WsClosing { reason: &'static str },
+    #[error(transparent)]
+    WebSocket(#[from] WebSocketError),
+    #[error("websocket closing: {reason}")]
+    WsClosing { reason: WsClosingReason },
 
     #[error("Invalid padding: {0}")]
     Padding(#[from] block_padding::Error),
@@ -92,8 +97,20 @@ pub enum ServiceError {
     #[error("unknown padding version {0}")]
     PaddingVersion(u32),
 
-    #[error("Invalid frame: {reason}")]
-    InvalidFrame { reason: &'static str },
+    #[error("invalid websocket frame: {0}")]
+    InvalidFrame(#[from] InvalidFrame),
+
+    #[error("invalid envelope: {0}")]
+    InvalidEnvelope(#[from] InvalidEnvelope),
+
+    #[error("CDN: {0}")]
+    Cdn(#[from] CdnError),
+
+    #[error("invalid username link: {0}")]
+    InvalidUsernameLink(#[from] UsernameLinkError),
+
+    #[error("the group credentials received don't cover day {day}")]
+    MissingGroupCredential { day: u64 },
 
     #[error("MAC error")]
     MacError,
@@ -137,8 +154,8 @@ pub enum ServiceError {
     #[error("Not found.")]
     NotFoundError,
 
-    #[error("failed to decrypt field from device info: {0}")]
-    DecryptDeviceInfoFieldError(&'static str),
+    #[error("couldn't decrypt the device's {field}")]
+    InvalidDeviceInfo { field: DeviceInfoField },
 
     #[error("Unknown CDN version {0}")]
     UnknownCdnVersion(u32),
@@ -218,11 +235,5 @@ impl From<signal_crypto::HpkeError> for ServiceError {
 impl From<FingerprintError> for ServiceError {
     fn from(value: FingerprintError) -> Self {
         ServiceError::Fingerprint(value)
-    }
-}
-
-impl From<reqwest_websocket::Error> for ServiceError {
-    fn from(error: reqwest_websocket::Error) -> Self {
-        Self::WsError(Box::new(error))
     }
 }

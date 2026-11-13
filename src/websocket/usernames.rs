@@ -18,6 +18,31 @@ error_mapper! {
         CONFLICT => UsernameHashNotSet,
 }
 
+/// A username link (`https://signal.me/#eu/...`) that can't be read or made.
+#[derive(thiserror::Error, Debug, Clone, PartialEq, Eq)]
+pub enum UsernameLinkError {
+    #[error("not a link to https://signal.me")]
+    NotSignalMe,
+    #[error("no fragment")]
+    NoFragment,
+    #[error("fragment doesn't start with #eu/")]
+    NotEntropyFragment,
+    #[error("no payload after #eu/")]
+    NoPayload,
+    #[error("more than one segment after #eu/")]
+    ExtraSegments,
+    #[error("payload shorter than the entropy it must carry")]
+    PayloadShorterThanEntropy,
+    #[error("payload doesn't end in a handle UUID")]
+    InvalidHandle,
+    /// The link's ciphertext doesn't decrypt with its entropy, or decrypts to something that
+    /// isn't a username. Not told apart: the link is garbage either way.
+    #[error("the link doesn't decrypt to a username")]
+    Undecryptable,
+    #[error("the username is too long to encrypt into a link")]
+    UsernameTooLong,
+}
+
 impl SignalWebSocket<Unidentified> {
     pub async fn look_up_username(
         &mut self,
@@ -102,9 +127,7 @@ impl SignalWebSocket<Unidentified> {
             usernames::decrypt_username(&entropy, &result.encrypted_username)
                 .map_err(|error| {
                 tracing::error!(%error, "undecryptable username");
-                ServiceError::InvalidFrame {
-                    reason: "undecryptable username link",
-                }
+                UsernameLinkError::Undecryptable
             })?;
 
         let validated_username = usernames::Username::new(&plaintext_username).map_err(|e| {
@@ -131,9 +154,7 @@ impl SignalWebSocket<Unidentified> {
             // The user didn't ever type this username, so the precise way in which it's invalid
             // isn't important. Treat this equivalent to having found garbage data in the link. This
             // simplifies error handling for callers.
-            ServiceError::InvalidFrame {
-                reason: "undecryptable username link",
-            }
+            UsernameLinkError::Undecryptable
         })?;
 
         Ok(Some(validated_username))
@@ -155,44 +176,27 @@ fn parse_username_link(
     ServiceError,
 > {
     if link.scheme() != "https" || link.host_str() != Some("signal.me") {
-        return Err(ServiceError::InvalidFrame {
-            reason: "username link base is not https://signal.me",
-        });
+        return Err(UsernameLinkError::NotSignalMe.into());
     }
 
-    let fragment =
-        link.fragment().ok_or_else(|| ServiceError::InvalidFrame {
-            reason: "username link missing fragment",
-        })?;
+    let fragment = link.fragment().ok_or(UsernameLinkError::NoFragment)?;
     let mut segments = fragment.split('/');
     if segments.next() != Some("eu") {
-        return Err(ServiceError::InvalidFrame {
-            reason: "username link must start with #eu/",
-        });
+        return Err(UsernameLinkError::NotEntropyFragment.into());
     }
-    let payload =
-        segments.next().ok_or_else(|| ServiceError::InvalidFrame {
-            reason: "username link payload missing",
-        })?;
+    let payload = segments.next().ok_or(UsernameLinkError::NoPayload)?;
     if segments.next().is_some() {
-        return Err(ServiceError::InvalidFrame {
-            reason: "username link has extra path segments",
-        });
+        return Err(UsernameLinkError::ExtraSegments.into());
     }
 
     let bytes = BASE64_URL_SAFE_NO_PAD.decode(payload)?;
 
     let (entropy, rest) = bytes
         .split_first_chunk::<{ usernames::constants::USERNAME_LINK_ENTROPY_SIZE }>()
-        .ok_or_else(|| ServiceError::InvalidFrame {
-            reason: "username link payload shorter than entropy",
-        })?;
+        .ok_or(UsernameLinkError::PayloadShorterThanEntropy)?;
 
-    let handle_uuid = uuid::Uuid::from_slice(rest).map_err(|_| {
-        ServiceError::InvalidFrame {
-            reason: "username link payload missing handle UUID",
-        }
-    })?;
+    let handle_uuid = uuid::Uuid::from_slice(rest)
+        .map_err(|_| UsernameLinkError::InvalidHandle)?;
 
     Ok((handle_uuid, *entropy))
 }
@@ -228,9 +232,7 @@ impl SignalWebSocket<Identified> {
             username.to_string(),
             None,
         )
-        .map_err(|_e| ServiceError::InvalidFrame {
-            reason: "username too long to encrypt",
-        })?;
+        .map_err(|_e| UsernameLinkError::UsernameTooLong)?;
 
         let response = self
             .http_request(Method::PUT, "/v1/accounts/username_link")?
