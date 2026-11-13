@@ -194,8 +194,10 @@ pub async fn link_device<
         )
         .await?;
 
-    let registration_id = csprng.random_range(1..256);
-    let pni_registration_id = csprng.random_range(1..256);
+    // As every registration does: from 1..256 alone, a device linked again would get the
+    // same ID too often for others to notice that it changed.
+    let registration_id = generate_registration_id(csprng);
+    let pni_registration_id = generate_registration_id(csprng);
 
     let provisioning_pipe = ProvisioningPipe::from_socket(ws, csprng);
     let provision_stream = provisioning_pipe.stream();
