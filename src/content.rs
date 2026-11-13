@@ -176,6 +176,54 @@ impl NullMessage {
 }
 
 impl ContentBody {
+    /// Whether the server pushes this to the recipient's offline devices at once, as Signal's
+    /// apps decide it: only what a person should see now (Signal-Desktop's `urgent` per send job,
+    /// e.g. `ts/jobs/helpers/sendNormalMessage.preload.ts`, `ts/textsecure/SendMessage.preload.ts`).
+    /// The server takes a message without the flag as urgent.
+    pub fn urgent(&self) -> bool {
+        use crate::proto::{
+            call_message::opaque::Urgency,
+            data_message::Flags,
+            sync_message::{self, request::Type as RequestType},
+        };
+        match self {
+            Self::DataMessage(msg) => {
+                let flags = msg.flags();
+                flags
+                    & (Flags::ExpirationTimerUpdate as u32
+                        | Flags::ProfileKeyUpdate as u32)
+                    == 0
+                    && msg
+                        .group_v2
+                        .as_ref()
+                        .is_none_or(|group| group.group_change.is_none())
+            },
+            Self::EditMessage(_) => true,
+            Self::SynchronizeMessage(msg) => {
+                !msg.read.is_empty()
+                    || matches!(
+                        &msg.content,
+                        Some(sync_message::Content::Request(request))
+                            if matches!(
+                                request.r#type(),
+                                RequestType::Contacts | RequestType::Keys
+                            )
+                    )
+            },
+            Self::CallMessage(msg) => {
+                msg.offer.is_some()
+                    || msg.opaque.as_ref().is_some_and(|opaque| {
+                        opaque.urgency() == Urgency::HandleImmediately
+                    })
+            },
+            Self::NullMessage(_)
+            | Self::ReceiptMessage(_)
+            | Self::TypingMessage(_)
+            | Self::DecryptionErrorMessage(_)
+            | Self::StoryMessage(_) => false,
+        }
+    }
+
     pub fn into_proto(self) -> crate::proto::Content {
         use crate::proto::content::Content;
 
