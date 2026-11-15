@@ -16,6 +16,33 @@ where
 {
     let status = response.status_code();
     let body = response.text().await?;
+    from_str_or_unhandled(status, body)
+}
+
+/// As [`json_or_unhandled`], but yields `None` for a body-less response.
+pub(crate) async fn optional_json_or_unhandled<R, T>(
+    response: R,
+) -> Result<Option<T>, ServiceError>
+where
+    T: for<'de> serde::Deserialize<'de>,
+    R: SignalServiceResponse,
+    ServiceError: From<<R as SignalServiceResponse>::Error>,
+{
+    let status = response.status_code();
+    let body = response.text().await?;
+    if body.trim().is_empty() {
+        return Ok(None);
+    }
+    from_str_or_unhandled(status, body).map(Some)
+}
+
+fn from_str_or_unhandled<T>(
+    status: StatusCode,
+    body: String,
+) -> Result<T, ServiceError>
+where
+    T: for<'de> serde::Deserialize<'de>,
+{
     serde_json::from_str(&body).map_err(move |error| {
         tracing::error!(%error, "JSON decoding in error handling failed; returning UnhandledResponseCode");
         ServiceError::UnhandledResponseCode { status, body }
