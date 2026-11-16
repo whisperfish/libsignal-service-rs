@@ -306,20 +306,24 @@ impl AccountManager {
             .register_pre_keys(
                 service_id_kind,
                 &PreKeyState {
-                    pre_keys: Some(
-                        pre_keys
-                            .iter()
-                            .map(PreKeyEntity::try_from)
-                            .collect::<Result<_, _>>()?,
-                    ),
+                    pre_keys: ec_needed
+                        .then(|| {
+                            pre_keys
+                                .iter()
+                                .map(PreKeyEntity::try_from)
+                                .collect::<Result<_, _>>()
+                        })
+                        .transpose()?,
                     signed_pre_key: None,
                     identity_key: *identity_key_pair.identity_key(),
-                    pq_pre_keys: Some(
-                        pq_pre_keys
-                            .iter()
-                            .map(KyberPreKeyEntity::try_from)
-                            .collect::<Result<_, _>>()?,
-                    ),
+                    pq_pre_keys: kyber_needed
+                        .then(|| {
+                            pq_pre_keys
+                                .iter()
+                                .map(KyberPreKeyEntity::try_from)
+                                .collect::<Result<_, _>>()
+                        })
+                        .transpose()?,
                     pq_last_resort_key: None,
                 },
             )
