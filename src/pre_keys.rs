@@ -222,6 +222,85 @@ pub trait PreKeysStore:
         })
     }
 
+    /// Persist a rotated signed pre-key (and last-resort kyber key) and
+    /// record the ids issued.
+    ///
+    /// One-time keys are untouched: a signed rotation does not supersede them,
+    /// so nothing is marked stale here.
+    ///
+    /// Active ids are NOT set — call [`mark_signed_pre_keys_active`] after the
+    /// upload succeeds.
+    ///
+    /// [`mark_signed_pre_keys_active`]: PreKeysStore::mark_signed_pre_keys_active
+    async fn store_signed_pre_key_bundle(
+        &mut self,
+        signed_pre_key: &SignedPreKeyRecord,
+        pq_last_resort_key: &KyberPreKeyRecord,
+    ) -> Result<(), SignalProtocolError> {
+        self.save_signed_pre_key(signed_pre_key.id()?, signed_pre_key)
+            .await?;
+
+        self.store_last_resort_kyber_pre_key(
+            pq_last_resort_key.id()?,
+            pq_last_resort_key,
+        )
+        .await?;
+
+        // ---- Record the issued ids (pre-upload) ----
+        self.set_last_signed_pre_key_id(u32::from(signed_pre_key.id()?))
+            .await?;
+
+        // The last-resort key shares the kyber id space with one-time keys.
+        self.set_last_pq_pre_key_id(u32::from(pq_last_resort_key.id()?))
+            .await?;
+
+        Ok(())
+    }
+
+    /// Persist a fresh batch of one-time pre-keys and record the ids issued.
+    ///
+    /// Uploading one-time keys replaces the server's set, so the batch being
+    /// superseded is marked stale here: it is no longer offered, and ages out
+    /// via [`clean_stale_pre_keys`] after the grace period.
+    ///
+    /// Each pool is handled independently — a pool is only staled when keys
+    /// are actually arriving to replace it, so passing an empty slice leaves
+    /// that pool untouched rather than retiring every usable key in it.
+    ///
+    /// [`clean_stale_pre_keys`]: PreKeysStore::clean_stale_pre_keys
+    async fn store_one_time_pre_key_bundle(
+        &mut self,
+        pre_keys: &[PreKeyRecord],
+        pq_pre_keys: &[KyberPreKeyRecord],
+    ) -> Result<(), SignalProtocolError> {
+        let now = chrono::Utc::now();
+
+        if !pre_keys.is_empty() {
+            self.mark_stale_one_time_ec_pre_keys(now).await?;
+            for key in pre_keys {
+                self.save_pre_key(key.id()?, key).await?;
+            }
+
+            // Record the last id of the batch (pre-upload).
+            let last = pre_keys.last().expect("non-empty");
+            self.set_last_pre_key_id(u32::from(last.id()?)).await?;
+        }
+
+        if !pq_pre_keys.is_empty() {
+            self.mark_stale_one_time_kyber_pre_keys(now).await?;
+            // libsignal draws no last-resort distinction: plain
+            // `save_kyber_pre_key` is the one-time path.
+            for key in pq_pre_keys {
+                self.save_kyber_pre_key(key.id()?, key).await?;
+            }
+
+            let last = pq_pre_keys.last().expect("non-empty");
+            self.set_last_pq_pre_key_id(u32::from(last.id()?)).await?;
+        }
+
+        Ok(())
+    }
+
     /// Records the signed / last-resort ids the server has accepted as active,
     /// and stamps the rotation.
     ///
@@ -354,6 +433,93 @@ pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 /// Upstream's PreKeysSyncJob uses roughly this interval.
 pub const PRE_KEY_ROTATION_INTERVAL: chrono::Duration =
     chrono::Duration::days(2);
+
+/// Generate a fresh signed pre-key and a last-resort kyber
+/// pre-key. Nothing is persisted — pass the result to
+/// [`store_signed_pre_key_bundle`].
+///
+/// Note the kyber id space is shared with one-time kyber keys: generate
+/// and store one kind before generating the other, or both will claim the
+/// same `last_pq_pre_key_id`.
+///
+/// Public only for use in testing in clients.
+///
+/// [`store_signed_pre_key_bundle`]: PreKeysStore::store_signed_pre_key_bundle
+pub async fn generate_signed_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
+    protocol_store: &mut P,
+    csprng: &mut R,
+    identity_key_pair: &IdentityKeyPair,
+) -> Result<(SignedPreKeyRecord, KyberPreKeyRecord), SignalProtocolError> {
+    let last_signed_pre_key_id =
+        protocol_store.last_signed_pre_key_id().await?;
+    let last_pq_pre_key_id = protocol_store.last_pq_pre_key_id().await?;
+
+    let _span =
+        tracing::span!(tracing::Level::DEBUG, "Generating signed pre keys")
+            .entered();
+
+    let signed_pre_key_pair = KeyPair::generate(csprng);
+    let signed_pre_key_signature =
+        identity_key_pair.private_key().calculate_signature(
+            &signed_pre_key_pair.public_key.serialize(),
+            csprng,
+        )?;
+
+    let signed_pre_key = SignedPreKeyRecord::new(
+        wrap_next(last_signed_pre_key_id).into(),
+        Timestamp::now(),
+        &signed_pre_key_pair,
+        &signed_pre_key_signature,
+    );
+
+    let pq_last_resort_key = KyberPreKeyRecord::generate(
+        kem::KeyType::Kyber1024,
+        wrap_next(last_pq_pre_key_id).into(),
+        identity_key_pair.private_key(),
+    )?;
+
+    Ok((signed_pre_key, pq_last_resort_key))
+}
+
+/// Generate one-time EC and kyber pre-keys. Nothing is persisted — pass
+/// the result to [`store_one_time_pre_key_bundle`].
+///
+/// Public only for use in testing in clients.
+///
+/// [`store_one_time_pre_key_bundle`]: PreKeysStore::store_one_time_pre_key_bundle
+pub async fn generate_one_time_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
+    protocol_store: &mut P,
+    csprng: &mut R,
+    identity_key_pair: &IdentityKeyPair,
+    ec_count: u32,
+    kyber_count: u32,
+) -> Result<(Vec<PreKeyRecord>, Vec<KyberPreKeyRecord>), SignalProtocolError> {
+    let last_pre_key_id = protocol_store.last_pre_key_id().await?;
+    let last_pq_pre_key_id = protocol_store.last_pq_pre_key_id().await?;
+
+    let _span =
+        tracing::span!(tracing::Level::DEBUG, "Generating one-time pre keys")
+            .entered();
+
+    let mut pre_keys = Vec::with_capacity(ec_count as usize);
+    for i in 0..ec_count {
+        let key_pair = KeyPair::generate(csprng);
+        let id = wrap_next(last_pre_key_id + i).into();
+        pre_keys.push(PreKeyRecord::new(id, &key_pair));
+    }
+
+    let mut pq_pre_keys = Vec::with_capacity(kyber_count as usize);
+    for i in 0..kyber_count {
+        let id = wrap_next(last_pq_pre_key_id + i).into();
+        pq_pre_keys.push(KyberPreKeyRecord::generate(
+            kem::KeyType::Kyber1024,
+            id,
+            identity_key_pair.private_key(),
+        )?);
+    }
+
+    Ok((pre_keys, pq_pre_keys))
+}
 
 pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     protocol_store: &mut P,
