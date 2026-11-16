@@ -14,7 +14,6 @@ use libsignal_protocol::{
 
 use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
 
 #[async_trait(?Send)]
 /// Additional methods for the Kyber pre key store
@@ -130,16 +129,6 @@ pub trait PreKeysStore:
         &mut self,
         id: u32,
     ) -> Result<(), SignalProtocolError>;
-
-    /// number of signed pre-keys we currently have in store
-    async fn signed_pre_keys_count(&self)
-        -> Result<usize, SignalProtocolError>;
-
-    /// number of kyber pre-keys we currently have in store
-    async fn kyber_pre_keys_count(
-        &self,
-        last_resort: bool,
-    ) -> Result<usize, SignalProtocolError>;
 
     // ---- Active-ID getters ----
 
@@ -426,9 +415,10 @@ fn wrap_next(id: u32) -> u32 {
     (id % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1
 }
 
-pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
+const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
-pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
+/// Replenish one-time keys when the server holds fewer than this.
+pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 /// How often the signed and last-resort Kyber pre-keys are rotated.
 /// Upstream's PreKeysSyncJob uses roughly this interval.
 pub const PRE_KEY_ROTATION_INTERVAL: chrono::Duration =
@@ -519,127 +509,4 @@ pub async fn generate_one_time_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     }
 
     Ok((pre_keys, pq_pre_keys))
-}
-
-pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
-    protocol_store: &mut P,
-    csprng: &mut R,
-    identity_key_pair: &IdentityKeyPair,
-    use_last_resort_key: bool,
-    pre_key_count: u32,
-    kyber_pre_key_count: u32,
-) -> Result<
-    (
-        Vec<PreKeyRecord>,
-        SignedPreKeyRecord,
-        Vec<KyberPreKeyRecord>,
-        Option<KyberPreKeyRecord>,
-    ),
-    SignalProtocolError,
-> {
-    let pre_keys_offset_id = protocol_store.last_pre_key_id().await?;
-    let next_signed_pre_key_id =
-        wrap_next(protocol_store.last_signed_pre_key_id().await?);
-    let pq_pre_keys_offset_id = protocol_store.last_pq_pre_key_id().await?;
-
-    let span = tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
-
-    let mut pre_keys = vec![];
-    let mut pq_pre_keys = vec![];
-
-    // EC keys
-    for i in 0..pre_key_count {
-        let key_pair = KeyPair::generate(csprng);
-        let pre_key_id =
-            (((pre_keys_offset_id + i) % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1)
-                .into();
-        let pre_key_record = PreKeyRecord::new(pre_key_id, &key_pair);
-        protocol_store
-                    .save_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
-
-        pre_keys.push(pre_key_record);
-    }
-
-    // Kyber keys
-    for i in 0..kyber_pre_key_count {
-        let pre_key_id = (((pq_pre_keys_offset_id + i)
-            % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
-            + 1)
-        .into();
-        let pre_key_record = KyberPreKeyRecord::generate(
-            kem::KeyType::Kyber1024,
-            pre_key_id,
-            identity_key_pair.private_key(),
-        )?;
-        protocol_store
-                    .save_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save kyber pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
-
-        pq_pre_keys.push(pre_key_record);
-    }
-
-    // Generate and store the next signed prekey
-    let signed_pre_key_pair = KeyPair::generate(csprng);
-    let signed_pre_key_public = signed_pre_key_pair.public_key;
-    let signed_pre_key_signature = identity_key_pair
-        .private_key()
-        .calculate_signature(&signed_pre_key_public.serialize(), csprng)?;
-
-    let signed_prekey_record = SignedPreKeyRecord::new(
-        next_signed_pre_key_id.into(),
-        Timestamp::now(),
-        &signed_pre_key_pair,
-        &signed_pre_key_signature,
-    );
-
-    protocol_store
-                .save_signed_pre_key(
-                    next_signed_pre_key_id.into(),
-                    &signed_prekey_record,
-                )
-                    .instrument(tracing::trace_span!(parent: &span, "save signed pre key", signed_pre_key_id = ?next_signed_pre_key_id)).await?;
-
-    let pq_last_resort_key = if use_last_resort_key {
-        let pre_key_id = (((pq_pre_keys_offset_id + kyber_pre_key_count)
-            % (PRE_KEY_MEDIUM_MAX_VALUE - 1))
-            + 1)
-        .into();
-
-        if !pq_pre_keys.is_empty() {
-            assert_eq!(
-                u32::from(pq_pre_keys.last().unwrap().id()?) + 1,
-                u32::from(pre_key_id)
-            );
-        }
-
-        let pre_key_record = KyberPreKeyRecord::generate(
-            kem::KeyType::Kyber1024,
-            pre_key_id,
-            identity_key_pair.private_key(),
-        )?;
-        protocol_store
-                    .store_last_resort_kyber_pre_key(pre_key_id, &pre_key_record)
-                    .instrument(tracing::trace_span!(parent: &span, "save last resort kyber pre key", ?pre_key_id)).await?;
-        // TODO: Shouldn't this also remove the previous pre-keys from storage?
-        //       I think we might want to update the storage, and then sync the storage to the
-        //       server.
-
-        Some(pre_key_record)
-    } else {
-        None
-    };
-
-    Ok((
-        pre_keys,
-        signed_prekey_record,
-        pq_pre_keys,
-        pq_last_resort_key,
-    ))
 }

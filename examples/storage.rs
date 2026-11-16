@@ -232,19 +232,6 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 
-    async fn signed_pre_keys_count(
-        &self,
-    ) -> Result<usize, SignalProtocolError> {
-        todo!()
-    }
-
-    async fn kyber_pre_keys_count(
-        &self,
-        _last_resort: bool,
-    ) -> Result<usize, SignalProtocolError> {
-        todo!()
-    }
-
     async fn active_signed_prekey_id(
         &self,
     ) -> Result<Option<SignedPreKeyId>, SignalProtocolError> {
