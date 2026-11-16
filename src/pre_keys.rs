@@ -86,6 +86,14 @@ pub trait SignedPreKeyStoreExt: SignedPreKeyStore {
 /// of the batch. Implementors MUST treat the setters as plain persistence:
 /// write the value, return. They MUST NOT advance, wrap, or otherwise mutate
 /// the id.
+///
+/// ## Active-ID contract
+///
+/// `set_active_*` records the id the server has accepted. The
+/// `store_*_pre_key_bundle` methods do NOT set them; call
+/// `mark_signed_pre_keys_active` only after a successful upload, so
+/// `clean_stale_pre_keys` excludes the correct live key. The matching getters
+/// return `None` before the first upload.
 #[async_trait(?Send)]
 pub trait PreKeysStore:
     PreKeyStore
@@ -133,13 +141,49 @@ pub trait PreKeysStore:
         last_resort: bool,
     ) -> Result<usize, SignalProtocolError>;
 
-    async fn signed_prekey_id(
+    // ---- Active-ID getters ----
+
+    async fn active_signed_prekey_id(
         &self,
     ) -> Result<Option<SignedPreKeyId>, SignalProtocolError>;
 
-    async fn last_resort_kyber_prekey_id(
+    async fn active_last_resort_kyber_prekey_id(
         &self,
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError>;
+
+    // ---- Active-ID setters (call after successful server upload) ----
+
+    async fn set_active_signed_prekey_id(
+        &mut self,
+        id: SignedPreKeyId,
+    ) -> Result<(), SignalProtocolError>;
+
+    async fn set_active_last_resort_kyber_prekey_id(
+        &mut self,
+        id: KyberPreKeyId,
+    ) -> Result<(), SignalProtocolError>;
+
+    // ---- Rotation schedule ----
+
+    /// When the signed and last-resort Kyber pre-keys were last rotated, or
+    /// `None` if they never have been.
+    ///
+    /// Both keys rotate together in a single upload, so one timestamp covers
+    /// both.
+    async fn last_prekey_rotation(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, SignalProtocolError>;
+
+    /// Records when the signed and last-resort Kyber pre-keys were rotated.
+    ///
+    /// Written by [`mark_signed_pre_keys_active`], so a failed upload leaves
+    /// the schedule untouched and is retried on the next refresh.
+    ///
+    /// [`mark_signed_pre_keys_active`]: PreKeysStore::mark_signed_pre_keys_active
+    async fn set_last_prekey_rotation(
+        &mut self,
+        at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), SignalProtocolError>;
 
     // ---- Staleness / cleanup hooks ----
 
@@ -155,6 +199,53 @@ pub trait PreKeysStore:
         threshold: chrono::DateTime<chrono::Utc>,
         min_count_to_keep: usize,
     ) -> Result<(), SignalProtocolError>;
+
+    // ---- Composed operations (default methods) ----
+
+    /// Whether the signed and last-resort Kyber pre-keys are due for rotation.
+    ///
+    /// Due if never rotated, or if the last rotation is older than
+    /// [`PRE_KEY_ROTATION_INTERVAL`].
+    ///
+    /// One-time pre-keys are deliberately not considered: their replenishment
+    /// is gated on the *server's* remaining count, and the local count is not a
+    /// usable proxy — the local pool stays full while the server hands its
+    /// copies out.
+    ///
+    /// Implementors may override this to use a different schedule.
+    async fn signed_pre_keys_due_for_rotation(
+        &self,
+    ) -> Result<bool, SignalProtocolError> {
+        Ok(match self.last_prekey_rotation().await? {
+            None => true, // never rotated
+            Some(ts) => chrono::Utc::now() - ts > PRE_KEY_ROTATION_INTERVAL,
+        })
+    }
+
+    /// Records the signed / last-resort ids the server has accepted as active,
+    /// and stamps the rotation.
+    ///
+    /// Call only after the upload succeeds. [`clean_stale_pre_keys`] uses
+    /// these to preserve the live published keys; setting them beforehand
+    /// risks pointing `active` at a key the server never accepted, and would
+    /// start the rotation interval on keys the server never took.
+    ///
+    /// [`clean_stale_pre_keys`]: PreKeysStore::clean_stale_pre_keys
+    async fn mark_signed_pre_keys_active(
+        &mut self,
+        signed_pre_key: &SignedPreKeyRecord,
+        pq_last_resort_key: &KyberPreKeyRecord,
+    ) -> Result<(), SignalProtocolError> {
+        self.set_active_signed_prekey_id(signed_pre_key.id()?)
+            .await?;
+
+        self.set_active_last_resort_kyber_prekey_id(pq_last_resort_key.id()?)
+            .await?;
+
+        self.set_last_prekey_rotation(chrono::Utc::now()).await?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -259,6 +350,10 @@ fn wrap_next(id: u32) -> u32 {
 pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
 pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
+/// How often the signed and last-resort Kyber pre-keys are rotated.
+/// Upstream's PreKeysSyncJob uses roughly this interval.
+pub const PRE_KEY_ROTATION_INTERVAL: chrono::Duration =
+    chrono::Duration::days(2);
 
 pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     protocol_store: &mut P,

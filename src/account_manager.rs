@@ -103,15 +103,16 @@ impl AccountManager {
         protocol_store: &mut P,
         service_id_kind: ServiceIdKind,
     ) -> Result<bool, ServiceError> {
-        let Some(signed_prekey_id) = protocol_store.signed_prekey_id().await?
+        // The server hashes the keys it holds, so these are the ids we last
+        // published, not the newest ones in store.
+        let Some(signed_prekey_id) =
+            protocol_store.active_signed_prekey_id().await?
         else {
             tracing::warn!("No signed prekey found");
             return Ok(false);
         };
-        // XXX: should we instead use the `load_last_resort_kyber_pre_keys` method? Or refactor
-        //      those whole traits?
         let Some(kyber_prekey_id) =
-            protocol_store.last_resort_kyber_prekey_id().await?
+            protocol_store.active_last_resort_kyber_prekey_id().await?
         else {
             tracing::warn!("No last resort kyber prekey found");
             return Ok(false);
@@ -203,9 +204,9 @@ impl AccountManager {
         {
             if protocol_store.signed_pre_keys_count().await? > 0
                 && protocol_store.kyber_pre_keys_count(true).await? > 0
-                && protocol_store.signed_prekey_id().await?.is_some()
+                && protocol_store.active_signed_prekey_id().await?.is_some()
                 && protocol_store
-                    .last_resort_kyber_prekey_id()
+                    .active_last_resort_kyber_prekey_id()
                     .await?
                     .is_some()
             {

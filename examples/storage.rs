@@ -245,7 +245,7 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 
-    async fn signed_prekey_id(
+    async fn active_signed_prekey_id(
         &self,
     ) -> Result<Option<SignedPreKeyId>, SignalProtocolError> {
         todo!()
@@ -266,9 +266,23 @@ impl PreKeysStore for ExampleStore {
         todo!()
     }
 
-    async fn last_resort_kyber_prekey_id(
+    async fn active_last_resort_kyber_prekey_id(
         &self,
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn last_prekey_rotation(
+        &self,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, SignalProtocolError>
+    {
+        todo!()
+    }
+
+    async fn set_last_prekey_rotation(
+        &mut self,
+        _at: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), SignalProtocolError> {
         todo!()
     }
 
@@ -289,6 +303,20 @@ impl PreKeysStore for ExampleStore {
     async fn set_last_pq_pre_key_id(
         &mut self,
         _id: u32,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_active_signed_prekey_id(
+        &mut self,
+        _id: SignedPreKeyId,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_active_last_resort_kyber_prekey_id(
+        &mut self,
+        _id: KyberPreKeyId,
     ) -> Result<(), SignalProtocolError> {
         todo!()
     }
