@@ -272,10 +272,10 @@ impl AccountManager {
         );
 
         let pre_key_state = PreKeyState {
-            pre_keys,
-            signed_pre_key,
+            pre_keys: Some(pre_keys),
+            signed_pre_key: Some(signed_pre_key),
             identity_key,
-            pq_pre_keys,
+            pq_pre_keys: Some(pq_pre_keys),
             pq_last_resort_key,
         };
 

@@ -171,13 +171,16 @@ impl TryFrom<KyberPreKeyRecord> for KyberPreKeyEntity {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreKeyState {
-    pub pre_keys: Vec<PreKeyEntity>,
-    pub signed_pre_key: SignedPreKeyEntity,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pre_keys: Option<Vec<PreKeyEntity>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signed_pre_key: Option<SignedPreKeyEntity>,
     #[serde(with = "serde_identity_key")]
     pub identity_key: IdentityKey,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pq_last_resort_key: Option<KyberPreKeyEntity>,
-    pub pq_pre_keys: Vec<KyberPreKeyEntity>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pq_pre_keys: Option<Vec<KyberPreKeyEntity>>,
 }
 
 pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
