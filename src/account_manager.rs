@@ -10,7 +10,7 @@ use hmac::{digest::Output, KeyInit};
 use hmac::{Hmac, Mac};
 use libsignal_protocol::{
     Aci, GenericSignedPreKey, IdentityKey, IdentityKeyPair, IdentityKeyStore,
-    KeyPair, PrivateKey, PublicKey, ServiceIdKind,
+    KeyPair, PrivateKey, PublicKey, ServiceIdKind, SignalProtocolError,
 };
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -118,10 +118,29 @@ impl AccountManager {
             return Ok(false);
         };
 
+        // A missing active key is a mismatch to rotate away, not a failure.
         let signed_prekey =
-            protocol_store.get_signed_pre_key(signed_prekey_id).await?;
+            match protocol_store.get_signed_pre_key(signed_prekey_id).await {
+                Err(SignalProtocolError::InvalidSignedPreKeyId) => {
+                    tracing::warn!(
+                        ?signed_prekey_id,
+                        "Active signed prekey missing"
+                    );
+                    return Ok(false);
+                },
+                r => r?,
+            };
         let kyber_prekey =
-            protocol_store.get_kyber_pre_key(kyber_prekey_id).await?;
+            match protocol_store.get_kyber_pre_key(kyber_prekey_id).await {
+                Err(SignalProtocolError::InvalidKyberPreKeyId) => {
+                    tracing::warn!(
+                        ?kyber_prekey_id,
+                        "Active last resort kyber prekey missing"
+                    );
+                    return Ok(false);
+                },
+                r => r?,
+            };
 
         // `SHA256(identityKeyBytes || signedEcPreKeyId || signedEcPreKeyIdBytes || lastResortKeyId || lastResortKeyBytes)`
         let mut hash = Sha256::default();
