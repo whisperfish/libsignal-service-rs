@@ -314,6 +314,63 @@ pub trait PreKeysStore:
 
         Ok(())
     }
+
+    /// Archive superseded signed / last-resort keys and delete stale one-time
+    /// keys.
+    ///
+    /// Signed and last-resort keys older than `ARCHIVE_AGE` are removed, all
+    /// but the youngest and the currently active one. One-time keys marked
+    /// stale longer than `STALE_AGE` are deleted while preserving at least
+    /// `ONE_TIME_MIN_COUNT`.
+    ///
+    /// Run only after a successful upload, so the active ids reflect
+    /// server-confirmed keys.
+    async fn clean_stale_pre_keys(
+        &mut self,
+    ) -> Result<(), SignalProtocolError> {
+        let now = chrono::Utc::now();
+        let now_ms = now.timestamp_millis() as u64;
+        let one_time_threshold = now - STALE_AGE;
+
+        if let Some(active) = self.active_signed_prekey_id().await? {
+            let keys = self.load_signed_pre_keys().await?;
+            let stale = collect_archived(active, keys, now_ms, |r| {
+                Some((r.id().ok()?, r.timestamp().ok()?.epoch_millis()))
+            });
+            for (id, ts) in stale.into_iter().skip(1) {
+                tracing::debug!(?id, ts, "removing old signed pre-key");
+                self.remove_signed_pre_key(id).await?;
+            }
+        }
+
+        if let Some(active) = self.active_last_resort_kyber_prekey_id().await? {
+            let keys = self.load_last_resort_kyber_pre_keys().await?;
+            let stale = collect_archived(active, keys, now_ms, |r| {
+                Some((r.id().ok()?, r.timestamp().ok()?.epoch_millis()))
+            });
+            for (id, ts) in stale.into_iter().skip(1) {
+                tracing::debug!(
+                    ?id,
+                    ts,
+                    "removing old last-resort kyber pre-key"
+                );
+                self.remove_kyber_pre_key(id).await?;
+            }
+        }
+
+        self.delete_all_stale_one_time_ec_pre_keys(
+            one_time_threshold,
+            ONE_TIME_MIN_COUNT,
+        )
+        .await?;
+        self.delete_all_stale_one_time_kyber_pre_keys(
+            one_time_threshold,
+            ONE_TIME_MIN_COUNT,
+        )
+        .await?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -415,8 +472,14 @@ fn wrap_next(id: u32) -> u32 {
     (id % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1
 }
 
+const ARCHIVE_AGE: chrono::Duration = chrono::Duration::days(30);
+const STALE_AGE: chrono::Duration = chrono::Duration::days(90);
 const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
+/// Minimum amount of active and stale keys combined to ensure
+/// stale keys are never removed prematurely: two batches, so the
+/// superseded generation survives until the one after it arrives.
+const ONE_TIME_MIN_COUNT: usize = 2 * PRE_KEY_BATCH_SIZE as usize;
 /// Replenish one-time keys when the server holds fewer than this.
 pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 /// How often the signed and last-resort Kyber pre-keys are rotated.
@@ -509,4 +572,30 @@ pub async fn generate_one_time_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     }
 
     Ok((pre_keys, pq_pre_keys))
+}
+
+/// Filter records older than ARCHIVE_AGE,
+/// excluding the active id, sorted newest-first.
+fn collect_archived<R, I>(
+    active_id: I,
+    records: Vec<R>,
+    now_ms: u64,
+    extract: impl Fn(&R) -> Option<(I, u64)>,
+) -> Vec<(I, u64)>
+where
+    I: PartialEq + Copy,
+{
+    let mut stale: Vec<_> = records
+        .into_iter()
+        .filter_map(|r| {
+            let (id, ts) = extract(&r)?;
+            if id == active_id {
+                return None;
+            }
+            (now_ms.saturating_sub(ts) > ARCHIVE_AGE.num_milliseconds() as _)
+                .then_some((id, ts))
+        })
+        .collect();
+    stale.sort_by_key(|x| std::cmp::Reverse(x.1));
+    stale
 }
