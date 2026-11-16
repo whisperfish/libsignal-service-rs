@@ -176,6 +176,8 @@ impl AccountManager {
         self.replenish_one_time_pre_keys(protocol_store, service_id_kind)
             .await?;
 
+        protocol_store.clean_stale_pre_keys().await?;
+
         Ok(())
     }
 
