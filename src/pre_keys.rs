@@ -77,6 +77,15 @@ pub trait SignedPreKeyStoreExt: SignedPreKeyStore {
 /// Stores the ID of keys published ahead of time
 ///
 /// <https://signal.org/docs/specifications/x3dh/>
+///
+/// ## Last-ID contract
+///
+/// The `last_*_id` getters return the id most recently issued, 0 meaning none
+/// yet. Generation starts one past that (increment + `% PRE_KEY_MEDIUM_MAX_VALUE`
+/// wrap, so ids are 1-based), and the `set_last_*` setters record the last id
+/// of the batch. Implementors MUST treat the setters as plain persistence:
+/// write the value, return. They MUST NOT advance, wrap, or otherwise mutate
+/// the id.
 #[async_trait(?Send)]
 pub trait PreKeysStore:
     PreKeyStore
@@ -86,14 +95,33 @@ pub trait PreKeysStore:
     + KyberPreKeyStore
     + KyberPreKeyStoreExt
 {
-    /// ID of the next pre key
-    async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
+    // ---- Last-ID getters ----
 
-    /// ID of the next signed pre key
-    async fn next_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
+    /// ID of the most recently issued pre key, or 0 if there is none
+    async fn last_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
 
-    /// ID of the next PQ pre key
-    async fn next_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
+    /// ID of the most recently issued signed pre key, or 0 if there is none
+    async fn last_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
+
+    /// ID of the most recently issued PQ pre key, or 0 if there is none
+    async fn last_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError>;
+
+    // ---- Last-ID setters (persistence only; do NOT advance) ----
+
+    async fn set_last_pre_key_id(
+        &mut self,
+        id: u32,
+    ) -> Result<(), SignalProtocolError>;
+
+    async fn set_last_signed_pre_key_id(
+        &mut self,
+        id: u32,
+    ) -> Result<(), SignalProtocolError>;
+
+    async fn set_last_pq_pre_key_id(
+        &mut self,
+        id: u32,
+    ) -> Result<(), SignalProtocolError>;
 
     /// number of signed pre-keys we currently have in store
     async fn signed_pre_keys_count(&self)
@@ -223,6 +251,11 @@ pub struct PreKeyState {
     pub pq_pre_keys: Option<Vec<KyberPreKeyEntity>>,
 }
 
+/// Id following `id`, wrapped into the 1-based id space.
+fn wrap_next(id: u32) -> u32 {
+    (id % (PRE_KEY_MEDIUM_MAX_VALUE - 1)) + 1
+}
+
 pub(crate) const PRE_KEY_MINIMUM: u32 = 10;
 pub(crate) const PRE_KEY_BATCH_SIZE: u32 = 100;
 pub(crate) const PRE_KEY_MEDIUM_MAX_VALUE: u32 = 0xFFFFFF;
@@ -243,10 +276,10 @@ pub(crate) async fn replenish_pre_keys<R: Rng + CryptoRng, P: PreKeysStore>(
     ),
     SignalProtocolError,
 > {
-    let pre_keys_offset_id = protocol_store.next_pre_key_id().await?;
+    let pre_keys_offset_id = protocol_store.last_pre_key_id().await?;
     let next_signed_pre_key_id =
-        protocol_store.next_signed_pre_key_id().await?;
-    let pq_pre_keys_offset_id = protocol_store.next_pq_pre_key_id().await?;
+        wrap_next(protocol_store.last_signed_pre_key_id().await?);
+    let pq_pre_keys_offset_id = protocol_store.last_pq_pre_key_id().await?;
 
     let span = tracing::span!(tracing::Level::DEBUG, "Generating pre keys");
 

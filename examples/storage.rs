@@ -217,18 +217,18 @@ impl IdentityKeyStore for ExampleStore {
 #[async_trait::async_trait(?Send)]
 #[allow(clippy::diverging_sub_expression)]
 impl PreKeysStore for ExampleStore {
-    /// ID of the next pre key
-    async fn next_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
+    /// ID of the last issued pre key
+    async fn last_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
         todo!()
     }
 
-    /// ID of the next signed pre key
-    async fn next_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
+    /// ID of the last issued signed pre key
+    async fn last_signed_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
         todo!()
     }
 
-    /// ID of the next PQ pre key
-    async fn next_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
+    /// ID of the last issued PQ pre key
+    async fn last_pq_pre_key_id(&self) -> Result<u32, SignalProtocolError> {
         todo!()
     }
 
@@ -269,6 +269,27 @@ impl PreKeysStore for ExampleStore {
     async fn last_resort_kyber_prekey_id(
         &self,
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_last_pre_key_id(
+        &mut self,
+        _id: u32,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_last_signed_pre_key_id(
+        &mut self,
+        _id: u32,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+
+    async fn set_last_pq_pre_key_id(
+        &mut self,
+        _id: u32,
+    ) -> Result<(), SignalProtocolError> {
         todo!()
     }
 }
