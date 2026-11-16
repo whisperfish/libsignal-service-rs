@@ -1,4 +1,6 @@
-use libsignal_service::pre_keys::{KyberPreKeyStoreExt, PreKeysStore};
+use libsignal_service::pre_keys::{
+    KyberPreKeyStoreExt, PreKeysStore, SignedPreKeyStoreExt,
+};
 use libsignal_service::protocol::{
     Direction, IdentityChange, IdentityKey, IdentityKeyPair, IdentityKeyStore,
     KyberPreKeyId, KyberPreKeyRecord, KyberPreKeyStore, PreKeyId, PreKeyRecord,
@@ -92,6 +94,23 @@ impl SignedPreKeyStore for ExampleStore {
         &mut self,
         _signed_prekey_id: SignedPreKeyId,
         _record: &SignedPreKeyRecord,
+    ) -> Result<(), SignalProtocolError> {
+        todo!()
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+#[allow(clippy::diverging_sub_expression)]
+impl SignedPreKeyStoreExt for ExampleStore {
+    async fn load_signed_pre_keys(
+        &self,
+    ) -> Result<Vec<SignedPreKeyRecord>, SignalProtocolError> {
+        todo!()
+    }
+
+    async fn remove_signed_pre_key(
+        &mut self,
+        _pre_key_id: SignedPreKeyId,
     ) -> Result<(), SignalProtocolError> {
         todo!()
     }

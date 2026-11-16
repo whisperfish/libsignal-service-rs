@@ -50,6 +50,19 @@ pub trait KyberPreKeyStoreExt: KyberPreKeyStore {
     ) -> Result<(), SignalProtocolError>;
 }
 
+#[async_trait(?Send)]
+/// Additional methods for the signed pre key store
+pub trait SignedPreKeyStoreExt: SignedPreKeyStore {
+    async fn load_signed_pre_keys(
+        &self,
+    ) -> Result<Vec<SignedPreKeyRecord>, SignalProtocolError>;
+
+    async fn remove_signed_pre_key(
+        &mut self,
+        pre_key_id: SignedPreKeyId,
+    ) -> Result<(), SignalProtocolError>;
+}
+
 /// Stores the ID of keys published ahead of time
 ///
 /// <https://signal.org/docs/specifications/x3dh/>
@@ -58,6 +71,7 @@ pub trait PreKeysStore:
     PreKeyStore
     + IdentityKeyStore
     + SignedPreKeyStore
+    + SignedPreKeyStoreExt
     + KyberPreKeyStore
     + KyberPreKeyStoreExt
 {
