@@ -20,7 +20,18 @@ use tracing::Instrument;
 /// Additional methods for the Kyber pre key store
 ///
 /// Analogue of Android's ServiceKyberPreKeyStore
+///
+/// Deletion is split with libsignal: it calls
+/// [`mark_kyber_pre_key_used`](KyberPreKeyStore::mark_kyber_pre_key_used) on
+/// decrypt, which deletes a one-time key and, for the last-resort key, only
+/// errors on a base key seen before. Keys that are never used are reaped here
+/// instead — `delete_all_stale_one_time_kyber_pre_keys` for one-time keys,
+/// `remove_kyber_pre_key` for superseded last-resort keys.
 pub trait KyberPreKeyStoreExt: KyberPreKeyStore {
+    /// Store the last-resort key, flagged as such.
+    ///
+    /// Plain [`save_kyber_pre_key`](KyberPreKeyStore::save_kyber_pre_key)
+    /// stores one-time keys.
     async fn store_last_resort_kyber_pre_key(
         &mut self,
         kyber_prekey_id: KyberPreKeyId,
@@ -37,7 +48,7 @@ pub trait KyberPreKeyStoreExt: KyberPreKeyStore {
     ) -> Result<(), SignalProtocolError>;
 
     /// Analogous to markAllOneTimeKyberPreKeysStaleIfNecessary
-    async fn mark_all_one_time_kyber_pre_keys_stale_if_necessary(
+    async fn mark_stale_one_time_kyber_pre_keys(
         &mut self,
         stale_time: chrono::DateTime<chrono::Utc>,
     ) -> Result<(), SignalProtocolError>;
@@ -46,7 +57,7 @@ pub trait KyberPreKeyStoreExt: KyberPreKeyStore {
     async fn delete_all_stale_one_time_kyber_pre_keys(
         &mut self,
         threshold: chrono::DateTime<chrono::Utc>,
-        min_count: usize,
+        min_count_to_keep: usize,
     ) -> Result<(), SignalProtocolError>;
 }
 
@@ -101,6 +112,21 @@ pub trait PreKeysStore:
     async fn last_resort_kyber_prekey_id(
         &self,
     ) -> Result<Option<KyberPreKeyId>, SignalProtocolError>;
+
+    // ---- Staleness / cleanup hooks ----
+
+    /// Analogous to markAllOneTimeEcPreKeysStaleIfNecessary
+    async fn mark_stale_one_time_ec_pre_keys(
+        &mut self,
+        stale_time: chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), SignalProtocolError>;
+
+    /// Analogue of deleteAllStaleOneTimeEcPreKeys
+    async fn delete_all_stale_one_time_ec_pre_keys(
+        &mut self,
+        threshold: chrono::DateTime<chrono::Utc>,
+        min_count_to_keep: usize,
+    ) -> Result<(), SignalProtocolError>;
 }
 
 #[derive(Debug, Deserialize, Serialize)]
