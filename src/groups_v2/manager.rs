@@ -264,6 +264,67 @@ impl<C: CredentialsCache> GroupsManager<C> {
         self.identified_push_service.get_group(authorization).await
     }
 
+    /// The version of the group at which we joined it: the first we may read its log from.
+    pub async fn fetch_joined_at_version<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+    ) -> Result<u32, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let authorization = self
+            .get_authorization_for_today(csprng, group_secret_params)
+            .await?;
+        self.identified_push_service
+            .get_group_joined_at_version(authorization)
+            .await
+    }
+
+    /// The group's changes since `from_version`, from the server's log, a page at a time: each
+    /// decrypted, with the group as it was after it where the server sends that. It sends it
+    /// after the last change, after any change too new for [`HIGHEST_KNOWN_CHANGE_EPOCH`], and,
+    /// with `include_first_state`, after the first.
+    ///
+    /// [`HIGHEST_KNOWN_CHANGE_EPOCH`]: crate::push_service::HIGHEST_KNOWN_CHANGE_EPOCH
+    pub async fn fetch_group_changes<R: Rng + CryptoRng>(
+        &mut self,
+        csprng: &mut R,
+        master_key_bytes: &[u8],
+        from_version: u32,
+        include_first_state: bool,
+    ) -> Result<Vec<GroupLogEntry>, ServiceError> {
+        let group_secret_params = secret_params(master_key_bytes)?;
+        let operations = GroupOperations::new(group_secret_params);
+        let mut entries = Vec::new();
+        let mut from = Some(from_version);
+        let mut first = include_first_state;
+        while let Some(version) = from {
+            let authorization = self
+                .get_authorization_for_today(csprng, group_secret_params)
+                .await?;
+            let page = self
+                .identified_push_service
+                .get_group_logs(authorization, version, first)
+                .await?;
+            for state in page.changes.group_changes {
+                entries.push(GroupLogEntry {
+                    group: state
+                        .group_state
+                        .map(|group| operations.decrypt_group(group))
+                        .transpose()?,
+                    change: state
+                        .group_change
+                        .clone()
+                        .map(|change| operations.decrypt_group_change(change))
+                        .transpose()?,
+                    signed_change: state.group_change,
+                });
+            }
+            from = page.next_version;
+            first = false;
+        }
+        Ok(entries)
+    }
+
     #[tracing::instrument(
         skip(self, group_secret_params),
         fields(path = %path[..4.min(path.len())]),
@@ -303,6 +364,27 @@ impl<C: CredentialsCache> GroupsManager<C> {
             _ => Ok(None),
         }
     }
+}
+
+/// One entry of a group's change log: the change, and the group as it was after it, if the
+/// server sent either.
+#[derive(Debug, Clone)]
+pub struct GroupLogEntry {
+    pub group: Option<Group>,
+    pub change: Option<GroupChanges>,
+    /// The change as the server signed it, encrypted: what a message telling of it carries.
+    pub signed_change: Option<crate::proto::GroupChange>,
+}
+
+fn secret_params(
+    master_key_bytes: &[u8],
+) -> Result<GroupSecretParams, ServiceError> {
+    let master_key = master_key_bytes
+        .try_into()
+        .map_err(|_| ServiceError::GroupsV2Error)?;
+    Ok(GroupSecretParams::derive_from_master_key(
+        GroupMasterKey::new(master_key),
+    ))
 }
 
 pub fn decrypt_group(
