@@ -52,6 +52,26 @@ pub struct OutgoingPushMessages {
     pub timestamp: u64,
     pub messages: Vec<OutgoingPushMessage>,
     pub online: bool,
+    /// Whether offline devices are woken for it ([`ContentBody::urgent`]); the server takes a
+    /// missing one as `true`.
+    pub urgent: bool,
+    /// A story: the server takes this from the query, not the body
+    /// (`?story=true`, Signal-Server MessageController.java), and stores
+    /// the envelope as a story, without its sender.
+    #[serde(skip)]
+    pub story: bool,
+}
+
+impl OutgoingPushMessages {
+    /// `PUT /v1/messages/{destination}`, with `?story=true` for a story.
+    pub fn path(&self) -> String {
+        let destination = self.destination.service_id_string();
+        if self.story {
+            format!("/v1/messages/{destination}?story=true")
+        } else {
+            format!("/v1/messages/{destination}")
+        }
+    }
 }
 
 #[derive(serde::Deserialize, Debug)]
@@ -144,6 +164,9 @@ pub enum MessageSenderError {
 
     #[error("no messages were encrypted: this should not really happen and most likely implies a logic error")]
     NoMessagesToSend,
+
+    #[error("a story to {service_id:?} needs sealed sender: the server stores stories without their sender")]
+    StoryWithoutSealedSender { service_id: ServiceId },
 }
 
 pub type GroupV2Id = [u8; GROUP_IDENTIFIER_LEN];
@@ -518,6 +541,10 @@ where
                 {
                     error!(%error, "failed to send a synchronization message");
                 }
+            } else if matches!(content_body, ContentBody::StoryMessage(_)) {
+                // Stories have a transcript of their own (`Sent::story_message`), which
+                // isn't made here: the caller sends it.
+                debug!("no sync message made for a story");
             } else {
                 error!("could not create sync message from a group message")
             }
@@ -608,6 +635,16 @@ where
 
         let content_bytes = content.encode_to_vec();
 
+        // The server stores a story without its sender (Signal-Server
+        // MessageController.java, `sendStoryMessage`): sent identified, it
+        // couldn't be decrypted.
+        let story = matches!(content_body, ContentBody::StoryMessage(_));
+        if story && unidentified_access.is_none() {
+            return Err(MessageSenderError::StoryWithoutSealedSender {
+                service_id: recipient,
+            });
+        }
+
         let mut rng = rng();
 
         for _ in 0..4u8 {
@@ -633,6 +670,8 @@ where
                 timestamp,
                 messages,
                 online,
+                urgent: content_body.urgent(),
+                story,
             };
 
             let send = if let Some(unidentified) = &unidentified_access {
@@ -655,8 +694,10 @@ where
                         needs_sync,
                     });
                 },
+                // The server checks no access key for a story: a story is
+                // never sent identified.
                 Err(ServiceError::Unauthorized)
-                    if unidentified_access.is_some() =>
+                    if unidentified_access.is_some() && !story =>
                 {
                     tracing::trace!("unauthorized error using unidentified; retry over identified");
                     unidentified_access = None;
@@ -1172,5 +1213,103 @@ where
             })),
             ..SyncMessage::with_padding(&mut rng())
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use libsignal_protocol::{Aci, ServiceId};
+    use uuid::Uuid;
+
+    use super::OutgoingPushMessages;
+
+    fn messages(story: bool) -> OutgoingPushMessages {
+        OutgoingPushMessages {
+            destination: ServiceId::from(Aci::from(Uuid::nil())),
+            timestamp: 1,
+            messages: Vec::new(),
+            online: false,
+            urgent: !story,
+            story,
+        }
+    }
+
+    #[test]
+    fn urgent_goes_in_the_body() {
+        let body = serde_json::to_string(&messages(true)).unwrap();
+        assert!(body.contains(r#""urgent":false"#), "{body}");
+    }
+
+    #[test]
+    fn only_what_a_person_should_see_now_is_urgent() {
+        use crate::content::ContentBody;
+        use crate::proto::{
+            data_message::Flags, sync_message, DataMessage, ReceiptMessage,
+            SyncMessage, TypingMessage,
+        };
+
+        let text = DataMessage {
+            body: Some("hello".into()),
+            ..Default::default()
+        };
+        let timer = DataMessage {
+            flags: Some(Flags::ExpirationTimerUpdate as u32),
+            ..Default::default()
+        };
+        let read = SyncMessage {
+            read: vec![sync_message::Read::default()],
+            ..Default::default()
+        };
+        let keys = SyncMessage {
+            content: Some(sync_message::Content::Request(
+                sync_message::Request {
+                    r#type: Some(sync_message::request::Type::Keys as i32),
+                },
+            )),
+            ..Default::default()
+        };
+        let blocked = SyncMessage {
+            content: Some(sync_message::Content::Request(
+                sync_message::Request {
+                    r#type: Some(sync_message::request::Type::Blocked as i32),
+                },
+            )),
+            ..Default::default()
+        };
+        let sent = SyncMessage {
+            content: Some(sync_message::Content::Sent(
+                sync_message::Sent::default(),
+            )),
+            ..Default::default()
+        };
+
+        assert!(ContentBody::DataMessage(text).urgent());
+        assert!(!ContentBody::DataMessage(timer).urgent());
+        assert!(
+            !ContentBody::ReceiptMessage(ReceiptMessage::default()).urgent()
+        );
+        assert!(!ContentBody::TypingMessage(TypingMessage::default()).urgent());
+        assert!(ContentBody::SynchronizeMessage(read).urgent());
+        assert!(ContentBody::SynchronizeMessage(keys).urgent());
+        assert!(!ContentBody::SynchronizeMessage(blocked).urgent());
+        assert!(!ContentBody::SynchronizeMessage(sent).urgent());
+    }
+
+    #[test]
+    fn a_story_says_so_in_its_query() {
+        assert_eq!(
+            messages(false).path(),
+            "/v1/messages/00000000-0000-0000-0000-000000000000"
+        );
+        assert_eq!(
+            messages(true).path(),
+            "/v1/messages/00000000-0000-0000-0000-000000000000?story=true"
+        );
+    }
+
+    #[test]
+    fn the_story_flag_stays_out_of_the_body() {
+        let json = serde_json::to_string(&messages(true)).unwrap();
+        assert!(!json.contains("story"), "{json}");
     }
 }
