@@ -347,6 +347,8 @@ where
     }
 
     /// Send a message `content` to a single `recipient`.
+    ///
+    /// A sync message goes to our own devices, whatever `recipient` is.
     #[tracing::instrument(
         skip(self, unidentified_access, message),
         fields(unidentified_access = unidentified_access.is_some(), recipient = recipient.service_id_string()),
@@ -354,53 +356,43 @@ where
     pub async fn send_message(
         &mut self,
         recipient: &ServiceId,
-        mut unidentified_access: Option<&UnidentifiedAccess>,
+        unidentified_access: Option<&UnidentifiedAccess>,
         message: impl Into<ContentBody>,
         timestamp: u64,
         include_pni_signature: bool,
         online: bool,
     ) -> SendMessageResult {
         let content_body = message.into();
-        let message_to_self = recipient == &self.local_aci;
-        let sync_message =
-            matches!(content_body, ContentBody::SynchronizeMessage(..));
-        let is_multi_device = self.is_multi_device().await;
+        if let ContentBody::SynchronizeMessage(_) = content_body {
+            return self.send_to_own_devices(&content_body, timestamp).await;
+        }
 
-        // only send a sync message when sending to self and skip the rest of the process
-        if message_to_self && is_multi_device && !sync_message {
+        // A note to self only goes to our other devices, as its transcript.
+        if recipient == &self.local_aci && self.is_multi_device().await {
             debug!("sending note to self");
-            if let Some(sync_message) = self
+            let Some(transcript) = self
                 .create_multi_device_sent_transcript_content(
                     Some(recipient),
                     content_body,
                     timestamp,
                     None,
                 )
-            {
-                return self
-                    .try_send_message(
-                        *recipient,
-                        None,
-                        &sync_message,
-                        timestamp,
-                        include_pni_signature,
-                        online,
-                    )
-                    .await;
-            } else {
+            else {
                 error!("could not create sync message from message to self");
-                return SendMessageResult::Err(
-                    MessageSenderError::NoMessagesToSend,
-                );
-            }
+                return Err(MessageSenderError::NoMessagesToSend);
+            };
+            return self
+                .try_send_message(
+                    *recipient,
+                    None,
+                    &transcript,
+                    timestamp,
+                    include_pni_signature,
+                    online,
+                )
+                .await;
         }
 
-        // sync messages are never sent as unidentified (reasons unclear), see: https://github.com/signalapp/Signal-Android/blob/main/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java#L779
-        if sync_message {
-            unidentified_access.take();
-        }
-
-        // try to send the original message to all the recipient's devices
         let result = self
             .try_send_message(
                 *recipient,
@@ -411,40 +403,73 @@ where
                 online,
             )
             .await;
-
-        let needs_sync = match &result {
-            Ok(SentMessage { needs_sync, .. }) => *needs_sync,
-            _ => false,
-        };
-
-        if needs_sync || is_multi_device {
-            let sync_body = if sync_message {
-                Some(content_body)
-            } else {
-                // Only some ContentBody types are syncable to self,
-                // not getting a content body to sync is not an error.
-                self.create_multi_device_sent_transcript_content(
-                    Some(recipient),
-                    content_body,
-                    timestamp,
-                    Some(&result),
-                )
-            };
-            if let Some(body) = sync_body {
-                debug!("sending multi-device sync message");
-                self.try_send_message(
-                    self.local_aci.into(),
-                    None,
-                    &body,
-                    timestamp,
-                    false,
-                    false,
-                )
-                .await?;
-            }
+        let needs_sync = matches!(
+            result,
+            Ok(SentMessage {
+                needs_sync: true,
+                ..
+            })
+        );
+        if needs_sync || self.is_multi_device().await {
+            self.send_transcript(
+                Some(recipient),
+                content_body,
+                timestamp,
+                std::slice::from_ref(&result),
+            )
+            .await;
         }
-
         result
+    }
+
+    /// Never sealed, as in Signal-Android's
+    /// [SignalServiceMessageSender](https://github.com/signalapp/Signal-Android/blob/main/libsignal-service/src/main/java/org/whispersystems/signalservice/api/SignalServiceMessageSender.java).
+    async fn send_to_own_devices(
+        &mut self,
+        content: &ContentBody,
+        timestamp: u64,
+    ) -> SendMessageResult {
+        self.try_send_message(
+            self.local_aci.into(),
+            None,
+            content,
+            timestamp,
+            false,
+            false,
+        )
+        .await
+    }
+
+    /// Tells our other devices what we sent, if it reached anyone. Its failure
+    /// is logged: the message itself went.
+    async fn send_transcript(
+        &mut self,
+        recipient: Option<&ServiceId>,
+        content_body: ContentBody,
+        timestamp: u64,
+        results: &[SendMessageResult],
+    ) {
+        // As Signal-Desktop, `ts/messages/send.preload.ts`.
+        if !results.iter().any(Result::is_ok) {
+            return;
+        }
+        // Only some contents have a transcript; for the rest that is no error.
+        let Some(transcript) = self
+            .create_multi_device_sent_transcript_content(
+                recipient,
+                content_body,
+                timestamp,
+                results,
+            )
+        else {
+            return;
+        };
+        debug!("sending multi-device sync message");
+        if let Err(error) =
+            self.send_to_own_devices(&transcript, timestamp).await
+        {
+            error!(%error, "failed to send a transcript to our devices");
+        }
     }
 
     /// Send a message to the recipients in a group.
@@ -493,34 +518,11 @@ where
             results.push(result);
         }
 
-        // we only need to send a synchronization message once
+        // Signal-Android leaves the transcript's result out of `results`
+        // (`SignalServiceMessageSender.java`).
         if needs_sync_in_results || self.is_multi_device().await {
-            if let Some(sync_message) = self
-                .create_multi_device_sent_transcript_content(
-                    None,
-                    content_body.clone(),
-                    timestamp,
-                    &results,
-                )
-            {
-                // Note: the result of sending a sync message is not included in results
-                // See Signal Android `SignalServiceMessageSender.java:2817`
-                if let Err(error) = self
-                    .try_send_message(
-                        self.local_aci.into(),
-                        None,
-                        &sync_message,
-                        timestamp,
-                        false, // XXX: maybe the sync device does want a PNI signature?
-                        false,
-                    )
-                    .await
-                {
-                    error!(%error, "failed to send a synchronization message");
-                }
-            } else {
-                error!("could not create sync message from a group message")
-            }
+            self.send_transcript(None, content_body, timestamp, &results)
+                .await;
         }
 
         results
@@ -850,15 +852,7 @@ where
             debug!(
                 "sending multi-device sync message with content {content:?}"
             );
-            self.try_send_message(
-                self.local_aci.into(),
-                None,
-                &content,
-                timestamp,
-                false,
-                false,
-            )
-            .await?;
+            self.send_to_own_devices(&content, timestamp).await?;
         }
         Ok(())
     }
