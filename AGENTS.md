@@ -53,17 +53,13 @@ refrain from doing so, and use `Assisted-by` instead.
 
 ## Code Style
 
-Generally, follow the patterns, or lack thereof, already present in the library.
-
-Keep comments short. One or two lines is usually enough. The reviewer will read the code.
-
-Regarding comments:
+- Generally, follow the patterns, or lack thereof, already present in the library.
+- Default to no comments. Add one only when the *why* isn't obvious (protocol quirk, server behaviour, workaround). One line.
+- Never restate the code, narrate the change ("now uses gRPC"), or reference the task/PR/conversation.
+- No doc comments that repeat the item name; public API docs short and factual.
+- No banner/divider comments, no TODO essays.
 - **Don't narrate the code.** `strip_padding()` removes padding — the name already says so.
-- **Don't spread docs across field + const + constructor.** Pick one place as the
-  single source of truth and link to it (`See with_max_outstanding_keepalives()`).
-- **Don't leave plan markers or TODO history in the code.** Git already records history.
-- **Do document the "why", not the "how"**, when the reason is non-obvious. When obvious, do not write a comment.
-- Doc comments document behaviour, not implementation.
+- **Don't spread docs across field + const + constructor.** Pick one place as the single source of truth and link to it (`See with_max_outstanding_keepalives()`).
 
 Good:
 
