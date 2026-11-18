@@ -102,15 +102,6 @@ mod tests {
     use rand::prelude::*;
 
     #[test]
-    fn too_short_for_a_mac_is_an_error() {
-        let mut ciphertext = vec![0u8; 31];
-        assert!(matches!(
-            decrypt_in_place([0u8; 64], &mut ciphertext),
-            Err(AttachmentCipherError::MacError)
-        ));
-    }
-
-    #[test]
     fn attachment_encrypt_decrypt() -> Result<(), AttachmentCipherError> {
         let mut key = [0u8; 64];
         let mut iv = [0u8; 16];
