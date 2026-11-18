@@ -54,7 +54,7 @@ impl ChatInterceptor {
         }
     }
 
-    fn basic_auth(auth: &HttpAuth) -> Result<Self, ServiceError> {
+    fn authenticated(auth: &HttpAuth) -> Result<Self, ServiceError> {
         let token = BASE64_STANDARD
             .encode(format!("{}:{}", auth.username, auth.password));
         let value = format!("Basic {token}").parse().map_err(|_| {
@@ -84,20 +84,22 @@ impl GrpcChannels {
         user_agent: &str,
     ) -> Result<Self, ServiceError> {
         let endpoint = endpoint(cfg, user_agent)?;
+        let unauthenticated = InterceptedService::new(
+            endpoint.connect_lazy(),
+            ChatInterceptor::anonymous(),
+        );
         let authenticated = credentials
-            .map(|c| {
+            .map(|auth| {
                 Ok::<_, ServiceError>(InterceptedService::new(
                     endpoint.connect_lazy(),
-                    ChatInterceptor::basic_auth(c)?,
+                    ChatInterceptor::authenticated(auth)?,
                 ))
             })
             .transpose()?;
+
         Ok(Self {
             authenticated,
-            unauthenticated: InterceptedService::new(
-                endpoint.connect_lazy(),
-                ChatInterceptor::anonymous(),
-            ),
+            unauthenticated,
         })
     }
 

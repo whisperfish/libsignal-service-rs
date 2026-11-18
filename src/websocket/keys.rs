@@ -106,7 +106,11 @@ impl SignalWebSocket<websocket::Identified> {
         service_id_kind: ServiceIdKind,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
-        let identity_type = identity_type(service_id_kind);
+        let identity_type = match service_id_kind {
+            ServiceIdKind::Aci => IdentityType::Aci,
+            ServiceIdKind::Pni => IdentityType::Pni,
+        }
+        .into();
         let mut keys = KeysClient::new(self.grpc.authenticated()?);
 
         if !pre_key_state.pre_keys.is_empty() {
@@ -139,7 +143,11 @@ impl SignalWebSocket<websocket::Identified> {
         if let Some(last_resort) = pre_key_state.pq_last_resort_key {
             keys.set_kem_last_resort_pre_key(SetKemLastResortPreKeyRequest {
                 identity_type,
-                signed_pre_key: Some(kem_signed_pre_key(last_resort)?),
+                signed_pre_key: Some(KemSignedPreKey {
+                    key_id: key_id(last_resort.key_id)?,
+                    public_key: last_resort.public_key,
+                    signature: last_resort.signature,
+                }),
             })
             .await?;
         }
@@ -151,8 +159,14 @@ impl SignalWebSocket<websocket::Identified> {
                     pre_keys: pre_key_state
                         .pq_pre_keys
                         .into_iter()
-                        .map(kem_signed_pre_key)
-                        .collect::<Result<_, _>>()?,
+                        .map(|k| {
+                            Ok(KemSignedPreKey {
+                                key_id: key_id(k.key_id)?,
+                                public_key: k.public_key,
+                                signature: k.signature,
+                            })
+                        })
+                        .collect::<Result<_, ServiceError>>()?,
                 },
             )
             .await?;
@@ -279,27 +293,9 @@ impl SignalWebSocket<websocket::Identified> {
     }
 }
 
-fn identity_type(kind: ServiceIdKind) -> i32 {
-    match kind {
-        ServiceIdKind::Aci => IdentityType::Aci,
-        ServiceIdKind::Pni => IdentityType::Pni,
-    }
-    .into()
-}
-
 fn key_id(id: u32) -> Result<i32, ServiceError> {
     i32::try_from(id).map_err(|_| ServiceError::InvalidFrame {
         reason: "pre-key id out of range",
-    })
-}
-
-fn kem_signed_pre_key(
-    key: KyberPreKeyEntity,
-) -> Result<KemSignedPreKey, ServiceError> {
-    Ok(KemSignedPreKey {
-        key_id: key_id(key.key_id)?,
-        public_key: key.public_key,
-        signature: key.signature,
     })
 }
 

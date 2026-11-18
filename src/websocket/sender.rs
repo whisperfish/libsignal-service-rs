@@ -34,7 +34,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 destination: Some(destination.into()),
                 ephemeral,
                 urgent: true,
-                messages: Some(bundle(messages)?),
+                messages: Some(messages.into_bundle()?),
             })
             .await?
             .into_inner();
@@ -49,7 +49,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         let response = MessagesClient::new(self.grpc.authenticated()?)
             .send_sync_message(SendSyncMessageRequest {
                 urgent: true,
-                messages: Some(bundle(messages)?),
+                messages: Some(messages.into_bundle()?),
             })
             .await?
             .into_inner();
@@ -72,7 +72,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                         destination: Some(destination.into()),
                         ephemeral,
                         urgent: true,
-                        messages: Some(bundle(messages)?),
+                        messages: Some(messages.into_bundle()?),
                         authorization: Some(
                             send_sealed_sender_message_request::Authorization::UnidentifiedAccessKey(
                                 access.key.clone(),
@@ -83,26 +83,20 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 .await?
                 .into_inner();
         match response.response {
-            Some(Response::Success(())) => Ok(sent()),
-            Some(Response::MismatchedDevices(m)) => Err(mismatched(m)?),
+            Some(Response::Success(())) => {
+                Ok(SendMessageResponse { needs_sync: false })
+            },
+            Some(Response::MismatchedDevices(m)) => {
+                Err(ServiceError::mismatched_devices(m)?)
+            },
             Some(Response::FailedUnidentifiedAuthorization(_)) => {
                 Err(ServiceError::Unauthorized)
             },
             Some(Response::DestinationNotFound(_)) => {
                 Err(ServiceError::UnregisteredRecipient)
             },
-            None => Err(empty_response()),
+            None => Err(ServiceError::empty_send_response()),
         }
-    }
-}
-
-fn sent() -> SendMessageResponse {
-    SendMessageResponse { needs_sync: false }
-}
-
-fn empty_response() -> ServiceError {
-    ServiceError::InvalidFrame {
-        reason: "empty send message response",
     }
 }
 
@@ -111,95 +105,111 @@ fn authenticated_sender_response(
 ) -> Result<SendMessageResponse, ServiceError> {
     use send_message_authenticated_sender_response::Response;
     match response {
-        Some(Response::Success(())) => Ok(sent()),
-        Some(Response::MismatchedDevices(m)) => Err(mismatched(m)?),
-        Some(Response::ChallengeRequired(c)) => {
-            Err(ServiceError::ProofRequiredError(proof_required(c)))
+        Some(Response::Success(())) => {
+            Ok(SendMessageResponse { needs_sync: false })
         },
+        Some(Response::MismatchedDevices(m)) => {
+            Err(ServiceError::mismatched_devices(m)?)
+        },
+        Some(Response::ChallengeRequired(c)) => Err(
+            ServiceError::ProofRequiredError(ProofRequired::from_challenge(c)),
+        ),
         Some(Response::DestinationNotFound(_)) => {
             Err(ServiceError::UnregisteredRecipient)
         },
-        None => Err(empty_response()),
+        None => Err(ServiceError::empty_send_response()),
     }
 }
 
-fn bundle(
-    messages: OutgoingPushMessages,
-) -> Result<IndividualRecipientMessageBundle, ServiceError> {
-    let timestamp = messages.timestamp;
-    let messages = messages
-        .messages
-        .into_iter()
-        .map(|m| {
-            let r#type = match envelope::Type::try_from(m.r#type as i32) {
-                Ok(envelope::Type::DoubleRatchet) => {
-                    SendMessageType::DoubleRatchet
-                },
-                Ok(envelope::Type::PrekeyMessage) => {
-                    SendMessageType::PrekeyMessage
-                },
-                Ok(envelope::Type::UnidentifiedSender) => {
-                    SendMessageType::UnidentifiedSender
-                },
-                Ok(envelope::Type::PlaintextContent) => {
-                    SendMessageType::PlaintextContent
-                },
-                _ => {
-                    return Err(ServiceError::InvalidFrame {
-                        reason: "unsupported outgoing message type",
-                    })
-                },
-            };
-            Ok((
-                u8::from(m.destination_device_id).into(),
-                Message {
-                    registration_id: m.destination_registration_id,
-                    payload: BASE64_RELAXED.decode(m.content)?,
-                    r#type: r#type.into(),
+impl ServiceError {
+    fn empty_send_response() -> Self {
+        ServiceError::InvalidFrame {
+            reason: "empty send message response",
+        }
+    }
+
+    // Stale devices come bundled with missing/extra ones; the sender's retry picks them up next round.
+    fn mismatched_devices(m: MismatchedDevices) -> Result<Self, Self> {
+        let device_ids = |ids: Vec<u32>| {
+            ids.into_iter()
+                .map(DeviceId::try_from)
+                .collect::<Result<Vec<_>, _>>()
+        };
+        if m.missing_devices.is_empty() && m.extra_devices.is_empty() {
+            Ok(ServiceError::StaleDevices(push_service::StaleDevices {
+                stale_devices: device_ids(m.stale_devices)?,
+            }))
+        } else {
+            Ok(ServiceError::MismatchedDevicesException(
+                push_service::MismatchedDevices {
+                    missing_devices: device_ids(m.missing_devices)?,
+                    extra_devices: device_ids(m.extra_devices)?,
                 },
             ))
-        })
-        .collect::<Result<_, _>>()?;
-    Ok(IndividualRecipientMessageBundle {
-        timestamp,
-        messages,
-    })
-}
-
-fn device_ids(ids: Vec<u32>) -> Result<Vec<DeviceId>, ServiceError> {
-    Ok(ids
-        .into_iter()
-        .map(DeviceId::try_from)
-        .collect::<Result<_, _>>()?)
-}
-
-// Stale devices come bundled with missing/extra ones; the sender's retry picks them up next round.
-fn mismatched(m: MismatchedDevices) -> Result<ServiceError, ServiceError> {
-    if m.missing_devices.is_empty() && m.extra_devices.is_empty() {
-        Ok(ServiceError::StaleDevices(push_service::StaleDevices {
-            stale_devices: device_ids(m.stale_devices)?,
-        }))
-    } else {
-        Ok(ServiceError::MismatchedDevicesException(
-            push_service::MismatchedDevices {
-                missing_devices: device_ids(m.missing_devices)?,
-                extra_devices: device_ids(m.extra_devices)?,
-            },
-        ))
+        }
     }
 }
 
-fn proof_required(c: ChallengeRequired) -> ProofRequired {
-    let options = c
-        .challenge_options()
-        .filter_map(|o| match o {
-            ChallengeType::Captcha => Some("captcha".to_owned()),
-            ChallengeType::PushChallenge => Some("pushChallenge".to_owned()),
-            ChallengeType::Unspecified => None,
+impl ProofRequired {
+    fn from_challenge(c: ChallengeRequired) -> Self {
+        let options = c
+            .challenge_options()
+            .filter_map(|o| match o {
+                ChallengeType::Captcha => Some("captcha".to_owned()),
+                ChallengeType::PushChallenge => {
+                    Some("pushChallenge".to_owned())
+                },
+                ChallengeType::Unspecified => None,
+            })
+            .collect();
+        Self {
+            token: c.token,
+            options,
+        }
+    }
+}
+
+impl OutgoingPushMessages {
+    fn into_bundle(
+        self,
+    ) -> Result<IndividualRecipientMessageBundle, ServiceError> {
+        let timestamp = self.timestamp;
+        let messages = self
+            .messages
+            .into_iter()
+            .map(|m| {
+                let r#type = match envelope::Type::try_from(m.r#type as i32) {
+                    Ok(envelope::Type::DoubleRatchet) => {
+                        SendMessageType::DoubleRatchet
+                    },
+                    Ok(envelope::Type::PrekeyMessage) => {
+                        SendMessageType::PrekeyMessage
+                    },
+                    Ok(envelope::Type::UnidentifiedSender) => {
+                        SendMessageType::UnidentifiedSender
+                    },
+                    Ok(envelope::Type::PlaintextContent) => {
+                        SendMessageType::PlaintextContent
+                    },
+                    _ => {
+                        return Err(ServiceError::InvalidFrame {
+                            reason: "unsupported outgoing message type",
+                        })
+                    },
+                };
+                Ok((
+                    u8::from(m.destination_device_id).into(),
+                    Message {
+                        registration_id: m.destination_registration_id,
+                        payload: BASE64_RELAXED.decode(m.content)?,
+                        r#type: r#type.into(),
+                    },
+                ))
+            })
+            .collect::<Result<_, _>>()?;
+        Ok(IndividualRecipientMessageBundle {
+            timestamp,
+            messages,
         })
-        .collect();
-    ProofRequired {
-        token: c.token,
-        options,
     }
 }
