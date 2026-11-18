@@ -72,12 +72,9 @@ impl MessageReceiver {
                 }
             };
 
-            // A bad blob is an error, not a panic: the sync message is kept
-            // and handled again, so a panic here stops receiving for good.
             let mut ciphertext = Vec::new();
             stream.read_to_end(&mut ciphertext).await?;
 
-            // A key of another length can't decrypt it either.
             let key: [u8; 64] =
                 blob.key().try_into().map_err(|_| ServiceError::MacError)?;
 
