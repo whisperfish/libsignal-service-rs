@@ -599,6 +599,11 @@ where
     ) -> SendMessageResult {
         trace!("trying to send a message");
 
+        // The server only accepts group send tokens for sealed sender to a PNI.
+        if matches!(recipient, ServiceId::Pni(_)) {
+            unidentified_access = None;
+        }
+
         use prost::Message;
 
         let mut content = content_body.clone().into_proto();

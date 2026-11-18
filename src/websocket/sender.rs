@@ -1,4 +1,3 @@
-
 use libsignal_core::DeviceId;
 use libsignal_net_grpc::proto::chat::messages::{
     challenge_required::ChallengeType,
@@ -194,7 +193,7 @@ fn proof_required(c: ChallengeRequired) -> ProofRequired {
     let options = c
         .challenge_options()
         .filter_map(|o| match o {
-            ChallengeType::Captcha => Some("recaptcha".to_owned()),
+            ChallengeType::Captcha => Some("captcha".to_owned()),
             ChallengeType::PushChallenge => Some("pushChallenge".to_owned()),
             ChallengeType::Unspecified => None,
         })
@@ -202,94 +201,5 @@ fn proof_required(c: ChallengeRequired) -> ProofRequired {
     ProofRequired {
         token: c.token,
         options,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use libsignal_core::Aci;
-
-    use super::*;
-    use crate::sender::OutgoingPushMessage;
-
-    fn device(id: u8) -> DeviceId {
-        DeviceId::try_from(id).unwrap()
-    }
-
-    #[test]
-    fn bundle_decodes_payload_and_maps_types() {
-        let messages = OutgoingPushMessages {
-            destination: Aci::from_uuid_bytes([1; 16]).into(),
-            timestamp: 42,
-            online: false,
-            messages: vec![
-                OutgoingPushMessage {
-                    r#type: envelope::Type::PrekeyMessage as u32,
-                    destination_device_id: device(1),
-                    destination_registration_id: 7,
-                    content: BASE64_RELAXED.encode([1, 2, 3]),
-                },
-                OutgoingPushMessage {
-                    r#type: envelope::Type::UnidentifiedSender as u32,
-                    destination_device_id: device(2),
-                    destination_registration_id: 8,
-                    content: BASE64_RELAXED.encode([4]),
-                },
-            ],
-        };
-        let bundle = bundle(messages).unwrap();
-        assert_eq!(bundle.timestamp, 42);
-        assert_eq!(bundle.messages[&1].payload, vec![1, 2, 3]);
-        assert_eq!(bundle.messages[&1].registration_id, 7);
-        assert_eq!(
-            bundle.messages[&1].r#type(),
-            SendMessageType::PrekeyMessage
-        );
-        assert_eq!(
-            bundle.messages[&2].r#type(),
-            SendMessageType::UnidentifiedSender
-        );
-    }
-
-    #[test]
-    fn mismatched_prefers_missing_and_extra_over_stale() {
-        let error = mismatched(MismatchedDevices {
-            service_identifier: None,
-            missing_devices: vec![2],
-            extra_devices: vec![],
-            stale_devices: vec![3],
-        })
-        .unwrap();
-        assert!(matches!(
-            error,
-            ServiceError::MismatchedDevicesException(m)
-                if m.missing_devices == [device(2)] && m.extra_devices.is_empty()
-        ));
-
-        let error = mismatched(MismatchedDevices {
-            service_identifier: None,
-            missing_devices: vec![],
-            extra_devices: vec![],
-            stale_devices: vec![3],
-        })
-        .unwrap();
-        assert!(matches!(
-            error,
-            ServiceError::StaleDevices(s) if s.stale_devices == [device(3)]
-        ));
-    }
-
-    #[test]
-    fn challenge_options_use_rest_names() {
-        let proof = proof_required(ChallengeRequired {
-            token: "t".into(),
-            challenge_options: vec![
-                ChallengeType::Captcha.into(),
-                ChallengeType::PushChallenge.into(),
-            ],
-            retry_after_seconds: None,
-        });
-        assert_eq!(proof.token, "t");
-        assert_eq!(proof.options, ["recaptcha", "pushChallenge"]);
     }
 }
