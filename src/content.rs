@@ -138,7 +138,6 @@ impl fmt::Display for ContentBody {
             Self::CallMessage(_) => write!(f, "CallMessage"),
             Self::ReceiptMessage(_) => write!(f, "ReceiptMessage"),
             Self::TypingMessage(_) => write!(f, "TypingMessage"),
-            // Self::SenderKeyDistributionMessage(_) => write!(f, "SenderKeyDistributionMessage"),
             Self::DecryptionErrorMessage(_) => {
                 write!(f, "DecryptionErrorMessage")
             },
@@ -157,7 +156,6 @@ pub enum ContentBody {
     CallMessage(CallMessage),
     ReceiptMessage(ReceiptMessage),
     TypingMessage(TypingMessage),
-    // SenderKeyDistributionMessage(SenderKeyDistributionMessage),
     DecryptionErrorMessage(DecryptionErrorMessage),
     StoryMessage(StoryMessage),
     EditMessage(EditMessage),
@@ -194,8 +192,6 @@ impl ContentBody {
         };
         crate::proto::Content {
             content: Some(inner),
-            // TODO: handle SKDM; ideally this is also "tacked on" when needed,
-            // and not handled as a separate message.
             sender_key_distribution_message: None,
             // PNI signature gets added down the message sender stream
             pni_signature_message: None,
@@ -219,9 +215,6 @@ impl_from_for_content_body!(SynchronizeMessage(SyncMessage));
 impl_from_for_content_body!(CallMessage(CallMessage));
 impl_from_for_content_body!(ReceiptMessage(ReceiptMessage));
 impl_from_for_content_body!(TypingMessage(TypingMessage));
-// impl_from_for_content_body!(SenderKeyDistributionMessage(
-//     SenderKeyDistributionMessage
-// ));
 // impl_from_for_content_body!(DecryptionErrorMessage(DecryptionErrorMessage));
 impl_from_for_content_body!(StoryMessage(StoryMessage));
 impl_from_for_content_body!(EditMessage(EditMessage));
