@@ -16,14 +16,16 @@ use tokio::time::Instant;
 use tracing::debug;
 
 use crate::configuration::SignalServers;
+use crate::grpc::GrpcChannels;
 use crate::prelude::PushService;
 use crate::proto::{
     web_socket_message, WebSocketMessage, WebSocketRequestMessage,
     WebSocketResponseMessage,
 };
-use crate::push_service::{self, ServiceError, SignalServiceResponse};
+use crate::push_service::{self, ServiceError};
 
 pub mod account;
+mod attachments;
 pub mod calling;
 #[cfg(feature = "cdsi")]
 pub mod directory;
@@ -81,6 +83,7 @@ pub struct SignalWebSocket<C: WebSocketType> {
     _type: PhantomData<C>,
     // XXX: at the end of the migration, this should be CDN operations only
     pub(crate) unidentified_push_service: PushService,
+    pub(crate) grpc: GrpcChannels,
     inner: Arc<Mutex<SignalWebSocketInner>>,
     request_sink: mpsc::Sender<(
         WebSocketRequestMessage,
@@ -366,6 +369,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
 
     pub fn new(
         ws: WebSocket,
+        grpc: GrpcChannels,
         keep_alive_path: String,
         unidentified_push_service: PushService,
     ) -> (Self, impl Future<Output = ()>) {
@@ -401,6 +405,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 _type: PhantomData,
                 request_sink: outgoing_request_sink,
                 unidentified_push_service,
+                grpc,
                 inner: Arc::new(Mutex::new(SignalWebSocketInner {
                     stream: Some(SignalRequestStream {
                         inner: incoming_request_stream,
@@ -477,25 +482,6 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                 }),
             }
         }
-    }
-
-    pub(crate) async fn request_json_with<T, F, Fut>(
-        &mut self,
-        r: WebSocketRequestMessage,
-        decode: F,
-    ) -> Result<T, ServiceError>
-    where
-        for<'de> T: serde::Deserialize<'de>,
-        F: FnOnce(WebSocketResponseMessage) -> Fut + Send,
-        Fut: Future<Output = Result<WebSocketResponseMessage, ServiceError>>
-            + Send,
-    {
-        self.request(r)
-            .await?
-            .service_error_for_status_with(decode)
-            .await?
-            .json()
-            .await
     }
 }
 

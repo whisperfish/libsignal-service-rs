@@ -4,85 +4,39 @@ use libsignal_core::DeviceId;
 use libsignal_protocol::{
     kem::{Key, Public},
     IdentityKey, PreKeyBundle, PublicKey, SenderCertificate, ServiceId,
-    ServiceIdKind, SignalProtocolError,
+    ServiceIdKind,
 };
 use reqwest::Method;
-use serde::Deserialize;
 
 use crate::{
-    pre_keys::{
-        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
-    },
+    pre_keys::{KyberPreKeyEntity, PreKeyState, SignedPreKeyEntity},
     push_service::response::SignalServiceResponse,
     push_service::DEFAULT_DEVICE_ID,
     sender::OutgoingPushMessage,
-    utils::{serde_base64, serde_device_id},
+    utils::serde_base64,
     websocket::{self, registration::VerifyAccountResponse, SignalWebSocket},
+};
+
+use libsignal_net_grpc::proto::chat::{
+    common::{EcPreKey, EcSignedPreKey, IdentityType, KemSignedPreKey},
+    credentials::{
+        credentials_client::CredentialsClient, GetDeliveryCertificateRequest,
+        GetDeliveryCertificateResponse,
+    },
+    keys::{
+        get_pre_keys_response, keys_client::KeysClient, AccountPreKeyBundles,
+        DevicePreKeyBundle, GetPreKeyCountRequest, GetPreKeysRequest,
+        SetEcSignedPreKeyRequest, SetKemLastResortPreKeyRequest,
+        SetOneTimeEcPreKeysRequest, SetOneTimeKemSignedPreKeysRequest,
+    },
 };
 
 use super::ServiceError;
 
-#[derive(Debug, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default)]
 pub struct PreKeyStatus {
     pub count: u32,
     pub pq_count: u32,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PreKeyResponse {
-    #[serde(with = "serde_base64")]
-    pub identity_key: Vec<u8>,
-    pub devices: Vec<PreKeyResponseItem>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PreKeyResponseItem {
-    #[serde(with = "serde_device_id")]
-    pub device_id: DeviceId,
-    pub registration_id: u32,
-    pub signed_pre_key: SignedPreKeyEntity,
-    pub pre_key: Option<PreKeyEntity>,
-    pub pq_pre_key: KyberPreKeyEntity,
-}
-
-impl PreKeyResponseItem {
-    pub(crate) fn into_bundle(
-        self,
-        identity: IdentityKey,
-    ) -> Result<PreKeyBundle, ServiceError> {
-        let pre_key_bundle = PreKeyBundle::new(
-            self.registration_id,
-            self.device_id,
-            self.pre_key
-                .map(|pk| -> Result<_, SignalProtocolError> {
-                    Ok((
-                        pk.key_id.into(),
-                        PublicKey::deserialize(&pk.public_key)?,
-                    ))
-                })
-                .transpose()?,
-            // pre_key: Option<(u32, PublicKey)>,
-            self.signed_pre_key.key_id.into(),
-            PublicKey::deserialize(&self.signed_pre_key.public_key)?,
-            self.signed_pre_key.signature,
-            self.pq_pre_key.key_id.into(),
-            Key::<Public>::deserialize(&self.pq_pre_key.public_key)?,
-            self.pq_pre_key.signature,
-            identity,
-        )?;
-
-        Ok(pre_key_bundle)
-    }
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SenderCertificateJson {
-    #[serde(with = "serde_base64")]
-    certificate: Vec<u8>,
 }
 
 impl SignalWebSocket<websocket::Identified> {
@@ -90,16 +44,20 @@ impl SignalWebSocket<websocket::Identified> {
         &mut self,
         service_id_kind: ServiceIdKind,
     ) -> Result<PreKeyStatus, ServiceError> {
-        self.http_request(
-            Method::GET,
-            format!("/v2/keys?identity={}", service_id_kind),
-        )?
-        .send()
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
+        let counts = KeysClient::new(self.grpc.authenticated()?)
+            .get_pre_key_count(GetPreKeyCountRequest {})
+            .await?
+            .into_inner();
+        Ok(match service_id_kind {
+            ServiceIdKind::Aci => PreKeyStatus {
+                count: counts.aci_ec_pre_key_count,
+                pq_count: counts.aci_kem_pre_key_count,
+            },
+            ServiceIdKind::Pni => PreKeyStatus {
+                count: counts.pni_ec_pre_key_count,
+                pq_count: counts.pni_kem_pre_key_count,
+            },
+        })
     }
 
     /// Checks for consistency of the repeated-use keys
@@ -148,14 +106,57 @@ impl SignalWebSocket<websocket::Identified> {
         service_id_kind: ServiceIdKind,
         pre_key_state: PreKeyState,
     ) -> Result<(), ServiceError> {
-        self.http_request(
-            Method::PUT,
-            format!("/v2/keys?identity={}", service_id_kind),
-        )?
-        .send_json(&pre_key_state)
-        .await?
-        .service_error_for_status()
+        let identity_type = identity_type(service_id_kind);
+        let mut keys = KeysClient::new(self.grpc.authenticated()?);
+
+        if !pre_key_state.pre_keys.is_empty() {
+            keys.set_one_time_ec_pre_keys(SetOneTimeEcPreKeysRequest {
+                identity_type,
+                pre_keys: pre_key_state
+                    .pre_keys
+                    .into_iter()
+                    .map(|k| {
+                        Ok(EcPreKey {
+                            key_id: key_id(k.key_id)?,
+                            public_key: k.public_key,
+                        })
+                    })
+                    .collect::<Result<_, ServiceError>>()?,
+            })
+            .await?;
+        }
+
+        keys.set_ec_signed_pre_key(SetEcSignedPreKeyRequest {
+            identity_type,
+            signed_pre_key: Some(EcSignedPreKey {
+                key_id: key_id(pre_key_state.signed_pre_key.key_id)?,
+                public_key: pre_key_state.signed_pre_key.public_key,
+                signature: pre_key_state.signed_pre_key.signature,
+            }),
+        })
         .await?;
+
+        if let Some(last_resort) = pre_key_state.pq_last_resort_key {
+            keys.set_kem_last_resort_pre_key(SetKemLastResortPreKeyRequest {
+                identity_type,
+                signed_pre_key: Some(kem_signed_pre_key(last_resort)?),
+            })
+            .await?;
+        }
+
+        if !pre_key_state.pq_pre_keys.is_empty() {
+            keys.set_one_time_kem_signed_pre_keys(
+                SetOneTimeKemSignedPreKeysRequest {
+                    identity_type,
+                    pre_keys: pre_key_state
+                        .pq_pre_keys
+                        .into_iter()
+                        .map(kem_signed_pre_key)
+                        .collect::<Result<_, _>>()?,
+                },
+            )
+            .await?;
+        }
 
         Ok(())
     }
@@ -165,26 +166,11 @@ impl SignalWebSocket<websocket::Identified> {
         destination: &ServiceId,
         device_id: DeviceId,
     ) -> Result<PreKeyBundle, ServiceError> {
-        let path = format!(
-            "/v2/keys/{}/{}",
-            destination.service_id_string(),
-            device_id
-        );
-
-        let mut pre_key_response: PreKeyResponse = self
-            .http_request(Method::GET, path)?
-            .send()
+        self.fetch_pre_keys(destination, Some(device_id))
             .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await?;
-
-        assert!(!pre_key_response.devices.is_empty());
-
-        let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
-        let device = pre_key_response.devices.remove(0);
-        device.into_bundle(identity)
+            .into_iter()
+            .next()
+            .ok_or(ServiceError::NotFoundError)
     }
 
     pub(crate) async fn get_pre_keys(
@@ -192,60 +178,60 @@ impl SignalWebSocket<websocket::Identified> {
         destination: &ServiceId,
         device_id: DeviceId,
     ) -> Result<Vec<PreKeyBundle>, ServiceError> {
-        let path = if device_id == *DEFAULT_DEVICE_ID {
-            format!("/v2/keys/{}/*", destination.service_id_string())
-        } else {
-            format!(
-                "/v2/keys/{}/{}",
-                destination.service_id_string(),
-                device_id
-            )
-        };
-        let pre_key_response: PreKeyResponse = self
-            .http_request(Method::GET, path)?
-            .send()
+        let device_id = (device_id != *DEFAULT_DEVICE_ID).then_some(device_id);
+        self.fetch_pre_keys(destination, device_id).await
+    }
+
+    async fn fetch_pre_keys(
+        &mut self,
+        destination: &ServiceId,
+        device_id: Option<DeviceId>,
+    ) -> Result<Vec<PreKeyBundle>, ServiceError> {
+        let response = KeysClient::new(self.grpc.authenticated()?)
+            .get_pre_keys(GetPreKeysRequest {
+                target_identifier: Some((*destination).into()),
+                device_id: device_id.map(|d| u8::from(d).into()),
+            })
             .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await?;
-        let mut pre_keys = vec![];
-        let identity = IdentityKey::decode(&pre_key_response.identity_key)?;
-        for device in pre_key_response.devices {
-            pre_keys.push(device.into_bundle(identity)?);
+            .into_inner();
+        match response.response {
+            Some(get_pre_keys_response::Response::PreKeys(bundles)) => {
+                into_bundles(bundles)
+            },
+            Some(get_pre_keys_response::Response::TargetNotFound(_)) => {
+                Err(ServiceError::NotFoundError)
+            },
+            None => Err(ServiceError::InvalidFrame {
+                reason: "empty GetPreKeys response",
+            }),
         }
-        Ok(pre_keys)
     }
 
     pub async fn get_sender_certificate(
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
-        let cert: SenderCertificateJson = self
-            .http_request(Method::GET, "/v1/certificate/delivery")?
-            .send()
-            .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await?;
-        Ok(SenderCertificate::deserialize(&cert.certificate)?)
+        let certs = self.delivery_certificates().await?;
+        Ok(SenderCertificate::deserialize(
+            &certs.certificate_with_e164,
+        )?)
     }
 
     pub async fn get_uuid_only_sender_certificate(
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
-        let cert: SenderCertificateJson = self
-            .http_request(
-                Method::GET,
-                "/v1/certificate/delivery?includeE164=false",
-            )?
-            .send()
+        let certs = self.delivery_certificates().await?;
+        Ok(SenderCertificate::deserialize(
+            &certs.certificate_without_e164,
+        )?)
+    }
+
+    async fn delivery_certificates(
+        &mut self,
+    ) -> Result<GetDeliveryCertificateResponse, ServiceError> {
+        Ok(CredentialsClient::new(self.grpc.authenticated()?)
+            .get_delivery_certificate(GetDeliveryCertificateRequest {})
             .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await?;
-        Ok(SenderCertificate::deserialize(&cert.certificate)?)
+            .into_inner())
     }
 
     pub async fn distribute_pni_keys(
@@ -291,4 +277,73 @@ impl SignalWebSocket<websocket::Identified> {
         .json()
         .await
     }
+}
+
+fn identity_type(kind: ServiceIdKind) -> i32 {
+    match kind {
+        ServiceIdKind::Aci => IdentityType::Aci,
+        ServiceIdKind::Pni => IdentityType::Pni,
+    }
+    .into()
+}
+
+fn key_id(id: u32) -> Result<i32, ServiceError> {
+    i32::try_from(id).map_err(|_| ServiceError::InvalidFrame {
+        reason: "pre-key id out of range",
+    })
+}
+
+fn kem_signed_pre_key(
+    key: KyberPreKeyEntity,
+) -> Result<KemSignedPreKey, ServiceError> {
+    Ok(KemSignedPreKey {
+        key_id: key_id(key.key_id)?,
+        public_key: key.public_key,
+        signature: key.signature,
+    })
+}
+
+fn into_bundles(
+    bundles: AccountPreKeyBundles,
+) -> Result<Vec<PreKeyBundle>, ServiceError> {
+    let identity = IdentityKey::decode(&bundles.identity_key)?;
+    let mut devices: Vec<_> = bundles.device_pre_keys.into_iter().collect();
+    devices.sort_by_key(|(id, _)| *id);
+    devices
+        .into_iter()
+        .map(|(device_id, bundle)| into_bundle(device_id, bundle, identity))
+        .collect()
+}
+
+fn into_bundle(
+    device_id: u32,
+    bundle: DevicePreKeyBundle,
+    identity: IdentityKey,
+) -> Result<PreKeyBundle, ServiceError> {
+    const INVALID: ServiceError = ServiceError::InvalidFrame {
+        reason: "invalid pre-key bundle",
+    };
+    let signed = bundle.ec_signed_pre_key.ok_or(INVALID)?;
+    let kem = bundle.kem_one_time_pre_key.ok_or(INVALID)?;
+    let one_time = bundle
+        .ec_one_time_pre_key
+        .map(|k| -> Result<_, ServiceError> {
+            Ok((
+                u32::try_from(k.key_id).map_err(|_| INVALID)?.into(),
+                PublicKey::deserialize(&k.public_key)?,
+            ))
+        })
+        .transpose()?;
+    Ok(PreKeyBundle::new(
+        bundle.registration_id,
+        DeviceId::try_from(device_id)?,
+        one_time,
+        u32::try_from(signed.key_id).map_err(|_| INVALID)?.into(),
+        PublicKey::deserialize(&signed.public_key)?,
+        signed.signature,
+        u32::try_from(kem.key_id).map_err(|_| INVALID)?.into(),
+        Key::<Public>::deserialize(&kem.public_key)?,
+        kem.signature,
+        identity,
+    )?)
 }

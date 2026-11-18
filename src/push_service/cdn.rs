@@ -13,13 +13,12 @@ use serde::Deserialize;
 use tracing::{debug, trace};
 use url::Url;
 
-use super::response::error_mapper;
 use crate::{
     configuration::Endpoint, prelude::AttachmentIdentifier,
     proto::AttachmentPointer, push_service::HttpAuthOverride,
 };
 
-use super::{response::SignalServiceResponse, PushService, ServiceError};
+use super::{PushService, ServiceError};
 
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -33,8 +32,7 @@ pub struct AttachmentV2UploadAttributes {
     signature: String,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct AttachmentUploadForm {
     pub cdn: u32,
     pub key: String,
@@ -59,14 +57,6 @@ pub struct ResumeInfo {
 pub struct AttachmentDownload<R> {
     pub stream: R,
     pub content_length: Option<u64>,
-}
-
-// Signal-Server: controllers/AttachmentControllerV4.java:102
-// (GET /v4/attachments/form/upload)
-error_mapper! {
-    get_attachment_upload_form_errors:
-        // 413: attachment too large, AttachmentControllerV4.java:111
-        PAYLOAD_TOO_LARGE => AttachmentTooLarge,
 }
 
 impl PushService {
@@ -132,28 +122,6 @@ impl PushService {
             stream: response_stream,
             content_length,
         })
-    }
-
-    /// `upload_length` is the size of the encrypted upload; the server rejects 0
-    /// and caps uploads with the returned form at that size.
-    pub(crate) async fn get_attachment_v4_upload_attributes(
-        &mut self,
-        upload_length: u64,
-    ) -> Result<AttachmentUploadForm, ServiceError> {
-        self.request(
-            Method::GET,
-            Endpoint::service(format!(
-                "/v4/attachments/form/upload?uploadLength={upload_length}"
-            )),
-            HttpAuthOverride::NoOverride,
-        )?
-        .send()
-        .await?
-        .service_error_for_status_with(get_attachment_upload_form_errors)
-        .await?
-        .json()
-        .await
-        .map_err(Into::into)
     }
 
     #[tracing::instrument(skip(self), level=tracing::Level::TRACE)]

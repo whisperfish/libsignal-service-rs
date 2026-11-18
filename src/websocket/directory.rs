@@ -8,6 +8,7 @@ use libsignal_net::cdsi::{CdsiConnection, LookupResponseEntry};
 use libsignal_net::connect_state::{
     ConnectState, ConnectionResources, SUGGESTED_CONNECT_CONFIG,
 };
+use libsignal_net::enclave::AnyEnclaveEndpoint;
 use libsignal_net_infra::dns::DnsResolver;
 use libsignal_net_infra::utils::no_network_change_events;
 use reqwest::Method;

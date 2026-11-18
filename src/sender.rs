@@ -239,8 +239,8 @@ where
         // TODO: we can actually store the upload spec to be able to resume the upload later
         // if it fails or stalls (= we should at least split the API calls so clients can decide what to do)
         let attachment_upload_form = self
-            .service
-            .get_attachment_v4_upload_attributes(contents.len() as u64)
+            .identified_ws
+            .get_attachment_upload_form(contents.len() as u64)
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
 
@@ -635,7 +635,10 @@ where
                 online,
             };
 
-            let send = if let Some(unidentified) = &unidentified_access {
+            let send = if recipient == self.local_aci {
+                tracing::debug!("sending sync");
+                self.identified_ws.send_sync_messages(messages).await
+            } else if let Some(unidentified) = &unidentified_access {
                 tracing::debug!("sending via unidentified");
                 self.unidentified_ws
                     .send_messages_unidentified(messages, unidentified)
