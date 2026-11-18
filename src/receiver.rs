@@ -121,7 +121,6 @@ impl Iterator for DeviceContactsIterator {
         {
             let length = length as usize;
             if length > self.decrypted_buffer.remaining() {
-                // The rest can't be read either.
                 self.decrypted_buffer.clear();
                 return Some(Err(ParseContactError::AvatarPastEnd));
             }
