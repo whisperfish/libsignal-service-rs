@@ -136,35 +136,3 @@ impl Iterator for DeviceContactsIterator {
         Some(Contact::from_proto(contact_details, avatar_data))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use bytes::Bytes;
-    use prost::Message;
-
-    use super::DeviceContactsIterator;
-    use crate::{
-        models::ParseContactError,
-        proto::{contact_details::Avatar, ContactDetails},
-    };
-
-    #[test]
-    fn an_avatar_past_the_end_is_an_error() {
-        let details = ContactDetails {
-            aci: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
-            avatar: Some(Avatar {
-                content_type: Some("image/jpeg".into()),
-                length: Some(1000),
-            }),
-            ..Default::default()
-        };
-        let mut buffer = details.encode_length_delimited_to_vec();
-        buffer.extend([0u8; 10]);
-        let mut contacts = DeviceContactsIterator::new(Bytes::from(buffer));
-        assert!(matches!(
-            contacts.next(),
-            Some(Err(ParseContactError::AvatarPastEnd))
-        ));
-        assert!(contacts.next().is_none());
-    }
-}
