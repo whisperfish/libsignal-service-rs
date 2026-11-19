@@ -92,10 +92,9 @@ impl PushService {
         }
 
         let client = reqwest::ClientBuilder::new()
-            .tls_certs_only([reqwest::Certificate::from_pem(
-                cfg.certificate_authority.as_bytes(),
-            )
-            .unwrap()])
+            .tls_certs_only(cfg.certificate_authorities.iter().map(|ca| {
+                reqwest::Certificate::from_pem(ca.as_bytes()).unwrap()
+            }))
             .connect_timeout(Duration::from_secs(10))
             // Not a total timeout: attachments take as long as they take to transfer.
             .read_timeout(Duration::from_secs(65))

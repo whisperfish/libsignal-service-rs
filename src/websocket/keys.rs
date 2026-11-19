@@ -9,7 +9,9 @@ use libsignal_protocol::{
 use reqwest::Method;
 
 use crate::{
-    pre_keys::{KyberPreKeyEntity, PreKeyState, SignedPreKeyEntity},
+    pre_keys::{
+        KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
+    },
     push_service::response::SignalServiceResponse,
     push_service::DEFAULT_DEVICE_ID,
     sender::OutgoingPushMessage,
@@ -111,61 +113,87 @@ impl SignalWebSocket<websocket::Identified> {
             ServiceIdKind::Pni => IdentityType::Pni,
         }
         .into();
+        let PreKeyState {
+            pre_keys,
+            signed_pre_key,
+            identity_key: _,
+            pq_last_resort_key,
+            pq_pre_keys,
+        } = pre_key_state;
         let mut keys = KeysClient::new(self.grpc.authenticated()?);
 
-        if !pre_key_state.pre_keys.is_empty() {
+        if !pre_keys.is_empty() {
             keys.set_one_time_ec_pre_keys(SetOneTimeEcPreKeysRequest {
                 identity_type,
-                pre_keys: pre_key_state
-                    .pre_keys
+                pre_keys: pre_keys
                     .into_iter()
-                    .map(|k| {
-                        Ok(EcPreKey {
-                            key_id: key_id(k.key_id)?,
-                            public_key: k.public_key,
-                        })
-                    })
+                    .map(
+                        |PreKeyEntity {
+                             key_id: id,
+                             public_key,
+                         }| {
+                            Ok(EcPreKey {
+                                key_id: key_id(id)?,
+                                public_key,
+                            })
+                        },
+                    )
                     .collect::<Result<_, ServiceError>>()?,
             })
             .await?;
         }
 
+        let SignedPreKeyEntity {
+            key_id: signed_key_id,
+            public_key,
+            signature,
+        } = signed_pre_key;
         keys.set_ec_signed_pre_key(SetEcSignedPreKeyRequest {
             identity_type,
             signed_pre_key: Some(EcSignedPreKey {
-                key_id: key_id(pre_key_state.signed_pre_key.key_id)?,
-                public_key: pre_key_state.signed_pre_key.public_key,
-                signature: pre_key_state.signed_pre_key.signature,
+                key_id: key_id(signed_key_id)?,
+                public_key,
+                signature,
             }),
         })
         .await?;
 
-        if let Some(last_resort) = pre_key_state.pq_last_resort_key {
+        if let Some(KyberPreKeyEntity {
+            key_id: last_resort_key_id,
+            public_key,
+            signature,
+        }) = pq_last_resort_key
+        {
             keys.set_kem_last_resort_pre_key(SetKemLastResortPreKeyRequest {
                 identity_type,
                 signed_pre_key: Some(KemSignedPreKey {
-                    key_id: key_id(last_resort.key_id)?,
-                    public_key: last_resort.public_key,
-                    signature: last_resort.signature,
+                    key_id: key_id(last_resort_key_id)?,
+                    public_key,
+                    signature,
                 }),
             })
             .await?;
         }
 
-        if !pre_key_state.pq_pre_keys.is_empty() {
+        if !pq_pre_keys.is_empty() {
             keys.set_one_time_kem_signed_pre_keys(
                 SetOneTimeKemSignedPreKeysRequest {
                     identity_type,
-                    pre_keys: pre_key_state
-                        .pq_pre_keys
+                    pre_keys: pq_pre_keys
                         .into_iter()
-                        .map(|k| {
-                            Ok(KemSignedPreKey {
-                                key_id: key_id(k.key_id)?,
-                                public_key: k.public_key,
-                                signature: k.signature,
-                            })
-                        })
+                        .map(
+                            |KyberPreKeyEntity {
+                                 key_id: id,
+                                 public_key,
+                                 signature,
+                             }| {
+                                Ok(KemSignedPreKey {
+                                    key_id: key_id(id)?,
+                                    public_key,
+                                    signature,
+                                })
+                            },
+                        )
                         .collect::<Result<_, ServiceError>>()?,
                 },
             )
@@ -302,8 +330,14 @@ fn key_id(id: u32) -> Result<i32, ServiceError> {
 fn into_bundles(
     bundles: AccountPreKeyBundles,
 ) -> Result<Vec<PreKeyBundle>, ServiceError> {
-    let identity = IdentityKey::decode(&bundles.identity_key)?;
-    let mut devices: Vec<_> = bundles.device_pre_keys.into_iter().collect();
+    let AccountPreKeyBundles {
+        identity_key,
+        device_pre_keys,
+        unrestricted_unidentified_access: _,
+        unidentified_access_key_fingerprint: _,
+    } = bundles;
+    let identity = IdentityKey::decode(&identity_key)?;
+    let mut devices: Vec<_> = device_pre_keys.into_iter().collect();
     devices.sort_by_key(|(id, _)| *id);
     devices
         .into_iter()
@@ -319,27 +353,42 @@ fn into_bundle(
     const INVALID: ServiceError = ServiceError::InvalidFrame {
         reason: "invalid pre-key bundle",
     };
-    let signed = bundle.ec_signed_pre_key.ok_or(INVALID)?;
-    let kem = bundle.kem_one_time_pre_key.ok_or(INVALID)?;
-    let one_time = bundle
-        .ec_one_time_pre_key
-        .map(|k| -> Result<_, ServiceError> {
-            Ok((
-                u32::try_from(k.key_id).map_err(|_| INVALID)?.into(),
-                PublicKey::deserialize(&k.public_key)?,
-            ))
-        })
+    let DevicePreKeyBundle {
+        ec_signed_pre_key,
+        ec_one_time_pre_key,
+        kem_one_time_pre_key,
+        registration_id,
+    } = bundle;
+    let EcSignedPreKey {
+        key_id: signed_key_id,
+        public_key: signed_public_key,
+        signature: signed_signature,
+    } = ec_signed_pre_key.ok_or(INVALID)?;
+    let KemSignedPreKey {
+        key_id: kem_key_id,
+        public_key: kem_public_key,
+        signature: kem_signature,
+    } = kem_one_time_pre_key.ok_or(INVALID)?;
+    let one_time = ec_one_time_pre_key
+        .map(
+            |EcPreKey { key_id, public_key }| -> Result<_, ServiceError> {
+                Ok((
+                    u32::try_from(key_id).map_err(|_| INVALID)?.into(),
+                    PublicKey::deserialize(&public_key)?,
+                ))
+            },
+        )
         .transpose()?;
     Ok(PreKeyBundle::new(
-        bundle.registration_id,
+        registration_id,
         DeviceId::try_from(device_id)?,
         one_time,
-        u32::try_from(signed.key_id).map_err(|_| INVALID)?.into(),
-        PublicKey::deserialize(&signed.public_key)?,
-        signed.signature,
-        u32::try_from(kem.key_id).map_err(|_| INVALID)?.into(),
-        Key::<Public>::deserialize(&kem.public_key)?,
-        kem.signature,
+        u32::try_from(signed_key_id).map_err(|_| INVALID)?.into(),
+        PublicKey::deserialize(&signed_public_key)?,
+        signed_signature,
+        u32::try_from(kem_key_id).map_err(|_| INVALID)?.into(),
+        Key::<Public>::deserialize(&kem_public_key)?,
+        kem_signature,
         identity,
     )?)
 }

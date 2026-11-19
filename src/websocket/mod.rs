@@ -83,7 +83,7 @@ pub struct SignalWebSocket<C: WebSocketType> {
     _type: PhantomData<C>,
     // XXX: at the end of the migration, this should be CDN operations only
     pub(crate) unidentified_push_service: PushService,
-    pub(crate) grpc: GrpcChannels,
+    grpc: GrpcChannels,
     inner: Arc<Mutex<SignalWebSocketInner>>,
     request_sink: mpsc::Sender<(
         WebSocketRequestMessage,

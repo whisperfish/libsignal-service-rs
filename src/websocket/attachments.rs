@@ -2,6 +2,7 @@ use libsignal_net_grpc::proto::chat::attachments::{
     attachments_client::AttachmentsClient, get_upload_form_response,
     GetUploadFormRequest,
 };
+use libsignal_net_grpc::proto::chat::common::UploadForm;
 
 use crate::push_service::{AttachmentUploadForm, ServiceError};
 
@@ -18,11 +19,16 @@ impl SignalWebSocket<Identified> {
             .await?
             .into_inner();
         match response.outcome {
-            Some(Outcome::UploadForm(form)) => Ok(AttachmentUploadForm {
-                cdn: form.cdn,
-                key: form.key,
-                headers: form.headers,
-                signed_upload_location: form.signed_upload_location.parse()?,
+            Some(Outcome::UploadForm(UploadForm {
+                cdn,
+                key,
+                headers,
+                signed_upload_location,
+            })) => Ok(AttachmentUploadForm {
+                cdn,
+                key,
+                headers,
+                signed_upload_location: signed_upload_location.parse()?,
             }),
             Some(Outcome::ExceedsMaxUploadLength(_)) => {
                 Err(ServiceError::AttachmentTooLarge)

@@ -1,4 +1,4 @@
-use libsignal_core::DeviceId;
+use libsignal_core::{DeviceId, ServiceId};
 use libsignal_net_grpc::proto::chat::messages::{
     challenge_required::ChallengeType,
     individual_recipient_message_bundle::Message,
@@ -14,7 +14,7 @@ use libsignal_net_grpc::proto::chat::messages::{
 use crate::{
     proto::envelope,
     push_service::{self, ProofRequired},
-    sender::{OutgoingPushMessages, SendMessageResponse},
+    sender::{OutgoingPushMessage, OutgoingPushMessages, SendMessageResponse},
     unidentified_access::UnidentifiedAccess,
     utils::BASE64_RELAXED,
 };
@@ -27,14 +27,13 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let destination = messages.destination;
-        let ephemeral = messages.online;
+        let (destination, ephemeral, messages) = messages.into_parts()?;
         let response = MessagesClient::new(self.grpc.authenticated()?)
             .send_message(SendAuthenticatedSenderMessageRequest {
                 destination: Some(destination.into()),
                 ephemeral,
                 urgent: true,
-                messages: Some(messages.into_bundle()?),
+                messages: Some(messages),
             })
             .await?
             .into_inner();
@@ -46,10 +45,11 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
+        let (_destination, _ephemeral, messages) = messages.into_parts()?;
         let response = MessagesClient::new(self.grpc.authenticated()?)
             .send_sync_message(SendSyncMessageRequest {
                 urgent: true,
-                messages: Some(messages.into_bundle()?),
+                messages: Some(messages),
             })
             .await?
             .into_inner();
@@ -63,8 +63,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
     ) -> Result<SendMessageResponse, ServiceError> {
         use send_message_response::Response;
 
-        let destination = messages.destination;
-        let ephemeral = messages.online;
+        let (destination, ephemeral, messages) = messages.into_parts()?;
         let response =
             MessagesAnonymousClient::new(self.grpc.unauthenticated())
                 .send_single_recipient_message(
@@ -72,7 +71,7 @@ impl<C: WebSocketType> SignalWebSocket<C> {
                         destination: Some(destination.into()),
                         ephemeral,
                         urgent: true,
-                        messages: Some(messages.into_bundle()?),
+                        messages: Some(messages),
                         authorization: Some(
                             send_sealed_sender_message_request::Authorization::UnidentifiedAccessKey(
                                 access.key.clone(),
@@ -170,15 +169,26 @@ impl ProofRequired {
 }
 
 impl OutgoingPushMessages {
-    fn into_bundle(
+    fn into_parts(
         self,
-    ) -> Result<IndividualRecipientMessageBundle, ServiceError> {
-        let timestamp = self.timestamp;
-        let messages = self
-            .messages
+    ) -> Result<(ServiceId, bool, IndividualRecipientMessageBundle), ServiceError>
+    {
+        let OutgoingPushMessages {
+            destination,
+            timestamp,
+            messages,
+            online,
+        } = self;
+        let messages = messages
             .into_iter()
-            .map(|m| {
-                let r#type = match envelope::Type::try_from(m.r#type as i32) {
+            .map(|message| {
+                let OutgoingPushMessage {
+                    r#type,
+                    destination_device_id,
+                    destination_registration_id,
+                    content,
+                } = message;
+                let r#type = match envelope::Type::try_from(r#type as i32) {
                     Ok(envelope::Type::DoubleRatchet) => {
                         SendMessageType::DoubleRatchet
                     },
@@ -198,18 +208,22 @@ impl OutgoingPushMessages {
                     },
                 };
                 Ok((
-                    u8::from(m.destination_device_id).into(),
+                    u8::from(destination_device_id).into(),
                     Message {
-                        registration_id: m.destination_registration_id,
-                        payload: BASE64_RELAXED.decode(m.content)?,
+                        registration_id: destination_registration_id,
+                        payload: BASE64_RELAXED.decode(content)?,
                         r#type: r#type.into(),
                     },
                 ))
             })
             .collect::<Result<_, _>>()?;
-        Ok(IndividualRecipientMessageBundle {
-            timestamp,
-            messages,
-        })
+        Ok((
+            destination,
+            online,
+            IndividualRecipientMessageBundle {
+                timestamp,
+                messages,
+            },
+        ))
     }
 }

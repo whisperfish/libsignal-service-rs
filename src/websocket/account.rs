@@ -16,10 +16,12 @@ use crate::{
 use libsignal_net_grpc::proto::chat::account::{
     accounts_client::AccountsClient, GetAccountIdentityRequest,
 };
-use libsignal_net_grpc::proto::chat::common::IdentityType;
+use libsignal_net_grpc::proto::chat::common::{
+    AccountIdentifiers, IdentityType,
+};
 use libsignal_net_grpc::proto::chat::device::{
-    devices_client::DevicesClient, set_device_name_response, GetDevicesRequest,
-    SetDeviceNameRequest,
+    devices_client::DevicesClient, get_devices_response::LinkedDevice,
+    set_device_name_response, GetDevicesRequest, SetDeviceNameRequest,
 };
 use prost::Message;
 
@@ -129,12 +131,15 @@ mod test {
 #[derive(Debug)]
 pub struct WhoAmIResponse {
     pub aci: Uuid,
-    /// Nil when the account has no PNI (yet).
-    pub pni: Uuid,
+    /// None when the account has no PNI.
+    pub pni: Option<Uuid>,
     pub number: libsignal_core::E164,
+    /// Hash of the account's username, if one is set.
     pub username_hash: Option<Vec<u8>>,
-    /// Decrypting the username also requires the link entropy, which only the
-    /// full `signal.me` link carries.
+    /// Handle (UUID) of the account's username link, if one is set.
+    ///
+    /// Decrypting the username also requires the link entropy, which the
+    /// server never sees; only the full `signal.me` link carries it.
     pub username_link_handle: Option<Uuid>,
 }
 
@@ -144,14 +149,19 @@ impl SignalWebSocket<websocket::Identified> {
         const INVALID: ServiceError = ServiceError::InvalidFrame {
             reason: "invalid GetAccountIdentity response",
         };
-        let ids = AccountsClient::new(self.grpc.authenticated()?)
+        let AccountIdentifiers {
+            service_identifiers,
+            e164,
+            username_hash,
+            username_link_handle,
+        } = AccountsClient::new(self.grpc.authenticated()?)
             .get_account_identity(GetAccountIdentityRequest {})
             .await?
             .into_inner()
             .account_identifiers
             .ok_or(INVALID)?;
         let uuid_of = |kind: IdentityType| {
-            ids.service_identifiers
+            service_identifiers
                 .iter()
                 .find(|id| id.identity_type() == kind)
                 .map(|id| Uuid::from_slice(&id.uuid).map_err(|_| INVALID))
@@ -159,12 +169,11 @@ impl SignalWebSocket<websocket::Identified> {
         };
         Ok(WhoAmIResponse {
             aci: uuid_of(IdentityType::Aci)?.ok_or(INVALID)?,
-            pni: uuid_of(IdentityType::Pni)?.unwrap_or_default(),
-            number: ids.e164.parse().map_err(|_| INVALID)?,
-            username_hash: (!ids.username_hash.is_empty())
-                .then_some(ids.username_hash),
-            username_link_handle: (!ids.username_link_handle.is_empty())
-                .then(|| Uuid::from_slice(&ids.username_link_handle))
+            pni: uuid_of(IdentityType::Pni)?,
+            number: e164.parse().map_err(|_| INVALID)?,
+            username_hash: (!username_hash.is_empty()).then_some(username_hash),
+            username_link_handle: (!username_link_handle.is_empty())
+                .then(|| Uuid::from_slice(&username_link_handle))
                 .transpose()
                 .map_err(|_| INVALID)?,
         })
@@ -182,18 +191,25 @@ impl SignalWebSocket<websocket::Identified> {
             .into_inner()
             .devices
             .into_iter()
-            .map(|d| {
+            .map(|device| {
+                let LinkedDevice {
+                    id,
+                    name,
+                    last_seen,
+                    registration_id,
+                    created_at_ciphertext,
+                } = device;
                 Ok(DeviceInfoEncrypted {
-                    id: libsignal_core::DeviceId::try_from(d.id)?,
-                    name: (!d.name.is_empty()).then_some(d.name),
-                    registration_id: i32::try_from(d.registration_id).map_err(
+                    id: libsignal_core::DeviceId::try_from(id)?,
+                    name: (!name.is_empty()).then_some(name),
+                    registration_id: i32::try_from(registration_id).map_err(
                         |_| ServiceError::InvalidFrame {
                             reason: "registration id out of range",
                         },
                     )?,
-                    created_at_ciphertext: d.created_at_ciphertext,
+                    created_at_ciphertext,
                     last_seen: DateTime::from_timestamp_millis(
-                        d.last_seen as i64,
+                        last_seen as i64,
                     )
                     .unwrap_or_default(),
                 })

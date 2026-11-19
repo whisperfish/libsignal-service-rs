@@ -11,7 +11,7 @@ use tonic::{
 };
 
 use crate::{
-    configuration::ServiceConfiguration,
+    configuration::{self, ServiceConfiguration},
     push_service::{HttpAuth, ServiceError},
 };
 
@@ -48,7 +48,7 @@ impl Interceptor for ChatInterceptor {
 }
 
 impl ChatInterceptor {
-    fn anonymous() -> Self {
+    fn unauthenticated() -> Self {
         Self {
             authorization: None,
         }
@@ -70,7 +70,7 @@ impl ChatInterceptor {
 
 /// Lazily-connected HTTP/2 channels to the chat server's gRPC endpoint.
 ///
-/// Authenticated and anonymous calls use separate connections, as libsignal does.
+/// Authenticated and unauthenticated calls use separate connections, as libsignal does.
 #[derive(Clone)]
 pub struct GrpcChannels {
     authenticated: Option<ChatChannel>,
@@ -86,7 +86,7 @@ impl GrpcChannels {
         let endpoint = endpoint(cfg, user_agent)?;
         let unauthenticated = InterceptedService::new(
             endpoint.connect_lazy(),
-            ChatInterceptor::anonymous(),
+            ChatInterceptor::unauthenticated(),
         );
         let authenticated = credentials
             .map(|auth| {
@@ -116,13 +116,18 @@ fn endpoint(
     cfg: &ServiceConfiguration,
     user_agent: &str,
 ) -> Result<Endpoint, ServiceError> {
-    let host = cfg.grpc_url.host_str().ok_or(ServiceError::InvalidFrame {
+    let url = configuration::Endpoint::Grpc.into_url(cfg)?;
+    let host = url.host_str().ok_or(ServiceError::InvalidFrame {
         reason: "gRPC URL has no host",
     })?;
     let tls = ClientTlsConfig::new()
-        .ca_certificate(Certificate::from_pem(&cfg.certificate_authority))
+        .ca_certificates(
+            cfg.certificate_authorities
+                .iter()
+                .map(Certificate::from_pem),
+        )
         .domain_name(host);
-    Ok(Endpoint::from_shared(cfg.grpc_url.to_string())?
+    Ok(Endpoint::from_shared(url.to_string())?
         .tls_config(tls)?
         .user_agent(user_agent)?
         .connect_timeout(Duration::from_secs(10))

@@ -598,8 +598,12 @@ where
         trace!("trying to send a message");
 
         // The server only accepts group send tokens for sealed sender to a PNI.
-        if matches!(recipient, ServiceId::Pni(_)) {
-            unidentified_access = None;
+        if matches!(recipient, ServiceId::Pni(_))
+            && unidentified_access.take().is_some()
+        {
+            tracing::warn!(
+                "unidentified access given for a PNI recipient, sending unsealed"
+            );
         }
 
         use prost::Message;
