@@ -73,22 +73,13 @@ impl MessageReceiver {
             };
 
             let mut ciphertext = Vec::new();
-            stream
-                .read_to_end(&mut ciphertext)
-                .await
-                .expect("streamed attachment");
+            stream.read_to_end(&mut ciphertext).await?;
 
-            let key_material = blob.key();
-            assert_eq!(
-                key_material.len(),
-                64,
-                "key material for attachments is ought to be 64 bytes"
-            );
-            let mut key = [0u8; 64];
-            key.copy_from_slice(key_material);
+            let key: [u8; 64] =
+                blob.key().try_into().map_err(|_| ServiceError::MacError)?;
 
             decrypt_in_place(key, &mut ciphertext)
-                .expect("attachment decryption");
+                .map_err(|_| ServiceError::MacError)?;
 
             Ok(DeviceContactsIterator::new(Bytes::from(ciphertext)))
         } else {
@@ -128,7 +119,12 @@ impl Iterator for DeviceContactsIterator {
             ..
         }) = contact_details.avatar
         {
-            Some(self.decrypted_buffer.copy_to_bytes(length as usize))
+            let length = length as usize;
+            if length > self.decrypted_buffer.remaining() {
+                self.decrypted_buffer.clear();
+                return Some(Err(ParseContactError::AvatarPastEnd));
+            }
+            Some(self.decrypted_buffer.copy_to_bytes(length))
         } else {
             None
         };

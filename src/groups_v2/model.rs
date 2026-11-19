@@ -162,6 +162,19 @@ pub struct Group {
     pub terminated: bool,
 }
 
+/// What a group shows to someone holding its invite link.
+#[derive(Debug, Clone, PartialEq)]
+pub struct GroupJoinInfo {
+    pub title: String,
+    pub description_text: Option<String>,
+    pub avatar: String,
+    pub member_count: u32,
+    pub add_from_invite_link: AccessRequired,
+    pub version: u32,
+    /// The caller has asked to join and awaits an administrator.
+    pub pending_admin_approval: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct GroupChanges {
     pub group_id: GroupV2Id,

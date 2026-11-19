@@ -518,8 +518,6 @@ where
                 {
                     error!(%error, "failed to send a synchronization message");
                 }
-            } else {
-                error!("could not create sync message from a group message")
             }
         }
 

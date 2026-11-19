@@ -32,6 +32,22 @@ pub struct AttachmentV2UploadAttributes {
     signature: String,
 }
 
+impl From<crate::proto::AvatarUploadAttributes>
+    for AttachmentV2UploadAttributes
+{
+    fn from(form: crate::proto::AvatarUploadAttributes) -> Self {
+        Self {
+            key: form.key,
+            credential: form.credential,
+            acl: form.acl,
+            algorithm: form.algorithm,
+            date: form.date,
+            policy: form.policy,
+            signature: form.signature,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct AttachmentUploadForm {
     pub cdn: u32,

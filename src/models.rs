@@ -40,6 +40,8 @@ pub enum ParseContactError {
     MissingProfileKey,
     #[error("missing avatar content-type")]
     MissingAvatarContentType,
+    #[error("avatar runs past the end of the contacts")]
+    AvatarPastEnd,
 }
 
 impl Contact {
