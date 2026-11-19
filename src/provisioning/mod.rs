@@ -196,8 +196,6 @@ pub async fn link_device<
         )
         .await?;
 
-    // As every registration does: from 1..256 alone, a device linked again would get the
-    // same ID too often for others to notice that it changed.
     let registration_id = generate_registration_id(csprng);
     let pni_registration_id = generate_registration_id(csprng);
 
