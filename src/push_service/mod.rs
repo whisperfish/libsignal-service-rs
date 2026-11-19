@@ -1,3 +1,4 @@
+use base64::prelude::*;
 use std::{sync::LazyLock, time::Duration};
 
 use crate::{
@@ -14,7 +15,8 @@ use reqwest_websocket::Upgrade;
 use serde::{Deserialize, Serialize};
 use tracing::{debug_span, Instrument};
 
-pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
+/// See `WS_KEEP_ALIVE_INTERVAL` in libsignal-net
+pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(30);
 pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
     LazyLock::new(|| libsignal_core::DeviceId::try_from(1).unwrap());
 
@@ -189,6 +191,59 @@ impl PushService {
         Ok(ws)
     }
 
+    /// v2: under v1 the server answers with an empty body.
+    pub(crate) async fn put_group(
+        &mut self,
+        credentials: HttpAuth,
+        group: crate::proto::Group,
+    ) -> Result<crate::proto::GroupResponse, ServiceError> {
+        use protobuf::ProtobufRequestBuilderExt;
+        self.request(
+            Method::PUT,
+            Endpoint::storage("/v2/groups/"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .protobuf(group)
+        .map_err(|_| ServiceError::GroupsV2Error)?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
+
+    /// The invite link's password lets a non-member in, or ask in. v2: under
+    /// v1 the server answers with the bare `GroupChange`.
+    pub(crate) async fn patch_group(
+        &mut self,
+        credentials: HttpAuth,
+        actions: crate::proto::group_change::Actions,
+        invite_link_password: Option<&[u8]>,
+    ) -> Result<crate::proto::GroupChangeResponse, ServiceError> {
+        use protobuf::ProtobufRequestBuilderExt;
+        let path = match invite_link_password {
+            Some(password) => format!(
+                "/v2/groups/?inviteLinkPassword={}",
+                BASE64_URL_SAFE_NO_PAD.encode(password)
+            ),
+            None => "/v2/groups/".into(),
+        };
+        self.request(
+            Method::PATCH,
+            Endpoint::storage(path),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .protobuf(actions)
+        .map_err(|_| ServiceError::GroupsV2Error)?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
+
     pub(crate) async fn get_group(
         &mut self,
         credentials: HttpAuth,
@@ -196,6 +251,44 @@ impl PushService {
         self.request(
             Method::GET,
             Endpoint::storage("/v1/groups/"),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
+
+    pub(crate) async fn get_group_join_info(
+        &mut self,
+        credentials: HttpAuth,
+        invite_link_password: &[u8],
+    ) -> Result<crate::proto::GroupJoinInfo, ServiceError> {
+        self.request(
+            Method::GET,
+            Endpoint::storage(format!(
+                "/v1/groups/join/{}",
+                BASE64_URL_SAFE_NO_PAD.encode(invite_link_password)
+            )),
+            HttpAuthOverride::Identified(credentials),
+        )?
+        .send()
+        .await?
+        .service_error_for_status()
+        .await?
+        .protobuf()
+        .await
+    }
+
+    pub(crate) async fn get_group_avatar_upload_form(
+        &mut self,
+        credentials: HttpAuth,
+    ) -> Result<crate::proto::AvatarUploadAttributes, ServiceError> {
+        self.request(
+            Method::GET,
+            Endpoint::storage("/v1/groups/avatar/form"),
             HttpAuthOverride::Identified(credentials),
         )?
         .send()

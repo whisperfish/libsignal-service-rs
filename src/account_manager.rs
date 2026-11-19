@@ -50,7 +50,7 @@ use crate::{
     provisioning::{ProvisioningCipher, ProvisioningError},
     push_service::{PushService, ServiceError},
     utils::serde_base64,
-    websocket::account::AccountAttributes,
+    websocket::account::{AccountAttributes, DeviceCapabilities},
 };
 
 // Signal-Server: controllers/DeviceController.java:193
@@ -382,6 +382,7 @@ impl AccountManager {
             ephemeral_backup_key,
             account_entropy_pool,
             media_root_backup_key,
+            read_receipts,
         } = secrets;
 
         let query: HashMap<_, _> = url.query_pairs().collect();
@@ -431,8 +432,8 @@ impl AccountManager {
             provisioning_code: Some(provisioning_code),
             user_agent: None,
             profile_key: self.profile_key.as_ref().map(|x| x.bytes.to_vec()),
+            read_receipts,
             // CURRENT is not exposed by prost :(
-            read_receipts: None,
             provisioning_version: Some(i32::from(
                 ProvisioningVersion::TabletSupport,
             ) as _),
@@ -605,6 +606,16 @@ impl AccountManager {
         attributes: AccountAttributes,
     ) -> Result<(), ServiceError> {
         self.websocket.set_account_attributes(attributes).await
+    }
+
+    /// Replace this device's capabilities, as Signal-Desktop does after linking:
+    /// <https://github.com/signalapp/Signal-Desktop/blob/main/ts/background.preload.ts>
+    /// (`registerCapabilities`).
+    pub async fn set_device_capabilities(
+        &mut self,
+        capabilities: &DeviceCapabilities,
+    ) -> Result<(), ServiceError> {
+        self.websocket.set_device_capabilities(capabilities).await
     }
 
     /// Update (encrypted) device name
