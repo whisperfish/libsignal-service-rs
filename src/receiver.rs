@@ -87,30 +87,14 @@ impl MessageReceiver {
             let mut key = [0u8; 64];
             key.copy_from_slice(key_material);
 
-            decrypt_in_place(key, &mut ciphertext)
+            let plaintext_len = blob.size.and_then(|len| len.try_into().ok());
+            decrypt_in_place(key, &mut ciphertext, plaintext_len)
                 .expect("attachment decryption");
-            strip_attachment_padding(&mut ciphertext, blob.size);
 
             Ok(DeviceContactsIterator::new(Bytes::from(ciphertext)))
         } else {
             Ok(DeviceContactsIterator::default())
         }
-    }
-}
-
-/// Drops the zero padding after the `size` bytes the sender declared;
-/// otherwise each padding byte parses as an empty contact.
-fn strip_attachment_padding(plaintext: &mut Vec<u8>, size: Option<u32>) {
-    match size {
-        Some(size) if size as usize <= plaintext.len() => {
-            plaintext.truncate(size as usize)
-        },
-        Some(size) => tracing::warn!(
-            size,
-            plaintext = plaintext.len(),
-            "attachment shorter than its declared size"
-        ),
-        None => {},
     }
 }
 
@@ -267,30 +251,5 @@ mod tests {
             Some(Err(ParseContactError::Protobuf(_)))
         ));
         assert!(contacts.next().is_none());
-    }
-
-    #[test]
-    fn padding_is_stripped_to_the_declared_size() {
-        let contacts = buffer(&[(details(Some(3)), 3), (details(None), 0)]);
-        let size = contacts.len() as u32;
-        let mut plaintext = contacts.to_vec();
-        plaintext.resize(plaintext.len() + 50, 0);
-
-        strip_attachment_padding(&mut plaintext, Some(size));
-        let parsed: Vec<_> =
-            DeviceContactsIterator::new(Bytes::from(plaintext)).collect();
-
-        assert_eq!(parsed.len(), 2);
-        assert!(parsed.iter().all(Result::is_ok));
-    }
-
-    #[test]
-    fn short_plaintext_is_kept_whole() {
-        let mut plaintext = vec![1, 2, 3];
-        strip_attachment_padding(&mut plaintext, Some(10));
-        assert_eq!(plaintext, [1, 2, 3]);
-
-        strip_attachment_padding(&mut plaintext, None);
-        assert_eq!(plaintext, [1, 2, 3]);
     }
 }
