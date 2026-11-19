@@ -10,7 +10,7 @@ use crate::{
     pre_keys::{KyberPreKeyEntity, PreKeysStore, SignedPreKeyEntity},
     provisioning::ProvisioningError,
     push_service::response::{
-        error_mapper, json_or_unhandled, parse_retry_after,
+        error_mapper, optional_json_or_unhandled, parse_retry_after,
         SignalServiceResponse,
     },
     utils::{serde_base64, TryIntoE164},
@@ -152,13 +152,17 @@ where
 {
     let retry_after =
         response.header("retry-after").and_then(parse_retry_after);
-    match json_or_unhandled::<R, RegistrationSessionMetadataResponse>(response)
-        .await
+    match optional_json_or_unhandled::<R, RegistrationSessionMetadataResponse>(
+        response,
+    )
+    .await
     {
-        Ok(session) => ServiceError::VerificationSessionRateLimited {
+        Ok(Some(session)) => ServiceError::VerificationSessionRateLimited {
             session,
             retry_after,
         },
+        // The server's generic rate limiter replies without a session body.
+        Ok(None) => ServiceError::RateLimitExceeded { retry_after },
         Err(error) => error,
     }
 }
