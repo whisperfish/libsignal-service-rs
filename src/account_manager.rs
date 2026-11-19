@@ -50,7 +50,7 @@ use crate::{
     provisioning::{ProvisioningCipher, ProvisioningError},
     push_service::{PushService, ServiceError},
     utils::serde_base64,
-    websocket::account::AccountAttributes,
+    websocket::account::{AccountAttributes, DeviceCapabilities},
 };
 
 // Signal-Server: controllers/DeviceController.java:193
@@ -605,6 +605,16 @@ impl AccountManager {
         attributes: AccountAttributes,
     ) -> Result<(), ServiceError> {
         self.websocket.set_account_attributes(attributes).await
+    }
+
+    /// Replace this device's capabilities, as Signal-Desktop does after linking:
+    /// <https://github.com/signalapp/Signal-Desktop/blob/main/ts/background.preload.ts>
+    /// (`registerCapabilities`).
+    pub async fn set_device_capabilities(
+        &mut self,
+        capabilities: &DeviceCapabilities,
+    ) -> Result<(), ServiceError> {
+        self.websocket.set_device_capabilities(capabilities).await
     }
 
     /// Update (encrypted) device name

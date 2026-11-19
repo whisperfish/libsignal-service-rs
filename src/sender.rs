@@ -240,7 +240,7 @@ where
         // if it fails or stalls (= we should at least split the API calls so clients can decide what to do)
         let attachment_upload_form = self
             .service
-            .get_attachment_v4_upload_attributes()
+            .get_attachment_v4_upload_attributes(contents.len() as u64)
             .instrument(tracing::trace_span!("requesting upload attributes"))
             .await?;
 
@@ -518,8 +518,6 @@ where
                 {
                     error!(%error, "failed to send a synchronization message");
                 }
-            } else {
-                error!("could not create sync message from a group message")
             }
         }
 

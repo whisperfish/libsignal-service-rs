@@ -14,7 +14,8 @@ use reqwest_websocket::Upgrade;
 use serde::{Deserialize, Serialize};
 use tracing::{debug_span, Instrument};
 
-pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(55);
+/// See `WS_KEEP_ALIVE_INTERVAL` in libsignal-net
+pub const KEEPALIVE_TIMEOUT_SECONDS: Duration = Duration::from_secs(30);
 pub static DEFAULT_DEVICE_ID: LazyLock<libsignal_core::DeviceId> =
     LazyLock::new(|| libsignal_core::DeviceId::try_from(1).unwrap());
 
