@@ -75,21 +75,6 @@ pub fn parse_pni_with_fallback(
     })
 }
 
-/// Deserialize a [`ServiceId`] from its `"ACI:uuid"` / `"PNI:uuid"` server
-/// string form.
-pub fn deserialize_service_id<'de, D>(
-    deserializer: D,
-) -> Result<ServiceId, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize;
-    let s = <&'de str>::deserialize(deserializer)?;
-    ServiceId::parse_from_service_id_string(s).ok_or_else(|| {
-        serde::de::Error::custom(format!("invalid service id: {s}"))
-    })
-}
-
 pub fn parse_service_id_with_fallback(
     bytes: Option<&[u8]>,
     utf8: Option<&str>,
@@ -453,30 +438,6 @@ pub mod serde_optional_e164 {
     }
 }
 
-pub mod serde_e164 {
-    use libsignal_core::E164;
-    use serde::{Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S>(
-        phone_number: &E164,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&phone_number.to_string())
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<E164, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        <&str>::deserialize(deserializer)?
-            .parse()
-            .map_err(serde::de::Error::custom)
-    }
-}
-
 #[cfg(feature = "phonenumber")]
 pub mod serde_phone_number {
     use phonenumber::PhoneNumber;
@@ -562,38 +523,6 @@ pub mod serde_device_id {
         D: Deserializer<'de>,
     {
         DeviceId::try_from(u8::deserialize(deserializer)?)
-            .map_err(|_| serde::de::Error::custom("invalid device id"))
-    }
-}
-
-pub mod serde_device_id_vec {
-    use libsignal_core::DeviceId;
-    use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S>(
-        ids: &Vec<DeviceId>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut seq = serializer.serialize_seq(Some(ids.len()))?;
-        for id in ids {
-            seq.serialize_element(&u8::from(*id))?;
-        }
-        seq.end()
-    }
-
-    pub fn deserialize<'de, D>(
-        deserializer: D,
-    ) -> Result<Vec<DeviceId>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Vec::<u8>::deserialize(deserializer)?
-            .into_iter()
-            .map(DeviceId::try_from)
-            .collect::<Result<Vec<_>, _>>()
             .map_err(|_| serde::de::Error::custom("invalid device id"))
     }
 }

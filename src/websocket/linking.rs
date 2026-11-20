@@ -1,7 +1,8 @@
 use libsignal_core::DeviceId;
-use reqwest::Method;
+use libsignal_net_grpc::proto::chat::device::{
+    devices_client::DevicesClient, RemoveDeviceRequest,
+};
 
-use crate::push_service::response::SignalServiceResponse;
 use crate::websocket::{self, SignalWebSocket};
 
 use super::ServiceError;
@@ -11,12 +12,11 @@ impl SignalWebSocket<websocket::Identified> {
         &mut self,
         id: DeviceId,
     ) -> Result<(), ServiceError> {
-        self.http_request(Method::DELETE, format!("/v1/devices/{}", id))?
-            .send()
-            .await?
-            .service_error_for_status()
+        DevicesClient::new(self.grpc.authenticated()?)
+            .remove_device(RemoveDeviceRequest {
+                id: u8::from(id).into(),
+            })
             .await?;
-
         Ok(())
     }
 }

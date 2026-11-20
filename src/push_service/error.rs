@@ -1,5 +1,5 @@
 use aes::cipher::block_padding;
-use libsignal_core::{curve::CurveError, ServiceId};
+use libsignal_core::curve::CurveError;
 use libsignal_protocol::{
     FingerprintError, ServiceIdKind, SignalProtocolError,
 };
@@ -10,27 +10,12 @@ use zkgroup::{ZkGroupDeserializationFailure, ZkGroupVerificationFailure};
 use crate::{
     cipher::SealedSenderDecryptionError,
     groups_v2::GroupDecodingError,
-    utils::deserialize_service_id,
     websocket::registration::{
         RegistrationLockFailure, RegistrationSessionMetadataResponse,
     },
 };
 
 use super::{MismatchedDevices, ProofRequired, StaleDevices};
-
-#[derive(Debug, Deserialize)]
-pub struct AccountMismatchedDevices {
-    #[serde(deserialize_with = "deserialize_service_id")]
-    pub uuid: ServiceId,
-    pub devices: MismatchedDevices,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AccountStaleDevices {
-    #[serde(deserialize_with = "deserialize_service_id")]
-    pub uuid: ServiceId,
-    pub devices: StaleDevices,
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -152,12 +137,6 @@ pub enum ServiceError {
     ServerRejected,
     #[error("recipient is not registered")]
     UnregisteredRecipient,
-    #[error("message too large")]
-    MessageTooLarge,
-    #[error("multi-recipient mismatched devices: {0:?}")]
-    MultiRecipientMismatchedDevices(Vec<AccountMismatchedDevices>),
-    #[error("multi-recipient stale devices: {0:?}")]
-    MultiRecipientStaleDevices(Vec<AccountStaleDevices>),
     #[error("invalid device verification code")]
     InvalidDeviceVerificationCode,
     #[error("device capabilities are a downgrade")]
@@ -207,6 +186,12 @@ pub enum ServiceError {
     #[error("CDSI lookup error: {0}")]
     #[cfg(feature = "cdsi")]
     CdsiLookupError(#[from] libsignal_net::cdsi::LookupError),
+
+    #[error("gRPC error: {0}")]
+    Grpc(Box<tonic::Status>),
+
+    #[error("gRPC transport error: {0}")]
+    GrpcTransport(#[from] tonic::transport::Error),
 }
 
 impl From<signal_crypto::HpkeError> for ServiceError {

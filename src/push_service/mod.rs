@@ -3,8 +3,8 @@ use std::{sync::LazyLock, time::Duration};
 
 use crate::{
     configuration::{Endpoint, ServiceCredentials, SignalServers},
+    grpc::GrpcChannels,
     prelude::ServiceConfiguration,
-    utils::serde_device_id_vec,
     websocket::{SignalWebSocket, WebSocketType},
 };
 
@@ -58,19 +58,14 @@ pub enum AvatarWrite<C> {
     NoAvatar,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct MismatchedDevices {
-    #[serde(with = "serde_device_id_vec")]
     pub missing_devices: Vec<DeviceId>,
-    #[serde(with = "serde_device_id_vec")]
     pub extra_devices: Vec<DeviceId>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct StaleDevices {
-    #[serde(with = "serde_device_id_vec")]
     pub stale_devices: Vec<DeviceId>,
 }
 
@@ -80,6 +75,7 @@ pub struct PushService {
     cfg: ServiceConfiguration,
     credentials: Option<HttpAuth>,
     client: reqwest::Client,
+    user_agent: String,
 }
 
 impl PushService {
@@ -96,10 +92,9 @@ impl PushService {
         }
 
         let client = reqwest::ClientBuilder::new()
-            .tls_certs_only([reqwest::Certificate::from_pem(
-                cfg.certificate_authority.as_bytes(),
-            )
-            .unwrap()])
+            .tls_certs_only(cfg.certificate_authorities.iter().map(|ca| {
+                reqwest::Certificate::from_pem(ca.as_bytes()).unwrap()
+            }))
             .connect_timeout(Duration::from_secs(10))
             // Not a total timeout: attachments take as long as they take to transfer.
             .read_timeout(Duration::from_secs(65))
@@ -113,6 +108,7 @@ impl PushService {
             cfg,
             credentials: credentials.and_then(|c| c.authorization()),
             client,
+            user_agent: user_agent.as_ref().to_owned(),
         }
     }
 
@@ -162,9 +158,9 @@ impl PushService {
             builder = builder.header(*key, *value);
         }
 
-        if let Some(credentials) = credentials {
-            builder =
-                builder.basic_auth(credentials.login(), credentials.password);
+        if let Some(credentials) = &credentials {
+            builder = builder
+                .basic_auth(credentials.login(), credentials.password.clone());
         }
 
         let ws = builder
@@ -175,14 +171,21 @@ impl PushService {
             .instrument(span.clone())
             .await?;
 
+        let grpc = GrpcChannels::new(
+            &self.cfg,
+            credentials.and_then(|c| c.authorization()).as_ref(),
+            &self.user_agent,
+        )?;
         let unidentified_push_service = PushService {
             servers: self.servers,
             cfg: self.cfg.clone(),
             credentials: None,
             client: self.client.clone(),
+            user_agent: self.user_agent.clone(),
         };
         let (ws, task) = SignalWebSocket::new(
             ws,
+            grpc,
             keepalive_path.to_owned(),
             unidentified_push_service,
         );

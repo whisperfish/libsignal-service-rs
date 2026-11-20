@@ -8,11 +8,22 @@ use crate::{
     proto::DeviceName,
     push_service::response::SignalServiceResponse,
     utils::{
-        serde_device_id, serde_e164, serde_optional_base64,
-        serde_optional_base64_url_safe_no_pad, serde_optional_prost_base64,
+        serde_device_id, serde_optional_base64, serde_optional_prost_base64,
     },
     websocket,
 };
+
+use libsignal_net_grpc::proto::chat::account::{
+    accounts_client::AccountsClient, GetAccountIdentityRequest,
+};
+use libsignal_net_grpc::proto::chat::common::{
+    AccountIdentifiers, IdentityType,
+};
+use libsignal_net_grpc::proto::chat::device::{
+    devices_client::DevicesClient, get_devices_response::LinkedDevice,
+    set_device_name_response, GetDevicesRequest, SetDeviceNameRequest,
+};
+use prost::Message;
 
 use super::SignalWebSocket;
 
@@ -36,15 +47,12 @@ pub struct DeviceInfo {
     pub last_seen: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub(crate) struct DeviceInfoEncrypted {
-    #[serde(with = "serde_device_id")]
     pub id: libsignal_core::DeviceId,
-    pub name: Option<String>,
+    pub name: Option<Vec<u8>>,
     pub registration_id: i32,
-    pub created_at_ciphertext: String,
-    #[serde(with = "chrono::serde::ts_milliseconds")]
+    pub created_at_ciphertext: Vec<u8>,
     pub last_seen: DateTime<Utc>,
 }
 
@@ -120,36 +128,55 @@ mod test {
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct WhoAmIResponse {
-    #[serde(rename = "uuid")]
     pub aci: Uuid,
-    #[serde(default)] // nil when not present (yet)
-    pub pni: Uuid,
-    #[serde(with = "serde_e164")]
+    /// None when the account has no PNI.
+    pub pni: Option<Uuid>,
     pub number: libsignal_core::E164,
     /// Hash of the account's username, if one is set.
-    #[serde(default, with = "serde_optional_base64_url_safe_no_pad")]
     pub username_hash: Option<Vec<u8>>,
     /// Handle (UUID) of the account's username link, if one is set.
     ///
     /// Decrypting the username also requires the link entropy, which the
     /// server never sees; only the full `signal.me` link carries it.
-    #[serde(default)]
     pub username_link_handle: Option<Uuid>,
 }
 
 impl SignalWebSocket<websocket::Identified> {
     /// Method used to check our own UUID
     pub async fn whoami(&mut self) -> Result<WhoAmIResponse, ServiceError> {
-        self.http_request(Method::GET, "/v1/accounts/whoami")?
-            .send()
+        const INVALID: ServiceError = ServiceError::InvalidFrame {
+            reason: "invalid GetAccountIdentity response",
+        };
+        let AccountIdentifiers {
+            service_identifiers,
+            e164,
+            username_hash,
+            username_link_handle,
+        } = AccountsClient::new(self.grpc.authenticated()?)
+            .get_account_identity(GetAccountIdentityRequest {})
             .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await
+            .into_inner()
+            .account_identifiers
+            .ok_or(INVALID)?;
+        let uuid_of = |kind: IdentityType| {
+            service_identifiers
+                .iter()
+                .find(|id| id.identity_type() == kind)
+                .map(|id| Uuid::from_slice(&id.uuid).map_err(|_| INVALID))
+                .transpose()
+        };
+        Ok(WhoAmIResponse {
+            aci: uuid_of(IdentityType::Aci)?.ok_or(INVALID)?,
+            pni: uuid_of(IdentityType::Pni)?,
+            number: e164.parse().map_err(|_| INVALID)?,
+            username_hash: (!username_hash.is_empty()).then_some(username_hash),
+            username_link_handle: (!username_link_handle.is_empty())
+                .then(|| Uuid::from_slice(&username_link_handle))
+                .transpose()
+                .map_err(|_| INVALID)?,
+        })
     }
 
     /// Fetches a list of all devices tied to the authenticated account.
@@ -158,21 +185,60 @@ impl SignalWebSocket<websocket::Identified> {
     pub(crate) async fn devices(
         &mut self,
     ) -> Result<Vec<DeviceInfoEncrypted>, ServiceError> {
-        #[derive(serde::Deserialize)]
-        struct DeviceInfoList {
-            devices: Vec<DeviceInfoEncrypted>,
+        DevicesClient::new(self.grpc.authenticated()?)
+            .get_devices(GetDevicesRequest {})
+            .await?
+            .into_inner()
+            .devices
+            .into_iter()
+            .map(|device| {
+                let LinkedDevice {
+                    id,
+                    name,
+                    last_seen,
+                    registration_id,
+                    created_at_ciphertext,
+                } = device;
+                Ok(DeviceInfoEncrypted {
+                    id: libsignal_core::DeviceId::try_from(id)?,
+                    name: (!name.is_empty()).then_some(name),
+                    registration_id: i32::try_from(registration_id).map_err(
+                        |_| ServiceError::InvalidFrame {
+                            reason: "registration id out of range",
+                        },
+                    )?,
+                    created_at_ciphertext,
+                    last_seen: DateTime::from_timestamp_millis(
+                        last_seen as i64,
+                    )
+                    .unwrap_or_default(),
+                })
+            })
+            .collect()
+    }
+
+    pub(crate) async fn set_device_name(
+        &mut self,
+        id: libsignal_core::DeviceId,
+        name: &DeviceName,
+    ) -> Result<(), ServiceError> {
+        use set_device_name_response::Response;
+        let response = DevicesClient::new(self.grpc.authenticated()?)
+            .set_device_name(SetDeviceNameRequest {
+                name: name.encode_to_vec(),
+                id: u8::from(id).into(),
+            })
+            .await?
+            .into_inner();
+        match response.response {
+            Some(Response::Success(())) => Ok(()),
+            Some(Response::TargetDeviceNotFound(_)) => {
+                Err(ServiceError::NotFoundError)
+            },
+            None => Err(ServiceError::InvalidFrame {
+                reason: "empty SetDeviceName response",
+            }),
         }
-
-        let devices: DeviceInfoList = self
-            .http_request(Method::GET, "/v1/devices")?
-            .send()
-            .await?
-            .service_error_for_status()
-            .await?
-            .json()
-            .await?;
-
-        Ok(devices.devices)
     }
 
     pub async fn set_account_attributes(
