@@ -82,6 +82,51 @@ pub struct PushService {
     client: reqwest::Client,
 }
 
+// Under the 30 s after which Signal's storage service closes an idle connection.
+const POOL_IDLE: Duration = Duration::from_secs(20);
+
+fn client_builder() -> reqwest::ClientBuilder {
+    // Use the ring provider except if the application already installed one.
+    if rustls::crypto::CryptoProvider::get_default().is_none() {
+        let _ = rustls::crypto::ring::default_provider().install_default();
+    }
+    reqwest::ClientBuilder::new()
+        .connect_timeout(Duration::from_secs(10))
+        // Not a total timeout: attachments take as long as they take to transfer.
+        .read_timeout(Duration::from_secs(65))
+        .http1_only()
+        .pool_idle_timeout(POOL_IDLE)
+        .retry(
+            reqwest::retry::for_host(AnyHost)
+                .max_retries_per_request(1)
+                .classify_fn(|req_rep| {
+                    let closed =
+                        req_rep.error().is_some_and(closed_under_request);
+                    if closed && req_rep.method() == Method::GET {
+                        req_rep.retryable()
+                    } else {
+                        req_rep.success()
+                    }
+                }),
+        )
+}
+
+struct AnyHost;
+
+impl PartialEq<&str> for AnyHost {
+    fn eq(&self, _: &&str) -> bool {
+        true
+    }
+}
+
+fn closed_under_request(error: &(dyn std::error::Error + 'static)) -> bool {
+    std::iter::successors(Some(error), |error| error.source()).any(|error| {
+        error
+            .downcast_ref::<hyper::Error>()
+            .is_some_and(hyper::Error::is_incomplete_message)
+    })
+}
+
 impl PushService {
     pub fn new(
         env: SignalServers,
@@ -90,21 +135,12 @@ impl PushService {
     ) -> Self {
         let cfg: ServiceConfiguration = env.into();
 
-        // Use the ring provider except if the application already installed one.
-        if rustls::crypto::CryptoProvider::get_default().is_none() {
-            let _ = rustls::crypto::ring::default_provider().install_default();
-        }
-
-        let client = reqwest::ClientBuilder::new()
+        let client = client_builder()
             .tls_certs_only([reqwest::Certificate::from_pem(
                 cfg.certificate_authority.as_bytes(),
             )
             .unwrap()])
-            .connect_timeout(Duration::from_secs(10))
-            // Not a total timeout: attachments take as long as they take to transfer.
-            .read_timeout(Duration::from_secs(65))
             .user_agent(user_agent.as_ref())
-            .http1_only()
             .build()
             .unwrap();
 
@@ -358,6 +394,10 @@ pub(crate) mod protobuf {
 mod tests {
     use crate::configuration::SignalServers;
     use bytes::{Buf, Bytes};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    use super::client_builder;
 
     #[test]
     fn create_clients() {
@@ -385,5 +425,58 @@ mod tests {
     fn serde_json_form_empty_vec() {
         // If we're trying to send and empty payload, serde_json must be able to make a Vec out of it
         assert!(serde_json::to_vec(b"").is_ok());
+    }
+
+    async fn closing_server() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            loop {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                tokio::spawn(async move {
+                    let mut buf = [0u8; 4096];
+                    if socket.read(&mut buf).await.unwrap_or(0) == 0 {
+                        return;
+                    }
+                    let _ = socket
+                        .write_all(
+                            b"HTTP/1.1 200 OK\r\ncontent-length: 2\r\n\r\nok",
+                        )
+                        .await;
+                    let _ = socket.read(&mut buf).await;
+                });
+            }
+        });
+        url
+    }
+
+    #[tokio::test]
+    async fn a_get_on_a_connection_closing_under_it_is_sent_again() {
+        let url = closing_server().await;
+        let client = client_builder().build().unwrap();
+        client.get(&url).send().await.unwrap();
+        let again = client.get(&url).send().await;
+        assert!(again.is_ok(), "{again:?}");
+    }
+
+    #[tokio::test]
+    async fn without_the_retry_the_get_fails() {
+        let url = closing_server().await;
+        let client = client_builder()
+            .retry(reqwest::retry::never())
+            .build()
+            .unwrap();
+        client.get(&url).send().await.unwrap();
+        let error = client.get(&url).send().await.unwrap_err();
+        assert!(super::closed_under_request(&error), "{error:?}");
+    }
+
+    #[tokio::test]
+    async fn a_post_is_not_sent_again() {
+        let url = closing_server().await;
+        let client = client_builder().build().unwrap();
+        client.get(&url).send().await.unwrap();
+        let error = client.post(&url).body("x").send().await.unwrap_err();
+        assert!(super::closed_under_request(&error), "{error:?}");
     }
 }
