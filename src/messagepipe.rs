@@ -17,7 +17,7 @@ pub use crate::{
 
 use crate::{
     push_service::ServiceError,
-    websocket::{self, SignalWebSocket},
+    websocket::{self, InvalidFrame, SignalWebSocket, WsClosingReason},
 };
 
 #[derive(Debug)]
@@ -64,6 +64,11 @@ impl MessagePipe {
 
         ws.return_request_stream(stream);
 
+        // Signal's requests stop when the socket's task ends; its error says why.
+        if let Some(Err(error)) = ws.outcome().await {
+            sink.send(Err(error)).await?;
+        }
+
         Ok(())
     }
 
@@ -77,13 +82,10 @@ impl MessagePipe {
 
         // XXX Change the signature of this method to yield an enum of Envelope and EndOfQueue
         let result = if request.is_signal_service_envelope() {
-            let body = if let Some(body) = request.body.as_ref() {
-                body
-            } else {
-                return Err(ServiceError::InvalidFrame {
-                    reason: "request without body.",
-                });
-            };
+            let body = request
+                .body
+                .as_ref()
+                .ok_or(InvalidFrame::EnvelopeWithoutBody)?;
             Some(Incoming::Envelope(Envelope::decode(body.as_slice())?))
         } else if request.is_queue_empty() {
             Some(Incoming::QueueEmpty)
@@ -94,7 +96,7 @@ impl MessagePipe {
         responder
             .send(response)
             .map_err(|_| ServiceError::WsClosing {
-                reason: "could not respond to message pipe request",
+                reason: WsClosingReason::ResponseUndeliverable,
             })?;
 
         Ok(result)

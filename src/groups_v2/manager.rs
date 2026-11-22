@@ -57,12 +57,13 @@ impl CredentialResponse {
     }
 }
 
+/// What went wrong in a [`CredentialsCache`]. The cause is the implementation's own error.
 #[derive(Debug, thiserror::Error)]
 pub enum CredentialsCacheError {
-    #[error("failed to read values from cache: {0}")]
-    ReadError(String),
-    #[error("failed to write values from cache: {0}")]
-    WriteError(String),
+    #[error("failed to read from the credentials cache")]
+    ReadError(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("failed to write to the credentials cache")]
+    WriteError(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Global cache for groups v2 credentials, as demonstrated in the libsignal-service
@@ -189,12 +190,9 @@ impl<C: CredentialsCache> GroupsManager<C> {
                 .await?;
             self.credentials_cache
                 .write(credentials_response.parse()?)?;
-            self.credentials_cache.get(&today)?.ok_or({
-                ServiceError::InvalidFrame {
-                    reason:
-                        "credentials received did not contain requested day",
-                }
-            })?
+            self.credentials_cache
+                .get(&today)?
+                .ok_or(ServiceError::MissingGroupCredential { day: today })?
         };
 
         self.get_authorization_string(
