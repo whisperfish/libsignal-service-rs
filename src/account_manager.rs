@@ -38,7 +38,9 @@ use crate::push_service::{
 };
 use crate::service_address::ServiceIdExt;
 use crate::utils::{serde_base64, BASE64_RELAXED};
-use crate::websocket::account::{AccountAttributes, DeviceCapabilities, DeviceInfo};
+use crate::websocket::account::{
+    AccountAttributes, DeviceCapabilities, DeviceInfo,
+};
 use crate::websocket::registration::CaptchaAttributes;
 use crate::websocket::{self, SignalWebSocket};
 
