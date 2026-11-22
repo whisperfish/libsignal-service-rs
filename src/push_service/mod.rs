@@ -80,14 +80,17 @@ pub struct PushService {
     client: reqwest::Client,
 }
 
+// Under the 30 s after which Signal's storage service closes an idle connection.
 const POOL_IDLE: Duration = Duration::from_secs(20);
 
 fn client_builder() -> reqwest::ClientBuilder {
+    // Use the ring provider except if the application already installed one.
     if rustls::crypto::CryptoProvider::get_default().is_none() {
         let _ = rustls::crypto::ring::default_provider().install_default();
     }
     reqwest::ClientBuilder::new()
         .connect_timeout(Duration::from_secs(10))
+        // Not a total timeout: attachments take as long as they take to transfer.
         .read_timeout(Duration::from_secs(65))
         .http1_only()
         .pool_idle_timeout(POOL_IDLE)
