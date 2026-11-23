@@ -475,6 +475,7 @@ impl AccountManager {
             media_root_backup_key: media_root_backup_key.map(|k| k.to_vec()), // 32-bytes
             aci_binary: credentials.aci.map(|u| u.into_bytes().into()),
             pni_binary: credentials.pni.map(|u| u.into_bytes().into()),
+            auth_credential_salt: None,
         };
 
         let cipher = ProvisioningCipher::from_public(pub_key);
