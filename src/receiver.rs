@@ -78,7 +78,8 @@ impl MessageReceiver {
             let key: [u8; 64] =
                 blob.key().try_into().map_err(|_| ServiceError::MacError)?;
 
-            decrypt_in_place(key, &mut ciphertext)
+            let plaintext_len = blob.size.and_then(|len| len.try_into().ok());
+            decrypt_in_place(key, &mut ciphertext, plaintext_len)
                 .map_err(|_| ServiceError::MacError)?;
 
             Ok(DeviceContactsIterator::new(Bytes::from(ciphertext)))
@@ -91,11 +92,17 @@ impl MessageReceiver {
 #[derive(Default)]
 struct DeviceContactsIterator {
     decrypted_buffer: Bytes,
+    total: usize,
+    parsed: usize,
 }
 
 impl DeviceContactsIterator {
     fn new(decrypted_buffer: Bytes) -> Self {
-        Self { decrypted_buffer }
+        Self {
+            total: decrypted_buffer.len(),
+            decrypted_buffer,
+            parsed: 0,
+        }
     }
 }
 
@@ -110,25 +117,130 @@ impl Iterator for DeviceContactsIterator {
         }
 
         let contact_details: ContactDetails =
-            prost::Message::decode_length_delimited(&mut self.decrypted_buffer)
-                .map_err(ParseContactError::Protobuf)
-                .ok()?;
+            match prost::Message::decode_length_delimited(
+                &mut self.decrypted_buffer,
+            ) {
+                Ok(contact_details) => contact_details,
+                Err(error) => {
+                    tracing::warn!(
+                        parsed = self.parsed,
+                        total = self.total,
+                        "undecodable contact; stopping"
+                    );
+                    self.decrypted_buffer.clear();
+                    return Some(Err(ParseContactError::Protobuf(error)));
+                },
+            };
 
-        let avatar_data = if let Some(Avatar {
-            length: Some(length),
-            ..
-        }) = contact_details.avatar
-        {
-            let length = length as usize;
-            if length > self.decrypted_buffer.remaining() {
-                self.decrypted_buffer.clear();
-                return Some(Err(ParseContactError::AvatarPastEnd));
-            }
-            Some(self.decrypted_buffer.copy_to_bytes(length))
-        } else {
-            None
+        let avatar_data = match contact_details.avatar {
+            Some(Avatar {
+                length: Some(length),
+                ..
+            }) => {
+                let needed = length as usize;
+                let remaining = self.decrypted_buffer.remaining();
+                if needed > remaining {
+                    tracing::warn!(
+                        parsed = self.parsed,
+                        needed,
+                        remaining,
+                        total = self.total,
+                        "contact avatar runs past the end of the contacts; stopping"
+                    );
+                    self.decrypted_buffer.clear();
+                    return Some(Err(ParseContactError::Truncated {
+                        needed,
+                        remaining,
+                    }));
+                }
+                Some(self.decrypted_buffer.copy_to_bytes(needed))
+            },
+            Some(Avatar { length: None, .. }) => {
+                tracing::warn!(
+                    parsed = self.parsed,
+                    "contact avatar without a length"
+                );
+                None
+            },
+            None => None,
         };
+        self.parsed += 1;
 
         Some(Contact::from_proto(contact_details, avatar_data))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use bytes::{BufMut, BytesMut};
+    use prost::Message;
+
+    use super::*;
+    use crate::proto::{contact_details::Avatar, ContactDetails};
+
+    fn details(avatar_length: Option<u32>) -> ContactDetails {
+        ContactDetails {
+            aci: Some("9d0652a3-dcc3-4d11-975f-74d61598733f".into()),
+            name: Some("Contact".into()),
+            avatar: avatar_length.map(|length| Avatar {
+                content_type: Some("image/png".into()),
+                length: Some(length),
+            }),
+            ..Default::default()
+        }
+    }
+
+    /// Length-delimited details, each followed by `avatar_bytes` bytes.
+    fn buffer(parts: &[(ContactDetails, usize)]) -> Bytes {
+        let mut buffer = BytesMut::new();
+        for (details, avatar_bytes) in parts {
+            details.encode_length_delimited(&mut buffer).unwrap();
+            buffer.put_bytes(0xaa, *avatar_bytes);
+        }
+        buffer.freeze()
+    }
+
+    #[test]
+    fn reads_contacts_with_and_without_avatars() {
+        let contacts: Vec<_> = DeviceContactsIterator::new(buffer(&[
+            (details(Some(3)), 3),
+            (details(None), 0),
+        ]))
+        .collect();
+
+        assert_eq!(contacts.len(), 2);
+        assert!(contacts.iter().all(Result::is_ok));
+    }
+
+    #[test]
+    fn truncated_avatar_ends_iteration_instead_of_panicking() {
+        let mut contacts = DeviceContactsIterator::new(buffer(&[
+            (details(None), 0),
+            (details(Some(100)), 10),
+            (details(None), 0),
+        ]));
+
+        assert!(contacts.next().unwrap().is_ok());
+        assert!(matches!(
+            contacts.next(),
+            Some(Err(ParseContactError::Truncated { needed: 100, .. }))
+        ));
+        assert!(contacts.next().is_none());
+    }
+
+    #[test]
+    fn undecodable_contact_ends_iteration_with_an_error() {
+        let mut bytes = BytesMut::from(&buffer(&[(details(None), 0)])[..]);
+        // A length prefix running past the end.
+        bytes.put_u8(100);
+        bytes.put_bytes(0xaa, 10);
+        let mut contacts = DeviceContactsIterator::new(bytes.freeze());
+
+        assert!(contacts.next().unwrap().is_ok());
+        assert!(matches!(
+            contacts.next(),
+            Some(Err(ParseContactError::Protobuf(_)))
+        ));
+        assert!(contacts.next().is_none());
     }
 }

@@ -54,11 +54,13 @@ pub fn encrypt_in_place(iv: [u8; 16], key: [u8; 64], plaintext: &mut Vec<u8>) {
 
 /// Decrypts an attachment in place, given the key material.
 ///
+/// When `plaintext_len` is known, padding beyond it is stripped.
 /// On error, ciphertext is not changed.
 #[tracing::instrument(skip(key, ciphertext))]
 pub fn decrypt_in_place(
     key: [u8; 64],
     ciphertext: &mut Vec<u8>,
+    plaintext_len: Option<usize>,
 ) -> Result<(), AttachmentCipherError> {
     let key: &Array<u8, U64> = (&key).into();
     let (aes_half, mac_half) = key.split_ref::<U32>();
@@ -86,7 +88,18 @@ pub fn decrypt_in_place(
         .decrypt_padded::<Pkcs7>(buffer)
         .map_err(|_| AttachmentCipherError::PaddingError)?;
 
-    let plaintext_len = plaintext_slice.len();
+    let plaintext_len = match plaintext_len {
+        Some(len) if len <= plaintext_slice.len() => len,
+        Some(len) => {
+            tracing::warn!(
+                len,
+                plaintext = plaintext_slice.len(),
+                "attachment shorter than its declared size"
+            );
+            plaintext_slice.len()
+        },
+        None => plaintext_slice.len(),
+    };
 
     // Get rid of IV and MAC
     ciphertext.copy_within(16..(plaintext_len + 16), 0);
@@ -112,7 +125,7 @@ mod tests {
         let mut buf = Vec::from(plaintext as &[u8]);
         encrypt_in_place(iv, key, &mut buf);
         assert_ne!(&buf, &plaintext);
-        decrypt_in_place(key, &mut buf)?;
+        decrypt_in_place(key, &mut buf, None)?;
         assert_eq!(&buf, &plaintext);
         Ok(())
     }
@@ -127,7 +140,7 @@ mod tests {
         let mut buf = Vec::from(plaintext as &[u8]);
         encrypt_in_place(iv, key, &mut buf);
         assert_ne!(&buf, &plaintext);
-        decrypt_in_place(key, &mut buf)?;
+        decrypt_in_place(key, &mut buf, None)?;
         assert_eq!(&buf, &plaintext);
         Ok(())
     }
@@ -145,7 +158,7 @@ mod tests {
         // Generate bad key
         rand::rng().fill_bytes(&mut key);
         assert_eq!(
-            decrypt_in_place(key, &mut buf).unwrap_err(),
+            decrypt_in_place(key, &mut buf, None).unwrap_err(),
             AttachmentCipherError::MacError
         );
         assert_ne!(&buf, &plaintext);
@@ -162,9 +175,7 @@ mod tests {
             78, 205, 62, 153, 108,
         ];
 
-        decrypt_in_place(key_material, &mut ciphertext)?;
-        // This 32 is given by the AttachmentPointer
-        ciphertext.truncate(32);
+        decrypt_in_place(key_material, &mut ciphertext, Some(32))?;
         assert_eq!(ciphertext, b"test for libsignal-service-rust\n");
         Ok(())
     }
