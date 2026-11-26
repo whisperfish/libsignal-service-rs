@@ -5,6 +5,7 @@ use libsignal_protocol::{
     ServiceIdKind, SignalProtocolError,
 };
 use reqwest::Method;
+use serde::Deserialize;
 
 use crate::protocol::PreKeyRecord;
 use crate::{
@@ -19,10 +20,6 @@ use crate::{
 
 use libsignal_net_grpc::proto::chat::{
     common::{EcPreKey, EcSignedPreKey, IdentityType, KemSignedPreKey},
-    credentials::{
-        credentials_client::CredentialsClient, GetDeliveryCertificateRequest,
-        GetDeliveryCertificateResponse,
-    },
     keys::{
         get_pre_keys_response, keys_client::KeysClient, AccountPreKeyBundles,
         DevicePreKeyBundle, GetPreKeyCountRequest, GetPreKeysRequest,
@@ -264,28 +261,36 @@ impl SignalWebSocket<websocket::Identified> {
     pub async fn get_sender_certificate(
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
-        let certs = self.delivery_certificates().await?;
-        Ok(SenderCertificate::deserialize(
-            &certs.certificate_with_e164,
-        )?)
+        self.delivery_certificate("/v1/certificate/delivery").await
     }
 
     pub async fn get_uuid_only_sender_certificate(
         &mut self,
     ) -> Result<SenderCertificate, ServiceError> {
-        let certs = self.delivery_certificates().await?;
-        Ok(SenderCertificate::deserialize(
-            &certs.certificate_without_e164,
-        )?)
+        self.delivery_certificate("/v1/certificate/delivery?includeE164=false")
+            .await
     }
 
-    async fn delivery_certificates(
+    // Production does not allow Credentials.GetDeliveryCertificate over gRPC.
+    async fn delivery_certificate(
         &mut self,
-    ) -> Result<GetDeliveryCertificateResponse, ServiceError> {
-        Ok(CredentialsClient::new(self.grpc.authenticated()?)
-            .get_delivery_certificate(GetDeliveryCertificateRequest {})
+        path: &str,
+    ) -> Result<SenderCertificate, ServiceError> {
+        #[derive(Deserialize)]
+        struct SenderCertificateJson {
+            #[serde(with = "serde_base64")]
+            certificate: Vec<u8>,
+        }
+
+        let cert: SenderCertificateJson = self
+            .http_request(Method::GET, path)?
+            .send()
             .await?
-            .into_inner())
+            .service_error_for_status()
+            .await?
+            .json()
+            .await?;
+        Ok(SenderCertificate::deserialize(&cert.certificate)?)
     }
 }
 
