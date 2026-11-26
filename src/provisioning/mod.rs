@@ -170,6 +170,7 @@ pub struct NewDeviceRegistration {
     /// One-time key for an initial linked-device message-history transfer.
     #[debug(ignore)]
     pub ephemeral_backup_key: Option<[u8; 32]>,
+    pub read_receipts: Option<bool>,
 }
 
 pub async fn link_device<
@@ -269,6 +270,8 @@ pub async fn link_device<
                 })
             })
             .transpose()?;
+
+        let read_receipts = message.read_receipts;
 
         let phone_number = message
             .number
@@ -396,6 +399,7 @@ pub async fn link_device<
                 profile_key,
                 account_entropy_pool,
                 ephemeral_backup_key,
+                read_receipts,
             },
         ))
         .await
