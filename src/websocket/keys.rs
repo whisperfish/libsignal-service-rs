@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use libsignal_core::DeviceId;
 use libsignal_protocol::{
     kem::{Key, Public},
@@ -15,9 +13,8 @@ use crate::{
     },
     push_service::response::SignalServiceResponse,
     push_service::DEFAULT_DEVICE_ID,
-    sender::OutgoingPushMessage,
     utils::serde_base64,
-    websocket::{self, registration::VerifyAccountResponse, SignalWebSocket},
+    websocket::{self, SignalWebSocket},
 };
 
 use libsignal_net_grpc::proto::chat::{
@@ -289,50 +286,6 @@ impl SignalWebSocket<websocket::Identified> {
             .get_delivery_certificate(GetDeliveryCertificateRequest {})
             .await?
             .into_inner())
-    }
-
-    pub async fn distribute_pni_keys(
-        &mut self,
-        pni_identity_key: &IdentityKey,
-        device_messages: Vec<OutgoingPushMessage>,
-        device_pni_signed_prekeys: HashMap<String, SignedPreKeyEntity>,
-        device_pni_last_resort_kyber_prekeys: HashMap<
-            String,
-            KyberPreKeyEntity,
-        >,
-        pni_registration_ids: HashMap<String, u32>,
-        signature_valid_on_each_signed_pre_key: bool,
-    ) -> Result<VerifyAccountResponse, ServiceError> {
-        #[derive(serde::Serialize, Debug)]
-        #[serde(rename_all = "camelCase")]
-        struct PniKeyDistributionRequest {
-            #[serde(with = "serde_base64")]
-            pni_identity_key: Vec<u8>,
-            device_messages: Vec<OutgoingPushMessage>,
-            device_pni_signed_prekeys: HashMap<String, SignedPreKeyEntity>,
-            #[serde(rename = "devicePniPqLastResortPrekeys")]
-            device_pni_last_resort_kyber_prekeys:
-                HashMap<String, KyberPreKeyEntity>,
-            pni_registration_ids: HashMap<String, u32>,
-            signature_valid_on_each_signed_pre_key: bool,
-        }
-        self.http_request(
-            Method::PUT,
-            "/v2/accounts/phone_number_identity_key_distribution",
-        )?
-        .send_json(&PniKeyDistributionRequest {
-            pni_identity_key: pni_identity_key.serialize().into(),
-            device_messages,
-            device_pni_signed_prekeys,
-            device_pni_last_resort_kyber_prekeys,
-            pni_registration_ids,
-            signature_valid_on_each_signed_pre_key,
-        })
-        .await?
-        .service_error_for_status()
-        .await?
-        .json()
-        .await
     }
 }
 
