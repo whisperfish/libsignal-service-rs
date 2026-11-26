@@ -65,6 +65,9 @@ pub type SendMessageResult = Result<SentMessage, MessageSenderError>;
 #[derive(Debug, Clone)]
 pub struct SentMessage {
     pub recipient: ServiceId,
+    /// The recipient's devices it went to, to answer retry requests only
+    /// from them.
+    pub devices: Vec<DeviceId>,
     pub used_identity_key: IdentityKey,
     pub unidentified: bool,
     pub needs_sync: bool,
@@ -635,6 +638,10 @@ where
                 return Err(MessageSenderError::NoMessagesToSend);
             };
 
+            let devices = messages
+                .iter()
+                .map(|message| message.destination_device_id)
+                .collect();
             let messages = OutgoingPushMessages {
                 destination: recipient,
                 timestamp,
@@ -660,6 +667,7 @@ where
                     tracing::debug!("message sent!");
                     return Ok(SentMessage {
                         recipient,
+                        devices,
                         used_identity_key,
                         unidentified: unidentified_access.is_some(),
                         needs_sync,

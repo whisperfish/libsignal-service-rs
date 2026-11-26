@@ -4,10 +4,11 @@ use libsignal_core::DeviceId;
 use libsignal_protocol::{
     kem::{Key, Public},
     IdentityKey, PreKeyBundle, PublicKey, SenderCertificate, ServiceId,
-    ServiceIdKind,
+    ServiceIdKind, SignalProtocolError,
 };
 use reqwest::Method;
 
+use crate::protocol::PreKeyRecord;
 use crate::{
     pre_keys::{
         KyberPreKeyEntity, PreKeyEntity, PreKeyState, SignedPreKeyEntity,
@@ -39,6 +40,16 @@ use super::ServiceError;
 pub struct PreKeyStatus {
     pub count: u32,
     pub pq_count: u32,
+}
+
+impl TryFrom<&'_ PreKeyRecord> for PreKeyEntity {
+    type Error = SignalProtocolError;
+    fn try_from(key: &'_ PreKeyRecord) -> Result<Self, Self::Error> {
+        Ok(PreKeyEntity {
+            key_id: key.id()?.into(),
+            public_key: key.key_pair()?.public_key.serialize().to_vec(),
+        })
+    }
 }
 
 impl SignalWebSocket<websocket::Identified> {
@@ -106,7 +117,7 @@ impl SignalWebSocket<websocket::Identified> {
     pub async fn register_pre_keys(
         &mut self,
         service_id_kind: ServiceIdKind,
-        pre_key_state: PreKeyState,
+        pre_key_state: &PreKeyState,
     ) -> Result<(), ServiceError> {
         let identity_type = match service_id_kind {
             ServiceIdKind::Aci => IdentityType::Aci,
@@ -122,19 +133,19 @@ impl SignalWebSocket<websocket::Identified> {
         } = pre_key_state;
         let mut keys = KeysClient::new(self.grpc.authenticated()?);
 
-        if !pre_keys.is_empty() {
+        if let Some(pre_keys) = pre_keys.as_ref().filter(|k| !k.is_empty()) {
             keys.set_one_time_ec_pre_keys(SetOneTimeEcPreKeysRequest {
                 identity_type,
                 pre_keys: pre_keys
-                    .into_iter()
+                    .iter()
                     .map(
                         |PreKeyEntity {
                              key_id: id,
                              public_key,
                          }| {
                             Ok(EcPreKey {
-                                key_id: key_id(id)?,
-                                public_key,
+                                key_id: key_id(*id)?,
+                                public_key: public_key.clone(),
                             })
                         },
                     )
@@ -143,20 +154,22 @@ impl SignalWebSocket<websocket::Identified> {
             .await?;
         }
 
-        let SignedPreKeyEntity {
+        if let Some(SignedPreKeyEntity {
             key_id: signed_key_id,
             public_key,
             signature,
-        } = signed_pre_key;
-        keys.set_ec_signed_pre_key(SetEcSignedPreKeyRequest {
-            identity_type,
-            signed_pre_key: Some(EcSignedPreKey {
-                key_id: key_id(signed_key_id)?,
-                public_key,
-                signature,
-            }),
-        })
-        .await?;
+        }) = signed_pre_key
+        {
+            keys.set_ec_signed_pre_key(SetEcSignedPreKeyRequest {
+                identity_type,
+                signed_pre_key: Some(EcSignedPreKey {
+                    key_id: key_id(*signed_key_id)?,
+                    public_key: public_key.clone(),
+                    signature: signature.clone(),
+                }),
+            })
+            .await?;
+        }
 
         if let Some(KyberPreKeyEntity {
             key_id: last_resort_key_id,
@@ -167,20 +180,22 @@ impl SignalWebSocket<websocket::Identified> {
             keys.set_kem_last_resort_pre_key(SetKemLastResortPreKeyRequest {
                 identity_type,
                 signed_pre_key: Some(KemSignedPreKey {
-                    key_id: key_id(last_resort_key_id)?,
-                    public_key,
-                    signature,
+                    key_id: key_id(*last_resort_key_id)?,
+                    public_key: public_key.clone(),
+                    signature: signature.clone(),
                 }),
             })
             .await?;
         }
 
-        if !pq_pre_keys.is_empty() {
+        if let Some(pq_pre_keys) =
+            pq_pre_keys.as_ref().filter(|k| !k.is_empty())
+        {
             keys.set_one_time_kem_signed_pre_keys(
                 SetOneTimeKemSignedPreKeysRequest {
                     identity_type,
                     pre_keys: pq_pre_keys
-                        .into_iter()
+                        .iter()
                         .map(
                             |KyberPreKeyEntity {
                                  key_id: id,
@@ -188,9 +203,9 @@ impl SignalWebSocket<websocket::Identified> {
                                  signature,
                              }| {
                                 Ok(KemSignedPreKey {
-                                    key_id: key_id(id)?,
-                                    public_key,
-                                    signature,
+                                    key_id: key_id(*id)?,
+                                    public_key: public_key.clone(),
+                                    signature: signature.clone(),
                                 })
                             },
                         )
