@@ -11,12 +11,24 @@ use zkgroup::ServerPublicParams;
 
 use crate::push_service::{HttpAuth, DEFAULT_DEVICE_ID};
 
+const SIGNAL_ROOT_CERTIFICATE_AUTHORITIES: [&str; 2] = [
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/certs/signal-root-ca-2022-01-26.pem"
+    )),
+    include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/certs/signal-root-ca-2026-06-16.pem"
+    )),
+];
+
 #[derive(Clone)]
 pub struct ServiceConfiguration {
     service_url: Url,
+    grpc_url: Url,
     storage_url: Url,
     cdn_urls: HashMap<u32, Url>,
-    pub certificate_authority: String,
+    pub certificate_authorities: Vec<String>,
     pub unidentified_sender_trust_roots: Vec<PublicKey>,
     pub zkgroup_server_public_params: ServerPublicParams,
 }
@@ -78,6 +90,7 @@ impl From<SignalServers> for libsignal_net::env::Env<'static> {
 #[derive(Debug)]
 pub enum Endpoint<'a> {
     Absolute(Url),
+    Grpc,
     Service {
         path: Cow<'a, str>,
     },
@@ -95,6 +108,7 @@ impl fmt::Display for Endpoint<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Endpoint::Absolute(url) => write!(f, "absolute URL {url}"),
+            Endpoint::Grpc => write!(f, "gRPC endpoint"),
             Endpoint::Service { path } => {
                 write!(f, "service API call to {path}")
             },
@@ -160,6 +174,7 @@ impl<'a> Endpoint<'a> {
                 Ok(url)
             },
             Endpoint::Absolute(url) => Ok(url),
+            Endpoint::Grpc => Ok(service_configuration.grpc_url.clone()),
         }
     }
 }
@@ -203,6 +218,7 @@ impl From<&SignalServers> for ServiceConfiguration {
             // see: https://github.com/signalapp/Signal-Desktop/blob/master/config/default.json
             SignalServers::Staging => ServiceConfiguration {
                 service_url: "https://chat.staging.signal.org".parse().unwrap(),
+                grpc_url: "https://grpc.chat.staging.signal.org".parse().unwrap(),
                 storage_url:"https://storage-staging.signal.org".parse().unwrap(),
                 cdn_urls: {
                     let mut map = HashMap::new();
@@ -211,7 +227,7 @@ impl From<&SignalServers> for ServiceConfiguration {
                     map.insert(3, "https://cdn3-staging.signal.org".parse().unwrap());
                     map
                 },
-                certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/staging-root-ca.pem")).to_string(),
+                certificate_authorities: SIGNAL_ROOT_CERTIFICATE_AUTHORITIES.map(String::from).to_vec(),
                 unidentified_sender_trust_roots: vec![
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BbqY1DzohE4NUZoVF+L18oUPrK3kILllLEJh2UnPSsEx").unwrap()).unwrap(),
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BYhU6tPjqP46KGZEzRs1OL4U39V5dlPJ/X09ha4rErkm").unwrap()).unwrap(),
@@ -223,6 +239,7 @@ impl From<&SignalServers> for ServiceConfiguration {
             SignalServers::Production => ServiceConfiguration {
                 service_url:
                     "https://chat.signal.org".parse().unwrap(),
+                grpc_url: "https://grpc.chat.signal.org".parse().unwrap(),
                 storage_url: "https://storage.signal.org".parse().unwrap(),
                 cdn_urls: {
                     let mut map = HashMap::new();
@@ -231,7 +248,7 @@ impl From<&SignalServers> for ServiceConfiguration {
                     map.insert(3, "https://cdn3.signal.org".parse().unwrap());
                     map
                 },
-                certificate_authority: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/certs/production-root-ca.pem")).to_string(),
+                certificate_authorities: SIGNAL_ROOT_CERTIFICATE_AUTHORITIES.map(String::from).to_vec(),
                 unidentified_sender_trust_roots: vec![
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BXu6QIKVz5MA8gstzfOgRQGqyLqOwNKHL6INkv3IHWMF").unwrap()).unwrap(),
                     PublicKey::deserialize(&BASE64_RELAXED.decode("BUkY0I+9+oPgDCn4+Ac6Iu813yvqkDr/ga8DzLxFxuk6").unwrap()).unwrap(),

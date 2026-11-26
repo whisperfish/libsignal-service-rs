@@ -1,22 +1,16 @@
-use crate::utils::serde_base64_url_safe_no_pad;
 use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
 use libsignal_core::{Aci, ServiceIdKind};
-use reqwest::Method;
-use serde::Serialize;
+use libsignal_net_grpc::proto::chat::account::{
+    accounts_anonymous_client::AccountsAnonymousClient,
+    accounts_client::AccountsClient, lookup_username_hash_response,
+    lookup_username_link_response, set_username_link_response,
+    LookupUsernameHashRequest, LookupUsernameLinkRequest,
+    SetUsernameLinkRequest,
+};
 
 use crate::content::ServiceError;
-use crate::push_service::response::error_mapper;
-use crate::push_service::response::SignalServiceResponse;
 
 use super::{Identified, SignalWebSocket, Unidentified};
-
-// Signal-Server: controllers/AccountController.java:415
-// (PUT /v1/accounts/username_link)
-error_mapper! {
-    put_username_link_errors:
-        // 409: username hash not set, AccountController.java:427
-        CONFLICT => UsernameHashNotSet,
-}
 
 impl SignalWebSocket<Unidentified> {
     pub async fn look_up_username(
@@ -26,40 +20,30 @@ impl SignalWebSocket<Unidentified> {
         self.look_up_username_hash(&username.hash()).await
     }
 
-    // Based on libsignal-net
     pub async fn look_up_username_hash(
         &mut self,
         hash: &[u8],
     ) -> Result<Option<Aci>, ServiceError> {
-        #[derive(serde::Deserialize)]
-        struct UsernameHashResponse {
-            uuid: String,
+        use lookup_username_hash_response::Response;
+        let response =
+            AccountsAnonymousClient::new(self.grpc.unauthenticated())
+                .lookup_username_hash(LookupUsernameHashRequest {
+                    username_hash: hash.to_vec(),
+                })
+                .await?
+                .into_inner();
+        match response.response {
+            Some(Response::ServiceIdentifier(id)) => {
+                let uuid = uuid::Uuid::from_slice(&id.uuid).map_err(|_| {
+                    ServiceError::InvalidAddressType(ServiceIdKind::Aci)
+                })?;
+                Ok(Some(Aci::from(uuid)))
+            },
+            Some(Response::NotFound(_)) => Ok(None),
+            None => Err(ServiceError::InvalidFrame {
+                reason: "empty LookupUsernameHash response",
+            }),
         }
-
-        let response = self
-            .http_request(
-                Method::GET,
-                format!(
-                    "/v1/accounts/username_hash/{}",
-                    BASE64_URL_SAFE_NO_PAD.encode(hash)
-                ),
-            )?
-            .send()
-            .await?;
-
-        if response.status() == 404 {
-            tracing::debug!("username not found");
-            return Ok(None);
-        }
-
-        let result: UsernameHashResponse =
-            response.service_error_for_status().await?.json().await?;
-
-        Ok(Some(
-            Aci::parse_from_service_id_string(&result.uuid).ok_or_else(
-                || ServiceError::InvalidAddressType(ServiceIdKind::Aci),
-            )?,
-        ))
     }
 
     /// Looks up the encrypted username stored at a username link handle and
@@ -73,39 +57,38 @@ impl SignalWebSocket<Unidentified> {
         &mut self,
         link: &url::Url,
     ) -> Result<Option<usernames::Username>, ServiceError> {
-        #[derive(serde::Deserialize)]
-        struct UsernameLinkResponse {
-            #[serde(rename = "usernameLinkEncryptedValue")]
-            #[serde(with = "serde_base64_url_safe_no_pad")]
-            encrypted_username: Vec<u8>,
-        }
+        use lookup_username_link_response::Response;
 
         let (uuid, entropy) = parse_username_link(link)?;
 
-        let response = self
-            .http_request(
-                Method::GET,
-                format!("/v1/accounts/username_link/{uuid}"),
-            )?
-            .send()
-            .await?;
-
-        if response.status() == 404 {
-            tracing::debug!("username link not found");
-            return Ok(None);
-        }
-
-        let result: UsernameLinkResponse =
-            response.service_error_for_status().await?.json().await?;
+        let response =
+            AccountsAnonymousClient::new(self.grpc.unauthenticated())
+                .lookup_username_link(LookupUsernameLinkRequest {
+                    username_link_handle: uuid.into_bytes().to_vec(),
+                })
+                .await?
+                .into_inner();
+        let encrypted_username = match response.response {
+            Some(Response::UsernameCiphertext(ciphertext)) => ciphertext,
+            Some(Response::NotFound(_)) => {
+                tracing::debug!("username link not found");
+                return Ok(None);
+            },
+            None => {
+                return Err(ServiceError::InvalidFrame {
+                    reason: "empty LookupUsernameLink response",
+                })
+            },
+        };
 
         let plaintext_username =
-            usernames::decrypt_username(&entropy, &result.encrypted_username)
+            usernames::decrypt_username(&entropy, &encrypted_username)
                 .map_err(|error| {
-                tracing::error!(%error, "undecryptable username");
-                ServiceError::InvalidFrame {
-                    reason: "undecryptable username link",
-                }
-            })?;
+                    tracing::error!(%error, "undecryptable username");
+                    ServiceError::InvalidFrame {
+                        reason: "undecryptable username link",
+                    }
+                })?;
 
         let validated_username = usernames::Username::new(&plaintext_username).map_err(|e| {
             // Exhaustively match UsernameError to make sure there's nothing we shouldn't log.
@@ -209,20 +192,6 @@ impl SignalWebSocket<Identified> {
         username: &usernames::Username,
         keep_link_handle: bool,
     ) -> Result<url::Url, ServiceError> {
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct SetUsernameLinkRequest {
-            #[serde(with = "serde_base64_url_safe_no_pad")]
-            username_link_encrypted_value: Vec<u8>,
-            keep_link_handle: bool,
-        }
-
-        #[derive(serde::Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        struct UsernameLinkHandleResponse {
-            username_link_handle: uuid::Uuid,
-        }
-
         let (entropy, ciphertext) = usernames::create_for_username(
             &mut rand::rng(),
             username.to_string(),
@@ -232,22 +201,33 @@ impl SignalWebSocket<Identified> {
             reason: "username too long to encrypt",
         })?;
 
-        let response = self
-            .http_request(Method::PUT, "/v1/accounts/username_link")?
-            .send_json(SetUsernameLinkRequest {
-                username_link_encrypted_value: ciphertext,
+        use set_username_link_response::Response;
+        let response = AccountsClient::new(self.grpc.authenticated()?)
+            .set_username_link(SetUsernameLinkRequest {
+                username_ciphertext: ciphertext,
                 keep_link_handle,
             })
             .await?
-            .service_error_for_status_with(put_username_link_errors)
-            .await?;
+            .into_inner();
+        let handle = match response.response {
+            Some(Response::UsernameLinkHandle(handle)) => {
+                uuid::Uuid::from_slice(&handle).map_err(|_| {
+                    ServiceError::InvalidFrame {
+                        reason: "invalid username link handle",
+                    }
+                })?
+            },
+            Some(Response::NoUsernameSet(_)) => {
+                return Err(ServiceError::UsernameHashNotSet)
+            },
+            None => {
+                return Err(ServiceError::InvalidFrame {
+                    reason: "empty SetUsernameLink response",
+                })
+            },
+        };
 
-        let result: UsernameLinkHandleResponse = response.json().await?;
-
-        Ok(generate_username_link(
-            result.username_link_handle,
-            &entropy,
-        ))
+        Ok(generate_username_link(handle, &entropy))
     }
 }
 

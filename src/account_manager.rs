@@ -37,7 +37,7 @@ use crate::push_service::{
     AvatarWrite, HttpAuthOverride, PushService, ServiceError,
 };
 use crate::service_address::ServiceIdExt;
-use crate::utils::{serde_base64, BASE64_RELAXED};
+use crate::utils::BASE64_RELAXED;
 use crate::websocket::account::{
     AccountAttributes, DeviceCapabilities, DeviceInfo,
 };
@@ -670,28 +670,8 @@ impl AccountManager {
         let encrypted_device_name =
             encrypt_device_name(csprng, device_name, &public_key)?;
 
-        #[derive(Serialize)]
-        #[serde(rename_all = "camelCase")]
-        struct Data {
-            #[serde(with = "serde_base64")]
-            device_name: Vec<u8>,
-        }
-
-        self.service
-            .request(
-                Method::PUT,
-                Endpoint::service(format!(
-                    "/v1/accounts/name?deviceId={}",
-                    device_id
-                )),
-                HttpAuthOverride::NoOverride,
-            )?
-            .json(&Data {
-                device_name: encrypted_device_name.encode_to_vec(),
-            })
-            .send()
-            .await?
-            .service_error_for_status()
+        self.websocket
+            .set_device_name(device_id, &encrypted_device_name)
             .await?;
 
         Ok(())
@@ -775,34 +755,24 @@ pub fn encrypt_device_name<R: rand::Rng + rand::CryptoRng>(
 }
 
 fn decrypt_device_name_from_device_info(
-    string: &str,
+    data: &[u8],
     aci: &IdentityKeyPair,
 ) -> Result<String, ServiceError> {
-    let Ok(data) = BASE64_RELAXED.decode(string) else {
-        tracing::trace!(
-            "Device name not base64 encoded, assuming plaintext: {}",
-            string.to_string()
-        );
-        return Ok(string.to_string());
-    };
-    let name = match DeviceName::decode(data.as_slice()) {
-        Ok(decoded) => decoded,
+    match DeviceName::decode(data) {
+        Ok(name) => crate::decrypt_device_name(aci.private_key(), &name),
         Err(_) => {
-            tracing::trace!(
-                "Decoding device name failed, assuming plaintext: {}",
-                string.to_string()
-            );
-            return Ok(string.to_string());
+            let name = String::from_utf8_lossy(data).into_owned();
+            tracing::trace!(name, "device name is not encrypted");
+            Ok(name)
         },
-    };
-    crate::decrypt_device_name(aci.private_key(), &name)
+    }
 }
 
 // Analogous to https://github.com/signalapp/Signal-Android/blob/d88a862e0985cc2bbc463c5f504f5bb4e91ad4fc/app/src/main/java/org/thoughtcrime/securesms/linkdevice/LinkDeviceRepository.kt#L121.
 fn decrypt_device_created_at_from_device_info(
     id: DeviceId,
     registration_id: i32,
-    string: &str,
+    data: &[u8],
     aci: &IdentityKeyPair,
 ) -> Result<chrono::DateTime<chrono::Utc>, ServiceError> {
     use signal_crypto::SimpleHpkeReceiver;
@@ -811,11 +781,9 @@ fn decrypt_device_created_at_from_device_info(
     associated_data[0] = id.into();
     associated_data[1..].copy_from_slice(&registration_id.to_be_bytes());
 
-    let data = BASE64_RELAXED.decode(string)?;
-
     let result =
         aci.private_key()
-            .open(b"deviceCreatedAt", &associated_data, &data)?;
+            .open(b"deviceCreatedAt", &associated_data, data)?;
 
     let timestamp = i64::from_be_bytes(result.try_into().map_err(|_| {
         ServiceError::DecryptDeviceInfoFieldError("created-at")

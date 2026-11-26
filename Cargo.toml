@@ -10,14 +10,15 @@ license = "AGPL-3.0-only"
 readme = "README.md"
 
 [dependencies]
-libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2" }
-libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2" }
-libsignal-account-keys = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2" }
-libsignal-net = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2", optional = true }
-libsignal-net-infra = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2", optional = true }
-signal-crypto = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2" }
-zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2" }
-usernames = { git = "https://github.com/signalapp/libsignal", tag = "v0.106.2" }
+libsignal-protocol = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2" }
+libsignal-core = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2" }
+libsignal-account-keys = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2" }
+libsignal-net = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2", optional = true }
+libsignal-net-infra = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2", optional = true }
+libsignal-net-grpc = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2" }
+signal-crypto = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2" }
+zkgroup = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2" }
+usernames = { git = "https://github.com/signalapp/libsignal", tag = "v0.108.2" }
 
 aes = "0.9"
 aes-gcm = "0.11"
@@ -55,6 +56,10 @@ reqwest = { version = "0.13", default-features = false, features = [
 ] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 reqwest-websocket = { version = "0.6.0", features = ["json"] }
+tonic = { version = "0.14", default-features = false, features = [
+  "transport",
+  "tls-ring",
+] }
 
 tracing = { version = "0.1", features = ["log"] }
 tracing-futures = "0.2"

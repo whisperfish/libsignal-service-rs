@@ -1,6 +1,20 @@
+use libsignal_core::{DeviceId, ServiceId};
+use libsignal_net_grpc::proto::chat::messages::{
+    challenge_required::ChallengeType,
+    individual_recipient_message_bundle::Message,
+    messages_anonymous_client::MessagesAnonymousClient,
+    messages_client::MessagesClient,
+    send_message_authenticated_sender_response, send_message_response,
+    send_sealed_sender_message_request, ChallengeRequired,
+    IndividualRecipientMessageBundle, MismatchedDevices,
+    SendAuthenticatedSenderMessageRequest, SendMessageType,
+    SendSealedSenderMessageRequest, SendSyncMessageRequest,
+};
+
 use crate::{
-    push_service::response::error_mapper,
-    sender::{OutgoingPushMessages, SendMessageResponse},
+    proto::envelope,
+    push_service::{self, ProofRequired},
+    sender::{OutgoingPushMessage, OutgoingPushMessages, SendMessageResponse},
     unidentified_access::UnidentifiedAccess,
     utils::BASE64_RELAXED,
 };
@@ -8,49 +22,38 @@ use crate::{
 use super::*;
 use base64::Engine;
 
-// Signal-Server: controllers/MessageController.java:198
-// (PUT /v1/messages/{destination})
-error_mapper! {
-    put_messages_errors:
-        // 409: mismatched devices, MessageController.java:426
-        CONFLICT => MismatchedDevicesException(crate::push_service::MismatchedDevices),
-        // 410: stale devices, MessageController.java:421
-        GONE => StaleDevices(crate::push_service::StaleDevices),
-        // 413: message too large, MessageController.java:433
-        PAYLOAD_TOO_LARGE => MessageTooLarge,
-        // 404: unregistered recipient, MessageController.java:316
-        NOT_FOUND => UnregisteredRecipient,
-        // 428: proof required, MessageController.java:365
-        PRECONDITION_REQUIRED => ProofRequiredError(crate::push_service::ProofRequired),
-}
-
-// Signal-Server: controllers/MessageController.java:466
-// (PUT /v1/messages/multi_recipient)
-error_mapper! {
-    #[allow(dead_code)]
-    put_multi_recipient_messages_errors:
-        // 409: mismatched devices, MessageController.java:670
-        CONFLICT => MultiRecipientMismatchedDevices(Vec<crate::push_service::AccountMismatchedDevices>),
-        // 410: stale devices, MessageController.java:685
-        GONE => MultiRecipientStaleDevices(Vec<crate::push_service::AccountStaleDevices>),
-        // 413: message too large, MessageController.java:660
-        PAYLOAD_TOO_LARGE => MessageTooLarge,
-        // 428: proof required, MessageController.java:638
-        PRECONDITION_REQUIRED => ProofRequiredError(crate::push_service::ProofRequired),
-}
-
 impl<C: WebSocketType> SignalWebSocket<C> {
     pub async fn send_messages(
         &mut self,
         messages: OutgoingPushMessages,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let request = WebSocketRequestMessage::new(Method::PUT)
-            .path(format!(
-                "/v1/messages/{}",
-                messages.destination.service_id_string()
-            ))
-            .json(&messages)?;
-        self.request_json_with(request, put_messages_errors).await
+        let (destination, ephemeral, messages) = messages.into_parts()?;
+        let response = MessagesClient::new(self.grpc.authenticated()?)
+            .send_message(SendAuthenticatedSenderMessageRequest {
+                destination: Some(destination.into()),
+                ephemeral,
+                urgent: true,
+                messages: Some(messages),
+            })
+            .await?
+            .into_inner();
+        authenticated_sender_response(response.response)
+    }
+
+    /// Sends a message to the other devices linked to our own account.
+    pub async fn send_sync_messages(
+        &mut self,
+        messages: OutgoingPushMessages,
+    ) -> Result<SendMessageResponse, ServiceError> {
+        let (_destination, _ephemeral, messages) = messages.into_parts()?;
+        let response = MessagesClient::new(self.grpc.authenticated()?)
+            .send_sync_message(SendSyncMessageRequest {
+                urgent: true,
+                messages: Some(messages),
+            })
+            .await?
+            .into_inner();
+        authenticated_sender_response(response.response)
     }
 
     pub async fn send_messages_unidentified(
@@ -58,16 +61,169 @@ impl<C: WebSocketType> SignalWebSocket<C> {
         messages: OutgoingPushMessages,
         access: &UnidentifiedAccess,
     ) -> Result<SendMessageResponse, ServiceError> {
-        let request = WebSocketRequestMessage::new(Method::PUT)
-            .path(format!(
-                "/v1/messages/{}",
-                messages.destination.service_id_string()
+        use send_message_response::Response;
+
+        let (destination, ephemeral, messages) = messages.into_parts()?;
+        let response =
+            MessagesAnonymousClient::new(self.grpc.unauthenticated())
+                .send_single_recipient_message(
+                    SendSealedSenderMessageRequest {
+                        destination: Some(destination.into()),
+                        ephemeral,
+                        urgent: true,
+                        messages: Some(messages),
+                        authorization: Some(
+                            send_sealed_sender_message_request::Authorization::UnidentifiedAccessKey(
+                                access.key.clone(),
+                            ),
+                        ),
+                    },
+                )
+                .await?
+                .into_inner();
+        match response.response {
+            Some(Response::Success(())) => {
+                Ok(SendMessageResponse { needs_sync: false })
+            },
+            Some(Response::MismatchedDevices(m)) => {
+                Err(ServiceError::mismatched_devices(m)?)
+            },
+            Some(Response::FailedUnidentifiedAuthorization(_)) => {
+                Err(ServiceError::Unauthorized)
+            },
+            Some(Response::DestinationNotFound(_)) => {
+                Err(ServiceError::UnregisteredRecipient)
+            },
+            None => Err(ServiceError::empty_send_response()),
+        }
+    }
+}
+
+fn authenticated_sender_response(
+    response: Option<send_message_authenticated_sender_response::Response>,
+) -> Result<SendMessageResponse, ServiceError> {
+    use send_message_authenticated_sender_response::Response;
+    match response {
+        Some(Response::Success(())) => {
+            Ok(SendMessageResponse { needs_sync: false })
+        },
+        Some(Response::MismatchedDevices(m)) => {
+            Err(ServiceError::mismatched_devices(m)?)
+        },
+        Some(Response::ChallengeRequired(c)) => Err(
+            ServiceError::ProofRequiredError(ProofRequired::from_challenge(c)),
+        ),
+        Some(Response::DestinationNotFound(_)) => {
+            Err(ServiceError::UnregisteredRecipient)
+        },
+        None => Err(ServiceError::empty_send_response()),
+    }
+}
+
+impl ServiceError {
+    fn empty_send_response() -> Self {
+        ServiceError::InvalidFrame {
+            reason: "empty send message response",
+        }
+    }
+
+    // Stale devices come bundled with missing/extra ones; the sender's retry picks them up next round.
+    fn mismatched_devices(m: MismatchedDevices) -> Result<Self, Self> {
+        let device_ids = |ids: Vec<u32>| {
+            ids.into_iter()
+                .map(DeviceId::try_from)
+                .collect::<Result<Vec<_>, _>>()
+        };
+        if m.missing_devices.is_empty() && m.extra_devices.is_empty() {
+            Ok(ServiceError::StaleDevices(push_service::StaleDevices {
+                stale_devices: device_ids(m.stale_devices)?,
+            }))
+        } else {
+            Ok(ServiceError::MismatchedDevicesException(
+                push_service::MismatchedDevices {
+                    missing_devices: device_ids(m.missing_devices)?,
+                    extra_devices: device_ids(m.extra_devices)?,
+                },
             ))
-            .header(
-                "Unidentified-Access-Key",
-                BASE64_RELAXED.encode(&access.key),
-            )
-            .json(&messages)?;
-        self.request_json_with(request, put_messages_errors).await
+        }
+    }
+}
+
+impl ProofRequired {
+    fn from_challenge(c: ChallengeRequired) -> Self {
+        let options = c
+            .challenge_options()
+            .filter_map(|o| match o {
+                ChallengeType::Captcha => Some("captcha".to_owned()),
+                ChallengeType::PushChallenge => {
+                    Some("pushChallenge".to_owned())
+                },
+                ChallengeType::Unspecified => None,
+            })
+            .collect();
+        Self {
+            token: c.token,
+            options,
+        }
+    }
+}
+
+impl OutgoingPushMessages {
+    fn into_parts(
+        self,
+    ) -> Result<(ServiceId, bool, IndividualRecipientMessageBundle), ServiceError>
+    {
+        let OutgoingPushMessages {
+            destination,
+            timestamp,
+            messages,
+            online,
+        } = self;
+        let messages = messages
+            .into_iter()
+            .map(|message| {
+                let OutgoingPushMessage {
+                    r#type,
+                    destination_device_id,
+                    destination_registration_id,
+                    content,
+                } = message;
+                let r#type = match envelope::Type::try_from(r#type as i32) {
+                    Ok(envelope::Type::DoubleRatchet) => {
+                        SendMessageType::DoubleRatchet
+                    },
+                    Ok(envelope::Type::PrekeyMessage) => {
+                        SendMessageType::PrekeyMessage
+                    },
+                    Ok(envelope::Type::UnidentifiedSender) => {
+                        SendMessageType::UnidentifiedSender
+                    },
+                    Ok(envelope::Type::PlaintextContent) => {
+                        SendMessageType::PlaintextContent
+                    },
+                    _ => {
+                        return Err(ServiceError::InvalidFrame {
+                            reason: "unsupported outgoing message type",
+                        })
+                    },
+                };
+                Ok((
+                    u8::from(destination_device_id).into(),
+                    Message {
+                        registration_id: destination_registration_id,
+                        payload: BASE64_RELAXED.decode(content)?,
+                        r#type: r#type.into(),
+                    },
+                ))
+            })
+            .collect::<Result<_, _>>()?;
+        Ok((
+            destination,
+            online,
+            IndividualRecipientMessageBundle {
+                timestamp,
+                messages,
+            },
+        ))
     }
 }
